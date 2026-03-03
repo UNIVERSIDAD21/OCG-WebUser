@@ -14,27 +14,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: RouteNames.login,
     redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull != null;
       final isLoading = authState.isLoading;
       if (isLoading) return null;
 
+      final isLoggedIn = authState.asData?.value != null;
+
       if (!isLoggedIn) {
-        if (state.matchedLocation == RouteNames.login || state.matchedLocation == RouteNames.forgotPassword) {
+        if (state.matchedLocation == RouteNames.login ||
+            state.matchedLocation == RouteNames.forgotPassword) {
           return null;
         }
         return RouteNames.login;
       }
 
-      if (state.matchedLocation == RouteNames.login || state.matchedLocation == RouteNames.splash) {
+      if (state.matchedLocation == RouteNames.login ||
+          state.matchedLocation == RouteNames.splash) {
         return RouteNames.patientHome;
       }
       return null;
     },
     routes: [
       GoRoute(path: RouteNames.login, builder: (_, __) => const LoginScreen()),
-      GoRoute(path: RouteNames.forgotPassword, builder: (_, __) => const ForgotPasswordScreen()),
-      GoRoute(path: RouteNames.adminDashboard, builder: (_, __) => const AdminDashboardScreen()),
-      GoRoute(path: RouteNames.patientHome, builder: (_, __) => const PatientHomeScreen()),
+      GoRoute(
+          path: RouteNames.forgotPassword,
+          builder: (_, __) => const ForgotPasswordScreen()),
+      GoRoute(
+          path: RouteNames.adminDashboard,
+          builder: (_, __) => const AdminDashboardScreen()),
+      GoRoute(
+          path: RouteNames.patientHome,
+          builder: (_, __) => const PatientHomeScreen()),
     ],
   );
 });
