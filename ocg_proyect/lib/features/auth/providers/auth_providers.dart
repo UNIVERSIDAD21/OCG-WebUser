@@ -34,7 +34,11 @@ class AuthNotifier extends AsyncNotifier<void> {
       final uid = credential.user?.uid;
 
       if (uid != null && role != null && token != null && token.isNotEmpty) {
-        await authService.updateFcmToken(uid, role, token);
+        try {
+          await authService.updateFcmToken(uid, role, token);
+        } catch (_) {
+          // No bloquear login por fallo de escritura de token FCM.
+        }
       }
       ref.invalidate(userRoleProvider);
     });
