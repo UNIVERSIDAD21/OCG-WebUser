@@ -14,16 +14,16 @@ class OcgChip extends StatelessWidget {
     Color fg;
 
     if (lower.contains('completado')) {
-      bg = OcgColors.success.withOpacity(0.14);
+      bg = OcgColors.success.withValues(alpha:0.14);
       fg = OcgColors.success;
     } else if (lower.contains('activo') || lower.contains('curso')) {
-      bg = OcgColors.bronze.withOpacity(0.18);
+      bg = OcgColors.bronze.withValues(alpha:0.18);
       fg = OcgColors.espresso;
     } else if (lower.contains('pendiente')) {
-      bg = OcgColors.warning.withOpacity(0.18);
+      bg = OcgColors.warning.withValues(alpha:0.18);
       fg = OcgColors.warning;
     } else {
-      bg = OcgColors.error.withOpacity(0.16);
+      bg = OcgColors.error.withValues(alpha:0.16);
       fg = OcgColors.error;
     }
 

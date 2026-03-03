@@ -4,6 +4,10 @@ class RouteNames {
   static const String splash = '/';
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
+
   static const String adminDashboard = '/admin/dashboard';
+  static const String adminPatients = '/admin/patients';
+
   static const String patientHome = '/patient/home';
+  static const String patientAppointments = '/patient/appointments';
 }

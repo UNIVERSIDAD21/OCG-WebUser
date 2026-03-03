@@ -35,14 +35,14 @@ class _OcgLoadingScreenState extends State<OcgLoadingScreen> with SingleTickerPr
             const SizedBox(height: 14),
             AnimatedBuilder(
               animation: _controller,
-              builder: (_, __) => Container(
+              builder: (context, child) => Container(
                 width: 140,
                 height: 6,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(99),
                   gradient: LinearGradient(colors: [
                     OcgColors.sand,
-                    OcgColors.bronze.withOpacity(0.35 + (_controller.value * 0.6)),
+                    OcgColors.bronze.withValues(alpha:0.35 + (_controller.value * 0.6)),
                     OcgColors.sand,
                   ]),
                 ),

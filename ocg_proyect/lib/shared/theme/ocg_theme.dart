@@ -43,7 +43,7 @@ class OcgTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: OcgColors.espresso.withOpacity(0.3)),
+          side: BorderSide(color: OcgColors.espresso.withValues(alpha:0.3)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
         ),
       ),
@@ -52,11 +52,11 @@ class OcgTheme {
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: OcgColors.espresso.withOpacity(0.25)),
+          borderSide: BorderSide(color: OcgColors.espresso.withValues(alpha:0.25)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: OcgColors.espresso.withOpacity(0.25)),
+          borderSide: BorderSide(color: OcgColors.espresso.withValues(alpha:0.25)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
