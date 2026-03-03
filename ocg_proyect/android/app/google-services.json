@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "196011124818",
+    "project_id": "ocg-humanbionics",
+    "storage_bucket": "ocg-humanbionics.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196011124818:android:808f8902b4d5c87bd7d78b",
+        "android_client_info": {
+          "package_name": "com.example.ocg_proyect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOLCvlzf2gml6yBxwDQyoCzFOoEEBKAMg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
