@@ -43,7 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         } else if (e.code == 'network-request-failed') {
           _error = 'Sin conexión a internet. Verifica tu red.';
         } else {
-          _error = e.message ?? 'No se pudo iniciar sesión.';
+          _error = '[${e.code}] ${e.message ?? 'No se pudo iniciar sesión.'}';
         }
       });
     } catch (_) {
@@ -84,6 +84,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Cuenta creada. Ya puedes iniciar sesión.')),
+                  );
+                }
+              } on FirebaseAuthException catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No se pudo crear la cuenta [${e.code}]: ${e.message}')),
                   );
                 }
               } catch (e) {
