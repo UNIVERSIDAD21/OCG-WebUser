@@ -64,7 +64,7 @@ app.*.map.json
 **/android/app/.gradle
 
 # Firebase config file (archivo con las claves)
-firebase_options.dart
+/firebase_options.dart
 
 # Logs
 *.log
