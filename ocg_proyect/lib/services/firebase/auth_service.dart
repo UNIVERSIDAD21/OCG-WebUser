@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../shared/constants/firestore_paths.dart';
+
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? db})
       : _auth = auth ?? FirebaseAuth.instance,
@@ -14,8 +16,24 @@ class AuthService {
   Future<String?> getUserRole() async {
     final user = _auth.currentUser;
     if (user == null) return null;
+
     final token = await user.getIdTokenResult(true);
-    return token.claims?['role'] as String?;
+    final roleFromClaims = token.claims?['role'] as String?;
+    if (roleFromClaims != null && roleFromClaims.isNotEmpty) return roleFromClaims;
+
+    final adminDoc =
+        await _db.collection(FirestorePaths.admins).doc(user.uid).get();
+    if (adminDoc.exists) {
+      return (adminDoc.data()?['role'] as String?) ?? 'admin';
+    }
+
+    final patientDoc =
+        await _db.collection(FirestorePaths.patients).doc(user.uid).get();
+    if (patientDoc.exists) {
+      return (patientDoc.data()?['role'] as String?) ?? 'patient';
+    }
+
+    return null;
   }
 
   Future<UserCredential> signIn(String email, String password) {
@@ -31,9 +49,23 @@ class AuthService {
       email: email.trim(),
       password: password,
     );
+    final user = credential.user;
 
     if (displayName != null && displayName.trim().isNotEmpty) {
-      await credential.user?.updateDisplayName(displayName.trim());
+      await user?.updateDisplayName(displayName.trim());
+    }
+
+    if (user != null) {
+      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': displayName?.trim().isEmpty ?? true
+            ? null
+            : displayName?.trim(),
+        'role': 'patient',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     return credential;
