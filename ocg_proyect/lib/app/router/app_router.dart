@@ -30,8 +30,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final role = userRole.asData?.value;
 
-      if (state.matchedLocation == RouteNames.login) {
-        return role == 'admin' ? RouteNames.adminDashboard : RouteNames.patientHome;
+      if (role != 'admin' && role != 'patient') {
+        return RouteNames.login;
+      }
+
+      if (state.matchedLocation == RouteNames.login ||
+          state.matchedLocation == RouteNames.forgotPassword) {
+        return role == 'admin'
+            ? RouteNames.adminDashboard
+            : RouteNames.patientHome;
       }
 
       if (role == 'admin' && state.matchedLocation.startsWith('/patient')) {
@@ -45,12 +52,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: RouteNames.login, builder: (context, state) => const LoginScreen()),
-      GoRoute(path: RouteNames.forgotPassword, builder: (context, state) => const ForgotPasswordScreen()),
-      GoRoute(path: RouteNames.adminDashboard, builder: (context, state) => const AdminDashboardScreen()),
-      GoRoute(path: RouteNames.adminPatients, builder: (context, state) => const AdminPatientsScreen()),
-      GoRoute(path: RouteNames.patientHome, builder: (context, state) => const PatientHomeScreen()),
-      GoRoute(path: RouteNames.patientAppointments, builder: (context, state) => const PatientAppointmentsScreen()),
+      GoRoute(
+        path: RouteNames.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminDashboard,
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminPatients,
+        builder: (context, state) => const AdminPatientsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.patientHome,
+        builder: (context, state) => const PatientHomeScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.patientAppointments,
+        builder: (context, state) => const PatientAppointmentsScreen(),
+      ),
     ],
   );
 });

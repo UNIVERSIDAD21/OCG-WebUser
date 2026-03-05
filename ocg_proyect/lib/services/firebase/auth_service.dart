@@ -19,25 +19,19 @@ class AuthService {
 
     final token = await user.getIdTokenResult(true);
     final roleFromClaims = token.claims?['role'] as String?;
-    if (roleFromClaims != null && roleFromClaims.isNotEmpty) return roleFromClaims;
 
-    final adminDoc =
-        await _db.collection(FirestorePaths.admins).doc(user.uid).get();
-    if (adminDoc.exists) {
-      return (adminDoc.data()?['role'] as String?) ?? 'admin';
-    }
-
-    final patientDoc =
-        await _db.collection(FirestorePaths.patients).doc(user.uid).get();
-    if (patientDoc.exists) {
-      return (patientDoc.data()?['role'] as String?) ?? 'patient';
+    if (roleFromClaims == 'admin' || roleFromClaims == 'patient') {
+      return roleFromClaims;
     }
 
     return null;
   }
 
   Future<UserCredential> signIn(String email, String password) {
-    return _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+    return _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
   }
 
   Future<UserCredential> registerPatient({
