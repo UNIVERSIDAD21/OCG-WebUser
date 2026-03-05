@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 
 import {onAuthUserCreate} from './auth/on_auth_user_create';
+import {setAdminRole} from './auth/set_admin_role';
 import {loadSuperadminConfig} from './config/superadmins';
 
 if (!admin.apps.length) {
@@ -11,4 +12,4 @@ if (!admin.apps.length) {
 // para garantizar política fail-closed desde el arranque.
 loadSuperadminConfig();
 
-export {onAuthUserCreate};
+export {onAuthUserCreate, setAdminRole};
