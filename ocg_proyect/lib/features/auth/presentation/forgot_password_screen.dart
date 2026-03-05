@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,10 +10,12 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
 
   @override
@@ -22,16 +25,34 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _submit() async {
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
+
     try {
-      await ref.read(authNotifierProvider.notifier).resetPassword(_emailCtrl.text.trim());
+      await ref
+          .read(authNotifierProvider.notifier)
+          .resetPassword(_emailCtrl.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enlace de recuperación enviado.')),
       );
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      var message = 'No se pudo enviar el enlace de recuperación.';
+
+      if (e.code == 'invalid-email') {
+        message = 'Ingresa un correo válido.';
+      } else if (e.code == 'user-not-found') {
+        message = 'No existe una cuenta con ese correo.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Sin conexión a internet. Verifica tu red.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo enviar el enlace: $e')),
+        const SnackBar(content: Text('No se pudo enviar el enlace de recuperación.')),
       );
     }
   }
@@ -48,28 +69,43 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              children: [
-                const Text(
-                  'Ingresa tu correo para enviarte un enlace de recuperación.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo',
-                    prefixIcon: Icon(Icons.mail_outline),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const Text(
+                    'Ingresa tu correo para enviarte un enlace de recuperación.',
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 16),
-                OcgButton(
-                  label: 'Enviar enlace de recuperación',
-                  onPressed: loading ? null : _submit,
-                  isLoading: loading,
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) {
+                      if (!loading) {
+                        _submit();
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Correo',
+                      prefixIcon: Icon(Icons.mail_outline),
+                    ),
+                    validator: (value) {
+                      final v = value?.trim() ?? '';
+                      if (v.isEmpty) return 'Ingresa tu correo';
+                      if (!v.contains('@')) return 'Ingresa un correo válido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  OcgButton(
+                    label: 'Enviar enlace de recuperación',
+                    onPressed: loading ? null : _submit,
+                    isLoading: loading,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
