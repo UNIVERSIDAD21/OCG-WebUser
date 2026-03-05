@@ -52,9 +52,13 @@ class AuthNotifier extends AsyncNotifier<void> {
       final uid = credential.user?.uid;
       if (uid != null) {
         unawaited(() async {
-          final role = await authService.getUserRole();
-          if (role == 'admin' || role == 'patient') {
-            await _updateFcmTokenAfterLogin(uid: uid, role: role!);
+          try {
+            final role = await authService.getUserRole();
+            if (role == 'admin' || role == 'patient') {
+              await _updateFcmTokenAfterLogin(uid: uid, role: role!);
+            }
+          } catch (_) {
+            // Evitar errores no capturados en background durante login web.
           }
         }());
       }
