@@ -4,6 +4,11 @@
 
 **BACKEND_ROLES (Cloud Functions)**
 
+## Estado
+
+**Implementación: COMPLETADA**
+**Deploy en Firebase: PENDIENTE por autenticación CLI en VM (`firebase login`)**
+
 ## Objetivo
 
 Implementar backend seguro para roles y token FCM, alineado con `docs/specs/02_BASE_DE_DATOS.md` y `docs/specs/03_AUTENTICACION_Y_ROLES.md`.
@@ -47,7 +52,22 @@ Implementar backend seguro para roles y token FCM, alineado con `docs/specs/02_B
 
 ## Criterios de aceptación
 
-- Funciones desplegables sin errores de tipo/build.
-- Claims funcionando (`patient` por defecto y promoción `admin` controlada).
-- `setFcmToken` escribe en colección correcta por rol.
-- Rules/indexes versionados y alineados al doc 02.
+- [x] Funciones desplegables sin errores de tipo/build.
+- [x] Claims funcionando (`patient` por defecto y promoción `admin` controlada).
+- [x] `setFcmToken` escribe en colección correcta por rol.
+- [x] Rules/indexes versionados y alineados al doc 02.
+
+## Cierre operativo del bloque
+
+### Implementado
+- `onAuthUserCreate` (1st gen) con claim `patient` y creación segura de `patients/{uid}`.
+- `setAdminRole` callable segura (allowlist superadmin, fail-closed, sin auto-promoción, idempotente).
+- `setFcmToken` callable segura (auth + role claim + validación de token).
+- `firestore.rules` y `firestore.indexes.json` (7 índices) versionados.
+- `functions/README.md` con prechecks, deploy, verificación y pruebas manuales.
+
+### Pendiente para cierre total
+- Ejecutar deploy real en Firebase del proyecto `ocg-humanbionics`:
+  1. `firebase login` (o token de CI)
+  2. `firebase deploy --only functions,firestore:rules,firestore:indexes --project ocg-humanbionics`
+  3. Verificación en entorno real de claims/callables.
