@@ -43,7 +43,7 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   Future<void> signIn(String email, String password) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
 
@@ -62,7 +62,12 @@ class AuthNotifier extends AsyncNotifier<void> {
           }
         }());
       }
-    });
+
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> registerPatient({
