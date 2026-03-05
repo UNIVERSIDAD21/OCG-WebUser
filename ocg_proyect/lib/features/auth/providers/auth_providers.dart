@@ -51,11 +51,26 @@ class AuthNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authServiceProvider).registerPatient(
-            email: email,
-            password: password,
-            displayName: displayName,
-          );
+      final authService = ref.read(authServiceProvider);
+      final credential = await authService.registerPatient(
+        email: email,
+        password: password,
+        displayName: displayName,
+      );
+
+      final token = await ref.read(fcmServiceProvider).getToken();
+      final uid = credential.user?.uid;
+
+      if (uid != null && token != null && token.isNotEmpty) {
+        try {
+          await authService.updateFcmToken(uid, 'patient', token);
+        } catch (_) {
+          // No bloquear registro por fallo de escritura de token FCM.
+        }
+      }
+
+      ref.invalidate(authStateProvider);
+      ref.invalidate(userRoleProvider);
     });
   }
 

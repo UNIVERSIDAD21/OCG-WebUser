@@ -55,60 +55,124 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var isSubmitting = false;
 
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Crear cuenta de paciente'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre')),
-            const SizedBox(height: 8),
-            TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Correo')),
-            const SizedBox(height: 8),
-            TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Contraseña')),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Crear cuenta de paciente'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Nombre completo'),
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.length < 3) return 'Ingresa un nombre válido';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Correo electrónico'),
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty || !v.contains('@')) return 'Ingresa un correo válido';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Contraseña'),
+                  validator: (value) {
+                    final v = value ?? '';
+                    if (v.length < 6) return 'Mínimo 6 caracteres';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
+                  validator: (value) {
+                    if ((value ?? '') != passCtrl.text) return 'Las contraseñas no coinciden';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+
+                      setDialogState(() => isSubmitting = true);
+                      try {
+                        await ref.read(authNotifierProvider.notifier).registerPatient(
+                              email: emailCtrl.text.trim(),
+                              password: passCtrl.text,
+                              displayName: nameCtrl.text.trim(),
+                            );
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(content: Text('Cuenta creada. Iniciaste sesión automáticamente.')),
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(content: Text('No se pudo crear la cuenta [${e.code}]: ${e.message}')),
+                          );
+                        }
+                      } catch (e) {
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(content: Text('No se pudo crear la cuenta: $e')),
+                          );
+                        }
+                      } finally {
+                        if (dialogContext.mounted) {
+                          setDialogState(() => isSubmitting = false);
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Crear cuenta'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await ref.read(authNotifierProvider.notifier).registerPatient(
-                      email: emailCtrl.text.trim(),
-                      password: passCtrl.text,
-                      displayName: nameCtrl.text.trim(),
-                    );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cuenta creada. Ya puedes iniciar sesión.')),
-                  );
-                }
-              } on FirebaseAuthException catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo crear la cuenta [${e.code}]: ${e.message}')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo crear la cuenta: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Crear cuenta'),
-          ),
-        ],
       ),
     );
 
     nameCtrl.dispose();
     emailCtrl.dispose();
     passCtrl.dispose();
+    confirmCtrl.dispose();
   }
 
   @override
