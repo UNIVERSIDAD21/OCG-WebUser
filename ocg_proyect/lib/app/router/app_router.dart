@@ -10,6 +10,13 @@ import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
 import 'route_names.dart';
 
+bool _isPublicRoute(String location) {
+  return location == RouteNames.login || location == RouteNames.forgotPassword;
+}
+
+bool _isAdminRoute(String location) => location.startsWith('/admin');
+bool _isPatientRoute(String location) => location.startsWith('/patient');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
   final userRole = ref.watch(userRoleProvider);
@@ -17,15 +24,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: RouteNames.login,
     redirect: (context, state) {
+      final location = state.matchedLocation;
       final isLoggedIn = authState.asData?.value != null;
-      final isLoading = authState.isLoading || userRole.isLoading;
 
-      if (isLoading) return null;
+      if (authState.isLoading) return null;
 
       if (!isLoggedIn) {
-        const allowed = [RouteNames.login, RouteNames.forgotPassword];
-        if (!allowed.contains(state.matchedLocation)) return RouteNames.login;
-        return null;
+        return _isPublicRoute(location) ? null : RouteNames.login;
+      }
+
+      // Anti-race authState vs role: no navegar a zonas protegidas hasta resolver el rol.
+      if (userRole.isLoading) {
+        return _isPublicRoute(location) ? null : RouteNames.login;
       }
 
       final role = userRole.asData?.value;
@@ -34,18 +44,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return RouteNames.login;
       }
 
-      if (state.matchedLocation == RouteNames.login ||
-          state.matchedLocation == RouteNames.forgotPassword) {
+      if (_isPublicRoute(location)) {
         return role == 'admin'
             ? RouteNames.adminDashboard
             : RouteNames.patientHome;
       }
 
-      if (role == 'admin' && state.matchedLocation.startsWith('/patient')) {
+      if (role == 'admin' && _isPatientRoute(location)) {
         return RouteNames.adminDashboard;
       }
 
-      if (role == 'patient' && state.matchedLocation.startsWith('/admin')) {
+      if (role == 'patient' && _isAdminRoute(location)) {
         return RouteNames.patientHome;
       }
 
