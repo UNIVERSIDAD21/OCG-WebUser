@@ -47,14 +47,17 @@ class AuthNotifier extends AsyncNotifier<void> {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
 
-      final uid = credential.user?.uid;
-      final role = await authService.getUserRole();
-
-      if (uid != null && role != null) {
-        unawaited(_updateFcmTokenAfterLogin(uid: uid, role: role));
-      }
-
       ref.invalidate(userRoleProvider);
+
+      final uid = credential.user?.uid;
+      if (uid != null) {
+        unawaited(() async {
+          final role = await authService.getUserRole();
+          if (role == 'admin' || role == 'patient') {
+            await _updateFcmTokenAfterLogin(uid: uid, role: role!);
+          }
+        }());
+      }
     });
   }
 

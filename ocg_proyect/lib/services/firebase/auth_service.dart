@@ -17,12 +17,23 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return null;
 
-    final token = await user.getIdTokenResult(true);
-    final roleFromClaims = token.claims?['role'] as String?;
+    String? role;
 
-    if (roleFromClaims == 'admin' || roleFromClaims == 'patient') {
-      return roleFromClaims;
-    }
+    final cachedToken = await user.getIdTokenResult();
+    role = cachedToken.claims?['role'] as String?;
+    if (role == 'admin' || role == 'patient') return role;
+
+    final refreshedToken = await user.getIdTokenResult(true);
+    role = refreshedToken.claims?['role'] as String?;
+    if (role == 'admin' || role == 'patient') return role;
+
+    // Compatibilidad temporal mientras claims se propagan.
+    final adminDoc = await _db.collection(FirestorePaths.admins).doc(user.uid).get();
+    if (adminDoc.exists) return 'admin';
+
+    final patientDoc =
+        await _db.collection(FirestorePaths.patients).doc(user.uid).get();
+    if (patientDoc.exists) return 'patient';
 
     return null;
   }
