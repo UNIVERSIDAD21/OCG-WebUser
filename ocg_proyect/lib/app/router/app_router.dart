@@ -39,22 +39,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final role = userRole.asData?.value;
-
-      if (role != 'admin' && role != 'patient') {
-        return RouteNames.login;
-      }
+      final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
       if (_isPublicRoute(location)) {
-        return role == 'admin'
+        return effectiveRole == 'admin'
             ? RouteNames.adminDashboard
             : RouteNames.patientHome;
       }
 
-      if (role == 'admin' && _isPatientRoute(location)) {
+      if (effectiveRole == 'admin' && _isPatientRoute(location)) {
         return RouteNames.adminDashboard;
       }
 
-      if (role == 'patient' && _isAdminRoute(location)) {
+      if (effectiveRole == 'patient' && _isAdminRoute(location)) {
         return RouteNames.patientHome;
       }
 

@@ -54,9 +54,8 @@ class AuthNotifier extends AsyncNotifier<void> {
         unawaited(() async {
           try {
             final role = await authService.getUserRole();
-            if (role == 'admin' || role == 'patient') {
-              await _updateFcmTokenAfterLogin(uid: uid, role: role!);
-            }
+            final effectiveRole = role == 'admin' ? 'admin' : 'patient';
+            await _updateFcmTokenAfterLogin(uid: uid, role: effectiveRole);
           } catch (_) {
             // Evitar errores no capturados en background durante login web.
           }
