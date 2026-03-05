@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 
+import {onAuthUserCreate} from './auth/on_auth_user_create';
 import {loadSuperadminConfig} from './config/superadmins';
 
 if (!admin.apps.length) {
@@ -10,4 +11,4 @@ if (!admin.apps.length) {
 // para garantizar política fail-closed desde el arranque.
 loadSuperadminConfig();
 
-// Export de funciones del bloque BACKEND_ROLES se agregará en actividades posteriores.
+export {onAuthUserCreate};
