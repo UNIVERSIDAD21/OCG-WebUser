@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,23 +25,35 @@ class AuthNotifier extends AsyncNotifier<void> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
 
+  Future<void> _updateFcmTokenAfterLogin({
+    required String uid,
+    required String role,
+  }) async {
+    final authService = ref.read(authServiceProvider);
+    final token = await ref.read(fcmServiceProvider).getToken();
+
+    if (token == null || token.isEmpty) return;
+
+    try {
+      await authService.updateFcmToken(uid, role, token);
+    } catch (_) {
+      // No bloquear flujo principal por fallo de escritura de token FCM.
+    }
+  }
+
   Future<void> signIn(String email, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
 
-      final role = await authService.getUserRole();
-      final token = await ref.read(fcmServiceProvider).getToken();
       final uid = credential.user?.uid;
+      final role = await authService.getUserRole();
 
-      if (uid != null && role != null && token != null && token.isNotEmpty) {
-        try {
-          await authService.updateFcmToken(uid, role, token);
-        } catch (_) {
-          // No bloquear login por fallo de escritura de token FCM.
-        }
+      if (uid != null && role != null) {
+        unawaited(_updateFcmTokenAfterLogin(uid: uid, role: role));
       }
+
       ref.invalidate(userRoleProvider);
     });
   }
@@ -58,15 +72,9 @@ class AuthNotifier extends AsyncNotifier<void> {
         displayName: displayName,
       );
 
-      final token = await ref.read(fcmServiceProvider).getToken();
       final uid = credential.user?.uid;
-
-      if (uid != null && token != null && token.isNotEmpty) {
-        try {
-          await authService.updateFcmToken(uid, 'patient', token);
-        } catch (_) {
-          // No bloquear registro por fallo de escritura de token FCM.
-        }
+      if (uid != null) {
+        unawaited(_updateFcmTokenAfterLogin(uid: uid, role: 'patient'));
       }
 
       ref.invalidate(authStateProvider);
