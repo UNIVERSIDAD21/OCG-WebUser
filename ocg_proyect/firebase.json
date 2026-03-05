@@ -1,1 +1,30 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"ocg-humanbionics","appId":"1:196011124818:android:808f8902b4d5c87bd7d78b","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"ocg-humanbionics","configurations":{"android":"1:196011124818:android:808f8902b4d5c87bd7d78b","ios":"1:196011124818:ios:9cf1592aaef0d693d7d78b","web":"1:196011124818:web:c526108c8a981a71d7d78b"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "ocg-humanbionics",
+          "appId": "1:196011124818:android:808f8902b4d5c87bd7d78b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "ocg-humanbionics",
+          "configurations": {
+            "android": "1:196011124818:android:808f8902b4d5c87bd7d78b",
+            "ios": "1:196011124818:ios:9cf1592aaef0d693d7d78b",
+            "web": "1:196011124818:web:c526108c8a981a71d7d78b"
+          }
+        }
+      }
+    }
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
