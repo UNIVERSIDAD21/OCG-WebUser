@@ -82,8 +82,13 @@ class AuthNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> signOut() async {
-    await ref.read(authServiceProvider).signOut();
+    state = const AsyncLoading();
+    final result = await AsyncValue.guard(() async {
+      await ref.read(authServiceProvider).signOut();
+    });
+
     ref.invalidate(authStateProvider);
     ref.invalidate(userRoleProvider);
+    state = result.hasError ? result : const AsyncData(null);
   }
 }

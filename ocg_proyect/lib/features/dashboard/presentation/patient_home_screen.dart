@@ -6,14 +6,27 @@ import '../../auth/providers/auth_providers.dart';
 class PatientHomeScreen extends ConsumerWidget {
   const PatientHomeScreen({super.key});
 
+  Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authNotifierProvider.notifier).signOut();
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo cerrar sesión. Intenta de nuevo.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loading = ref.watch(authNotifierProvider).isLoading;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Patient Home'),
         actions: [
           IconButton(
-            onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
+            onPressed: loading ? null : () => _handleSignOut(context, ref),
             icon: const Icon(Icons.logout),
           )
         ],
