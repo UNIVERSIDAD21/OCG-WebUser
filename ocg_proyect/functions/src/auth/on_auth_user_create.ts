@@ -1,9 +1,9 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 
-const db = admin.firestore();
-
 export const onAuthUserCreate = functions.auth.user().onCreate(async (user) => {
+  const db = admin.firestore();
+
   await admin.auth().setCustomUserClaims(user.uid, {role: 'patient'});
 
   await db.collection('patients').doc(user.uid).set(
