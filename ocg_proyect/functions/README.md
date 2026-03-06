@@ -3,6 +3,8 @@
 Este módulo implementa:
 - `onAuthUserCreate` (1st gen): asigna claim `role=patient` y asegura `patients/{uid}`.
 - `setAdminRole` (callable v2): promoción a admin con allowlist superadmin y fail-closed.
+- `addAdminRole` (callable v2): crea/promueve admin por email (región `us-central1`).
+- `removeAdminRole` (callable v2): remueve rol admin por `uid` + `email` (región `us-central1`).
 - `setFcmToken` (callable v2): actualiza token FCM por rol (`admins|patients`).
 
 ## 1) Prechecks
