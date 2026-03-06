@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
 import '../providers/auth_providers.dart';
 
@@ -91,12 +92,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       labelText: 'Correo',
                       prefixIcon: Icon(Icons.mail_outline),
                     ),
-                    validator: (value) {
-                      final v = value?.trim() ?? '';
-                      if (v.isEmpty) return 'Ingresa tu correo';
-                      if (!v.contains('@')) return 'Ingresa un correo válido';
-                      return null;
-                    },
+                    validator: Validators.email,
                   ),
                   const SizedBox(height: 16),
                   OcgButton(

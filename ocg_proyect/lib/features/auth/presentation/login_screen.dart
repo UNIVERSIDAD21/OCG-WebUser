@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
 import '../providers/auth_providers.dart';
 
@@ -79,47 +80,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: nameCtrl,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.length < 3) return 'Ingresa un nombre válido';
-                    return null;
-                  },
+                  validator: Validators.fullName,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(labelText: 'Correo electrónico'),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty || !v.contains('@')) {
-                      return 'Ingresa un correo válido';
-                    }
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: passCtrl,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Contraseña'),
-                  validator: (value) {
-                    final v = value ?? '';
-                    if (v.length < 6) return 'Mínimo 6 caracteres';
-                    return null;
-                  },
+                  validator: Validators.passwordForRegister,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: confirmCtrl,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
-                  validator: (value) {
-                    if ((value ?? '') != passCtrl.text) {
-                      return 'Las contraseñas no coinciden';
-                    }
-                    return null;
-                  },
+                  validator: (value) => Validators.confirmPassword(value, passCtrl.text),
                 ),
               ],
             ),
@@ -230,12 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       labelText: 'Correo',
                       prefixIcon: Icon(Icons.mail_outline),
                     ),
-                    validator: (value) {
-                      final v = value?.trim() ?? '';
-                      if (v.isEmpty) return 'Ingresa tu correo';
-                      if (!v.contains('@')) return 'Ingresa un correo válido';
-                      return null;
-                    },
+                    validator: Validators.email,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
@@ -255,10 +232,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
                       ),
                     ),
-                    validator: (value) {
-                      if ((value ?? '').isEmpty) return 'Ingresa tu contraseña';
-                      return null;
-                    },
+                    validator: Validators.passwordForLogin,
                   ),
                   const SizedBox(height: 16),
                   OcgButton(
