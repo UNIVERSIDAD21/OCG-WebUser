@@ -24,7 +24,7 @@ class OcgButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final child = Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         if (isLoading)
           const SizedBox(
@@ -35,7 +35,14 @@ class OcgButton extends StatelessWidget {
         else if (icon != null)
           Icon(icon, size: 16),
         if (isLoading || icon != null) const SizedBox(width: 8),
-        Text(label),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
       ],
     );
 
