@@ -47,6 +47,11 @@ class AuthNotifier extends AsyncNotifier<void> {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
 
+      final signedEmail = credential.user?.email;
+      if (signedEmail != null && signedEmail.isNotEmpty) {
+        await authService.bootstrapAdminByEmailIfAllowed(signedEmail);
+      }
+
       ref.invalidate(userRoleProvider);
 
       final uid = credential.user?.uid;
