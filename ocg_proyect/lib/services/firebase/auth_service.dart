@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dio/dio.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../shared/constants/firestore_paths.dart';
@@ -8,14 +8,14 @@ class AuthService {
   AuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? db,
-    Dio? http,
+    FirebaseFunctions? functions,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _db = db ?? FirebaseFirestore.instance,
-        _http = http ?? Dio();
+        _functions = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
-  final Dio _http;
+  final FirebaseFunctions _functions;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -90,25 +90,13 @@ class AuthService {
 
   Future<void> bootstrapAdminByEmailIfAllowed(String email) async {
     try {
-      final token = await _auth.currentUser?.getIdToken();
-      if (token == null || token.isEmpty) return;
-
-      await _http.post(
-        'https://us-central1-ocg-humanbionics.cloudfunctions.net/addAdminRole',
-        data: {
-          'data': {'email': email.trim().toLowerCase()},
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-
+      final callable = _functions.httpsCallable('addAdminRole');
+      await callable.call({'email': email.trim().toLowerCase()});
       await _auth.currentUser?.getIdTokenResult(true);
+    } on FirebaseFunctionsException catch (_) {
+      // Si no tiene permiso o no aplica, continuar sin bloquear login.
     } catch (_) {
-      // Si no tiene permiso, no aplica o hay fallo de red, no bloquear login.
+      // Cualquier falla de red/función no debe bloquear autenticación.
     }
   }
 }
