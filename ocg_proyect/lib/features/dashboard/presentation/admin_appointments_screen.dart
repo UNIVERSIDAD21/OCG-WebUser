@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/providers/appointments_provider.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
-class AdminAppointmentsScreen extends ConsumerWidget {
+enum _AgendaFilter { hoy, activas, completadas }
+
+class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   const AdminAppointmentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminAppointmentsScreen> createState() => _AdminAppointmentsScreenState();
+}
+
+class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScreen> {
+  _AgendaFilter _filter = _AgendaFilter.hoy;
+
+  @override
+  Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsByDateProvider);
 
@@ -30,7 +39,14 @@ class AdminAppointmentsScreen extends ConsumerWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: OcgColors.bronze.withOpacity(0.18),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -63,20 +79,51 @@ class AdminAppointmentsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: SegmentedButton<_AgendaFilter>(
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return OcgColors.espresso;
+                  }
+                  return OcgColors.ivory;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return OcgColors.ivory;
+                  }
+                  return OcgColors.ink;
+                }),
+                side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
+              ),
+              segments: const [
+                ButtonSegment(value: _AgendaFilter.hoy, label: Text('Del día')),
+                ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
+                ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
+              ],
+              selected: {_filter},
+              onSelectionChanged: (selection) {
+                setState(() => _filter = selection.first);
+              },
+            ),
+          ),
           Expanded(
             child: appointmentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('No se pudo cargar agenda: $error')),
               data: (appointments) {
-                if (appointments.isEmpty) {
-                  return const Center(child: Text('No hay citas programadas en esta fecha.'));
+                final filtered = _applyFilter(appointments);
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No hay citas para el filtro seleccionado.'));
                 }
 
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemBuilder: (context, index) => _AppointmentAdminCard(appointment: appointments[index]),
+                  itemBuilder: (context, index) => _AppointmentAdminCard(appointment: filtered[index]),
                   separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemCount: appointments.length,
+                  itemCount: filtered.length,
                 );
               },
             ),
@@ -89,6 +136,19 @@ class AdminAppointmentsScreen extends ConsumerWidget {
         label: const Text('Nueva cita'),
       ),
     );
+  }
+
+  List<AppointmentModel> _applyFilter(List<AppointmentModel> appointments) {
+    switch (_filter) {
+      case _AgendaFilter.hoy:
+        return appointments;
+      case _AgendaFilter.activas:
+        return appointments
+            .where((a) => a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+            .toList();
+      case _AgendaFilter.completadas:
+        return appointments.where((a) => a.estado == AppointmentStatus.completada).toList();
+    }
   }
 
   static Future<void> _showCreateAppointmentDialog(
@@ -257,19 +317,28 @@ class _AppointmentAdminCard extends ConsumerWidget {
     }
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(child: Text(time)),
+              leading: CircleAvatar(
+                backgroundColor: OcgColors.bronze.withOpacity(0.18),
+                child: Text(time, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
               title: Text('${appointment.patientName} • ${appointment.tipo.name}'),
               subtitle: Text('Estado: ${appointment.estado.name} • ${appointment.duracionMinutos} min'),
               trailing: const Icon(Icons.chevron_right),
             ),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 ActionChip(
                   label: const Text('Confirmar'),
