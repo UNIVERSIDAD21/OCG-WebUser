@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
@@ -76,6 +77,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.adminPatients,
         builder: (context, state) => const AdminPatientsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminAppointments,
+        builder: (context, state) => const AdminAppointmentsScreen(),
       ),
       GoRoute(
         path: RouteNames.adminPatientDetail,
