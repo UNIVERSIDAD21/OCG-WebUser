@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../data/models/patient_model.dart';
@@ -59,6 +61,15 @@ class _PatientDetailView extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(patient.nombre),
+          actions: [
+            IconButton(
+              tooltip: 'Editar paciente',
+              onPressed: () => context.go(
+                RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+              ),
+              icon: const Icon(Icons.edit),
+            ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,

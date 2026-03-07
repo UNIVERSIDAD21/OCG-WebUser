@@ -99,11 +99,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Siguiente paso: PatientFormScreen (bloque activo).')),
-          );
-        },
+        onPressed: () => context.go(RouteNames.adminPatientNew),
         backgroundColor: OcgColors.bronze,
         child: const Icon(Icons.person_add),
       ),

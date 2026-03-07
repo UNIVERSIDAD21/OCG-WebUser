@@ -9,6 +9,7 @@ import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
 import '../../features/patients/presentation/patient_detail_screen.dart';
+import '../../features/patients/presentation/patient_form_screen.dart';
 import 'route_names.dart';
 
 bool _isPublicRoute(String location) {
@@ -80,6 +81,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final patientId = state.pathParameters['patientId'] ?? '';
           return PatientDetailScreen(patientId: patientId);
+        },
+      ),
+      GoRoute(
+        path: RouteNames.adminPatientNew,
+        builder: (context, state) => const PatientFormScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminPatientEdit,
+        builder: (context, state) {
+          final patientId = state.pathParameters['patientId'] ?? '';
+          return PatientFormScreen(patientId: patientId);
         },
       ),
       GoRoute(
