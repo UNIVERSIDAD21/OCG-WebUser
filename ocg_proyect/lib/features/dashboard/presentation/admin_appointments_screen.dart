@@ -241,22 +241,51 @@ class AdminAppointmentsScreen extends ConsumerWidget {
       '${_fmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 }
 
-class _AppointmentAdminCard extends StatelessWidget {
+class _AppointmentAdminCard extends ConsumerWidget {
   const _AppointmentAdminCard({required this.appointment});
 
   final AppointmentModel appointment;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dt = appointment.fechaHora;
     final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 
+    Future<void> changeStatus(AppointmentStatus status) async {
+      await ref.read(appointmentsRepositoryProvider).updateAppointmentStatus(appointment.id, status);
+    }
+
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(child: Text(time)),
-        title: Text('${appointment.patientName} • ${appointment.tipo.name}'),
-        subtitle: Text('Estado: ${appointment.estado.name} • ${appointment.duracionMinutos} min'),
-        trailing: const Icon(Icons.chevron_right),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(child: Text(time)),
+              title: Text('${appointment.patientName} • ${appointment.tipo.name}'),
+              subtitle: Text('Estado: ${appointment.estado.name} • ${appointment.duracionMinutos} min'),
+              trailing: const Icon(Icons.chevron_right),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('Confirmar'),
+                  onPressed: () => changeStatus(AppointmentStatus.confirmada),
+                ),
+                ActionChip(
+                  label: const Text('Completar'),
+                  onPressed: () => changeStatus(AppointmentStatus.completada),
+                ),
+                ActionChip(
+                  label: const Text('Cancelar'),
+                  onPressed: () => changeStatus(AppointmentStatus.cancelada),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
