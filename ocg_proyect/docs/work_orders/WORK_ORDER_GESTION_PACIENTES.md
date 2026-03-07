@@ -37,11 +37,11 @@ Implementar gestión de pacientes completa según `docs/specs/04_GESTION_PACIENT
 - Respetar permisos por rol en rutas y acciones.
 
 ## Criterios de cierre del bloque
-- [ ] Lista de pacientes funcional (stream + búsqueda + filtros).
-- [ ] Detalle de paciente con 5 tabs funcionales.
-- [ ] Formulario de alta/edición funcional y validado.
-- [ ] Repositorio y provider de pacientes implementados.
-- [ ] Perfil paciente propio con campos clínicos en solo lectura.
+- [x] Lista de pacientes funcional (stream + búsqueda + filtros).
+- [x] Detalle de paciente con 5 tabs funcionales.
+- [x] Formulario de alta/edición funcional y validado.
+- [x] Repositorio y provider de pacientes implementados.
+- [x] Perfil paciente propio con campos clínicos en solo lectura.
 - [ ] Validación manual mínima de CRUD y navegación por rol.
 
 ## Orden recomendado de ejecución
