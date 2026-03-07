@@ -7,6 +7,7 @@ class RouteNames {
 
   static const String adminDashboard = '/admin/dashboard';
   static const String adminPatients = '/admin/patients';
+  static const String adminPatientDetail = '/admin/patients/:patientId';
 
   static const String patientHome = '/patient/home';
   static const String patientAppointments = '/patient/appointments';

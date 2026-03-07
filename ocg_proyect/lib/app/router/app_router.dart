@@ -8,6 +8,7 @@ import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
+import '../../features/patients/presentation/patient_detail_screen.dart';
 import 'route_names.dart';
 
 bool _isPublicRoute(String location) {
@@ -73,6 +74,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.adminPatients,
         builder: (context, state) => const AdminPatientsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminPatientDetail,
+        builder: (context, state) {
+          final patientId = state.pathParameters['patientId'] ?? '';
+          return PatientDetailScreen(patientId: patientId);
+        },
       ),
       GoRoute(
         path: RouteNames.patientHome,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
@@ -84,7 +86,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                     final patient = filteredPatients[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _PatientCard(patient: patient),
+                      child: _PatientCard(
+                        patient: patient,
+                        onTap: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id)),
+                      ),
                     );
                   },
                 );
@@ -107,16 +112,20 @@ class AdminPatientsScreen extends ConsumerWidget {
 }
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard({required this.patient});
+  const _PatientCard({required this.patient, required this.onTap});
 
   final PatientModel patient;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final initial = patient.nombre.isNotEmpty ? patient.nombre[0].toUpperCase() : '?';
 
-    return OcgCard(
-      child: Row(
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: OcgCard(
+        child: Row(
         children: [
           CircleAvatar(
             radius: 24,
@@ -163,6 +172,7 @@ class _PatientCard extends StatelessWidget {
           ),
           const Icon(Icons.chevron_right),
         ],
+      ),
       ),
     );
   }
