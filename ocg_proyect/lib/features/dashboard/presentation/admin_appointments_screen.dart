@@ -26,7 +26,7 @@ class AdminAppointmentsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [OcgColors.bronze, OcgColors.gold],
+                colors: [OcgColors.bronze, OcgColors.sand],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -52,8 +52,9 @@ class AdminAppointmentsScreen extends ConsumerWidget {
                       lastDate: DateTime(2035),
                     );
                     if (picked != null) {
-                      ref.read(selectedAppointmentsDateProvider.notifier).state =
-                          DateTime(picked.year, picked.month, picked.day);
+                      ref
+                          .read(selectedAppointmentsDateProvider.notifier)
+                          .setDate(DateTime(picked.year, picked.month, picked.day));
                     }
                   },
                   icon: const Icon(Icons.calendar_today, color: OcgColors.ivory),

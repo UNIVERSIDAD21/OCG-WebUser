@@ -37,38 +37,32 @@ class AppointmentsRepository {
 
   Future<String> createAppointment(AppointmentModel appointment) async {
     try {
-      final appointmentId = await _db.runTransaction<String>((transaction) async {
-        final conflictingQuery = _appointmentsRef
-            .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(appointment.fechaHora))
-            .where(
-              'fechaHora',
-              isLessThan: Timestamp.fromDate(
-                appointment.fechaHora.add(Duration(minutes: appointment.duracionMinutos)),
-              ),
-            )
-            .where('estado', whereNotIn: [
-              AppointmentStatus.cancelada.name,
-              AppointmentStatus.noAsistio.name,
-              AppointmentStatus.reprogramada.name,
-            ]);
+      final conflictingQuery = _appointmentsRef
+          .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(appointment.fechaHora))
+          .where(
+            'fechaHora',
+            isLessThan: Timestamp.fromDate(
+              appointment.fechaHora.add(Duration(minutes: appointment.duracionMinutos)),
+            ),
+          )
+          .where('estado', whereNotIn: [
+            AppointmentStatus.cancelada.name,
+            AppointmentStatus.noAsistio.name,
+            AppointmentStatus.reprogramada.name,
+          ]);
 
-        final conflicts = await transaction.get(conflictingQuery);
-        if (conflicts.docs.isNotEmpty) {
-          throw FirebaseException(
-            plugin: 'appointments',
-            code: 'SLOT_TAKEN',
-            message: 'Este horario acaba de ser tomado. Por favor elige otro.',
-          );
-        }
+      final conflicts = await conflictingQuery.get();
+      if (conflicts.docs.isNotEmpty) {
+        throw FirebaseException(
+          plugin: 'appointments',
+          code: 'SLOT_TAKEN',
+          message: 'Este horario acaba de ser tomado. Por favor elige otro.',
+        );
+      }
 
-        final ref = _appointmentsRef.doc();
-        final appointmentWithId = appointment.copyWith(id: ref.id);
-        transaction.set(ref, appointmentWithId.toJson());
-
-        return ref.id;
-      });
-
-      return appointmentId;
+      final ref = _appointmentsRef.doc();
+      await ref.set(appointment.copyWith(id: ref.id).toJson());
+      return ref.id;
     } catch (e) {
       if (e is FirebaseException && e.code == 'SLOT_TAKEN') {
         throw Exception('SLOT_TAKEN: ${e.message}');

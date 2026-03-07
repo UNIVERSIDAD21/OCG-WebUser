@@ -10,10 +10,21 @@ final appointmentsRepositoryProvider = Provider<AppointmentsRepository>((ref) {
   return AppointmentsRepository(db);
 });
 
-final selectedAppointmentsDateProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day);
-});
+class SelectedAppointmentsDateNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  void setDate(DateTime date) {
+    state = DateTime(date.year, date.month, date.day);
+  }
+}
+
+final selectedAppointmentsDateProvider = NotifierProvider<SelectedAppointmentsDateNotifier, DateTime>(
+  SelectedAppointmentsDateNotifier.new,
+);
 
 final appointmentsByDateProvider = StreamProvider<List<AppointmentModel>>((ref) {
   final date = ref.watch(selectedAppointmentsDateProvider);
