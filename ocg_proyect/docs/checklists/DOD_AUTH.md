@@ -2,13 +2,13 @@
 
 ## Definition of Done — Módulo Auth
 
-- [ ] Login email/password funcional en web y app.
-- [ ] Forgot password funcional con feedback claro.
-- [ ] Logout funcional con limpieza de estado.
-- [ ] Rol leído desde Custom Claims en cliente.
-- [ ] Guards `go_router` aplican acceso por auth y rol.
-- [ ] No hay acceso cruzado admin/patient por rutas.
-- [ ] Estrategia anti-race `authState` vs `userRole` implementada.
-- [ ] `updateFcmToken` se ejecuta post-login y es no bloqueante.
-- [ ] Errores de login/reset visibles y comprensibles para usuario.
-- [ ] Si hay bloqueo por backend (claims/reglas), queda documentado para `BACKEND_ROLES`.
+- [x] Login email/password funcional en web y app.
+- [x] Forgot password funcional con feedback claro.
+- [x] Logout funcional con limpieza de estado.
+- [x] Rol leído desde Custom Claims en cliente.
+- [x] Guards `go_router` aplican acceso por auth y rol.
+- [x] No hay acceso cruzado admin/patient por rutas.
+- [x] Estrategia anti-race `authState` vs `userRole` implementada.
+- [x] `updateFcmToken` se ejecuta post-login y es no bloqueante.
+- [x] Errores de login/reset visibles y comprensibles para usuario.
+- [x] Sin bloqueo backend activo para avance de Auth; `BACKEND_ROLES` queda como bloque separado.
