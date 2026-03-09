@@ -130,11 +130,11 @@ class _AppointmentTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: OcgColors.bronze.withOpacity(0.2)),
+        side: BorderSide(color: OcgColors.bronze.withValues(alpha: 0.2)),
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: OcgColors.bronze.withOpacity(0.18),
+          backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
           child: const Icon(Icons.event_note),
         ),
         title: Text('${appointment.tipo.name} • $date $hour'),

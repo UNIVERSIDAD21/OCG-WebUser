@@ -42,7 +42,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: OcgColors.bronze.withOpacity(0.18),
+                  color: OcgColors.bronze.withValues(alpha: 0.18),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
@@ -223,12 +223,14 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                         lastDate: DateTime(2035),
                       );
                       if (pickedDate == null) return;
+                      if (!context.mounted) return;
 
                       final pickedTime = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay.fromDateTime(dateTime),
                       );
                       if (pickedTime == null) return;
+                      if (!context.mounted) return;
 
                       setState(() {
                         dateTime = DateTime(
@@ -320,7 +322,7 @@ class _AppointmentAdminCard extends ConsumerWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+        side: BorderSide(color: OcgColors.bronze.withValues(alpha: 0.22)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -329,7 +331,7 @@ class _AppointmentAdminCard extends ConsumerWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
-                backgroundColor: OcgColors.bronze.withOpacity(0.18),
+                backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
                 child: Text(time, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               title: Text('${appointment.patientName} • ${appointment.tipo.name}'),
