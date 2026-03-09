@@ -13,6 +13,30 @@ service cloud.firestore {
              request.auth.token.role == 'patient';
     }
 
+    function patientEditableFieldsOnly() {
+      return resource.data.diff(request.resource.data).changedKeys().hasOnly([
+        'nombre',
+        'telefono',
+        'fotoUrl',
+        'fcmToken',
+        'updatedAt',
+      ]);
+    }
+
+    function patientCreateFieldsValid(patientId) {
+      return request.resource.data.keys().hasOnly([
+               'id',
+               'email',
+               'nombre',
+               'telefono',
+               'fotoUrl',
+               'fcmToken',
+               'createdAt',
+               'updatedAt',
+             ]) &&
+             request.resource.data.id == patientId;
+    }
+
     match /admins/{adminId} {
       allow read, write: if request.auth != null &&
                             request.auth.uid == adminId &&
@@ -23,9 +47,13 @@ service cloud.firestore {
       allow read: if isAdmin() || isOwnPatient(patientId);
       allow write: if isAdmin();
 
-      // Sin hasOnly — el UID es suficiente garantía en el momento del registro
-      allow create: if request.auth != null && request.auth.uid == patientId;
-      allow update: if request.auth != null && request.auth.uid == patientId;
+      // Paciente solo puede crear/editar datos de perfil no sensibles
+      allow create: if request.auth != null &&
+                    request.auth.uid == patientId &&
+                    patientCreateFieldsValid(patientId);
+      allow update: if request.auth != null &&
+                    request.auth.uid == patientId &&
+                    patientEditableFieldsOnly();
 
       match /photos/{photoId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
