@@ -8,8 +8,16 @@ class AppointmentsRepository {
 
   final FirebaseFirestore _db;
 
+  static const List<String> _nextAppointmentStatuses = [
+    'programada',
+    'confirmada',
+  ];
+
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
+
+  CollectionReference<Map<String, dynamic>> get _patientsRef =>
+      _db.collection(FirestorePaths.patients);
 
   Stream<List<AppointmentModel>> watchAppointmentsByDate(DateTime date) {
     final start = DateTime(date.year, date.month, date.day);
@@ -62,6 +70,7 @@ class AppointmentsRepository {
 
       final ref = _appointmentsRef.doc();
       await ref.set(appointment.copyWith(id: ref.id).toJson());
+      await _updatePatientNextAppointment(appointment.patientId);
       return ref.id;
     } catch (e) {
       if (e is FirebaseException && e.code == 'SLOT_TAKEN') {
@@ -72,10 +81,19 @@ class AppointmentsRepository {
   }
 
   Future<void> updateAppointmentStatus(String appointmentId, AppointmentStatus newStatus) async {
+    final appointmentSnapshot = await _appointmentsRef.doc(appointmentId).get();
+    if (!appointmentSnapshot.exists) return;
+
+    final patientId = (appointmentSnapshot.data()?['patientId'] ?? '').toString();
+
     await _appointmentsRef.doc(appointmentId).update({
       'estado': newStatus.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    if (patientId.isNotEmpty) {
+      await _updatePatientNextAppointment(patientId);
+    }
   }
 
   Future<void> rescheduleAppointment({
@@ -92,5 +110,36 @@ class AppointmentsRepository {
 
     batch.set(newRef, newAppointment.copyWith(id: newRef.id).toJson());
     await batch.commit();
+
+    await _updatePatientNextAppointment(newAppointment.patientId);
+  }
+
+  Future<void> _updatePatientNextAppointment(String patientId) async {
+    final now = Timestamp.fromDate(DateTime.now());
+
+    final nextAppointmentQuery = await _appointmentsRef
+        .where('patientId', isEqualTo: patientId)
+        .where('estado', whereIn: _nextAppointmentStatuses)
+        .where('fechaHora', isGreaterThanOrEqualTo: now)
+        .orderBy('fechaHora')
+        .limit(1)
+        .get();
+
+    final rawNextDate =
+        nextAppointmentQuery.docs.isNotEmpty ? nextAppointmentQuery.docs.first.data()['fechaHora'] : null;
+
+    final Timestamp? nextTimestamp;
+    if (rawNextDate is Timestamp) {
+      nextTimestamp = rawNextDate;
+    } else if (rawNextDate is DateTime) {
+      nextTimestamp = Timestamp.fromDate(rawNextDate);
+    } else {
+      nextTimestamp = null;
+    }
+
+    await _patientsRef.doc(patientId).update({
+      'proximaCita': nextTimestamp,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }
