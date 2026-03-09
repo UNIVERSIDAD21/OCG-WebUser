@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
 import '../../patients/data/models/patient_model.dart';
@@ -80,129 +81,160 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       appBar: AppBar(
         title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _idCtrl,
-              enabled: !isEdit,
-              decoration: const InputDecoration(
-                labelText: 'UID paciente',
-                hintText: 'UID de Firebase Auth',
+      body: isEdit
+          ? Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre completo'),
+                    validator: Validators.fullName,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _emailCtrl,
+                    decoration: const InputDecoration(labelText: 'Correo'),
+                    validator: Validators.email,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _phoneCtrl,
+                    decoration: const InputDecoration(labelText: 'Teléfono'),
+                    validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<TreatmentType>(
+                          initialValue: _tipo,
+                          items: TreatmentType.values
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _tipo = value);
+                          },
+                          decoration: const InputDecoration(labelText: 'Tipo tratamiento'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<TreatmentStage>(
+                          initialValue: _etapa,
+                          items: TreatmentStage.values
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _etapa = value);
+                          },
+                          decoration: const InputDecoration(labelText: 'Etapa actual'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _totalCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
+                    validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _saldoCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
+                    validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _notasCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notas clínicas'),
+                  ),
+                  const SizedBox(height: 10),
+                  _DatePickerRow(
+                    label: 'Fecha nacimiento',
+                    value: _fechaNacimiento,
+                    onPick: (date) => setState(() => _fechaNacimiento = date),
+                  ),
+                  _DatePickerRow(
+                    label: 'Fecha inicio',
+                    value: _fechaInicio,
+                    onPick: (date) => setState(() => _fechaInicio = date),
+                  ),
+                  _DatePickerRow(
+                    label: 'Fecha estimada fin',
+                    value: _fechaEstimadaFin,
+                    onPick: (date) => setState(() => _fechaEstimadaFin = date),
+                    nullable: true,
+                    onClear: () => setState(() => _fechaEstimadaFin = null),
+                  ),
+                  const SizedBox(height: 16),
+                  OcgButton(
+                    label: 'Guardar cambios',
+                    isLoading: _loading,
+                    onPressed: _loading ? null : _save,
+                  ),
+                ],
               ),
-              validator: (v) => Validators.requiredField(v, message: 'Ingresa UID del paciente'),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre completo'),
-              validator: Validators.fullName,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _emailCtrl,
-              decoration: const InputDecoration(labelText: 'Correo'),
-              validator: Validators.email,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _phoneCtrl,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
-              validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<TreatmentType>(
-                    initialValue: _tipo,
-                    items: TreatmentType.values
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _tipo = value);
-                    },
-                    decoration: const InputDecoration(labelText: 'Tipo tratamiento'),
+            )
+          : Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: OcgColors.bronze.withValues(alpha: 0.22)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Flujo de creación actualizado',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'El paciente debe registrarse primero desde login. '
+                          'Cuando aparezca en la lista de pacientes, completa sus datos clínicos desde edición.',
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton(
+                            onPressed: () => context.pop(),
+                            child: const Text('Entendido'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: DropdownButtonFormField<TreatmentStage>(
-                    initialValue: _etapa,
-                    items: TreatmentStage.values
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _etapa = value);
-                    },
-                    decoration: const InputDecoration(labelText: 'Etapa actual'),
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _totalCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
-              validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _saldoCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
-              validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _notasCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Notas clínicas'),
-            ),
-            const SizedBox(height: 10),
-            _DatePickerRow(
-              label: 'Fecha nacimiento',
-              value: _fechaNacimiento,
-              onPick: (date) => setState(() => _fechaNacimiento = date),
-            ),
-            _DatePickerRow(
-              label: 'Fecha inicio',
-              value: _fechaInicio,
-              onPick: (date) => setState(() => _fechaInicio = date),
-            ),
-            _DatePickerRow(
-              label: 'Fecha estimada fin',
-              value: _fechaEstimadaFin,
-              onPick: (date) => setState(() => _fechaEstimadaFin = date),
-              nullable: true,
-              onClear: () => setState(() => _fechaEstimadaFin = null),
-            ),
-            const SizedBox(height: 16),
-            OcgButton(
-              label: isEdit ? 'Guardar cambios' : 'Crear paciente',
-              isLoading: _loading,
-              onPressed: _loading ? null : _save,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!widget.isEdit) return;
 
     setState(() => _loading = true);
     final repo = ref.read(patientsRepositoryProvider);
 
     try {
       final patient = PatientModel(
-        id: _idCtrl.text.trim(),
+        id: widget.patientId!.trim(),
         nombre: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim().toLowerCase(),
         telefono: _phoneCtrl.text.trim(),
@@ -216,15 +248,11 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         saldoPendiente: double.tryParse(_saldoCtrl.text.trim()) ?? 0,
       );
 
-      if (widget.isEdit) {
-        await repo.updatePatientBasicData(patient.id, patient.toJson());
-      } else {
-        await repo.createPatient(patient);
-      }
+      await repo.updatePatientBasicData(patient.id, patient.toJson());
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.isEdit ? 'Paciente actualizado' : 'Paciente creado')),
+        const SnackBar(content: Text('Paciente actualizado')),
       );
       context.pop();
     } catch (e) {
