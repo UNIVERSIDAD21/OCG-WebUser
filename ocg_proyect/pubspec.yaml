@@ -43,6 +43,7 @@ dependencies:
   flutter_riverpod: ^3.2.1
   dio: ^5.9.2
   firebase_messaging: ^16.0.0
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
