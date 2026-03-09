@@ -116,60 +116,88 @@ class _PatientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = patient.nombre.isNotEmpty ? patient.nombre[0].toUpperCase() : '?';
+    final hasPhoto = patient.fotoUrl != null && patient.fotoUrl!.isNotEmpty;
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: OcgCard(
         child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
-            child: Text(
-              initial,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w700,
-                color: OcgColors.espresso,
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
+              backgroundImage: hasPhoto ? NetworkImage(patient.fotoUrl!) : null,
+              onBackgroundImageError: hasPhoto ? (_, error) {} : null,
+              child: hasPhoto
+                  ? null
+                  : Text(
+                      initial,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.nombre,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    patient.email,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: OcgColors.ink),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OcgChip(label: patient.tipoTratamiento.name),
+                      OcgChip(label: patient.etapaActual.name),
+                    ],
+                  ),
+                  if (patient.proximaCita != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.event, size: 13, color: OcgColors.bronze),
+                        const SizedBox(width: 4),
+                        Text(
+                          _fmtDate(patient.proximaCita!),
+                          style: const TextStyle(fontSize: 12, color: OcgColors.bronze),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Sin cita programada',
+                      style: TextStyle(fontSize: 12, color: OcgColors.ink),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  patient.nombre,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: OcgColors.espresso,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  patient.email,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: OcgColors.ink),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OcgChip(label: patient.tipoTratamiento.name),
-                    OcgChip(label: patient.etapaActual.name),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
       ),
     );
+  }
+
+  String _fmtDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
