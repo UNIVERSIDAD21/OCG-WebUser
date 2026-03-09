@@ -1,6 +1,6 @@
 # BLOQUE_04 — Gestión de Pacientes (REABIERTO — Correcciones reales)
 
-> **Estado:** ⚠️ REABIERTO
+> **Estado:** ✅ IMPLEMENTADO — LISTO PARA VALIDACIÓN DE JEFE
 > **Motivo:** 5 problemas reales encontrados al revisar el código fuente contra el spec
 > **Prioridad:** MUY ALTA — Estos problemas bloquean el uso real del sistema
 
@@ -367,17 +367,17 @@ Widget build(BuildContext context) {
 
 ## Criterios de cierre del bloque (reales)
 
-- [ ] `PatientFormScreen` en modo creación no tiene campo UID — muestra instrucción de flujo correcto
-- [ ] Filtro "Pendientes" visible en `AdminPatientsScreen` (pacientes sin datos clínicos)
-- [ ] `PatientModel` tiene campo `proximaCita` y se denormaliza al crear/cancelar citas
-- [ ] `PatientCard` muestra "próxima cita" o "Sin cita programada"
-- [ ] `PatientCard` muestra foto de perfil si existe, iniciales como fallback
-- [ ] Paciente puede editar su número de teléfono desde su perfil
-- [ ] Paciente puede subir foto de perfil desde su pantalla
-- [ ] Paciente puede iniciar cambio de contraseña (link a reset password)
-- [ ] Tabs de Pagos y Simulador muestran `OcgEmptyState` en lugar de texto de debug
-- [ ] `flutter analyze` ✅
-- [ ] `flutter test` ✅ — incluyendo serialización de `PatientModel` con `proximaCita`
+- [x] `PatientFormScreen` en modo creación no tiene campo UID — muestra instrucción de flujo correcto
+- [x] Filtro "Pendientes" visible en `AdminPatientsScreen` (pacientes sin datos clínicos)
+- [x] `PatientModel` tiene campo `proximaCita` y se denormaliza al crear/cancelar citas
+- [x] `PatientCard` muestra "próxima cita" o "Sin cita programada"
+- [x] `PatientCard` muestra foto de perfil si existe, iniciales como fallback
+- [x] Paciente puede editar su número de teléfono desde su perfil
+- [x] Paciente puede subir foto de perfil desde su pantalla
+- [x] Paciente puede iniciar cambio de contraseña (link a reset password)
+- [x] Tabs de Pagos y Simulador muestran `OcgEmptyState` en lugar de texto de debug
+- [x] `flutter analyze` ✅
+- [x] `flutter test` ✅ — incluyendo serialización de `PatientModel` con `proximaCita`
 
 ---
 
