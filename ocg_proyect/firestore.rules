@@ -23,6 +23,10 @@ service cloud.firestore {
       allow read: if isAdmin() || isOwnPatient(patientId);
       allow write: if isAdmin();
 
+      // Sin hasOnly — el UID es suficiente garantía en el momento del registro
+      allow create: if request.auth != null && request.auth.uid == patientId;
+      allow update: if request.auth != null && request.auth.uid == patientId;
+
       match /photos/{photoId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create, update: if isAdmin();

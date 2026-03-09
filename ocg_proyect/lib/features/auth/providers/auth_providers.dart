@@ -87,9 +87,6 @@ class AuthNotifier extends AsyncNotifier<void> {
       if (uid != null) {
         unawaited(_updateFcmTokenAfterLogin(uid: uid, role: 'patient'));
       }
-
-      ref.invalidate(authStateProvider);
-      ref.invalidate(userRoleProvider);
     });
   }
 

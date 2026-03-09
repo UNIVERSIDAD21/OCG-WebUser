@@ -9,9 +9,10 @@ class AuthService {
     FirebaseAuth? auth,
     FirebaseFirestore? db,
     FirebaseFunctions? functions,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _db = db ?? FirebaseFirestore.instance,
-        _functions = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _db = db ?? FirebaseFirestore.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
@@ -53,22 +54,18 @@ class AuthService {
       password: password,
     );
     final user = credential.user;
+    final nombreLimpio = displayName?.trim() ?? '';
 
-    if (displayName != null && displayName.trim().isNotEmpty) {
-      await user?.updateDisplayName(displayName.trim());
+    if (nombreLimpio.isNotEmpty) {
+      await user?.updateDisplayName(nombreLimpio);
     }
 
-    if (user != null) {
-      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email,
-        'displayName': displayName?.trim().isEmpty ?? true
-            ? null
-            : displayName?.trim(),
-        'role': 'patient',
-        'createdAt': FieldValue.serverTimestamp(),
+    // Solo actualizar el nombre — Cloud Function ya crea el documento completo
+    if (user != null && nombreLimpio.isNotEmpty) {
+      await _db.collection(FirestorePaths.patients).doc(user.uid).update({
+        'nombre': nombreLimpio,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
     }
 
     return credential;
