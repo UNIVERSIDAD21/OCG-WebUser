@@ -14,6 +14,7 @@ class AdminPatientsScreen extends ConsumerWidget {
 
   static const _filters = <String>[
     'Todos',
+    'Pendientes',
     'Activos',
     'Alta',
     'Convencional',
@@ -23,6 +24,32 @@ class AdminPatientsScreen extends ConsumerWidget {
     'Ortopedia',
     'Retenedores',
   ];
+
+  static Future<void> _showAddPatientDialog(BuildContext context, WidgetRef ref) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Agregar paciente'),
+        content: const Text(
+          'Para agregar un paciente, primero debe crear su cuenta desde la pantalla de login. '
+          'Una vez registrado, aparecerá aquí para completar sus datos clínicos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+          FilledButton(
+            onPressed: () {
+              ref.read(patientsFilterProvider.notifier).setFilter('Pendientes');
+              Navigator.of(context).pop();
+            },
+            child: const Text('Ver pendientes de completar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,7 +126,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go(RouteNames.adminPatientNew),
+        onPressed: () => _showAddPatientDialog(context, ref),
         backgroundColor: OcgColors.bronze,
         child: const Icon(Icons.person_add),
       ),
