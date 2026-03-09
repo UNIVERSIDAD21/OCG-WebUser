@@ -57,6 +57,7 @@ class AdminPatientsScreen extends ConsumerWidget {
     final filteredPatients = ref.watch(filteredPatientsProvider);
     final selectedFilter = ref.watch(patientsFilterProvider);
 
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pacientes'),
