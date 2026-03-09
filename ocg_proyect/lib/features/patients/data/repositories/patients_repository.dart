@@ -44,6 +44,21 @@ class PatientsRepository {
     });
   }
 
+  Future<void> updatePatientContactData(
+    String patientId, {
+    String? telefono,
+    String? fotoUrl,
+  }) async {
+    final data = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (telefono != null) data['telefono'] = telefono;
+    if (fotoUrl != null) data['fotoUrl'] = fotoUrl;
+
+    await _patientsRef.doc(patientId).update(data);
+  }
+
   Future<void> updateTreatmentStage({
     required String patientId,
     required TreatmentStage newStage,
