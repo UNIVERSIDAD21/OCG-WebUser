@@ -35,6 +35,7 @@ class PatientModel {
     required this.totalTratamiento,
     required this.saldoPendiente,
     this.fechaProximoPago,
+    this.proximaCita,
     this.fcmToken,
     this.createdAt,
     this.updatedAt,
@@ -56,6 +57,7 @@ class PatientModel {
   final double totalTratamiento;
   final double saldoPendiente;
   final DateTime? fechaProximoPago;
+  final DateTime? proximaCita;
 
   final String? fcmToken;
   final DateTime? createdAt;
@@ -115,6 +117,7 @@ class PatientModel {
       totalTratamiento: _toDouble(json['totalTratamiento']),
       saldoPendiente: _toDouble(json['saldoPendiente']),
       fechaProximoPago: _parseNullableDate(json['fechaProximoPago']),
+      proximaCita: _parseNullableDate(json['proximaCita']),
       fcmToken: json['fcmToken']?.toString(),
       createdAt: _parseNullableDate(json['createdAt']),
       updatedAt: _parseNullableDate(json['updatedAt']),
@@ -138,6 +141,7 @@ class PatientModel {
       'totalTratamiento': totalTratamiento,
       'saldoPendiente': saldoPendiente,
       'fechaProximoPago': fechaProximoPago == null ? null : Timestamp.fromDate(fechaProximoPago!),
+      'proximaCita': proximaCita == null ? null : Timestamp.fromDate(proximaCita!),
       'fcmToken': fcmToken,
       'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
       'updatedAt': FieldValue.serverTimestamp(),
