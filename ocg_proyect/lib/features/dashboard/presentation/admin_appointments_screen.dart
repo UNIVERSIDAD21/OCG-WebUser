@@ -330,16 +330,9 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                     appointment: filtered[index],
                     showActions: true,
                     onChangeStatus: (status) async {
-                      try {
-                        await ref
-                            .read(appointmentsRepositoryProvider)
-                            .updateAppointmentStatus(filtered[index].id, status);
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('No se pudo actualizar estado: $e')),
-                        );
-                      }
+                      await ref
+                          .read(appointmentsRepositoryProvider)
+                          .updateAppointmentStatus(filtered[index].id, status);
                     },
                   ),
                   separatorBuilder: (context, index) => const SizedBox(height: 10),

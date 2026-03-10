@@ -111,40 +111,19 @@ class AppointmentsRepository {
   }
 
   Future<void> _updatePatientNextAppointment(String patientId) async {
-    QueryDocumentSnapshot<Map<String, dynamic>>? lastDoc;
-    Timestamp? fecha;
+    final snap = await _db
+        .collection(FirestorePaths.appointments)
+        .where('patientId', isEqualTo: patientId)
+        .where('fechaHora', isGreaterThan: Timestamp.now())
+        .where('estado', whereNotIn: [
+          AppointmentStatus.cancelada.name,
+          AppointmentStatus.noAsistio.name,
+        ])
+        .orderBy('fechaHora')
+        .limit(1)
+        .get();
 
-    while (fecha == null) {
-      var query = _db
-          .collection(FirestorePaths.appointments)
-          .where('patientId', isEqualTo: patientId)
-          .where('fechaHora', isGreaterThan: Timestamp.now())
-          .orderBy('fechaHora')
-          .limit(20);
-
-      if (lastDoc != null) {
-        query = query.startAfterDocument(lastDoc);
-      }
-
-      final snap = await query.get();
-      if (snap.docs.isEmpty) break;
-
-      for (final doc in snap.docs) {
-        final appointment = AppointmentModel.fromJson(doc.data());
-        if (appointment.estado != AppointmentStatus.cancelada &&
-            appointment.estado != AppointmentStatus.noAsistio) {
-          final rawFecha = doc.data()['fechaHora'];
-          if (rawFecha is Timestamp) {
-            fecha = rawFecha;
-          } else if (rawFecha is DateTime) {
-            fecha = Timestamp.fromDate(rawFecha);
-          }
-          break;
-        }
-      }
-
-      lastDoc = snap.docs.last;
-    }
+    final fecha = snap.docs.isEmpty ? null : snap.docs.first.data()['fechaHora'];
 
     await _db.collection(FirestorePaths.patients).doc(patientId).update({
       'proximaCita': fecha,
