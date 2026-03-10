@@ -47,9 +47,9 @@ docs/
 | 01 | Arquitectura y Setup | ✅ CERRADO | docs/specs/01_ARQUITECTURA_Y_SETUP.md |
 | 02 | Base de datos | ✅ CERRADO | docs/specs/02_BASE_DE_DATOS.md |
 | 03 | Autenticación y Roles | ✅ CERRADO | docs/specs/03_AUTENTICACION_Y_ROLES.md |
-| **04** | **Gestión de Pacientes** | **⚠️ REABIERTO — EMPIEZA AQUÍ** | docs/bloques/BLOQUE_04_GESTION_PACIENTES.md |
-| 05 | Agenda de Citas | ⚠️ REABIERTO | docs/bloques/BLOQUE_05_AGENDA_CITAS.md |
-| 06 | Tratamiento y Etapas | ⬜ Pendiente (en espera de cierre 04/05) | docs/bloques/BLOQUE_06_TRATAMIENTO_ETAPAS.md |
+| **04** | **Gestión de Pacientes** | **⚠️ REABIERTO** | docs/bloques/BLOQUE_04_GESTION_PACIENTES.md |
+| 05 | Agenda de Citas | ✅ CERRADO | docs/bloques/BLOQUE_05_AGENDA_CITAS.md |
+| 06 | Tratamiento y Etapas | ⬅️ EMPIEZA AQUÍ | docs/bloques/BLOQUE_06_TRATAMIENTO_ETAPAS.md |
 | 07 | Pagos | ⬜ Pendiente | docs/bloques/BLOQUE_07_PAGOS.md |
 | 08 | Simulador de Sonrisa | ⬜ Pendiente | docs/bloques/BLOQUE_08_SIMULADOR.md |
 | 09 | Notificaciones + Cloud Functions | ⬜ Pendiente | docs/bloques/BLOQUE_09_NOTIFICACIONES_CLOUD.md |
