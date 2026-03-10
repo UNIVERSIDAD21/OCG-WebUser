@@ -161,8 +161,8 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
     final patients = ref.read(filteredPatientsProvider);
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-    String? selectedPatientId = preselectedPatient?.id;
-    String? selectedPatientName = preselectedPatient?.nombre;
+    String? selectedPatientId;
+    String? selectedPatientName;
     AppointmentType type = AppointmentType.control;
     int durationMinutes = 30;
     DateTime dateTime = baseDate.add(const Duration(hours: 10));
@@ -187,15 +187,9 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                   ),
                   const SizedBox(height: 8),
                   Autocomplete<PatientModel>(
-                    optionsViewOpenDirection: OptionsViewOpenDirection.down,
                     optionsBuilder: (textEditingValue) {
                       final query = textEditingValue.text.trim().toLowerCase();
-                      if (query.isEmpty) {
-                        if (preselectedPatient != null) {
-                          return patients.where((patient) => patient.id == preselectedPatient.id);
-                        }
-                        return patients;
-                      }
+                      if (query.isEmpty) return patients;
 
                       return patients.where((patient) {
                         return patient.nombre.toLowerCase().contains(query) ||
@@ -211,17 +205,14 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                       });
                     },
                     fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                      if (controller.text.isEmpty && selectedPatientName != null && selectedPatientId != null) {
-                        controller.text = '$selectedPatientName • CC $selectedPatientId';
-                      }
+                      controller.text = patientSearchCtrl.text;
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
-                        readOnly: preselectedPatient != null,
-                        decoration: InputDecoration(
-                          labelText: preselectedPatient == null ? 'Buscar paciente' : 'Paciente',
-                          hintText: preselectedPatient == null ? 'Nombre completo o cédula' : null,
-                          prefixIcon: const Icon(Icons.search),
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar paciente',
+                          hintText: 'Nombre completo o cédula',
+                          prefixIcon: Icon(Icons.search),
                         ),
                       );
                     },
@@ -233,15 +224,13 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                       child: Chip(
                         label: Text('$selectedPatientName • CC $selectedPatientId'),
                         deleteIcon: const Icon(Icons.close, size: 16),
-                        onDeleted: preselectedPatient != null
-                            ? null
-                            : () {
-                                setState(() {
-                                  selectedPatientId = null;
-                                  selectedPatientName = null;
-                                  patientSearchCtrl.clear();
-                                });
-                              },
+                        onDeleted: () {
+                          setState(() {
+                            selectedPatientId = null;
+                            selectedPatientName = null;
+                            patientSearchCtrl.clear();
+                          });
+                        },
                       ),
                     ),
                   const SizedBox(height: 8),

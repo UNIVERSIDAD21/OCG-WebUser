@@ -11,7 +11,8 @@ export const onAuthUserCreate = functions.auth.user().onCreate(async (user) => {
   //    Los campos clínicos quedan en null/vacío — el admin los completa después
   await db.collection('patients').doc(user.uid).set(
     {
-      id: user.uid,                     // ← 'id', no 'uid'
+      id: user.uid,                    
+      nombre: user.displayName ?? '',   // ← AGREGAR ESTA LÍNEA
       email: user.email ?? '',
       telefono: '',
       fechaNacimiento: null,
