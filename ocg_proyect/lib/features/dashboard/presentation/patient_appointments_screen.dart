@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
 enum _PatientAppointmentsFilter { proximas, historial }
@@ -17,6 +18,163 @@ class PatientAppointmentsScreen extends ConsumerStatefulWidget {
 
 class _PatientAppointmentsScreenState extends ConsumerState<PatientAppointmentsScreen> {
   _PatientAppointmentsFilter _filter = _PatientAppointmentsFilter.proximas;
+
+  Future<void> _showNewAppointmentDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String patientId,
+  ) async {
+    final profile = await ref.read(patientByIdProvider(patientId).future);
+    final patientNombre = (profile?.nombre ?? '').trim();
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+
+    if (patientNombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cargar tu perfil. Intenta de nuevo.'),
+          backgroundColor: OcgColors.error,
+        ),
+      );
+      return;
+    }
+
+    AppointmentType selectedType = AppointmentType.valoracion;
+    DateTime selectedDateTime = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setState) => AlertDialog(
+            title: const Text('Agendar cita'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<AppointmentType>(
+                  initialValue: selectedType,
+                  items: const [AppointmentType.valoracion, AppointmentType.control]
+                      .map((type) => DropdownMenuItem(value: type, child: Text(type.name)))
+                      .toList(),
+                  onChanged: (value) => setState(() => selectedType = value ?? selectedType),
+                  decoration: const InputDecoration(labelText: 'Tipo de cita'),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Fecha y hora'),
+                  subtitle: Text(_fmtDateTime(selectedDateTime)),
+                  trailing: const Icon(Icons.schedule, color: OcgColors.bronze),
+                  onTap: () async {
+                    final pickedDate = await showDatePicker(
+                      context: dialogContext,
+                      initialDate: selectedDateTime,
+                      firstDate: tomorrow,
+                      lastDate: DateTime(2035),
+                    );
+                    if (pickedDate == null) return;
+                    if (!dialogContext.mounted) return;
+
+                    final pickedTime = await showTimePicker(
+                      context: dialogContext,
+                      initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                    );
+                    if (pickedTime == null) return;
+
+                    setState(() {
+                      selectedDateTime = DateTime(
+                        pickedDate.year,
+                        pickedDate.month,
+                        pickedDate.day,
+                        pickedTime.hour,
+                        pickedTime.minute,
+                      );
+                    });
+                  },
+                ),
+                const SizedBox(height: 4),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Duración: 30 minutos',
+                    style: TextStyle(color: OcgColors.ink),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: OcgColors.bronze,
+                  foregroundColor: OcgColors.ivory,
+                ),
+                onPressed: () async {
+                  final appointments = ref.read(patientAppointmentsProvider(patientId)).asData?.value ??
+                      const <AppointmentModel>[];
+                  final hasSameDayAppointment = appointments.any((appointment) {
+                    if (appointment.estado == AppointmentStatus.cancelada ||
+                        appointment.estado == AppointmentStatus.noAsistio) {
+                      return false;
+                    }
+                    return _isSameCalendarDay(appointment.fechaHora, selectedDateTime);
+                  });
+
+                  if (hasSameDayAppointment) {
+                    if (!dialogContext.mounted) return;
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Ya tienes una cita el ${_fmtDate(selectedDateTime)}. '
+                          'No puedes agendar dos citas en el mismo día.',
+                        ),
+                        backgroundColor: OcgColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await ref.read(appointmentsRepositoryProvider).createAppointment(
+                          AppointmentModel(
+                            id: '',
+                            patientId: patientId,
+                            patientName: patientNombre,
+                            tipo: selectedType,
+                            estado: AppointmentStatus.programada,
+                            fechaHora: selectedDateTime,
+                            duracionMinutos: 30,
+                          ),
+                        );
+                    if (!dialogContext.mounted) return;
+                    Navigator.of(dialogContext).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cita agendada correctamente.'),
+                        backgroundColor: OcgColors.success,
+                      ),
+                    );
+                  } catch (e) {
+                    if (!dialogContext.mounted) return;
+                    final message = e.toString().contains('SLOT_TAKEN')
+                        ? 'Este horario acaba de ser tomado. Elige otro.'
+                        : 'No se pudo agendar la cita. Intenta nuevamente.';
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(content: Text(message), backgroundColor: OcgColors.error),
+                    );
+                  }
+                },
+                child: const Text('Agendar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +190,13 @@ class _PatientAppointmentsScreenState extends ConsumerState<PatientAppointmentsS
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis citas')),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: OcgColors.bronze,
+        foregroundColor: OcgColors.ivory,
+        icon: const Icon(Icons.add),
+        label: const Text('Agendar cita'),
+        onPressed: () => _showNewAppointmentDialog(context, ref, user.uid),
+      ),
       body: Column(
         children: [
           Container(
@@ -114,6 +279,16 @@ class _PatientAppointmentsScreenState extends ConsumerState<PatientAppointmentsS
     }
   }
 }
+
+bool _isSameCalendarDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+String _fmtDate(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+String _fmtDateTime(DateTime date) =>
+    '${_fmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
 class _AppointmentTile extends StatelessWidget {
   const _AppointmentTile({required this.appointment});
