@@ -7,8 +7,6 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
-// Helpers de formato de fecha — top-level para ser accesibles desde métodos
-// estáticos del widget y desde el State sin ambigüedad.
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
@@ -23,20 +21,28 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   static Future<void> showCreateDialog(
     BuildContext context,
     WidgetRef ref, {
-    required DateTime baseDate,
+    DateTime? baseDate,
     PatientModel? preselectedPatient,
   }) async {
-    final patients = ref.read(filteredPatientsProvider);
+    final patients = ref.read(patientsStreamProvider).asData?.value ?? const <PatientModel>[];
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-    String? selectedPatientId = preselectedPatient?.id;
-    String? selectedPatientName = preselectedPatient?.nombre;
+
+    PatientModel? selectedPatient = preselectedPatient;
     if (preselectedPatient != null) {
-      patientSearchCtrl.text = '${preselectedPatient.nombre} • CC ${preselectedPatient.id}';
+      patientSearchCtrl.text = preselectedPatient.nombre;
     }
+
     AppointmentType type = AppointmentType.control;
     int durationMinutes = 30;
-    DateTime dateTime = baseDate.add(const Duration(hours: 10));
+    final dateSeed = baseDate ?? DateTime.now();
+    DateTime dateTime = DateTime(
+      dateSeed.year,
+      dateSeed.month,
+      dateSeed.day,
+      10,
+      0,
+    );
 
     await showDialog<void>(
       context: context,
@@ -58,21 +64,18 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                   ),
                   const SizedBox(height: 8),
                   Autocomplete<PatientModel>(
+                    displayStringForOption: (p) => p.nombre,
                     optionsBuilder: (textEditingValue) {
                       final query = textEditingValue.text.trim().toLowerCase();
                       if (query.isEmpty) return patients;
-
                       return patients.where((patient) {
-                        return patient.nombre.toLowerCase().contains(query) ||
-                            patient.id.toLowerCase().contains(query);
+                        return patient.nombre.toLowerCase().contains(query);
                       });
                     },
-                    displayStringForOption: (patient) => '${patient.nombre} • CC ${patient.id}',
                     onSelected: (patient) {
                       setState(() {
-                        selectedPatientId = patient.id;
-                        selectedPatientName = patient.nombre;
-                        patientSearchCtrl.text = '${patient.nombre} • CC ${patient.id}';
+                        selectedPatient = patient;
+                        patientSearchCtrl.text = patient.nombre;
                       });
                     },
                     fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -82,23 +85,27 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         focusNode: focusNode,
                         decoration: const InputDecoration(
                           labelText: 'Buscar paciente',
-                          hintText: 'Nombre completo o cédula',
+                          hintText: 'Nombre completo',
                           prefixIcon: Icon(Icons.search),
                         ),
+                        onChanged: (value) {
+                          if (value.trim().isEmpty) {
+                            setState(() => selectedPatient = null);
+                          }
+                        },
                       );
                     },
                   ),
                   const SizedBox(height: 8),
-                  if (selectedPatientName != null && selectedPatientId != null)
+                  if (selectedPatient != null)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Chip(
-                        label: Text('$selectedPatientName • CC $selectedPatientId'),
+                        label: Text(selectedPatient!.nombre),
                         deleteIcon: const Icon(Icons.close, size: 16),
                         onDeleted: () {
                           setState(() {
-                            selectedPatientId = null;
-                            selectedPatientName = null;
+                            selectedPatient = null;
                             patientSearchCtrl.clear();
                           });
                         },
@@ -163,7 +170,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
               FilledButton(
                 onPressed: () async {
-                  if (selectedPatientId == null || selectedPatientName == null) {
+                  if (selectedPatient == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Selecciona un paciente'),
@@ -177,8 +184,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                     await ref.read(appointmentsRepositoryProvider).createAppointment(
                           AppointmentModel(
                             id: '',
-                            patientId: selectedPatientId!,
-                            patientName: selectedPatientName!,
+                            patientId: selectedPatient!.id,
+                            patientName: selectedPatient!.nombre,
                             tipo: type,
                             estado: AppointmentStatus.programada,
                             fechaHora: dateTime,
@@ -319,7 +326,15 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
 
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemBuilder: (context, index) => _AppointmentAdminCard(appointment: filtered[index]),
+                  itemBuilder: (context, index) => AppointmentCard(
+                    appointment: filtered[index],
+                    showActions: true,
+                    onChangeStatus: (status) async {
+                      await ref
+                          .read(appointmentsRepositoryProvider)
+                          .updateAppointmentStatus(filtered[index].id, status);
+                    },
+                  ),
                   separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemCount: filtered.length,
                 );
@@ -348,22 +363,24 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
         return appointments.where((a) => a.estado == AppointmentStatus.completada).toList();
     }
   }
-
 }
 
-class _AppointmentAdminCard extends ConsumerWidget {
-  const _AppointmentAdminCard({required this.appointment});
+class AppointmentCard extends StatelessWidget {
+  const AppointmentCard({
+    super.key,
+    required this.appointment,
+    this.showActions = false,
+    this.onChangeStatus,
+  });
 
   final AppointmentModel appointment;
+  final bool showActions;
+  final Future<void> Function(AppointmentStatus status)? onChangeStatus;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final dt = appointment.fechaHora;
     final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-
-    Future<void> changeStatus(AppointmentStatus status) async {
-      await ref.read(appointmentsRepositoryProvider).updateAppointmentStatus(appointment.id, status);
-    }
 
     return Card(
       elevation: 0,
@@ -382,27 +399,37 @@ class _AppointmentAdminCard extends ConsumerWidget {
                 child: Text(time, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               title: Text('${appointment.patientName} • ${appointment.tipo.name}'),
-              subtitle: Text('Estado: ${appointment.estado.name} • ${appointment.duracionMinutos} min'),
-              trailing: const Icon(Icons.chevron_right),
+              subtitle: Text(
+                'Estado: ${appointment.estado.name} • ${_appointmentFmtDateTime(appointment.fechaHora)} • ${appointment.duracionMinutos} min',
+              ),
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ActionChip(
-                  label: const Text('Confirmar'),
-                  onPressed: () => changeStatus(AppointmentStatus.confirmada),
-                ),
-                ActionChip(
-                  label: const Text('Completar'),
-                  onPressed: () => changeStatus(AppointmentStatus.completada),
-                ),
-                ActionChip(
-                  label: const Text('Cancelar'),
-                  onPressed: () => changeStatus(AppointmentStatus.cancelada),
-                ),
-              ],
-            ),
+            if (showActions) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: const Text('Confirmar'),
+                    onPressed: onChangeStatus == null
+                        ? null
+                        : () => onChangeStatus!(AppointmentStatus.confirmada),
+                  ),
+                  ActionChip(
+                    label: const Text('Completar'),
+                    onPressed: onChangeStatus == null
+                        ? null
+                        : () => onChangeStatus!(AppointmentStatus.completada),
+                  ),
+                  ActionChip(
+                    label: const Text('Cancelar'),
+                    onPressed: onChangeStatus == null
+                        ? null
+                        : () => onChangeStatus!(AppointmentStatus.cancelada),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
