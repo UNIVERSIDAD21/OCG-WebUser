@@ -32,7 +32,7 @@ class AdminPatientsScreen extends ConsumerWidget {
       builder: (_) => AlertDialog(
         title: const Text('Agregar paciente'),
         content: const Text(
-          'Para agregar un paciente, primero debe crear su cuenta desde la pantalla de login. '
+          'Para agregar un paciente, el paciente debe crear su cuenta desde la pantalla de login. '
           'Una vez registrado, aparecerá aquí para completar sus datos clínicos.',
         ),
         actions: [
@@ -160,7 +160,7 @@ class _PatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = patient.nombre.isNotEmpty ? patient.nombre[0].toUpperCase() : '?';
+    final initials = _initialsFromName(patient.nombre);
     final hasPhoto = patient.fotoUrl != null && patient.fotoUrl!.isNotEmpty;
 
     return InkWell(
@@ -177,7 +177,7 @@ class _PatientCard extends StatelessWidget {
               child: hasPhoto
                   ? null
                   : Text(
-                      initial,
+                      initials,
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w700,
@@ -209,7 +209,7 @@ class _PatientCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      OcgChip(label: patient.tipoTratamiento.name),
+                      OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
                       OcgChip(label: patient.etapaActual.name),
                     ],
                   ),
@@ -240,6 +240,18 @@ class _PatientCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+
+  String _initialsFromName(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'.toUpperCase();
   }
 
   String _fmtDate(DateTime date) {

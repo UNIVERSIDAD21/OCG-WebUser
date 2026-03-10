@@ -50,11 +50,11 @@ final filteredPatientsProvider = Provider<List<PatientModel>>((ref) {
   bool matchesFilter(PatientModel p) {
     if (filter == 'Todos') return true;
     if (filter == 'Pendientes') {
-      return p.totalTratamiento == 0;
+      return p.tipoTratamiento == null;
     }
     if (filter == 'Alta') return p.etapaActual == TreatmentStage.alta;
     if (filter == 'Activos') return p.etapaActual != TreatmentStage.alta;
-    return p.tipoTratamiento.name == filter.toLowerCase();
+    return p.tipoTratamiento?.name == filter.toLowerCase();
   }
 
   bool matchesQuery(PatientModel p) {
