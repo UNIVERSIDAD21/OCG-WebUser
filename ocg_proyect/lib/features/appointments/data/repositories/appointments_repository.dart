@@ -36,6 +36,20 @@ class AppointmentsRepository {
       });
 }
 
+  Stream<List<AppointmentModel>> watchAllAppointments() {
+    return _appointmentsRef
+        .orderBy('fechaHora', descending: true)
+        .snapshots()
+        .map((s) {
+      return s.docs
+          .map((d) => AppointmentModel.fromJson(d.data()))
+          .where((a) =>
+              a.estado != AppointmentStatus.cancelada &&
+              a.estado != AppointmentStatus.noAsistio)
+          .toList();
+    });
+  }
+
   Stream<List<AppointmentModel>> watchPatientAppointments(String patientId) {
     return _appointmentsRef
         .where('patientId', isEqualTo: patientId)
