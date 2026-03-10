@@ -59,6 +59,11 @@ class PatientsRepository {
     await _patientsRef.doc(patientId).update(data);
   }
 
+
+  Future<void> deletePatient(String patientId) async {
+    await _db.collection(FirestorePaths.patients).doc(patientId).delete();
+  }
+
   Future<void> updateTreatmentStage({
     required String patientId,
     required TreatmentStage newStage,
