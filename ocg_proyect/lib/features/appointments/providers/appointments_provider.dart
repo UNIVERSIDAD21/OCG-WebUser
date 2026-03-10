@@ -27,10 +27,9 @@ final selectedAppointmentsDateProvider = NotifierProvider<SelectedAppointmentsDa
   SelectedAppointmentsDateNotifier.new,
 );
 
-final appointmentsByDateProvider = StreamProvider<List<AppointmentModel>>((ref) {
+final appointmentsProvider = StreamProvider<List<AppointmentModel>>((ref) {
   ref.keepAlive(); // ✅ AGREGA ESTA LÍNEA — el stream no se cancela al salir de la pantalla
-  final date = ref.watch(selectedAppointmentsDateProvider);
-  return ref.watch(appointmentsRepositoryProvider).watchAppointmentsByDate(date);
+  return ref.watch(appointmentsRepositoryProvider).watchAllAppointments();
 });
 
 final patientAppointmentsProvider = StreamProvider.family<List<AppointmentModel>, String>((ref, patientId) {

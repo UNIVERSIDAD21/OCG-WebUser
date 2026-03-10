@@ -202,7 +202,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Cita creada.')),
                     );
-                    ref.invalidate(appointmentsByDateProvider);
+                    ref.invalidate(appointmentsProvider);
                   } catch (e) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -233,7 +233,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
-    final appointmentsAsync = ref.watch(appointmentsByDateProvider);
+    final appointmentsAsync = ref.watch(appointmentsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -311,7 +311,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                 side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
               ),
               segments: const [
-                ButtonSegment(value: _AgendaFilter.hoy, label: Text('Del día')),
+                ButtonSegment(value: _AgendaFilter.hoy, label: Text('Por fecha')),
                 ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
                 ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
               ],
@@ -326,7 +326,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('No se pudo cargar agenda: $error')),
               data: (appointments) {
-                final filtered = _applyFilter(appointments);
+                final filtered = _applyFilter(appointments, selectedDate);
                 if (filtered.isEmpty) {
                   return const Center(child: Text('No hay citas para el filtro seleccionado.'));
                 }
@@ -358,10 +358,15 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
     );
   }
 
-  List<AppointmentModel> _applyFilter(List<AppointmentModel> appointments) {
+  List<AppointmentModel> _applyFilter(List<AppointmentModel> appointments, DateTime selectedDate) {
     switch (_filter) {
       case _AgendaFilter.hoy:
-        return appointments;
+        return appointments.where((appointment) {
+          final date = appointment.fechaHora;
+          return date.year == selectedDate.year &&
+              date.month == selectedDate.month &&
+              date.day == selectedDate.day;
+        }).toList();
       case _AgendaFilter.activas:
         return appointments
             .where((a) => a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
