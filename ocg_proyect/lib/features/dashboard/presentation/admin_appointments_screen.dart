@@ -7,6 +7,14 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
+// Helpers de formato de fecha — top-level para ser accesibles desde métodos
+// estáticos del widget y desde el State sin ambigüedad.
+String _appointmentFmtDate(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+String _appointmentFmtDateTime(DateTime date) =>
+    '${_appointmentFmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
 enum _AgendaFilter { hoy, activas, completadas }
 
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
@@ -112,7 +120,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Fecha y hora'),
-                    subtitle: Text(_fmtDateTime(dateTime)),
+                    subtitle: Text(_appointmentFmtDateTime(dateTime)),
                     trailing: const Icon(Icons.schedule),
                     onTap: () async {
                       final pickedDate = await showDatePicker(
@@ -199,11 +207,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     );
   }
 
-  static String _fmtDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-  static String _fmtDateTime(DateTime date) =>
-      '${_fmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  static String _fmtDate(DateTime date) => _appointmentFmtDate(date);
 
   @override
   ConsumerState<AdminAppointmentsScreen> createState() => _AdminAppointmentsScreenState();
@@ -246,7 +250,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
               children: [
                 Expanded(
                   child: Text(
-                    'Fecha activa: ${_fmtDate(selectedDate)}',
+                    'Fecha activa: ${AdminAppointmentsScreen._fmtDate(selectedDate)}',
                     style: const TextStyle(
                       color: OcgColors.ivory,
                       fontWeight: FontWeight.w700,
