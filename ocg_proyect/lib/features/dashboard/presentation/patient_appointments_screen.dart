@@ -290,13 +290,85 @@ String _fmtDate(DateTime date) =>
 String _fmtDateTime(DateTime date) =>
     '${_fmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
-class _AppointmentTile extends StatelessWidget {
+class _AppointmentTile extends ConsumerWidget {
   const _AppointmentTile({required this.appointment});
 
   final AppointmentModel appointment;
 
+  bool get _canShowCancelAction {
+    return appointment.estado == AppointmentStatus.programada ||
+        appointment.estado == AppointmentStatus.confirmada;
+  }
+
+  Future<void> _onCancelPressed(BuildContext context, WidgetRef ref) async {
+    final horasRestantes = appointment.fechaHora.difference(DateTime.now()).inHours;
+    final puedeCancelar = horasRestantes >= 24;
+
+    if (puedeCancelar) {
+      final confirmarCancelacion = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('¿Cancelar esta cita?'),
+          content: const Text('Esta acción no se puede deshacer.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Volver'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: OcgColors.error),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Cancelar cita'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmarCancelacion != true) return;
+
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .updateAppointmentStatus(appointment.id, AppointmentStatus.cancelada);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cita cancelada correctamente.'),
+          backgroundColor: OcgColors.success,
+        ),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('No puedes cancelar esta cita'),
+        content: const Text(
+          'Para cancelar con menos de 24 horas de anticipación, contáctanos directamente por WhatsApp.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Próximamente habilitaremos el contacto por WhatsApp.'),
+                ),
+              );
+            },
+            child: const Text('Contactar por WhatsApp'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dt = appointment.fechaHora;
     final date = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     final hour = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -314,7 +386,14 @@ class _AppointmentTile extends StatelessWidget {
         ),
         title: Text('${appointment.tipo.name} • $date $hour'),
         subtitle: Text('Estado: ${appointment.estado.name} • Duración: ${appointment.duracionMinutos} min'),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: _canShowCancelAction
+            ? TextButton.icon(
+                onPressed: () => _onCancelPressed(context, ref),
+                style: TextButton.styleFrom(foregroundColor: OcgColors.error),
+                icon: const Icon(Icons.close),
+                label: const Text('Cancelar'),
+              )
+            : const Icon(Icons.chevron_right),
       ),
     );
   }
