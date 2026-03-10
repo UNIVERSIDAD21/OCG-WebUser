@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
+import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
@@ -157,10 +158,12 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
     DateTime baseDate,
   ) async {
     final patients = ref.read(filteredPatientsProvider);
-    final patientNameCtrl = TextEditingController();
-    final patientIdCtrl = TextEditingController();
+    final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
+    String? selectedPatientId;
+    String? selectedPatientName;
     AppointmentType type = AppointmentType.control;
+    int durationMinutes = 30;
     DateTime dateTime = baseDate.add(const Duration(hours: 10));
 
     await showDialog<void>(
@@ -182,33 +185,65 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                     decoration: const InputDecoration(labelText: 'Tipo'),
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: patientNameCtrl,
-                    decoration: const InputDecoration(labelText: 'Nombre paciente'),
+                  Autocomplete<PatientModel>(
+                    optionsBuilder: (textEditingValue) {
+                      final query = textEditingValue.text.trim().toLowerCase();
+                      if (query.isEmpty) return patients;
+
+                      return patients.where((patient) {
+                        return patient.nombre.toLowerCase().contains(query) ||
+                            patient.id.toLowerCase().contains(query);
+                      });
+                    },
+                    displayStringForOption: (patient) => '${patient.nombre} • CC ${patient.id}',
+                    onSelected: (patient) {
+                      setState(() {
+                        selectedPatientId = patient.id;
+                        selectedPatientName = patient.nombre;
+                        patientSearchCtrl.text = '${patient.nombre} • CC ${patient.id}';
+                      });
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                      controller.text = patientSearchCtrl.text;
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar paciente',
+                          hintText: 'Nombre completo o cédula',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: patientIdCtrl,
-                    decoration: const InputDecoration(labelText: 'UID paciente'),
-                  ),
-                  const SizedBox(height: 8),
-                  if (patients.isNotEmpty)
+                  if (selectedPatientName != null && selectedPatientId != null)
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: patients.take(6).map((p) {
-                          return ActionChip(
-                            label: Text(p.nombre),
-                            onPressed: () {
-                              patientNameCtrl.text = p.nombre;
-                              patientIdCtrl.text = p.id;
-                            },
-                          );
-                        }).toList(),
+                      child: Chip(
+                        label: Text('$selectedPatientName • CC $selectedPatientId'),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () {
+                          setState(() {
+                            selectedPatientId = null;
+                            selectedPatientName = null;
+                            patientSearchCtrl.clear();
+                          });
+                        },
                       ),
                     ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    initialValue: durationMinutes,
+                    items: const [30, 45, 60, 90]
+                        .map((minutes) => DropdownMenuItem<int>(
+                              value: minutes,
+                              child: Text('$minutes min'),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() => durationMinutes = value ?? 30),
+                    decoration: const InputDecoration(labelText: 'Duración'),
+                  ),
                   const SizedBox(height: 10),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -256,9 +291,12 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
               FilledButton(
                 onPressed: () async {
-                  if (patientNameCtrl.text.trim().isEmpty || patientIdCtrl.text.trim().isEmpty) {
+                  if (selectedPatientId == null || selectedPatientName == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Completa nombre y UID del paciente.')),
+                      const SnackBar(
+                        content: Text('Selecciona un paciente'),
+                        backgroundColor: OcgColors.error,
+                      ),
                     );
                     return;
                   }
@@ -267,12 +305,12 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
                     await ref.read(appointmentsRepositoryProvider).createAppointment(
                           AppointmentModel(
                             id: '',
-                            patientId: patientIdCtrl.text.trim(),
-                            patientName: patientNameCtrl.text.trim(),
+                            patientId: selectedPatientId!,
+                            patientName: selectedPatientName!,
                             tipo: type,
                             estado: AppointmentStatus.programada,
                             fechaHora: dateTime,
-                            duracionMinutos: 30,
+                            duracionMinutos: durationMinutes,
                             notas: notesCtrl.text.trim(),
                           ),
                         );
