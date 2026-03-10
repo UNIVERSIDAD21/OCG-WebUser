@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +65,22 @@ class AdminPatientsScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          if (kDebugMode)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: OcgColors.bronze.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.28)),
+              ),
+              child: Text(
+                'DEBUG build=01d88ee total=${asyncPatients.asData?.value.length ?? 0} '
+                'filtrados=${filteredPatients.length} filtro=$selectedFilter',
+                style: const TextStyle(fontSize: 12, color: OcgColors.espresso),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
