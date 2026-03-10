@@ -2,6 +2,7 @@
   "indexes": [
     {
       "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "patientId", "order": "ASCENDING" },
         { "fieldPath": "fechaHora", "order": "DESCENDING" }
@@ -9,36 +10,33 @@
     },
     {
       "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "patientId", "order": "ASCENDING" },
         { "fieldPath": "fechaHora", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "fechaHora", "order": "ASCENDING" },
-        { "fieldPath": "estado", "order": "ASCENDING" }
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "recordatorio24hEnviado", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "fechaHora", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "recordatorio24hEnviado", "order": "ASCENDING" },
-        { "fieldPath": "fechaHora", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "appointments",
-      "fields": [
-        { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "recordatorio2hEnviado", "order": "ASCENDING" },
-        { "fieldPath": "fechaHora", "order": "ASCENDING" }
+        { "fieldPath": "recordatorio2hEnviado", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "simulations",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "patientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
@@ -46,8 +44,25 @@
     },
     {
       "collectionGroup": "photos",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "etapa", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fechaProximoPago", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }

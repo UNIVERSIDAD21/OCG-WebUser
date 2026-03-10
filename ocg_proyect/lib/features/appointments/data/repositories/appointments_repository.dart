@@ -11,7 +11,9 @@ class AppointmentsRepository {
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
 
-
+  // FIX #1: whereNotIn en 'estado' removido de la query Firestore.
+  // Combinarlo con el rango en 'fechaHora' requiere índice compuesto.
+  // El filtro se aplica en Dart después de recibir los documentos.
   Stream<List<AppointmentModel>> watchAppointmentsByDate(DateTime date) {
     final start = DateTime(date.year, date.month, date.day);
     final end = start.add(const Duration(days: 1));
@@ -19,13 +21,16 @@ class AppointmentsRepository {
     return _appointmentsRef
         .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('fechaHora', isLessThan: Timestamp.fromDate(end))
-        .where('estado', whereNotIn: [
-          AppointmentStatus.cancelada.name,
-          AppointmentStatus.noAsistio.name,
-        ])
         .orderBy('fechaHora')
         .snapshots()
-        .map((s) => s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList());
+        .map((s) {
+      return s.docs
+          .map((d) => AppointmentModel.fromJson(d.data()))
+          .where((a) =>
+              a.estado != AppointmentStatus.cancelada &&
+              a.estado != AppointmentStatus.noAsistio)
+          .toList();
+    });
   }
 
   Stream<List<AppointmentModel>> watchPatientAppointments(String patientId) {
@@ -33,27 +38,36 @@ class AppointmentsRepository {
         .where('patientId', isEqualTo: patientId)
         .orderBy('fechaHora', descending: true)
         .snapshots()
-        .map((s) => s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList());
+        .map((s) =>
+            s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList());
   }
 
+  // FIX #2: whereNotIn en 'estado' removido de la query de conflictos.
+  // El filtro se aplica en Dart.
   Future<String> createAppointment(AppointmentModel appointment) async {
     try {
-      final conflictingQuery = _appointmentsRef
-          .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(appointment.fechaHora))
+      final snapshot = await _appointmentsRef
+          .where(
+            'fechaHora',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(appointment.fechaHora),
+          )
           .where(
             'fechaHora',
             isLessThan: Timestamp.fromDate(
-              appointment.fechaHora.add(Duration(minutes: appointment.duracionMinutos)),
+              appointment.fechaHora
+                  .add(Duration(minutes: appointment.duracionMinutos)),
             ),
           )
-          .where('estado', whereNotIn: [
-            AppointmentStatus.cancelada.name,
-            AppointmentStatus.noAsistio.name,
-            AppointmentStatus.reprogramada.name,
-          ]);
+          .get();
 
-      final conflicts = await conflictingQuery.get();
-      if (conflicts.docs.isNotEmpty) {
+      final hasConflict = snapshot.docs.any((doc) {
+        final model = AppointmentModel.fromJson(doc.data());
+        return model.estado != AppointmentStatus.cancelada &&
+            model.estado != AppointmentStatus.noAsistio &&
+            model.estado != AppointmentStatus.reprogramada;
+      });
+
+      if (hasConflict) {
         throw FirebaseException(
           plugin: 'appointments',
           code: 'SLOT_TAKEN',
@@ -73,11 +87,16 @@ class AppointmentsRepository {
     }
   }
 
-  Future<void> updateAppointmentStatus(String appointmentId, AppointmentStatus newStatus) async {
-    final appointmentSnapshot = await _appointmentsRef.doc(appointmentId).get();
+  Future<void> updateAppointmentStatus(
+    String appointmentId,
+    AppointmentStatus newStatus,
+  ) async {
+    final appointmentSnapshot =
+        await _appointmentsRef.doc(appointmentId).get();
     if (!appointmentSnapshot.exists) return;
 
-    final patientId = (appointmentSnapshot.data()?['patientId'] ?? '').toString();
+    final patientId =
+        (appointmentSnapshot.data()?['patientId'] ?? '').toString();
 
     await _appointmentsRef.doc(appointmentId).update({
       'estado': newStatus.name,
@@ -107,23 +126,34 @@ class AppointmentsRepository {
     await _updatePatientNextAppointment(newAppointment.patientId);
   }
 
+  // FIX #3 — CAUSA RAÍZ DEL ERROR ACTUAL
+  // La query original tenía:
+  //   .where('patientId', isEqualTo: patientId)   ← equality OK
+  //   .where('fechaHora', isGreaterThan: ...)      ← rango campo 1
+  //   .where('estado', whereNotIn: [...])          ← desigualdad campo 2 ← EXPLOTA
+  //
+  // Firestore no permite desigualdades en más de un campo sin índice compuesto.
+  // Solución: quitar whereNotIn y filtrar estado en Dart.
   Future<void> _updatePatientNextAppointment(String patientId) async {
-    final snap = await _db
-        .collection(FirestorePaths.appointments)
+    final snap = await _appointmentsRef
         .where('patientId', isEqualTo: patientId)
         .where('fechaHora', isGreaterThan: Timestamp.now())
-        .where('estado', whereNotIn: [
-          AppointmentStatus.cancelada.name,
-          AppointmentStatus.noAsistio.name,
-        ])
         .orderBy('fechaHora')
-        .limit(1)
         .get();
 
-    final fecha = snap.docs.isEmpty ? null : snap.docs.first.data()['fechaHora'];
+    Map<String, dynamic>? nextData;
+    for (final doc in snap.docs) {
+      final model = AppointmentModel.fromJson(doc.data());
+      if (model.estado != AppointmentStatus.cancelada &&
+          model.estado != AppointmentStatus.noAsistio &&
+          model.estado != AppointmentStatus.reprogramada) {
+        nextData = doc.data();
+        break;
+      }
+    }
 
     await _db.collection(FirestorePaths.patients).doc(patientId).update({
-      'proximaCita': fecha,
+      'proximaCita': nextData?['fechaHora'],
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
