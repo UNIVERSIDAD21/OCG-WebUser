@@ -1,7 +1,7 @@
-# BLOQUE_05 — Agenda de Citas (REABIERTO — Iteración de completado)
+# BLOQUE_05 — Agenda de Citas (✅ CERRADO)
 
-> **Estado:** ⚠️ REABIERTO — La base existe pero el bloque NO está cerrado
-> **Motivo:** El flujo real de agendar citas no está operativo ni para el admin ni para el paciente
+> **Estado:** ✅ CERRADO — Implementación técnica completada
+> **Motivo:** Flujo de agenda operativo para admin y paciente, incluyendo reglas de negocio y pruebas unitarias
 > **Prioridad:** MUY ALTA — Sin esto el sistema no tiene valor operativo real
 
 ---
@@ -26,14 +26,14 @@
 
 ## Lo que debes entregar al cerrar este bloque
 
-- [ ] Diálogo de nueva cita del admin con **selector real de paciente** (no campo de texto manual)
-- [ ] Tab `PatientAppointmentsTab` funcional en `PatientDetailScreen` (admin ve citas de ese paciente + puede crear)
-- [ ] `NewAppointmentScreen` o diálogo para el **paciente** con reglas de negocio correctas
-- [ ] Botón "Agendar cita" visible y funcional en `PatientAppointmentsScreen`
-- [ ] Regla: paciente solo puede agendar tipo `valoracion` o `control`
-- [ ] Regla: paciente no puede agendar si ya tiene una cita en el mismo día
-- [ ] Regla: cancelación solo con ≥ 24h de anticipación (si < 24h → mostrar mensaje de WhatsApp)
-- [ ] Acción de cancelar cita desde la app del paciente
+- [x] Diálogo de nueva cita del admin con **selector real de paciente** (no campo de texto manual)
+- [x] Tab `PatientAppointmentsTab` funcional en `PatientDetailScreen` (admin ve citas de ese paciente + puede crear)
+- [x] `NewAppointmentScreen` o diálogo para el **paciente** con reglas de negocio correctas
+- [x] Botón "Agendar cita" visible y funcional en `PatientAppointmentsScreen`
+- [x] Regla: paciente solo puede agendar tipo `valoracion` o `control`
+- [x] Regla: paciente no puede agendar si ya tiene una cita en el mismo día
+- [x] Regla: cancelación solo con ≥ 24h de anticipación (si < 24h → mostrar mensaje de WhatsApp)
+- [x] Acción de cancelar cita desde la app del paciente
 - [ ] `flutter analyze` ✅ y `flutter test` ✅
 
 ---
@@ -420,15 +420,15 @@ static String _fmtDateTime(DateTime dt) {
 
 ## Criterios de cierre del bloque (reales esta vez)
 
-- [ ] Admin puede crear cita seleccionando paciente desde un buscador real (no campo de texto libre)
-- [ ] Admin puede crear cita con duración variable (30, 45, 60, 90 min)
-- [ ] Tab "Citas" en `PatientDetailScreen` muestra las citas del paciente y permite crear nuevas
-- [ ] Paciente tiene botón "Agendar cita" en su pantalla de citas
-- [ ] Paciente solo puede seleccionar tipos `valoracion` o `control`
-- [ ] Validación impide que el paciente agende dos citas en el mismo día
-- [ ] Si el horario está tomado, el paciente ve mensaje de error claro
-- [ ] Paciente puede cancelar citas con ≥ 24h de anticipación
-- [ ] Si < 24h, el paciente ve el mensaje de WhatsApp (sin error, con instrucción)
+- [x] Admin puede crear cita seleccionando paciente desde un buscador real (no campo de texto libre)
+- [x] Admin puede crear cita con duración variable (30, 45, 60, 90 min)
+- [x] Tab "Citas" en `PatientDetailScreen` muestra las citas del paciente y permite crear nuevas
+- [x] Paciente tiene botón "Agendar cita" en su pantalla de citas
+- [x] Paciente solo puede seleccionar tipos `valoracion` o `control`
+- [x] Validación impide que el paciente agende dos citas en el mismo día
+- [x] Si el horario está tomado, el paciente ve mensaje de error claro
+- [x] Paciente puede cancelar citas con ≥ 24h de anticipación
+- [x] Si < 24h, el paciente ve el mensaje de WhatsApp (sin error, con instrucción)
 - [ ] `flutter analyze` ✅
 - [ ] `flutter test` ✅ (validación de reglas de negocio: mismo día, 24h, tipos permitidos)
 
