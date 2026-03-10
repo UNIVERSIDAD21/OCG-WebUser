@@ -20,7 +20,7 @@ class PatientAppointmentsTab extends ConsumerWidget {
       backgroundColor: OcgColors.ivory,
       body: appointmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
+        error: (error, __) => Center(
           child: Text(
             'No se pudo cargar citas: $error',
             style: const TextStyle(color: OcgColors.error),
@@ -39,7 +39,7 @@ class PatientAppointmentsTab extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: appointments.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => AppointmentCard(
               appointment: appointments[index],
             ),

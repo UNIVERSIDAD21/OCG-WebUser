@@ -7,6 +7,7 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 
+
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 

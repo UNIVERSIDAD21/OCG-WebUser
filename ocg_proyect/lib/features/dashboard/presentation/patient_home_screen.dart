@@ -43,7 +43,7 @@ class PatientHomeScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Bienvenido. Desde aquí puedes consultar tu perfil, tus citas y el estado de tu tratamiento.',
+                  'Aqui es el dashboard principal para que el paciente vea información relevante, como próximas citas, estado de tratamientos, etc.',
                 ),
               ),
             ),
