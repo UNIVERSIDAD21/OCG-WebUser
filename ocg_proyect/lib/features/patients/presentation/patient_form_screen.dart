@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
@@ -212,7 +213,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton(
-                            onPressed: () => context.pop(),
+                            onPressed: () => context.go(RouteNames.adminPatients),
                             child: const Text('Entendido'),
                           ),
                         ),
@@ -254,7 +255,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Paciente actualizado')),
       );
-      context.pop();
+      context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
