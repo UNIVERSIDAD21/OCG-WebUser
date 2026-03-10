@@ -132,7 +132,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateAppointmentDialog(context, ref, selectedDate),
+        onPressed: () => showCreateDialog(context, ref, baseDate: selectedDate),
         icon: const Icon(Icons.add),
         label: const Text('Nueva cita'),
       ),
@@ -152,11 +152,12 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
     }
   }
 
-  static Future<void> _showCreateAppointmentDialog(
+  static Future<void> showCreateDialog(
     BuildContext context,
-    WidgetRef ref,
-    DateTime baseDate,
-  ) async {
+    WidgetRef ref, {
+    required DateTime baseDate,
+    PatientModel? preselectedPatient,
+  }) async {
     final patients = ref.read(filteredPatientsProvider);
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
