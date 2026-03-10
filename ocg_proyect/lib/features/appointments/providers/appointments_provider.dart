@@ -35,6 +35,3 @@ final appointmentsProvider = StreamProvider<List<AppointmentModel>>((ref) {
 final patientAppointmentsProvider = StreamProvider.family<List<AppointmentModel>, String>((ref, patientId) {
   return ref.watch(appointmentsRepositoryProvider).watchPatientAppointments(patientId);
 });
-// Compatibilidad: mantiene el nombre anterior usado en otras pantallas.
-final appointmentsByDateProvider = appointmentsProvider;
-
