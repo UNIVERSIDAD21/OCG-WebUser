@@ -12,146 +12,6 @@ enum _AgendaFilter { hoy, activas, completadas }
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   const AdminAppointmentsScreen({super.key});
 
-  @override
-  ConsumerState<AdminAppointmentsScreen> createState() => _AdminAppointmentsScreenState();
-}
-
-class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScreen> {
-  _AgendaFilter _filter = _AgendaFilter.hoy;
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedDate = ref.watch(selectedAppointmentsDateProvider);
-    final appointmentsAsync = ref.watch(appointmentsByDateProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Agenda de citas'),
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [OcgColors.bronze, OcgColors.sand],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: OcgColors.bronze.withValues(alpha: 0.18),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Fecha activa: ${_fmtDate(selectedDate)}',
-                    style: const TextStyle(
-                      color: OcgColors.ivory,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2024),
-                      lastDate: DateTime(2035),
-                    );
-                    if (picked != null) {
-                      ref
-                          .read(selectedAppointmentsDateProvider.notifier)
-                          .setDate(DateTime(picked.year, picked.month, picked.day));
-                    }
-                  },
-                  icon: const Icon(Icons.calendar_today, color: OcgColors.ivory),
-                  label: const Text('Cambiar', style: TextStyle(color: OcgColors.ivory)),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: SegmentedButton<_AgendaFilter>(
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return OcgColors.espresso;
-                  }
-                  return OcgColors.ivory;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return OcgColors.ivory;
-                  }
-                  return OcgColors.ink;
-                }),
-                side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
-              ),
-              segments: const [
-                ButtonSegment(value: _AgendaFilter.hoy, label: Text('Del día')),
-                ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
-                ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
-              ],
-              selected: {_filter},
-              onSelectionChanged: (selection) {
-                setState(() => _filter = selection.first);
-              },
-            ),
-          ),
-          Expanded(
-            child: appointmentsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(child: Text('No se pudo cargar agenda: $error')),
-              data: (appointments) {
-                final filtered = _applyFilter(appointments);
-                if (filtered.isEmpty) {
-                  return const Center(child: Text('No hay citas para el filtro seleccionado.'));
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemBuilder: (context, index) => _AppointmentAdminCard(appointment: filtered[index]),
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemCount: filtered.length,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showCreateDialog(context, ref, baseDate: selectedDate),
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva cita'),
-      ),
-    );
-  }
-
-  List<AppointmentModel> _applyFilter(List<AppointmentModel> appointments) {
-    switch (_filter) {
-      case _AgendaFilter.hoy:
-        return appointments;
-      case _AgendaFilter.activas:
-        return appointments
-            .where((a) => a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
-            .toList();
-      case _AgendaFilter.completadas:
-        return appointments.where((a) => a.estado == AppointmentStatus.completada).toList();
-    }
-  }
-
   static Future<void> showCreateDialog(
     BuildContext context,
     WidgetRef ref, {
@@ -161,8 +21,11 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
     final patients = ref.read(filteredPatientsProvider);
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-    String? selectedPatientId;
-    String? selectedPatientName;
+    String? selectedPatientId = preselectedPatient?.id;
+    String? selectedPatientName = preselectedPatient?.nombre;
+    if (preselectedPatient != null) {
+      patientSearchCtrl.text = '${preselectedPatient.nombre} • CC ${preselectedPatient.id}';
+    }
     AppointmentType type = AppointmentType.control;
     int durationMinutes = 30;
     DateTime dateTime = baseDate.add(const Duration(hours: 10));
@@ -341,6 +204,147 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
 
   static String _fmtDateTime(DateTime date) =>
       '${_fmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  @override
+  ConsumerState<AdminAppointmentsScreen> createState() => _AdminAppointmentsScreenState();
+}
+
+class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScreen> {
+  _AgendaFilter _filter = _AgendaFilter.hoy;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedDate = ref.watch(selectedAppointmentsDateProvider);
+    final appointmentsAsync = ref.watch(appointmentsByDateProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Agenda de citas'),
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [OcgColors.bronze, OcgColors.sand],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: OcgColors.bronze.withValues(alpha: 0.18),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Fecha activa: ${AdminAppointmentsScreen._fmtDate(selectedDate)}',
+                    style: const TextStyle(
+                      color: OcgColors.ivory,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2024),
+                      lastDate: DateTime(2035),
+                    );
+                    if (picked != null) {
+                      ref
+                          .read(selectedAppointmentsDateProvider.notifier)
+                          .setDate(DateTime(picked.year, picked.month, picked.day));
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today, color: OcgColors.ivory),
+                  label: const Text('Cambiar', style: TextStyle(color: OcgColors.ivory)),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: SegmentedButton<_AgendaFilter>(
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return OcgColors.espresso;
+                  }
+                  return OcgColors.ivory;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return OcgColors.ivory;
+                  }
+                  return OcgColors.ink;
+                }),
+                side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
+              ),
+              segments: const [
+                ButtonSegment(value: _AgendaFilter.hoy, label: Text('Del día')),
+                ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
+                ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
+              ],
+              selected: {_filter},
+              onSelectionChanged: (selection) {
+                setState(() => _filter = selection.first);
+              },
+            ),
+          ),
+          Expanded(
+            child: appointmentsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('No se pudo cargar agenda: $error')),
+              data: (appointments) {
+                final filtered = _applyFilter(appointments);
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No hay citas para el filtro seleccionado.'));
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemBuilder: (context, index) => _AppointmentAdminCard(appointment: filtered[index]),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  itemCount: filtered.length,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => AdminAppointmentsScreen.showCreateDialog(context, ref, baseDate: selectedDate),
+        icon: const Icon(Icons.add),
+        label: const Text('Nueva cita'),
+      ),
+    );
+  }
+
+  List<AppointmentModel> _applyFilter(List<AppointmentModel> appointments) {
+    switch (_filter) {
+      case _AgendaFilter.hoy:
+        return appointments;
+      case _AgendaFilter.activas:
+        return appointments
+            .where((a) => a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+            .toList();
+      case _AgendaFilter.completadas:
+        return appointments.where((a) => a.estado == AppointmentStatus.completada).toList();
+    }
+  }
+
 }
 
 class _AppointmentAdminCard extends ConsumerWidget {
