@@ -49,19 +49,60 @@ class PatientDetailScreen extends ConsumerWidget {
   }
 }
 
-class _PatientDetailView extends StatelessWidget {
+class _PatientDetailView extends ConsumerWidget {
   const _PatientDetailView({required this.patient});
 
   final PatientModel patient;
 
+  Future<void> _deletePatient(BuildContext context, WidgetRef ref) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar paciente'),
+        content: Text('¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      await ref.read(patientsRepositoryProvider).deletePatient(patient.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Paciente eliminado correctamente')),
+      );
+      context.go(RouteNames.adminPatients);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar: $e')),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text(patient.nombre),
           actions: [
+            IconButton(
+              tooltip: 'Eliminar paciente',
+              onPressed: () => _deletePatient(context, ref),
+              icon: const Icon(Icons.delete_outline),
+            ),
             IconButton(
               tooltip: 'Editar paciente',
               onPressed: () => context.go(
@@ -92,7 +133,7 @@ class _PatientDetailView extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  OcgChip(label: patient.tipoTratamiento.name),
+                  OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
                   OcgChip(label: patient.etapaActual.name),
                 ],
               ),

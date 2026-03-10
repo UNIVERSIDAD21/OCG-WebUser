@@ -27,7 +27,7 @@ class PatientModel {
     required this.telefono,
     required this.fechaNacimiento,
     this.fotoUrl,
-    required this.tipoTratamiento,
+    this.tipoTratamiento,
     required this.etapaActual,
     required this.fechaInicio,
     this.fechaEstimadaFin,
@@ -48,7 +48,7 @@ class PatientModel {
   final DateTime fechaNacimiento;
   final String? fotoUrl;
 
-  final TreatmentType tipoTratamiento;
+  final TreatmentType? tipoTratamiento;
   final TreatmentStage etapaActual;
   final DateTime fechaInicio;
   final DateTime? fechaEstimadaFin;
@@ -85,8 +85,9 @@ class PatientModel {
     return double.tryParse(value.toString()) ?? fallback;
   }
 
-  static TreatmentType _parseTreatmentType(dynamic value) {
+  static TreatmentType? _parseTreatmentType(dynamic value) {
     final raw = (value ?? '').toString();
+    if (raw.isEmpty) return null;
     return TreatmentType.values.firstWhere(
       (e) => e.name == raw,
       orElse: () => TreatmentType.convencional,
@@ -133,7 +134,7 @@ class PatientModel {
       'telefono': telefono,
       'fechaNacimiento': Timestamp.fromDate(fechaNacimiento),
       'fotoUrl': fotoUrl,
-      'tipoTratamiento': tipoTratamiento.name,
+      'tipoTratamiento': tipoTratamiento?.name,
       'etapaActual': etapaActual.name,
       'fechaInicio': Timestamp.fromDate(fechaInicio),
       'fechaEstimadaFin': fechaEstimadaFin == null ? null : Timestamp.fromDate(fechaEstimadaFin!),

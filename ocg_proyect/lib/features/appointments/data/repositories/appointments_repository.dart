@@ -8,16 +8,9 @@ class AppointmentsRepository {
 
   final FirebaseFirestore _db;
 
-  static const List<String> _nextAppointmentStatuses = [
-    'programada',
-    'confirmada',
-  ];
-
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
 
-  CollectionReference<Map<String, dynamic>> get _patientsRef =>
-      _db.collection(FirestorePaths.patients);
 
   Stream<List<AppointmentModel>> watchAppointmentsByDate(DateTime date) {
     final start = DateTime(date.year, date.month, date.day);
@@ -115,30 +108,22 @@ class AppointmentsRepository {
   }
 
   Future<void> _updatePatientNextAppointment(String patientId) async {
-    final now = Timestamp.fromDate(DateTime.now());
-
-    final nextAppointmentQuery = await _appointmentsRef
+    final snap = await _db
+        .collection(FirestorePaths.appointments)
         .where('patientId', isEqualTo: patientId)
-        .where('estado', whereIn: _nextAppointmentStatuses)
-        .where('fechaHora', isGreaterThanOrEqualTo: now)
+        .where('fechaHora', isGreaterThan: Timestamp.now())
+        .where('estado', whereNotIn: [
+          AppointmentStatus.cancelada.name,
+          AppointmentStatus.noAsistio.name,
+        ])
         .orderBy('fechaHora')
         .limit(1)
         .get();
 
-    final rawNextDate =
-        nextAppointmentQuery.docs.isNotEmpty ? nextAppointmentQuery.docs.first.data()['fechaHora'] : null;
+    final fecha = snap.docs.isEmpty ? null : snap.docs.first.data()['fechaHora'];
 
-    final Timestamp? nextTimestamp;
-    if (rawNextDate is Timestamp) {
-      nextTimestamp = rawNextDate;
-    } else if (rawNextDate is DateTime) {
-      nextTimestamp = Timestamp.fromDate(rawNextDate);
-    } else {
-      nextTimestamp = null;
-    }
-
-    await _patientsRef.doc(patientId).update({
-      'proximaCita': nextTimestamp,
+    await _db.collection(FirestorePaths.patients).doc(patientId).update({
+      'proximaCita': fecha,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
