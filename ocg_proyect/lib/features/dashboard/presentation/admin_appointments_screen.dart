@@ -202,6 +202,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Cita creada.')),
                     );
+                    ref.invalidate(appointmentsByDateProvider);
                   } catch (e) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -20,6 +20,15 @@
       "collectionGroup": "appointments",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "patientId", "order": "ASCENDING" },
+        { "fieldPath": "scheduledFor", "order": "ASCENDING" },
+        { "fieldPath": "fechaHora", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "fechaHora", "order": "ASCENDING" },
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "recordatorio24hEnviado", "order": "ASCENDING" }

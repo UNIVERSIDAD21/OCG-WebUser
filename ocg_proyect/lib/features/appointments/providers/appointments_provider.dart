@@ -4,6 +4,7 @@ import '../../patients/providers/patients_provider.dart';
 import '../data/models/appointment_model.dart';
 import '../data/repositories/appointments_repository.dart';
 
+
 final appointmentsRepositoryProvider = Provider<AppointmentsRepository>((ref) {
   final db = ref.watch(firestoreProvider);
   return AppointmentsRepository(db);
@@ -12,6 +13,7 @@ final appointmentsRepositoryProvider = Provider<AppointmentsRepository>((ref) {
 class SelectedAppointmentsDateNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
+    ref.keepAlive(); // ✅ AGREGA ESTA LÍNEA — evita que se destruya al cambiar de pantalla
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
   }
@@ -26,6 +28,7 @@ final selectedAppointmentsDateProvider = NotifierProvider<SelectedAppointmentsDa
 );
 
 final appointmentsByDateProvider = StreamProvider<List<AppointmentModel>>((ref) {
+  ref.keepAlive(); // ✅ AGREGA ESTA LÍNEA — el stream no se cancela al salir de la pantalla
   final date = ref.watch(selectedAppointmentsDateProvider);
   return ref.watch(appointmentsRepositoryProvider).watchAppointmentsByDate(date);
 });
