@@ -62,10 +62,10 @@ class AuthService {
 
     // Solo actualizar el nombre — Cloud Function ya crea el documento completo
     if (user != null && nombreLimpio.isNotEmpty) {
-      await _db.collection(FirestorePaths.patients).doc(user.uid).update({
+      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
         'nombre': nombreLimpio,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     }
 
     return credential;
