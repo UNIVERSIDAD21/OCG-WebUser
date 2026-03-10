@@ -24,7 +24,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     DateTime? baseDate,
     PatientModel? preselectedPatient,
   }) async {
-    final patients = ref.read(patientsStreamProvider).asData?.value ?? const <PatientModel>[];
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
 
@@ -47,8 +46,13 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     await showDialog<void>(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
+        return Consumer(
+          builder: (context, dialogRef, _) {
+            final patients =
+                dialogRef.watch(patientsStreamProvider).asData?.value ?? const <PatientModel>[];
+
+            return StatefulBuilder(
+              builder: (context, setState) => AlertDialog(
             title: const Text('Nueva cita'),
             content: SingleChildScrollView(
               child: Column(
@@ -209,6 +213,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
               ),
             ],
           ),
+        );
+          },
         );
       },
     );
