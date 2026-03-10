@@ -246,7 +246,7 @@ class _AdminAppointmentsScreenState extends ConsumerState<AdminAppointmentsScree
               children: [
                 Expanded(
                   child: Text(
-                    'Fecha activa: ${AdminAppointmentsScreen._fmtDate(selectedDate)}',
+                    'Fecha activa: ${_fmtDate(selectedDate)}',
                     style: const TextStyle(
                       color: OcgColors.ivory,
                       fontWeight: FontWeight.w700,
