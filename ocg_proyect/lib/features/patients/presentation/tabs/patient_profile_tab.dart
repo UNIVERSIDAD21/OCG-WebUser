@@ -33,7 +33,7 @@ class PatientProfileTab extends StatelessWidget {
             children: [
               const Text('Datos clínicos (solo admin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
-              _Field(label: 'Tipo de tratamiento', value: patient.tipoTratamiento.name),
+              _Field(label: 'Tipo de tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
               _Field(label: 'Etapa actual', value: patient.etapaActual.name),
               _Field(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
               _Field(label: 'Fecha estimada fin', value: patient.fechaEstimadaFin == null ? 'No definida' : _fmt(patient.fechaEstimadaFin!)),

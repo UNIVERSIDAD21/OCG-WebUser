@@ -8,16 +8,9 @@ class AppointmentsRepository {
 
   final FirebaseFirestore _db;
 
-  static const List<String> _nextAppointmentStatuses = [
-    'programada',
-    'confirmada',
-  ];
-
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
 
-  CollectionReference<Map<String, dynamic>> get _patientsRef =>
-      _db.collection(FirestorePaths.patients);
 
   Stream<List<AppointmentModel>> watchAppointmentsByDate(DateTime date) {
     final start = DateTime(date.year, date.month, date.day);
@@ -26,13 +19,14 @@ class AppointmentsRepository {
     return _appointmentsRef
         .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('fechaHora', isLessThan: Timestamp.fromDate(end))
-        .where('estado', whereNotIn: [
-          AppointmentStatus.cancelada.name,
-          AppointmentStatus.noAsistio.name,
-        ])
         .orderBy('fechaHora')
         .snapshots()
-        .map((s) => s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList());
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AppointmentModel.fromJson(doc.data()))
+            .where((appointment) =>
+                appointment.estado != AppointmentStatus.cancelada &&
+                appointment.estado != AppointmentStatus.noAsistio)
+            .toList());
   }
 
   Stream<List<AppointmentModel>> watchPatientAppointments(String patientId) {
@@ -52,15 +46,17 @@ class AppointmentsRepository {
             isLessThan: Timestamp.fromDate(
               appointment.fechaHora.add(Duration(minutes: appointment.duracionMinutos)),
             ),
-          )
-          .where('estado', whereNotIn: [
-            AppointmentStatus.cancelada.name,
-            AppointmentStatus.noAsistio.name,
-            AppointmentStatus.reprogramada.name,
-          ]);
+          );
 
       final conflicts = await conflictingQuery.get();
-      if (conflicts.docs.isNotEmpty) {
+      final hasActiveConflict = conflicts.docs
+          .map((doc) => AppointmentModel.fromJson(doc.data()))
+          .any((existing) =>
+              existing.estado != AppointmentStatus.cancelada &&
+              existing.estado != AppointmentStatus.noAsistio &&
+              existing.estado != AppointmentStatus.reprogramada);
+
+      if (hasActiveConflict) {
         throw FirebaseException(
           plugin: 'appointments',
           code: 'SLOT_TAKEN',
@@ -115,30 +111,43 @@ class AppointmentsRepository {
   }
 
   Future<void> _updatePatientNextAppointment(String patientId) async {
-    final now = Timestamp.fromDate(DateTime.now());
+    QueryDocumentSnapshot<Map<String, dynamic>>? lastDoc;
+    Timestamp? fecha;
 
-    final nextAppointmentQuery = await _appointmentsRef
-        .where('patientId', isEqualTo: patientId)
-        .where('estado', whereIn: _nextAppointmentStatuses)
-        .where('fechaHora', isGreaterThanOrEqualTo: now)
-        .orderBy('fechaHora')
-        .limit(1)
-        .get();
+    while (fecha == null) {
+      var query = _db
+          .collection(FirestorePaths.appointments)
+          .where('patientId', isEqualTo: patientId)
+          .where('fechaHora', isGreaterThan: Timestamp.now())
+          .orderBy('fechaHora')
+          .limit(20);
 
-    final rawNextDate =
-        nextAppointmentQuery.docs.isNotEmpty ? nextAppointmentQuery.docs.first.data()['fechaHora'] : null;
+      if (lastDoc != null) {
+        query = query.startAfterDocument(lastDoc);
+      }
 
-    final Timestamp? nextTimestamp;
-    if (rawNextDate is Timestamp) {
-      nextTimestamp = rawNextDate;
-    } else if (rawNextDate is DateTime) {
-      nextTimestamp = Timestamp.fromDate(rawNextDate);
-    } else {
-      nextTimestamp = null;
+      final snap = await query.get();
+      if (snap.docs.isEmpty) break;
+
+      for (final doc in snap.docs) {
+        final appointment = AppointmentModel.fromJson(doc.data());
+        if (appointment.estado != AppointmentStatus.cancelada &&
+            appointment.estado != AppointmentStatus.noAsistio) {
+          final rawFecha = doc.data()['fechaHora'];
+          if (rawFecha is Timestamp) {
+            fecha = rawFecha;
+          } else if (rawFecha is DateTime) {
+            fecha = Timestamp.fromDate(rawFecha);
+          }
+          break;
+        }
+      }
+
+      lastDoc = snap.docs.last;
     }
 
-    await _patientsRef.doc(patientId).update({
-      'proximaCita': nextTimestamp,
+    await _db.collection(FirestorePaths.patients).doc(patientId).update({
+      'proximaCita': fecha,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
