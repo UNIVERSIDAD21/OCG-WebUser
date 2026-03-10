@@ -11,30 +11,29 @@ class AppointmentsRepository {
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
 
-  // FIX #1: whereNotIn en 'estado' removido de la query Firestore.
+  // ─── Streams ──────────────────────────────────────────────────────────────
+
+  // FIX: whereNotIn en 'estado' removido de la query Firestore.
   // Combinarlo con el rango en 'fechaHora' requiere índice compuesto.
   // El filtro se aplica en Dart después de recibir los documentos.
   Stream<List<AppointmentModel>> watchAppointmentsByDate(DateTime date) {
-  final start = DateTime(date.year, date.month, date.day);
-  final end = start.add(const Duration(days: 1));
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
 
-  return _appointmentsRef
-      .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-      .where('fechaHora', isLessThan: Timestamp.fromDate(end))
-      .orderBy('fechaHora')
-      .snapshots()
-      .handleError((error) {
-        throw error;
-      })
-      .map((s) {
-        return s.docs
-            .map((d) => AppointmentModel.fromJson(d.data()))
-            .where((a) =>
-                a.estado != AppointmentStatus.cancelada &&
-                a.estado != AppointmentStatus.noAsistio)
-            .toList();
-      });
-}
+    return _appointmentsRef
+        .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('fechaHora', isLessThan: Timestamp.fromDate(end))
+        .orderBy('fechaHora')
+        .snapshots()
+        .map((s) {
+      return s.docs
+          .map((d) => AppointmentModel.fromJson(d.data()))
+          .where((a) =>
+              a.estado != AppointmentStatus.cancelada &&
+              a.estado != AppointmentStatus.noAsistio)
+          .toList();
+    });
+  }
 
   Stream<List<AppointmentModel>> watchAllAppointments() {
     return _appointmentsRef
@@ -59,8 +58,12 @@ class AppointmentsRepository {
             s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList());
   }
 
-  // FIX #2: whereNotIn en 'estado' removido de la query de conflictos.
-  // El filtro se aplica en Dart.
+  // ─── Crear cita (admin) ───────────────────────────────────────────────────
+  //
+  // Hace una query en TODA la colección de appointments para detectar conflictos
+  // de horario. Solo funciona con permisos de admin porque las Firestore rules
+  // no permiten al paciente leer appointments de otros pacientes.
+
   Future<String> createAppointment(AppointmentModel appointment) async {
     try {
       final snapshot = await _appointmentsRef
@@ -104,6 +107,30 @@ class AppointmentsRepository {
     }
   }
 
+  // ─── Crear cita (paciente) ────────────────────────────────────────────────
+  //
+  // Versión segura para pacientes:
+  // - NO hace query global de conflictos (las Firestore rules lo bloquearían).
+  //   La validación de mismo-día ya se hizo en el cliente antes de llegar aquí.
+  // - Solo escribe el documento en la colección con el patientId del usuario,
+  //   lo que las rules sí permiten: allow create if patientId == request.auth.uid.
+  // - _updatePatientNextAppointment usa where('patientId', isEqualTo: patientId),
+  //   que también está permitido por las rules para el propio paciente.
+
+  Future<String> createAppointmentAsPatient(
+      AppointmentModel appointment) async {
+    try {
+      final ref = _appointmentsRef.doc();
+      await ref.set(appointment.copyWith(id: ref.id).toJson());
+      await _updatePatientNextAppointment(appointment.patientId);
+      return ref.id;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ─── Actualizar estado ────────────────────────────────────────────────────
+
   Future<void> updateAppointmentStatus(
     String appointmentId,
     AppointmentStatus newStatus,
@@ -125,6 +152,8 @@ class AppointmentsRepository {
     }
   }
 
+  // ─── Reprogramar ──────────────────────────────────────────────────────────
+
   Future<void> rescheduleAppointment({
     required String originalId,
     required AppointmentModel newAppointment,
@@ -143,6 +172,8 @@ class AppointmentsRepository {
     await _updatePatientNextAppointment(newAppointment.patientId);
   }
 
+  // ─── Helper interno ───────────────────────────────────────────────────────
+
   Future<void> _updatePatientNextAppointment(String patientId) async {
     final snap = await _appointmentsRef
         .where('patientId', isEqualTo: patientId)
@@ -150,19 +181,20 @@ class AppointmentsRepository {
         .orderBy('fechaHora')
         .get();
 
-    Map<String, dynamic>? nextData;
-    for (final doc in snap.docs) {
-      final model = AppointmentModel.fromJson(doc.data());
-      if (model.estado != AppointmentStatus.cancelada &&
-          model.estado != AppointmentStatus.noAsistio &&
-          model.estado != AppointmentStatus.reprogramada) {
-        nextData = doc.data();
-        break;
-      }
+    final patientsRef =
+        _db.collection(FirestorePaths.patients).doc(patientId);
+
+    if (snap.docs.isEmpty) {
+      await patientsRef.update({
+        'proximaCita': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
     }
 
-    await _db.collection(FirestorePaths.patients).doc(patientId).update({
-      'proximaCita': nextData?['fechaHora'],
+    final nextAppt = AppointmentModel.fromJson(snap.docs.first.data());
+    await patientsRef.update({
+      'proximaCita': Timestamp.fromDate(nextAppt.fechaHora),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
