@@ -70,7 +70,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           _fechaNacimiento = patient.fechaNacimiento;
           _fechaInicio = patient.fechaInicio;
           _fechaEstimadaFin = patient.fechaEstimadaFin;
-          _tipo = patient.tipoTratamiento;
+          _tipo = patient.tipoTratamiento ?? TreatmentType.convencional;
           _etapa = patient.etapaActual;
           _loadedInitialData = true;
         }
