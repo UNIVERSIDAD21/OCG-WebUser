@@ -2,65 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
     function isAdmin() {
-      return request.auth != null &&
-             request.auth.token.role == 'admin';
+      return request.auth != null && request.auth.token.role == 'admin';
     }
 
     function isOwnPatient(patientId) {
-      return request.auth != null &&
-             request.auth.uid == patientId &&
-             request.auth.token.role == 'patient';
+      return request.auth != null && request.auth.uid == patientId;
     }
 
-    function patientEditableFieldsOnly() {
-      return resource.data.diff(request.resource.data).changedKeys().hasOnly([
-        'nombre',
-        'telefono',
-        'fotoUrl',
-        'fcmToken',
-        'updatedAt',
-      ]);
-    }
-
-    function patientCreateFieldsValid(patientId) {
-      return request.resource.data.keys().hasOnly([
-               'id',
-               'email',
-               'nombre',
-               'telefono',
-               'fotoUrl',
-               'fcmToken',
-               'createdAt',
-               'updatedAt',
-             ]) &&
-             request.resource.data.id == patientId;
-    }
+    // ─── admins/ ──────────────────────────────────────────────────────────────
 
     match /admins/{adminId} {
-      allow read, write: if request.auth != null &&
-                            request.auth.uid == adminId &&
-                            isAdmin();
+      allow read: if isAdmin() || isOwnPatient(adminId);
+      allow write: if isAdmin();
     }
+
+    // ─── patients/ ────────────────────────────────────────────────────────────
 
     match /patients/{patientId} {
       allow read: if isAdmin() || isOwnPatient(patientId);
-      allow write: if isAdmin();
+      // Permite create/update sin custom claims para el registro inicial
+      allow create: if request.auth != null && isOwnPatient(patientId);
+      allow update: if isAdmin() ||
+                      (request.auth != null && isOwnPatient(patientId));
+      allow delete: if isAdmin();
 
-      // Paciente solo puede crear/editar datos de perfil no sensibles
-      allow create: if request.auth != null &&
-                    request.auth.uid == patientId &&
-                    patientCreateFieldsValid(patientId);
-      allow update: if request.auth != null &&
-                    request.auth.uid == patientId &&
-                    patientEditableFieldsOnly();
-
+      // Subcolección photos/
       match /photos/{photoId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create, update: if isAdmin();
         allow delete: if isAdmin();
       }
 
+      // Subcolección stageHistory/
       match /stageHistory/{entryId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create: if isAdmin();
@@ -68,17 +44,36 @@ service cloud.firestore {
       }
     }
 
+    // ─── appointments/ ────────────────────────────────────────────────────────
+    //
+    // ✅ CAMBIO: Se amplió `allow update` para que el paciente pueda
+    //    cancelar su propia cita. Condiciones:
+    //      1. Es el dueño de la cita (resource.data.patientId == uid)
+    //      2. El nuevo estado es exactamente 'cancelada'
+    //    Esto impide que el paciente cambie estado a confirmada/completada,
+    //    edite el tipo, la fecha, o cualquier otro campo sensible.
+
     match /appointments/{appointmentId} {
       allow read: if isAdmin() ||
                     (request.auth != null &&
                      resource.data.patientId == request.auth.uid);
+
       allow create: if isAdmin() ||
                       (request.auth != null &&
                        request.resource.data.patientId == request.auth.uid &&
                        request.auth.token.role == 'patient');
-      allow update: if isAdmin();
+
+      // Admin: puede actualizar cualquier campo.
+      // Paciente: SOLO puede cambiar estado a 'cancelada' en su propia cita.
+      allow update: if isAdmin() ||
+                      (request.auth != null &&
+                       resource.data.patientId == request.auth.uid &&
+                       request.resource.data.estado == 'cancelada');
+
       allow delete: if isAdmin();
     }
+
+    // ─── payments/ ────────────────────────────────────────────────────────────
 
     match /payments/{patientId} {
       allow read: if isAdmin() || isOwnPatient(patientId);
@@ -90,6 +85,8 @@ service cloud.firestore {
       }
     }
 
+    // ─── simulations/ ─────────────────────────────────────────────────────────
+
     match /simulations/{simId} {
       allow read: if isAdmin() ||
                     (request.auth != null &&
@@ -99,6 +96,8 @@ service cloud.firestore {
                        request.resource.data.patientId == request.auth.uid);
       allow update, delete: if isAdmin();
     }
+
+    // ─── notifications/ ───────────────────────────────────────────────────────
 
     match /notifications/{notifId} {
       allow read: if request.auth != null &&

@@ -14,13 +14,15 @@ class PatientAppointmentsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appointmentsAsync = ref.watch(patientAppointmentsProvider(patient.id));
+    final appointmentsAsync = ref.watch(
+      patientAppointmentsProvider(patient.id),
+    );
 
     return Scaffold(
       backgroundColor: OcgColors.ivory,
       body: appointmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, __) => Center(
+        error: (error, _) => Center(
           child: Text(
             'No se pudo cargar citas: $error',
             style: const TextStyle(color: OcgColors.error),
@@ -39,10 +41,9 @@ class PatientAppointmentsTab extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: appointments.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) => AppointmentCard(
-              appointment: appointments[index],
-            ),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) =>
+                AppointmentCard(appointment: appointments[index]),
           );
         },
       ),

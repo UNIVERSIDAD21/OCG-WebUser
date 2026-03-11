@@ -23,6 +23,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   String? _error;
 
+  // ✅ NUEVO: bandera para mostrar mensaje de cuenta creada
+  bool _showAccountCreatedBanner = false;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -34,13 +37,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _showAccountCreatedBanner = false;
+    });
 
     try {
-      await ref.read(authNotifierProvider.notifier).signIn(
-            _emailCtrl.text.trim(),
-            _passwordCtrl.text,
-          );
+      await ref
+          .read(authNotifierProvider.notifier)
+          .signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
     } on FirebaseAuthException catch (e) {
       setState(() {
         if (e.code == 'wrong-password' ||
@@ -58,6 +63,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // ─── Diálogo de registro ─────────────────────────────────────────────────
+  //
+  // ✅ CAMBIO: Después de crear la cuenta se hace sign-out inmediato,
+  //    se muestra un banner de éxito y el usuario debe iniciar sesión
+  //    manualmente (flujo correcto para un sistema clínico).
+
   Future<void> _openRegisterDialog() async {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -68,50 +79,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Crear cuenta de paciente'),
           content: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Nombre completo'),
-                  validator: Validators.fullName,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Correo electrónico'),
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: passCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
-                  validator: Validators.passwordForRegister,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: confirmCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
-                  validator: (value) => Validators.confirmPassword(value, passCtrl.text),
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre completo',
+                      prefixIcon: Icon(Icons.person_outlined),
+                    ),
+                    validator: Validators.fullName,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: Validators.email,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: passCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Contraseña',
+                      prefixIcon: Icon(Icons.lock_outlined),
+                    ),
+                    validator: Validators.passwordForRegister,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirmar contraseña',
+                      prefixIcon: Icon(Icons.lock_outlined),
+                    ),
+                    validator: (value) =>
+                        Validators.confirmPassword(value, passCtrl.text),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: isSubmitting ? null : () => Navigator.pop(context),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.pop(dialogContext),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: OcgColors.espresso,
+                foregroundColor: OcgColors.ivory,
+              ),
               onPressed: isSubmitting
                   ? null
                   : () async {
@@ -119,31 +152,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       setDialogState(() => isSubmitting = true);
                       try {
-                        await ref.read(authNotifierProvider.notifier).registerPatient(
+                        // 1. Crear cuenta (Firebase Auth + Firestore doc)
+                        await ref
+                            .read(authNotifierProvider.notifier)
+                            .registerPatient(
                               email: emailCtrl.text.trim(),
                               password: passCtrl.text,
                               displayName: nameCtrl.text.trim(),
                             );
+
+                        // 2. ✅ Sign out inmediato — el paciente debe iniciar
+                        //    sesión manualmente con sus credenciales.
+                        //    Esto previene el auto-login y el redirect a /patient/home.
+                        await ref.read(authServiceProvider).signOut();
+
+                        // 3. Cerrar diálogo y mostrar banner en login
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Cuenta creada. Iniciaste sesión automáticamente.'),
-                            ),
-                          );
+                        }
+
+                        // 4. Mostrar banner de cuenta creada en la pantalla de login
+                        if (mounted) {
+                          setState(() => _showAccountCreatedBanner = true);
                         }
                       } on FirebaseAuthException catch (e) {
                         if (dialogContext.mounted) {
                           ScaffoldMessenger.of(dialogContext).showSnackBar(
                             SnackBar(
-                              content: Text('No se pudo crear la cuenta [${e.code}]: ${e.message}'),
+                              content: Text(
+                                'No se pudo crear la cuenta [${e.code}]: ${e.message}',
+                              ),
+                              backgroundColor: OcgColors.error,
                             ),
                           );
                         }
                       } catch (e) {
                         if (dialogContext.mounted) {
                           ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(content: Text('No se pudo crear la cuenta: $e')),
+                            SnackBar(
+                              content: Text('No se pudo crear la cuenta: $e'),
+                              backgroundColor: OcgColors.error,
+                            ),
                           );
                         }
                       } finally {
@@ -154,9 +203,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
               child: isSubmitting
                   ? const SizedBox(
-                      height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: OcgColors.ivory,
+                      ),
                     )
                   : const Text('Crear cuenta'),
             ),
@@ -173,89 +225,190 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider);
+    final isLoading = ref.watch(authNotifierProvider).isLoading;
 
     return Scaffold(
       backgroundColor: OcgColors.ivory,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Form(
-              key: _formKey,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'OCG Clínica',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Cormorant Garamond',
-                      fontSize: 44,
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.espresso,
-                    ),
+                  // ── Logo ──
+                  Column(
+                    children: [
+                      const Text(
+                        'OCG',
+                        style: TextStyle(
+                          fontFamily: 'Cormorant Garamond',
+                          fontSize: 52,
+                          fontWeight: FontWeight.w700,
+                          color: OcgColors.espresso,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      Text(
+                        'Clínica Dental',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: OcgColors.ink.withOpacity(0.5),
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Panel de gestión clínica',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontFamily: 'Inter', color: OcgColors.bronze),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo',
-                      prefixIcon: Icon(Icons.mail_outline),
-                    ),
-                    validator: Validators.email,
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscure,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) {
-                      if (!authState.isLoading) {
-                        _submit();
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                  const SizedBox(height: 40),
+
+                  // ✅ NUEVO: Banner de cuenta creada exitosamente
+                  if (_showAccountCreatedBanner) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7D32).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF2E7D32).withOpacity(0.4),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline,
+                            color: Color(0xFF2E7D32),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              '¡Tu cuenta ha sido creada exitosamente!\nInicia sesión para continuar.',
+                              style: TextStyle(
+                                color: Color(0xFF2E7D32),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Color(0xFF2E7D32),
+                            ),
+                            onPressed: () => setState(
+                              () => _showAccountCreatedBanner = false,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
                     ),
-                    validator: Validators.passwordForLogin,
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Error ──
+                  if (_error != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: OcgColors.error.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: OcgColors.error.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: OcgColors.error,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Formulario ──
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Correo electrónico',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: Validators.email,
+                          onFieldSubmitted: (_) => _submit(),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _passwordCtrl,
+                          obscureText: _obscure,
+                          decoration: InputDecoration(
+                            labelText: 'Contraseña',
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? 'Ingresa tu contraseña'
+                              : null,
+                          onFieldSubmitted: (_) => _submit(),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+
+                  // ── Botón iniciar sesión ──
                   OcgButton(
                     label: 'Iniciar sesión',
-                    onPressed: authState.isLoading ? null : _submit,
-                    isLoading: authState.isLoading,
+                    isLoading: isLoading,
+                    onPressed: isLoading ? null : _submit,
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: OcgColors.error),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () => context.push(RouteNames.forgotPassword),
-                    child: const Text('¿Olvidaste tu contraseña?'),
-                  ),
-                  TextButton(
-                    onPressed: _openRegisterDialog,
-                    child: const Text('Crear cuenta de paciente'),
+                  const SizedBox(height: 16),
+
+                  // ── Links ──
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () =>
+                            context.push(RouteNames.forgotPassword),
+                        child: const Text(
+                          '¿Olvidaste tu contraseña?',
+                          style: TextStyle(
+                            color: OcgColors.bronze,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _openRegisterDialog,
+                        child: const Text(
+                          'Crear cuenta',
+                          style: TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
