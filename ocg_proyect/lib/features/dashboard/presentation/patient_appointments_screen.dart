@@ -8,6 +8,7 @@ import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/dialog_utils.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,23 @@ String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.alta => 'Alta',
 };
 
-// ─── Filtro ───────────────────────────────────────────────────────────────────
+String _estadoLabel(AppointmentStatus s) => switch (s) {
+  AppointmentStatus.programada => 'Programada',
+  AppointmentStatus.confirmada => 'Confirmada',
+  AppointmentStatus.completada => 'Completada',
+  AppointmentStatus.cancelada => 'Cancelada',
+  AppointmentStatus.noAsistio => 'No asistió',
+  AppointmentStatus.reprogramada => 'Reprogramada',
+};
+
+Color _estadoColor(AppointmentStatus s) => switch (s) {
+  AppointmentStatus.programada => OcgColors.bronze,
+  AppointmentStatus.confirmada => const Color(0xFF1565C0),
+  AppointmentStatus.completada => const Color(0xFF2E7D32),
+  AppointmentStatus.cancelada => OcgColors.error,
+  AppointmentStatus.noAsistio => OcgColors.error,
+  AppointmentStatus.reprogramada => Colors.purple,
+};
 
 enum _PatientFilter { proximas, historial }
 
@@ -46,6 +63,41 @@ class _PatientAppointmentsScreenState
     extends ConsumerState<PatientAppointmentsScreen> {
   _PatientFilter _filter = _PatientFilter.proximas;
 
+  Future<void> _handleSignOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Deseas cerrar tu sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => popDialog(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.espresso,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => popDialog(ctx, true),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ref.read(authServiceProvider).signOut();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo cerrar sesión: $e')));
+    }
+  }
+
   // ─── Diálogo nueva cita ──────────────────────────────────────────────────
 
   void _showNewAppointmentDialog(
@@ -58,26 +110,25 @@ class _PatientAppointmentsScreenState
         .read(patientByIdProvider(patientId))
         .asData
         ?.value;
-
     final nameFromAppts = existingAppointments
         .where((a) => a.patientName.isNotEmpty)
         .map((a) => a.patientName)
         .firstOrNull;
-
-    // ✅ FIX: Usar displayName de FirebaseAuth como fallback en lugar del UID.
-    // Prioridad: Firestore nombre > citas existentes > displayName de Auth > ''
     final authDisplayName =
         FirebaseAuth.instance.currentUser?.displayName ?? '';
-
     final patientNombre =
-        (cachedPatient?.nombre?.isNotEmpty == true
+        (cachedPatient?.nombre.isNotEmpty == true
                 ? cachedPatient!.nombre
                 : nameFromAppts?.isNotEmpty == true
                 ? nameFromAppts!
                 : authDisplayName)
             .trim();
-
     final patientPhone = cachedPatient?.telefono ?? '';
+
+    // ✅ Controlador creado FUERA del builder. Se dispone en .then() una vez
+    //    que showDialog() haya terminado por completo — evita el crash
+    //    "TextEditingController was used after being disposed".
+    final notesCtrl = TextEditingController();
 
     AppointmentType selectedType = AppointmentType.valoracion;
     DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1));
@@ -88,7 +139,6 @@ class _PatientAppointmentsScreenState
       10,
       0,
     );
-    final notesCtrl = TextEditingController();
     String? errorMsg;
     bool saving = false;
 
@@ -115,9 +165,9 @@ class _PatientAppointmentsScreenState
                         ),
                       )
                       .toList(),
-                  onChanged: (v) => setDs(() {
-                    selectedType = v ?? AppointmentType.valoracion;
-                  }),
+                  onChanged: (v) => setDs(
+                    () => selectedType = v ?? AppointmentType.valoracion,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 ListTile(
@@ -184,16 +234,7 @@ class _PatientAppointmentsScreenState
           ),
           actions: [
             TextButton(
-              onPressed: saving
-                  ? null
-                  : () {
-                      // ✅ FIX WEB: diferir pop al siguiente frame
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      });
-                    },
+              onPressed: saving ? null : () => popDialog(dialogContext),
               child: const Text('Cancelar'),
             ),
             FilledButton(
@@ -214,23 +255,22 @@ class _PatientAppointmentsScreenState
                         setDs(() => errorMsg = sameDayError);
                         return;
                       }
-
                       setDs(() => saving = true);
 
-                      // ✅ FIX: Resolución robusta del nombre del paciente.
-                      // Intentar desde Firestore primero, luego Auth displayName.
-                      // NUNCA usar patientId como nombre.
                       final resolvedFromProvider = ref
                           .read(patientByIdProvider(patientId))
                           .asData
                           ?.value
                           ?.nombre;
-
                       final finalNombre = patientNombre.isNotEmpty
                           ? patientNombre
                           : resolvedFromProvider?.isNotEmpty == true
                           ? resolvedFromProvider!
                           : authDisplayName;
+
+                      // ✅ Capturar texto ANTES del await — el controlador
+                      //    no debe leerse después de que el diálogo cierre.
+                      final notasTexto = notesCtrl.text.trim();
 
                       try {
                         await ref
@@ -246,20 +286,15 @@ class _PatientAppointmentsScreenState
                                 estado: AppointmentStatus.programada,
                                 fechaHora: selectedDateTime,
                                 duracionMinutos: 30,
-                                notas: notesCtrl.text.trim().isEmpty
-                                    ? null
-                                    : notesCtrl.text.trim(),
+                                notas: notasTexto.isEmpty ? null : notasTexto,
                               ),
                             );
 
-                        notesCtrl.dispose();
-                        if (!dialogContext.mounted) return;
-                        // ✅ FIX WEB: diferir pop al siguiente frame
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (dialogContext.mounted) {
-                            Navigator.of(dialogContext).pop();
-                          }
-                        });
+                        // ✅ Cerrar con popDialog (safe en Flutter Web).
+                        //    NO llamar notesCtrl.dispose() aquí — se hace
+                        //    en el .then() de showDialog después de que
+                        //    el widget se desmonta completamente.
+                        popDialog(dialogContext);
 
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -273,7 +308,7 @@ class _PatientAppointmentsScreenState
                           saving = false;
                           errorMsg = e.toString().contains('SLOT_TAKEN')
                               ? 'Ese horario ya está ocupado. Elige otro.'
-                              : 'No se pudo agendar la cita. Intenta de nuevo.';
+                              : 'No se pudo agendar. Intenta de nuevo.';
                         });
                       }
                     },
@@ -291,6 +326,100 @@ class _PatientAppointmentsScreenState
           ],
         ),
       ),
+    ).then((_) {
+      // ✅ Dispose SEGURO: se ejecuta después de que el diálogo se
+      //    ha desmontado completamente del árbol de widgets.
+      notesCtrl.dispose();
+    });
+  }
+
+  // ─── Cancelar cita (con regla de 24 horas) ───────────────────────────────
+
+  void _handleCancelTap(
+    BuildContext context,
+    WidgetRef ref,
+    AppointmentModel appt,
+  ) {
+    final horasHastaCita = appt.fechaHora.difference(DateTime.now()).inHours;
+
+    if (horasHastaCita < 24) {
+      // Menos de 24h → mostrar instrucción de WhatsApp
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Cancelación con menos de 24 horas'),
+          content: const Text(
+            'Para cancelar tu cita con menos de 24 horas de anticipación, '
+            'comunícate directamente con la clínica por WhatsApp.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => popDialog(ctx),
+              child: const Text('Entendido'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => popDialog(ctx),
+              child: const Text('Abrir WhatsApp'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // ≥ 24h → confirmar cancelación normal
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar esta cita?'),
+        content: Text(
+          'Cita del ${_fmtDateTime(appt.fechaHora)}.\n'
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => popDialog(ctx),
+            child: const Text('No, mantenerla'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.error,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () async {
+              popDialog(ctx); // ✅ cerrar primero
+              try {
+                await ref
+                    .read(appointmentsRepositoryProvider)
+                    .updateAppointmentStatus(
+                      appt.id,
+                      AppointmentStatus.cancelada,
+                    );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Cita cancelada.'),
+                    backgroundColor: OcgColors.error,
+                  ),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('No se pudo cancelar: $e'),
+                    backgroundColor: OcgColors.error,
+                  ),
+                );
+              }
+            },
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -307,7 +436,16 @@ class _PatientAppointmentsScreenState
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis citas')),
+      appBar: AppBar(
+        title: const Text('Mis citas'),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            icon: const Icon(Icons.logout),
+            onPressed: _handleSignOut,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: OcgColors.espresso,
         foregroundColor: OcgColors.ivory,
@@ -322,6 +460,7 @@ class _PatientAppointmentsScreenState
       ),
       body: Column(
         children: [
+          // ── Header ────────────────────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
@@ -354,6 +493,8 @@ class _PatientAppointmentsScreenState
               ],
             ),
           ),
+
+          // ── Filtro ────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
             child: SegmentedButton<_PatientFilter>(
@@ -386,6 +527,8 @@ class _PatientAppointmentsScreenState
               onSelectionChanged: (s) => setState(() => _filter = s.first),
             ),
           ),
+
+          // ── Lista ─────────────────────────────────────────────────────────
           Expanded(
             child: appointmentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -403,7 +546,8 @@ class _PatientAppointmentsScreenState
                             (a) =>
                                 a.fechaHora.isAfter(now) &&
                                 a.estado != AppointmentStatus.cancelada &&
-                                a.estado != AppointmentStatus.noAsistio,
+                                a.estado != AppointmentStatus.noAsistio &&
+                                a.estado != AppointmentStatus.completada,
                           )
                           .toList()
                     : all
@@ -411,7 +555,8 @@ class _PatientAppointmentsScreenState
                             (a) =>
                                 a.fechaHora.isBefore(now) ||
                                 a.estado == AppointmentStatus.cancelada ||
-                                a.estado == AppointmentStatus.completada,
+                                a.estado == AppointmentStatus.completada ||
+                                a.estado == AppointmentStatus.noAsistio,
                           )
                           .toList();
 
@@ -433,21 +578,14 @@ class _PatientAppointmentsScreenState
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final appt = filtered[i];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.event,
-                          color: OcgColors.bronze,
-                        ),
-                        title: Text(_tipoLabel(appt.tipo)),
-                        subtitle: Text(_fmtDateTime(appt.fechaHora)),
-                        trailing: Chip(
-                          label: Text(
-                            appt.estado.name,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      ),
+                    final canCancel =
+                        appt.estado == AppointmentStatus.programada ||
+                        appt.estado == AppointmentStatus.confirmada;
+                    return _AppointmentTile(
+                      appointment: appt,
+                      onCancel: canCancel
+                          ? () => _handleCancelTap(context, ref, appt)
+                          : null,
                     );
                   },
                 );
@@ -455,6 +593,117 @@ class _PatientAppointmentsScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Tarjeta de cita del paciente ─────────────────────────────────────────────
+
+class _AppointmentTile extends StatelessWidget {
+  const _AppointmentTile({required this.appointment, this.onCancel});
+
+  final AppointmentModel appointment;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _estadoColor(appointment.estado);
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: statusColor.withOpacity(0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Tipo + Estado ─────────────────────────────────────────────
+            Row(
+              children: [
+                const Icon(Icons.event, color: OcgColors.bronze, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _tipoLabel(appointment.tipo),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _estadoLabel(appointment.estado),
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // ── Fecha ─────────────────────────────────────────────────────
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 14, color: OcgColors.bronze),
+                const SizedBox(width: 4),
+                Text(
+                  _fmtDateTime(appointment.fechaHora),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+
+            // ── Notas ─────────────────────────────────────────────────────
+            if (appointment.notas != null && appointment.notas!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                appointment.notas!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+
+            // ── Botón cancelar ────────────────────────────────────────────
+            if (onCancel != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: const Text('Cancelar cita'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OcgColors.error,
+                    side: const BorderSide(color: OcgColors.error),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: onCancel,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
