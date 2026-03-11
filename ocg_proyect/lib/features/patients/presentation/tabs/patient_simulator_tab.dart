@@ -13,8 +13,8 @@ class PatientSimulatorTab extends StatelessWidget {
     return const Center(
       child: OcgEmptyState(
         icon: Icons.auto_awesome_outlined,
-        title: 'Simulador de sonrisa',
-        subtitle: 'El simulador estará disponible próximamente.',
+        title: 'Simulador próximamente',
+        subtitle: 'Podrás ver una simulación de tu sonrisa aquí.',
       ),
     );
   }

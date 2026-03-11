@@ -22,8 +22,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   String? _error;
-
-  // ✅ NUEVO: bandera para mostrar mensaje de cuenta creada
   bool _showAccountCreatedBanner = false;
 
   @override
@@ -32,6 +30,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordCtrl.dispose();
     super.dispose();
   }
+
+  // ─── Login ───────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
     final isValid = _formKey.currentState?.validate() ?? false;
@@ -65,9 +65,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ─── Diálogo de registro ─────────────────────────────────────────────────
   //
-  // ✅ CAMBIO: Después de crear la cuenta se hace sign-out inmediato,
-  //    se muestra un banner de éxito y el usuario debe iniciar sesión
-  //    manualmente (flujo correcto para un sistema clínico).
+  // ✅ ESTRATEGIA ANTI-RACE:
+  //    El router puede detectar el authStateChange (cuenta creada) y destruir
+  //    el contexto del diálogo antes de que podamos llamar Navigator.pop().
+  //    Solución: capturar los datos del formulario, cerrar el diálogo CON
+  //    Navigator.pop() PRIMERO, y solo después ejecutar registerPatient
+  //    (que internamente ya hace signOut inmediato dentro del guard).
+  //    Así el diálogo siempre se cierra limpiamente y la LoginScreen queda
+  //    visible para mostrar el banner de éxito.
 
   Future<void> _openRegisterDialog() async {
     final nameCtrl = TextEditingController();
@@ -75,153 +80,170 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final passCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    var isSubmitting = false;
 
-    await showDialog<void>(
+    // Resultado del diálogo: null = cancelado, Map = datos para registrar
+    final result = await showDialog<Map<String, String>>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Crear cuenta de paciente'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre completo',
-                      prefixIcon: Icon(Icons.person_outlined),
-                    ),
-                    validator: Validators.fullName,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo electrónico',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: Validators.email,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: passCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: Icon(Icons.lock_outlined),
-                    ),
-                    validator: Validators.passwordForRegister,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: confirmCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmar contraseña',
-                      prefixIcon: Icon(Icons.lock_outlined),
-                    ),
-                    validator: (value) =>
-                        Validators.confirmPassword(value, passCtrl.text),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: isSubmitting
-                  ? null
-                  : () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: OcgColors.espresso,
-                foregroundColor: OcgColors.ivory,
-              ),
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
-                      if (!(formKey.currentState?.validate() ?? false)) return;
-
-                      setDialogState(() => isSubmitting = true);
-                      try {
-                        // 1. Crear cuenta (Firebase Auth + Firestore doc)
-                        await ref
-                            .read(authNotifierProvider.notifier)
-                            .registerPatient(
-                              email: emailCtrl.text.trim(),
-                              password: passCtrl.text,
-                              displayName: nameCtrl.text.trim(),
-                            );
-
-                        // 2. ✅ Sign out inmediato — el paciente debe iniciar
-                        //    sesión manualmente con sus credenciales.
-                        //    Esto previene el auto-login y el redirect a /patient/home.
-                        await ref.read(authServiceProvider).signOut();
-
-                        // 3. Cerrar diálogo y mostrar banner en login
-                        if (dialogContext.mounted) {
-                          Navigator.pop(dialogContext);
-                        }
-
-                        // 4. Mostrar banner de cuenta creada en la pantalla de login
-                        if (mounted) {
-                          setState(() => _showAccountCreatedBanner = true);
-                        }
-                      } on FirebaseAuthException catch (e) {
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'No se pudo crear la cuenta [${e.code}]: ${e.message}',
-                              ),
-                              backgroundColor: OcgColors.error,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(
-                              content: Text('No se pudo crear la cuenta: $e'),
-                              backgroundColor: OcgColors.error,
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (dialogContext.mounted) {
-                          setDialogState(() => isSubmitting = false);
-                        }
-                      }
-                    },
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: OcgColors.ivory,
+      builder: (dialogContext) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDs) => AlertDialog(
+            title: const Text('Crear cuenta de paciente'),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre completo',
+                        prefixIcon: Icon(Icons.person_outlined),
                       ),
-                    )
-                  : const Text('Crear cuenta'),
+                      validator: Validators.fullName,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo electrónico',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: Validators.email,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: passCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: Icon(Icons.lock_outlined),
+                      ),
+                      validator: Validators.passwordForRegister,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: confirmCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirmar contraseña',
+                        prefixIcon: Icon(Icons.lock_outlined),
+                      ),
+                      validator: (value) =>
+                          Validators.confirmPassword(value, passCtrl.text),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop(null);
+                          }
+                        });
+                      },
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: OcgColors.espresso,
+                  foregroundColor: OcgColors.ivory,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () {
+                        if (!(formKey.currentState?.validate() ?? false)) {
+                          return;
+                        }
+                        // ✅ Capturar datos antes de que los controladores
+                        //    sean destruidos.
+                        final data = {
+                          'name': nameCtrl.text.trim(),
+                          'email': emailCtrl.text.trim(),
+                          'password': passCtrl.text,
+                        };
+                        // ✅ FIX WEB: Diferir el pop al siguiente frame para
+                        //    que Flutter termine el ciclo de foco actual antes
+                        //    de desmontar el diálogo. Evita el crash
+                        //    "Cannot get renderObject of inactive element".
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop(data);
+                          }
+                        });
+                      },
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: OcgColors.ivory,
+                        ),
+                      )
+                    : const Text('Crear cuenta'),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
+    // Limpiar controladores siempre
     nameCtrl.dispose();
     emailCtrl.dispose();
     passCtrl.dispose();
     confirmCtrl.dispose();
+
+    // Cancelado o contexto destruido
+    if (result == null) return;
+    if (!mounted) return;
+
+    // ✅ El diálogo ya está cerrado. Ahora llamamos a registerPatient
+    //    de forma segura. El método internamente hace signOut, por lo que
+    //    el router nunca redirigirá al usuario a /patient/home.
+    try {
+      await ref
+          .read(authNotifierProvider.notifier)
+          .registerPatient(
+            email: result['email']!,
+            password: result['password']!,
+            displayName: result['name'],
+          );
+
+      if (mounted) {
+        setState(() => _showAccountCreatedBanner = true);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      String msg;
+      switch (e.code) {
+        case 'email-already-in-use':
+          msg = 'Este correo ya tiene una cuenta registrada.';
+          break;
+        case 'weak-password':
+          msg = 'Contraseña muy débil (mín. 6 caracteres).';
+          break;
+        default:
+          msg = '[${e.code}] ${e.message ?? 'Error desconocido.'}';
+      }
+      setState(() => _error = msg);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'No se pudo crear la cuenta. Intenta de nuevo.');
+    }
   }
+
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +260,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Logo ──
+                  // ── Logo ──────────────────────────────────────────────────
                   Column(
                     children: [
                       const Text(
@@ -263,7 +285,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // ✅ NUEVO: Banner de cuenta creada exitosamente
+                  // ── Banner cuenta creada ───────────────────────────────────
                   if (_showAccountCreatedBanner) ...[
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -284,7 +306,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
-                              '¡Tu cuenta ha sido creada exitosamente!\nInicia sesión para continuar.',
+                              '¡Cuenta creada exitosamente!\nInicia sesión para continuar.',
                               style: TextStyle(
                                 color: Color(0xFF2E7D32),
                                 fontSize: 13,
@@ -310,7 +332,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Error ──
+                  // ── Error ─────────────────────────────────────────────────
                   if (_error != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -333,7 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // ── Formulario ──
+                  // ── Formulario ────────────────────────────────────────────
                   Form(
                     key: _formKey,
                     child: Column(
@@ -375,7 +397,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Botón iniciar sesión ──
+                  // ── Botón iniciar sesión ───────────────────────────────────
                   OcgButton(
                     label: 'Iniciar sesión',
                     isLoading: isLoading,
@@ -383,7 +405,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // ── Links ──
+                  // ── Links ─────────────────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -399,7 +421,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: _openRegisterDialog,
+                        onPressed: isLoading ? null : _openRegisterDialog,
                         child: const Text(
                           'Crear cuenta',
                           style: TextStyle(

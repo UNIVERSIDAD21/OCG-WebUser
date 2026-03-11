@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,13 +58,25 @@ class _PatientAppointmentsScreenState
         .read(patientByIdProvider(patientId))
         .asData
         ?.value;
+
     final nameFromAppts = existingAppointments
         .where((a) => a.patientName.isNotEmpty)
         .map((a) => a.patientName)
         .firstOrNull;
-    final patientNombre = (cachedPatient?.nombre ?? nameFromAppts ?? '').trim();
 
-    // ✅ Teléfono del paciente para el campo creadoPor + patientPhone
+    // ✅ FIX: Usar displayName de FirebaseAuth como fallback en lugar del UID.
+    // Prioridad: Firestore nombre > citas existentes > displayName de Auth > ''
+    final authDisplayName =
+        FirebaseAuth.instance.currentUser?.displayName ?? '';
+
+    final patientNombre =
+        (cachedPatient?.nombre?.isNotEmpty == true
+                ? cachedPatient!.nombre
+                : nameFromAppts?.isNotEmpty == true
+                ? nameFromAppts!
+                : authDisplayName)
+            .trim();
+
     final patientPhone = cachedPatient?.telefono ?? '';
 
     AppointmentType selectedType = AppointmentType.valoracion;
@@ -104,42 +117,50 @@ class _PatientAppointmentsScreenState
                       .toList(),
                   onChanged: (v) => setDs(() {
                     selectedType = v ?? AppointmentType.valoracion;
-                    errorMsg = null;
                   }),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event),
-                  title: Text(_fmtDateTime(selectedDateTime)),
-                  subtitle: const Text('Fecha y hora'),
-                  trailing: const Icon(Icons.edit, size: 16),
+                  leading: const Icon(
+                    Icons.schedule,
+                    color: OcgColors.espresso,
+                  ),
+                  title: const Text('Fecha y hora'),
+                  subtitle: Text(
+                    _fmtDateTime(selectedDateTime),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
                   onTap: () async {
-                    final d = await showDatePicker(
+                    final pickedDate = await showDatePicker(
                       context: dialogContext,
                       initialDate: selectedDateTime,
                       firstDate: DateTime.now().add(const Duration(hours: 2)),
                       lastDate: DateTime.now().add(const Duration(days: 90)),
                     );
-                    if (d == null) return;
-                    final t = await showTimePicker(
+                    if (pickedDate == null) return;
+                    if (!dialogContext.mounted) return;
+                    final pickedTime = await showTimePicker(
                       context: dialogContext,
                       initialTime: TimeOfDay.fromDateTime(selectedDateTime),
                     );
-                    if (t == null) return;
+                    if (pickedTime == null) return;
                     setDs(() {
                       selectedDateTime = DateTime(
-                        d.year,
-                        d.month,
-                        d.day,
-                        t.hour,
-                        t.minute,
+                        pickedDate.year,
+                        pickedDate.month,
+                        pickedDate.day,
+                        pickedTime.hour,
+                        pickedTime.minute,
                       );
                       errorMsg = null;
                     });
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 TextFormField(
                   controller: notesCtrl,
                   decoration: const InputDecoration(
@@ -165,7 +186,14 @@ class _PatientAppointmentsScreenState
             TextButton(
               onPressed: saving
                   ? null
-                  : () => Navigator.of(dialogContext).pop(),
+                  : () {
+                      // ✅ FIX WEB: diferir pop al siguiente frame
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      });
+                    },
               child: const Text('Cancelar'),
             ),
             FilledButton(
@@ -189,14 +217,20 @@ class _PatientAppointmentsScreenState
 
                       setDs(() => saving = true);
 
+                      // ✅ FIX: Resolución robusta del nombre del paciente.
+                      // Intentar desde Firestore primero, luego Auth displayName.
+                      // NUNCA usar patientId como nombre.
+                      final resolvedFromProvider = ref
+                          .read(patientByIdProvider(patientId))
+                          .asData
+                          ?.value
+                          ?.nombre;
+
                       final finalNombre = patientNombre.isNotEmpty
                           ? patientNombre
-                          : (ref
-                                    .read(patientByIdProvider(patientId))
-                                    .asData
-                                    ?.value
-                                    ?.nombre ??
-                                patientId);
+                          : resolvedFromProvider?.isNotEmpty == true
+                          ? resolvedFromProvider!
+                          : authDisplayName;
 
                       try {
                         await ref
@@ -206,7 +240,6 @@ class _PatientAppointmentsScreenState
                                 id: '',
                                 patientId: patientId,
                                 patientName: finalNombre,
-                                // ✅ campos nuevos
                                 patientPhone: patientPhone,
                                 creadoPor: patientId,
                                 tipo: selectedType,
@@ -221,7 +254,12 @@ class _PatientAppointmentsScreenState
 
                         notesCtrl.dispose();
                         if (!dialogContext.mounted) return;
-                        Navigator.of(dialogContext).pop();
+                        // ✅ FIX WEB: diferir pop al siguiente frame
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        });
 
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -231,12 +269,12 @@ class _PatientAppointmentsScreenState
                           ),
                         );
                       } catch (e) {
-                        setDs(() => saving = false);
-                        if (!dialogContext.mounted) return;
-                        final msg = e.toString().contains('SLOT_TAKEN')
-                            ? 'Este horario acaba de ser tomado. Elige otro.'
-                            : 'No se pudo agendar. Verifica tu conexión.';
-                        setDs(() => errorMsg = msg);
+                        setDs(() {
+                          saving = false;
+                          errorMsg = e.toString().contains('SLOT_TAKEN')
+                              ? 'Ese horario ya está ocupado. Elige otro.'
+                              : 'No se pudo agendar la cita. Intenta de nuevo.';
+                        });
                       }
                     },
               child: saving
@@ -248,55 +286,22 @@ class _PatientAppointmentsScreenState
                         color: OcgColors.ivory,
                       ),
                     )
-                  : const Text('Confirmar'),
+                  : const Text('Agendar'),
             ),
           ],
         ),
       ),
-    ).then((_) {
-      if (!saving) notesCtrl.dispose();
-    });
+    );
   }
 
-  // ─── Filtrado ────────────────────────────────────────────────────────────
-
-  List<AppointmentModel> _applyFilter(List<AppointmentModel> all) {
-    final now = DateTime.now();
-    switch (_filter) {
-      case _PatientFilter.proximas:
-        return all
-            .where(
-              (a) =>
-                  a.fechaHora.isAfter(now) &&
-                  (a.estado == AppointmentStatus.programada ||
-                      a.estado == AppointmentStatus.confirmada),
-            )
-            .toList()
-          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
-
-      case _PatientFilter.historial:
-        // ✅ Historial: todo lo que ya pasó + canceladas + reprogramadas
-        return all
-            .where(
-              (a) =>
-                  !a.fechaHora.isAfter(now) ||
-                  a.estado == AppointmentStatus.cancelada ||
-                  a.estado == AppointmentStatus.reprogramada,
-            )
-            .toList()
-          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
-    }
-  }
-
-  // ─── build ───────────────────────────────────────────────────────────────
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Debes iniciar sesión para ver tus citas.')),
-      );
+      return const Scaffold(body: Center(child: Text('Debes iniciar sesión.')));
     }
 
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
@@ -362,20 +367,19 @@ class _PatientAppointmentsScreenState
                 foregroundColor: WidgetStateProperty.resolveWith(
                   (s) => s.contains(WidgetState.selected)
                       ? OcgColors.ivory
-                      : OcgColors.ink,
-                ),
-                side: const WidgetStatePropertyAll(
-                  BorderSide(color: OcgColors.bronze),
+                      : OcgColors.espresso,
                 ),
               ),
               segments: const [
                 ButtonSegment(
                   value: _PatientFilter.proximas,
                   label: Text('Próximas'),
+                  icon: Icon(Icons.upcoming_outlined, size: 16),
                 ),
                 ButtonSegment(
                   value: _PatientFilter.historial,
                   label: Text('Historial'),
+                  icon: Icon(Icons.history, size: 16),
                 ),
               ],
               selected: {_filter},
@@ -385,440 +389,69 @@ class _PatientAppointmentsScreenState
           Expanded(
             child: appointmentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Center(child: Text('No se pudo cargar citas: $e')),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error al cargar citas: $e',
+                  textAlign: TextAlign.center,
+                ),
+              ),
               data: (all) {
-                final filtered = _applyFilter(all);
+                final now = DateTime.now();
+                final filtered = _filter == _PatientFilter.proximas
+                    ? all
+                          .where(
+                            (a) =>
+                                a.fechaHora.isAfter(now) &&
+                                a.estado != AppointmentStatus.cancelada &&
+                                a.estado != AppointmentStatus.noAsistio,
+                          )
+                          .toList()
+                    : all
+                          .where(
+                            (a) =>
+                                a.fechaHora.isBefore(now) ||
+                                a.estado == AppointmentStatus.cancelada ||
+                                a.estado == AppointmentStatus.completada,
+                          )
+                          .toList();
+
                 if (filtered.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _filter == _PatientFilter.proximas
-                              ? Icons.event_available_outlined
-                              : Icons.history_outlined,
-                          size: 52,
-                          color: OcgColors.bronze.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _filter == _PatientFilter.proximas
-                              ? 'No tienes citas próximas.'
-                              : 'No hay historial de citas.',
-                          style: TextStyle(
-                            color: OcgColors.ink.withOpacity(0.5),
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      _filter == _PatientFilter.proximas
+                          ? 'No tienes citas próximas.\nToca + para agendar.'
+                          : 'Sin historial de citas aún.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
                   );
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   itemCount: filtered.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (ctx, i) => _PatientAppointmentCard(
-                    appointment: filtered[i],
-                    showCancelButton: _filter == _PatientFilter.proximas,
-                  ),
+                  itemBuilder: (_, i) {
+                    final appt = filtered[i];
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.event,
+                          color: OcgColors.bronze,
+                        ),
+                        title: Text(_tipoLabel(appt.tipo)),
+                        subtitle: Text(_fmtDateTime(appt.fechaHora)),
+                        trailing: Chip(
+                          label: Text(
+                            appt.estado.name,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Tarjeta de cita para el paciente ────────────────────────────────────────
-
-class _PatientAppointmentCard extends ConsumerStatefulWidget {
-  const _PatientAppointmentCard({
-    required this.appointment,
-    required this.showCancelButton,
-  });
-
-  final AppointmentModel appointment;
-  final bool showCancelButton;
-
-  @override
-  ConsumerState<_PatientAppointmentCard> createState() =>
-      _PatientAppointmentCardState();
-}
-
-class _PatientAppointmentCardState
-    extends ConsumerState<_PatientAppointmentCard> {
-  bool _cancelling = false;
-
-  Color _statusColor() => switch (widget.appointment.estado) {
-    AppointmentStatus.programada => OcgColors.bronze,
-    AppointmentStatus.confirmada => const Color(0xFF2E7D32),
-    AppointmentStatus.completada => const Color(0xFF1565C0),
-    AppointmentStatus.cancelada => OcgColors.error,
-    AppointmentStatus.noAsistio => const Color(0xFF6D4C41),
-    AppointmentStatus.reprogramada => const Color(0xFF6A1B9A),
-  };
-
-  IconData _statusIcon() => switch (widget.appointment.estado) {
-    AppointmentStatus.programada => Icons.schedule_outlined,
-    AppointmentStatus.confirmada => Icons.check_circle_outline,
-    AppointmentStatus.completada => Icons.task_alt,
-    AppointmentStatus.cancelada => Icons.cancel_outlined,
-    AppointmentStatus.noAsistio => Icons.event_busy_outlined,
-    AppointmentStatus.reprogramada => Icons.update,
-  };
-
-  String _statusLabel() => switch (widget.appointment.estado) {
-    AppointmentStatus.programada => 'Programada',
-    AppointmentStatus.confirmada => 'Confirmada',
-    AppointmentStatus.completada => 'Completada',
-    AppointmentStatus.cancelada => 'Cancelada',
-    AppointmentStatus.noAsistio => 'No asististe',
-    AppointmentStatus.reprogramada => 'Reprogramada',
-  };
-
-  // ─── Cancelar ────────────────────────────────────────────────────────────
-  //
-  // ✅ Usa cancelAppointmentAsPatient — solo escribe {estado, updatedAt}
-  //    lo cual sí permite la regla Firestore actualizada.
-
-  Future<void> _onCancelPressed(BuildContext context) async {
-    final appt = widget.appointment;
-    final canCancel = AppointmentsBusinessRules.canCancelAppointment(
-      appt.fechaHora,
-    );
-
-    if (!canCancel) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('No es posible cancelar desde la app'),
-          content: RichText(
-            text: TextSpan(
-              style: TextStyle(
-                color: OcgColors.ink.withOpacity(0.8),
-                fontSize: 14,
-                height: 1.5,
-              ),
-              children: const [
-                TextSpan(
-                  text:
-                      'Tu cita es en menos de 24 horas.\n\nPara cancelar llámanos al WhatsApp ',
-                ),
-                TextSpan(
-                  text: '+57 300 000 0000',
-                  style: TextStyle(
-                    color: OcgColors.bronze,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                TextSpan(text: '.'),
-              ],
-            ),
-          ),
-          actions: [
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: OcgColors.espresso,
-                foregroundColor: OcgColors.ivory,
-              ),
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Entendido'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Cancelar esta cita?'),
-        content: Text(
-          'Tu cita de ${_tipoLabel(appt.tipo)} del ${_fmtDate(appt.fechaHora)} '
-          'será cancelada. Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: OcgColors.error),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Cancelar cita'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
-    setState(() => _cancelling = true);
-    try {
-      await ref
-          .read(appointmentsRepositoryProvider)
-          .cancelAppointmentAsPatient(appt.id);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cita cancelada correctamente.'),
-          backgroundColor: Color(0xFF2E7D32),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo cancelar: $e'),
-          backgroundColor: OcgColors.error,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _cancelling = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final appt = widget.appointment;
-    final sc = _statusColor();
-    final dt = appt.fechaHora;
-    final timeStr =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-
-    final canShowCancel =
-        widget.showCancelButton &&
-        (appt.estado == AppointmentStatus.programada ||
-            appt.estado == AppointmentStatus.confirmada) &&
-        appt.fechaHora.isAfter(DateTime.now());
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: sc.withOpacity(0.3)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: sc.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(_statusIcon(), color: sc, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _fmtDate(dt),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: OcgColors.ink.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: sc.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: sc.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    _statusLabel(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: sc,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.medical_services_outlined,
-                  size: 14,
-                  color: OcgColors.ink.withOpacity(0.4),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _tipoLabel(appt.tipo),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: OcgColors.ink.withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Icon(
-                  Icons.timer_outlined,
-                  size: 14,
-                  color: OcgColors.ink.withOpacity(0.4),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${appt.duracionMinutos} min',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: OcgColors.ink.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-            if (appt.notas != null && appt.notas!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.notes_outlined,
-                    size: 14,
-                    color: OcgColors.ink.withOpacity(0.4),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      appt.notas!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: OcgColors.ink.withOpacity(0.55),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            // ✅ Badge de evento histórico
-            if (appt.estado == AppointmentStatus.cancelada ||
-                appt.estado == AppointmentStatus.reprogramada ||
-                appt.estado == AppointmentStatus.completada ||
-                appt.estado == AppointmentStatus.confirmada) ...[
-              const SizedBox(height: 8),
-              _HistoryEventBadge(estado: appt.estado),
-            ],
-
-            // ─── Botón cancelar ──────────────────────────────────────────
-            if (canShowCancel) ...[
-              const SizedBox(height: 10),
-              const Divider(height: 1),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: OcgColors.error,
-                    side: const BorderSide(color: OcgColors.error),
-                  ),
-                  onPressed: _cancelling
-                      ? null
-                      : () => _onCancelPressed(context),
-                  icon: _cancelling
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: OcgColors.error,
-                          ),
-                        )
-                      : const Icon(Icons.cancel_outlined, size: 16),
-                  label: Text(_cancelling ? 'Cancelando...' : 'Cancelar cita'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Badge de evento histórico ────────────────────────────────────────────────
-//
-// ✅ Muestra un indicador descriptivo para los estados relevantes:
-//    cancelada, reprogramada, confirmada, completada.
-
-class _HistoryEventBadge extends StatelessWidget {
-  const _HistoryEventBadge({required this.estado});
-  final AppointmentStatus estado;
-
-  @override
-  Widget build(BuildContext context) {
-    final (icon, color, message) = switch (estado) {
-      AppointmentStatus.cancelada => (
-        Icons.cancel_outlined,
-        OcgColors.error,
-        'Esta cita fue cancelada',
-      ),
-      AppointmentStatus.reprogramada => (
-        Icons.update,
-        const Color(0xFF6A1B9A),
-        'Esta cita fue reprogramada',
-      ),
-      AppointmentStatus.confirmada => (
-        Icons.check_circle_outline,
-        const Color(0xFF2E7D32),
-        'Cita confirmada por la clínica',
-      ),
-      AppointmentStatus.completada => (
-        Icons.task_alt,
-        const Color(0xFF1565C0),
-        'Cita completada exitosamente',
-      ),
-      _ => (Icons.info_outline, OcgColors.bronze, ''),
-    };
-
-    if (message.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 6),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w500,
             ),
           ),
         ],

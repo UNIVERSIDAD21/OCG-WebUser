@@ -9,6 +9,7 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
+import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -397,7 +398,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                               displayName: nameCtrl.text.trim(),
                             );
 
-                        // ✅ Sign out de la sesión del paciente creado.
+                        // Sign out de la sesión del paciente creado.
                         // registerPatient inicia sesión con el nuevo user;
                         // cerramos esa sesión para que el admin recupere
                         // su sesión al re-autenticarse.
@@ -778,22 +779,21 @@ class _AdminAppointmentsScreenState
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Agenda de citas'),
-        actions: [
-          // ✅ Botón para crear cuenta de paciente desde el admin
-          IconButton(
-            tooltip: 'Crear cuenta de paciente',
-            icon: const Icon(Icons.person_add_outlined),
-            onPressed: () =>
-                AdminAppointmentsScreen.showCreatePatientAccountDialog(
-                  context,
-                  ref,
-                ),
-          ),
-        ],
-      ),
+    return OcgAdaptiveScaffold(
+      selectedIndex: 2,
+      title: 'Agenda de citas',
+      appBarActions: [
+        // ✅ Botón para crear cuenta de paciente desde el admin
+        IconButton(
+          tooltip: 'Crear cuenta de paciente',
+          icon: const Icon(Icons.person_add_outlined),
+          onPressed: () =>
+              AdminAppointmentsScreen.showCreatePatientAccountDialog(
+                context,
+                ref,
+              ),
+        ),
+      ],
       body: Column(
         children: [
           if (_filter == _AgendaFilter.hoy)

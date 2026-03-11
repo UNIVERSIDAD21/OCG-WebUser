@@ -12,9 +12,9 @@ class PatientPaymentsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: OcgEmptyState(
-        icon: Icons.payment_outlined,
-        title: 'Pagos',
-        subtitle: 'El historial de pagos estará disponible próximamente.',
+        icon: Icons.receipt_long_outlined,
+        title: 'Sin pagos registrados',
+        subtitle: 'Aquí verás el historial de tus pagos.',
       ),
     );
   }
