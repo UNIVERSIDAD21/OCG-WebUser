@@ -1,11 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/validators.dart';
 
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -13,8 +16,6 @@ String _appointmentFmtDate(DateTime date) =>
 String _appointmentFmtDateTime(DateTime date) =>
     '${_appointmentFmtDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
-// ─── Filtros ──────────────────────────────────────────────────────────────────
-// ✅ NUEVO: se agregó `canceladas` al enum
 enum _AgendaFilter { hoy, activas, completadas, perdidas, canceladas }
 
 // ─── Helpers de lógica de negocio ─────────────────────────────────────────────
@@ -28,10 +29,27 @@ bool _esPerdida(AppointmentModel a) {
   return false;
 }
 
+String _labelTipo(AppointmentType t) {
+  switch (t) {
+    case AppointmentType.valoracion:
+      return 'Valoración';
+    case AppointmentType.control:
+      return 'Control';
+    case AppointmentType.instalacion:
+      return 'Instalación';
+    case AppointmentType.urgencia:
+      return 'Urgencia';
+    case AppointmentType.alta:
+      return 'Alta';
+  }
+}
+
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   const AdminAppointmentsScreen({super.key});
+
+  // ─── Diálogo crear cita ───────────────────────────────────────────────────
 
   static Future<void> showCreateDialog(
     BuildContext context,
@@ -41,7 +59,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   }) async {
     final patientSearchCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-
     PatientModel? selectedPatient = preselectedPatient;
     if (preselectedPatient != null) {
       patientSearchCtrl.text = preselectedPatient.nombre;
@@ -60,210 +77,391 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
 
     await showDialog<void>(
       context: context,
-      builder: (context) {
-        return Consumer(
-          builder: (context, dialogRef, _) {
-            final patients =
-                dialogRef.watch(patientsStreamProvider).asData?.value ?? [];
-
-            return StatefulBuilder(
-              builder: (context, setDialogState) {
-                final filteredPatients = patientSearchCtrl.text.isEmpty
-                    ? patients
-                    : patients
-                          .where(
-                            (p) => p.nombre.toLowerCase().contains(
-                              patientSearchCtrl.text.toLowerCase(),
-                            ),
-                          )
-                          .toList();
-
-                return AlertDialog(
-                  title: const Text('Nueva cita'),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Paciente
-                        TextFormField(
-                          controller: patientSearchCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Paciente',
-                            prefixIcon: Icon(Icons.person_search),
+      builder: (ctx) => Consumer(
+        builder: (ctx, dialogRef, _) {
+          final patients =
+              dialogRef.watch(patientsStreamProvider).asData?.value ?? [];
+          return StatefulBuilder(
+            builder: (ctx, setDs) {
+              final filtered = patientSearchCtrl.text.isEmpty
+                  ? patients
+                  : patients
+                        .where(
+                          (p) => p.nombre.toLowerCase().contains(
+                            patientSearchCtrl.text.toLowerCase(),
                           ),
-                          onChanged: (_) => setDialogState(() {}),
+                        )
+                        .toList();
+              return AlertDialog(
+                title: const Text('Nueva cita'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: patientSearchCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar paciente',
+                          prefixIcon: Icon(Icons.person_search),
                         ),
-                        if (patientSearchCtrl.text.isNotEmpty &&
-                            selectedPatient == null)
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 160),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: filteredPatients.length,
-                              itemBuilder: (_, i) {
-                                final p = filteredPatients[i];
-                                return ListTile(
-                                  title: Text(p.nombre),
-                                  subtitle: Text(p.email),
-                                  onTap: () {
-                                    setDialogState(() {
-                                      selectedPatient = p;
-                                      patientSearchCtrl.text = p.nombre;
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        const SizedBox(height: 10),
-
-                        // Tipo
-                        DropdownButtonFormField<AppointmentType>(
-                          value: type,
-                          decoration: const InputDecoration(
-                            labelText: 'Tipo de cita',
-                            prefixIcon: Icon(Icons.medical_services_outlined),
-                          ),
-                          items: AppointmentType.values
-                              .map(
-                                (t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(_labelTipo(t)),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) =>
-                              setDialogState(() => type = v ?? type),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Fecha y hora
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.event),
-                          title: Text(_appointmentFmtDateTime(dateTime)),
-                          subtitle: const Text('Fecha y hora'),
-                          trailing: const Icon(Icons.edit, size: 16),
-                          onTap: () async {
-                            final d = await showDatePicker(
-                              context: context,
-                              initialDate: dateTime,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2035),
-                            );
-                            if (d == null) return;
-                            final t = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(dateTime),
-                            );
-                            if (t == null) return;
-                            setDialogState(
-                              () => dateTime = DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                t.hour,
-                                t.minute,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Duración
-                        DropdownButtonFormField<int>(
-                          value: durationMinutes,
-                          decoration: const InputDecoration(
-                            labelText: 'Duración (minutos)',
-                            prefixIcon: Icon(Icons.timer_outlined),
-                          ),
-                          items: [15, 30, 45, 60, 90, 120]
-                              .map(
-                                (m) => DropdownMenuItem(
-                                  value: m,
-                                  child: Text('$m min'),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) =>
-                              setDialogState(() => durationMinutes = v ?? 30),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: notesCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Notas (opcional)',
-                            prefixIcon: Icon(Icons.notes),
-                          ),
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancelar'),
-                    ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: OcgColors.bronze,
-                        foregroundColor: OcgColors.ivory,
+                        onChanged: (_) => setDs(() => selectedPatient = null),
                       ),
-                      onPressed: selectedPatient == null
-                          ? null
-                          : () async {
-                              Navigator.of(context).pop();
-                              try {
-                                await ref
-                                    .read(appointmentsRepositoryProvider)
-                                    .createAppointment(
-                                      AppointmentModel(
-                                        id: '',
-                                        patientId: selectedPatient!.id,
-                                        patientName: selectedPatient!.nombre,
-                                        tipo: type,
-                                        estado: AppointmentStatus.programada,
-                                        fechaHora: dateTime,
-                                        duracionMinutos: durationMinutes,
-                                        notas: notesCtrl.text.trim().isEmpty
-                                            ? null
-                                            : notesCtrl.text.trim(),
-                                      ),
-                                    );
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Cita creada.'),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'No se pudo crear la cita: $e',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                      child: const Text('Crear cita'),
+                      if (patientSearchCtrl.text.isNotEmpty &&
+                          selectedPatient == null)
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 140),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: filtered.length,
+                            itemBuilder: (_, i) => ListTile(
+                              dense: true,
+                              title: Text(filtered[i].nombre),
+                              subtitle: Text(
+                                filtered[i].telefono,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              onTap: () => setDs(() {
+                                selectedPatient = filtered[i];
+                                patientSearchCtrl.text = filtered[i].nombre;
+                              }),
+                            ),
+                          ),
+                        ),
+                      if (selectedPatient != null)
+                        Chip(
+                          avatar: const Icon(
+                            Icons.person,
+                            size: 14,
+                            color: OcgColors.ivory,
+                          ),
+                          label: Text(selectedPatient!.nombre),
+                          backgroundColor: OcgColors.espresso,
+                          labelStyle: const TextStyle(color: OcgColors.ivory),
+                          deleteIconColor: OcgColors.ivory,
+                          onDeleted: () => setDs(() {
+                            selectedPatient = null;
+                            patientSearchCtrl.clear();
+                          }),
+                        ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<AppointmentType>(
+                        value: type,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de cita',
+                          prefixIcon: Icon(Icons.medical_services_outlined),
+                        ),
+                        items: AppointmentType.values
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(_labelTipo(t)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setDs(() => type = v ?? type),
+                      ),
+                      const SizedBox(height: 8),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.event),
+                        title: Text(_appointmentFmtDateTime(dateTime)),
+                        subtitle: const Text('Fecha y hora'),
+                        trailing: const Icon(Icons.edit, size: 16),
+                        onTap: () async {
+                          final d = await showDatePicker(
+                            context: ctx,
+                            initialDate: dateTime,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2035),
+                          );
+                          if (d == null) return;
+                          final t = await showTimePicker(
+                            context: ctx,
+                            initialTime: TimeOfDay.fromDateTime(dateTime),
+                          );
+                          if (t == null) return;
+                          setDs(
+                            () => dateTime = DateTime(
+                              d.year,
+                              d.month,
+                              d.day,
+                              t.hour,
+                              t.minute,
+                            ),
+                          );
+                        },
+                      ),
+                      DropdownButtonFormField<int>(
+                        value: durationMinutes,
+                        decoration: const InputDecoration(
+                          labelText: 'Duración (minutos)',
+                          prefixIcon: Icon(Icons.timer_outlined),
+                        ),
+                        items: [15, 30, 45, 60, 90, 120]
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m,
+                                child: Text('$m min'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setDs(() => durationMinutes = v ?? 30),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: notesCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Notas (opcional)',
+                          prefixIcon: Icon(Icons.notes),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OcgColors.bronze,
+                      foregroundColor: OcgColors.ivory,
                     ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
+                    onPressed: selectedPatient == null
+                        ? null
+                        : () async {
+                            Navigator.of(ctx).pop();
+                            try {
+                              await ref
+                                  .read(appointmentsRepositoryProvider)
+                                  .createAppointment(
+                                    AppointmentModel(
+                                      id: '',
+                                      patientId: selectedPatient!.id,
+                                      patientName: selectedPatient!.nombre,
+                                      // ✅ campos nuevos
+                                      patientPhone: selectedPatient!.telefono,
+                                      creadoPor: 'admin',
+                                      tipo: type,
+                                      estado: AppointmentStatus.programada,
+                                      fechaHora: dateTime,
+                                      duracionMinutos: durationMinutes,
+                                      notas: notesCtrl.text.trim().isEmpty
+                                          ? null
+                                          : notesCtrl.text.trim(),
+                                    ),
+                                  );
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(content: Text('Cita creada.')),
+                                );
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text('No se pudo crear: $e'),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    child: const Text('Crear cita'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
-
     patientSearchCtrl.dispose();
     notesCtrl.dispose();
+  }
+
+  // ─── ✅ NUEVO: Diálogo crear cuenta de paciente (admin) ───────────────────
+
+  static Future<void> showCreatePatientAccountDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+    String? errorMsg;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDs) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.person_add_outlined, color: OcgColors.espresso),
+              SizedBox(width: 10),
+              Expanded(child: Text('Crear cuenta de paciente')),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre completo',
+                      prefixIcon: Icon(Icons.person_outlined),
+                    ),
+                    validator: Validators.fullName,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: Validators.email,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: passCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Contraseña temporal',
+                      prefixIcon: Icon(Icons.lock_outlined),
+                      helperText: 'El paciente puede cambiarla desde la app',
+                    ),
+                    validator: Validators.passwordForRegister,
+                  ),
+                  if (errorMsg != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: OcgColors.error.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: OcgColors.error.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        errorMsg!,
+                        style: const TextStyle(
+                          color: OcgColors.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: OcgColors.espresso,
+                foregroundColor: OcgColors.ivory,
+              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) {
+                        return;
+                      }
+                      setDs(() {
+                        isSubmitting = true;
+                        errorMsg = null;
+                      });
+
+                      try {
+                        await ref
+                            .read(authNotifierProvider.notifier)
+                            .registerPatient(
+                              email: emailCtrl.text.trim(),
+                              password: passCtrl.text,
+                              displayName: nameCtrl.text.trim(),
+                            );
+
+                        // ✅ Sign out de la sesión del paciente creado.
+                        // registerPatient inicia sesión con el nuevo user;
+                        // cerramos esa sesión para que el admin recupere
+                        // su sesión al re-autenticarse.
+                        // TODO(bloque-09): migrar a Cloud Function para
+                        // evitar interrumpir la sesión del admin.
+                        await ref.read(authServiceProvider).signOut();
+
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '✓ Cuenta creada para ${nameCtrl.text.trim()}. '
+                                'Vuelve a iniciar sesión.',
+                              ),
+                              duration: const Duration(seconds: 6),
+                              backgroundColor: const Color(0xFF2E7D32),
+                            ),
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        String msg;
+                        switch (e.code) {
+                          case 'email-already-in-use':
+                            msg = 'Este correo ya tiene una cuenta registrada.';
+                            break;
+                          case 'weak-password':
+                            msg = 'Contraseña muy débil (mín. 6 caracteres).';
+                            break;
+                          default:
+                            msg =
+                                '[${e.code}] ${e.message ?? 'Error desconocido.'}';
+                        }
+                        setDs(() {
+                          errorMsg = msg;
+                          isSubmitting = false;
+                        });
+                      } catch (e) {
+                        setDs(() {
+                          errorMsg = 'Error inesperado: $e';
+                          isSubmitting = false;
+                        });
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: OcgColors.ivory,
+                      ),
+                    )
+                  : const Text('Crear cuenta'),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameCtrl.dispose();
+    emailCtrl.dispose();
+    passCtrl.dispose();
   }
 
   static String _fmtDate(DateTime d) =>
@@ -274,26 +472,9 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
       _AdminAppointmentsScreenState();
 }
 
-String _labelTipo(AppointmentType t) {
-  switch (t) {
-    case AppointmentType.valoracion:
-      return 'Valoración';
-    case AppointmentType.control:
-      return 'Control';
-    case AppointmentType.instalacion:
-      return 'Instalación';
-    case AppointmentType.urgencia:
-      return 'Urgencia';
-    case AppointmentType.alta:
-      return 'Alta';
-  }
-}
-
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   _AgendaFilter _filter = _AgendaFilter.hoy;
-
-  // ─── Diálogo reprogramar ─────────────────────────────────────────────────
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
@@ -303,7 +484,7 @@ class _AdminAppointmentsScreenState
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (ctx, setDs) => AlertDialog(
           title: const Text('Reprogramar cita'),
           content: SingleChildScrollView(
             child: Column(
@@ -316,18 +497,18 @@ class _AdminAppointmentsScreenState
                   trailing: const Icon(Icons.edit_calendar, size: 18),
                   onTap: () async {
                     final d = await showDatePicker(
-                      context: context,
+                      context: ctx,
                       initialDate: newDateTime,
                       firstDate: DateTime.now(),
                       lastDate: DateTime(2035),
                     );
                     if (d == null) return;
                     final t = await showTimePicker(
-                      context: context,
+                      context: ctx,
                       initialTime: TimeOfDay.fromDateTime(newDateTime),
                     );
                     if (t == null) return;
-                    setDialogState(
+                    setDs(
                       () => newDateTime = DateTime(
                         d.year,
                         d.month,
@@ -350,7 +531,7 @@ class _AdminAppointmentsScreenState
                             DropdownMenuItem(value: m, child: Text('$m min')),
                       )
                       .toList(),
-                  onChanged: (v) => setDialogState(() => newDuration = v ?? 30),
+                  onChanged: (v) => setDs(() => newDuration = v ?? 30),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -409,16 +590,14 @@ class _AdminAppointmentsScreenState
     notesCtrl.dispose();
   }
 
-  // ─── Diálogo cancelar ────────────────────────────────────────────────────
-
   Future<void> _showCancelDialog(AppointmentModel appt) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar cita'),
         content: Text(
-          '¿Seguro que deseas cancelar la cita de ${appt.patientName}? '
-          'Esta acción no se puede deshacer.',
+          '¿Seguro que deseas cancelar la cita de '
+          '${appt.patientName}? Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -450,8 +629,6 @@ class _AdminAppointmentsScreenState
     }
   }
 
-  // ─── Acción "No completada" ──────────────────────────────────────────────
-
   Future<void> _onNoCompletada(AppointmentModel appt) async {
     final now = DateTime.now();
     final nuevoEstado = appt.fechaHora.isBefore(now)
@@ -464,7 +641,7 @@ class _AdminAppointmentsScreenState
       if (!mounted) return;
       final msg = nuevoEstado == AppointmentStatus.programada
           ? 'Cita devuelta a Activas.'
-          : 'Cita movida a Perdidas (fecha ya pasó).';
+          : 'Cita movida a Perdidas.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       if (!mounted) return;
@@ -475,6 +652,13 @@ class _AdminAppointmentsScreenState
   }
 
   // ─── Filtrado ────────────────────────────────────────────────────────────
+  //
+  // ✅ REGLA DEFINITIVA:
+  //   • completadas  → SOLO en tab Completadas
+  //   • canceladas   → SOLO en tab Canceladas
+  //   • noAsistio    → SOLO en tab Perdidas
+  //   • programadas viejas sin confirmar → tab Perdidas
+  //   • programada/confirmada futuras → tab Activas (y Por fecha)
 
   List<AppointmentModel> _applyFilter(
     List<AppointmentModel> all,
@@ -488,7 +672,8 @@ class _AdminAppointmentsScreenState
               d.month == selectedDate.month &&
               d.day == selectedDate.day &&
               a.estado != AppointmentStatus.cancelada &&
-              a.estado != AppointmentStatus.reprogramada;
+              a.estado != AppointmentStatus.reprogramada &&
+              a.estado != AppointmentStatus.completada;
         }).toList();
 
       case _AgendaFilter.activas:
@@ -503,25 +688,29 @@ class _AdminAppointmentsScreenState
           ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
       case _AgendaFilter.completadas:
+        // Solo y únicamente completadas
         return all
             .where((a) => a.estado == AppointmentStatus.completada)
             .toList()
           ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
       case _AgendaFilter.perdidas:
-        return all.where(_esPerdida).toList()
+        // Perdidas = noAsistio + programadas viejas, nunca completadas
+        return all
+            .where(
+              (a) => _esPerdida(a) && a.estado != AppointmentStatus.completada,
+            )
+            .toList()
           ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
-      // ✅ NUEVO: filtro de canceladas
       case _AgendaFilter.canceladas:
+        // Solo y únicamente canceladas
         return all
             .where((a) => a.estado == AppointmentStatus.cancelada)
             .toList()
           ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
     }
   }
-
-  // ─── ListView por filtro ─────────────────────────────────────────────────
 
   Widget _buildList(List<AppointmentModel> items) {
     if (items.isEmpty) {
@@ -530,11 +719,11 @@ class _AdminAppointmentsScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _filter == _AgendaFilter.perdidas
-                  ? Icons.event_busy_outlined
-                  : _filter == _AgendaFilter.canceladas
-                  ? Icons.cancel_outlined
-                  : Icons.event_note_outlined,
+              switch (_filter) {
+                _AgendaFilter.perdidas => Icons.event_busy_outlined,
+                _AgendaFilter.canceladas => Icons.cancel_outlined,
+                _ => Icons.event_note_outlined,
+              },
               size: 48,
               color: OcgColors.bronze.withOpacity(0.4),
             ),
@@ -556,49 +745,33 @@ class _AdminAppointmentsScreenState
         final appt = items[index];
         final repo = ref.read(appointmentsRepositoryProvider);
 
-        switch (_filter) {
-          case _AgendaFilter.hoy:
-          case _AgendaFilter.activas:
-            return AppointmentCard(
-              appointment: appt,
-              onConfirmar: appt.estado == AppointmentStatus.programada
-                  ? () async {
-                      await repo.updateAppointmentStatus(
-                        appt.id,
-                        AppointmentStatus.confirmada,
-                      );
-                    }
-                  : null,
-              onCompletar: appt.estado == AppointmentStatus.confirmada
-                  ? () async {
-                      await repo.updateAppointmentStatus(
-                        appt.id,
-                        AppointmentStatus.completada,
-                      );
-                    }
-                  : null,
-              onReprogramar: () => _showRescheduleDialog(appt),
-              onCancelar: () => _showCancelDialog(appt),
-            );
-
-          case _AgendaFilter.completadas:
-            return AppointmentCard(
-              appointment: appt,
-              onNoCompletada: () => _onNoCompletada(appt),
-            );
-
-          case _AgendaFilter.perdidas:
-            return AppointmentCard(appointment: appt);
-
-          // ✅ NUEVO: canceladas — solo informativa, sin acciones
-          case _AgendaFilter.canceladas:
-            return AppointmentCard(appointment: appt);
-        }
+        return switch (_filter) {
+          _AgendaFilter.hoy || _AgendaFilter.activas => AppointmentCard(
+            appointment: appt,
+            onConfirmar: appt.estado == AppointmentStatus.programada
+                ? () async => repo.updateAppointmentStatus(
+                    appt.id,
+                    AppointmentStatus.confirmada,
+                  )
+                : null,
+            onCompletar: appt.estado == AppointmentStatus.confirmada
+                ? () async => repo.updateAppointmentStatus(
+                    appt.id,
+                    AppointmentStatus.completada,
+                  )
+                : null,
+            onReprogramar: () => _showRescheduleDialog(appt),
+            onCancelar: () => _showCancelDialog(appt),
+          ),
+          _AgendaFilter.completadas => AppointmentCard(
+            appointment: appt,
+            onNoCompletada: () => _onNoCompletada(appt),
+          ),
+          _ => AppointmentCard(appointment: appt),
+        };
       },
     );
   }
-
-  // ─── build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -606,10 +779,23 @@ class _AdminAppointmentsScreenState
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Agenda de citas')),
+      appBar: AppBar(
+        title: const Text('Agenda de citas'),
+        actions: [
+          // ✅ Botón para crear cuenta de paciente desde el admin
+          IconButton(
+            tooltip: 'Crear cuenta de paciente',
+            icon: const Icon(Icons.person_add_outlined),
+            onPressed: () =>
+                AdminAppointmentsScreen.showCreatePatientAccountDialog(
+                  context,
+                  ref,
+                ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // ── Selector de fecha (visible solo en filtro "Por fecha") ──
           if (_filter == _AgendaFilter.hoy)
             Container(
               width: double.infinity,
@@ -666,8 +852,6 @@ class _AdminAppointmentsScreenState
                 ],
               ),
             ),
-
-          // ── Segmented Button de filtros — ✅ 5 opciones con scroll ──
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -676,22 +860,19 @@ class _AdminAppointmentsScreenState
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    if (_filter == _AgendaFilter.perdidas) {
-                      return OcgColors.error;
-                    }
-                    if (_filter == _AgendaFilter.canceladas) {
-                      return const Color(0xFF6D4C41); // brown
-                    }
-                    return OcgColors.espresso;
+                    return switch (_filter) {
+                      _AgendaFilter.perdidas => OcgColors.error,
+                      _AgendaFilter.canceladas => const Color(0xFF6D4C41),
+                      _ => OcgColors.espresso,
+                    };
                   }
                   return OcgColors.ivory;
                 }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return OcgColors.ivory;
-                  }
-                  return OcgColors.ink;
-                }),
+                foregroundColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? OcgColors.ivory
+                      : OcgColors.ink,
+                ),
                 side: const WidgetStatePropertyAll(
                   BorderSide(color: OcgColors.bronze),
                 ),
@@ -713,25 +894,20 @@ class _AdminAppointmentsScreenState
                   value: _AgendaFilter.perdidas,
                   label: Text('Perdidas'),
                 ),
-                // ✅ NUEVO segmento
                 ButtonSegment(
                   value: _AgendaFilter.canceladas,
                   label: Text('Canceladas'),
                 ),
               ],
               selected: {_filter},
-              onSelectionChanged: (selection) {
-                setState(() => _filter = selection.first);
-              },
+              onSelectionChanged: (s) => setState(() => _filter = s.first),
             ),
           ),
-
-          // ── Lista principal ──
           Expanded(
             child: appointmentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) =>
-                  Center(child: Text('No se pudo cargar agenda: $error')),
+              error: (e, _) =>
+                  Center(child: Text('No se pudo cargar agenda: $e')),
               data: (appointments) {
                 final filtered = _applyFilter(appointments, selectedDate);
                 return _buildList(filtered);
@@ -782,69 +958,45 @@ class AppointmentCard extends StatelessWidget {
       onCancelar != null ||
       onNoCompletada != null;
 
-  Color _statusColor() {
-    switch (appointment.estado) {
-      case AppointmentStatus.programada:
-        return OcgColors.bronze;
-      case AppointmentStatus.confirmada:
-        return const Color(0xFF2E7D32);
-      case AppointmentStatus.completada:
-        return const Color(0xFF1565C0);
-      case AppointmentStatus.cancelada:
-        return OcgColors.error;
-      case AppointmentStatus.noAsistio:
-        return const Color(0xFF6D4C41);
-      case AppointmentStatus.reprogramada:
-        return const Color(0xFF6A1B9A);
-    }
-  }
+  Color _statusColor() => switch (appointment.estado) {
+    AppointmentStatus.programada => OcgColors.bronze,
+    AppointmentStatus.confirmada => const Color(0xFF2E7D32),
+    AppointmentStatus.completada => const Color(0xFF1565C0),
+    AppointmentStatus.cancelada => OcgColors.error,
+    AppointmentStatus.noAsistio => const Color(0xFF6D4C41),
+    AppointmentStatus.reprogramada => const Color(0xFF6A1B9A),
+  };
 
-  IconData _statusIcon() {
-    switch (appointment.estado) {
-      case AppointmentStatus.programada:
-        return Icons.schedule;
-      case AppointmentStatus.confirmada:
-        return Icons.check_circle_outline;
-      case AppointmentStatus.completada:
-        return Icons.task_alt;
-      case AppointmentStatus.cancelada:
-        return Icons.cancel_outlined;
-      case AppointmentStatus.noAsistio:
-        return Icons.event_busy_outlined;
-      case AppointmentStatus.reprogramada:
-        return Icons.update;
-    }
-  }
+  IconData _statusIcon() => switch (appointment.estado) {
+    AppointmentStatus.programada => Icons.schedule,
+    AppointmentStatus.confirmada => Icons.check_circle_outline,
+    AppointmentStatus.completada => Icons.task_alt,
+    AppointmentStatus.cancelada => Icons.cancel_outlined,
+    AppointmentStatus.noAsistio => Icons.event_busy_outlined,
+    AppointmentStatus.reprogramada => Icons.update,
+  };
 
-  String _statusLabel() {
-    switch (appointment.estado) {
-      case AppointmentStatus.programada:
-        return 'Programada';
-      case AppointmentStatus.confirmada:
-        return 'Confirmada';
-      case AppointmentStatus.completada:
-        return 'Completada';
-      case AppointmentStatus.cancelada:
-        return 'Cancelada';
-      case AppointmentStatus.noAsistio:
-        return 'No asistió';
-      case AppointmentStatus.reprogramada:
-        return 'Reprogramada';
-    }
-  }
+  String _statusLabel() => switch (appointment.estado) {
+    AppointmentStatus.programada => 'Programada',
+    AppointmentStatus.confirmada => 'Confirmada',
+    AppointmentStatus.completada => 'Completada',
+    AppointmentStatus.cancelada => 'Cancelada',
+    AppointmentStatus.noAsistio => 'No asistió',
+    AppointmentStatus.reprogramada => 'Reprogramada',
+  };
 
   @override
   Widget build(BuildContext context) {
     final dt = appointment.fechaHora;
     final time =
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    final statusColor = _statusColor();
+    final sc = _statusColor();
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: statusColor.withOpacity(0.28)),
+        side: BorderSide(color: sc.withOpacity(0.28)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -855,8 +1007,8 @@ class AppointmentCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: statusColor.withOpacity(0.15),
-                  child: Icon(_statusIcon(), color: statusColor, size: 20),
+                  backgroundColor: sc.withOpacity(0.15),
+                  child: Icon(_statusIcon(), color: sc, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -870,14 +1022,23 @@ class AppointmentCard extends StatelessWidget {
                           fontSize: 15,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        _labelTipo(appointment.tipo),
+                        '${_labelTipo(appointment.tipo)} · '
+                        '${appointment.duracionMinutos} min',
                         style: TextStyle(
                           fontSize: 12,
                           color: OcgColors.ink.withOpacity(0.6),
                         ),
                       ),
+                      // ✅ teléfono del paciente
+                      if (appointment.patientPhone.isNotEmpty)
+                        Text(
+                          appointment.patientPhone,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: OcgColors.bronze.withOpacity(0.8),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -889,7 +1050,7 @@ class AppointmentCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
-                        color: statusColor,
+                        color: sc,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -899,7 +1060,7 @@ class AppointmentCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.12),
+                        color: sc.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -907,7 +1068,7 @@ class AppointmentCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: statusColor,
+                          color: sc,
                         ),
                       ),
                     ),
@@ -977,8 +1138,6 @@ class AppointmentCard extends StatelessWidget {
   }
 }
 
-// ─── Chip de acción ───────────────────────────────────────────────────────────
-
 class _ActionChip extends StatefulWidget {
   const _ActionChip({
     required this.label,
@@ -986,7 +1145,6 @@ class _ActionChip extends StatefulWidget {
     required this.color,
     required this.onTap,
   });
-
   final String label;
   final IconData icon;
   final Color color;

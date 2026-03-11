@@ -144,8 +144,6 @@ class AppointmentsRepository {
 
   // ─── Cancelar cita (paciente) ─────────────────────────────────────────────
   //
-  // ✅ NUEVO: versión segura para pacientes.
-  //
   // Solo escribe los campos `estado` y `updatedAt`. Las Firestore rules
   // permiten este update porque:
   //   - resource.data.patientId == request.auth.uid  (es su propia cita)
