@@ -42,8 +42,9 @@ class AdminDashboardScreen extends ConsumerWidget {
         icon: const Icon(Icons.logout, size: 18),
         label: const Text('Cerrar sesión'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: OcgColors.ivory,
-          side: BorderSide(color: OcgColors.ivory.withOpacity(0.35)),
+          foregroundColor: const Color(0xFFFFD9D9),
+          backgroundColor: OcgColors.error.withOpacity(0.14),
+          side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
