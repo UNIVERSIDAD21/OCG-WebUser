@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../auth/providers/auth_providers.dart';
 
@@ -11,6 +12,30 @@ class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Deseas cerrar tu sesión de administrador?'),
+        actions: [
+          TextButton(
+            onPressed: () => popDialog(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.error,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => popDialog(ctx, true),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     try {
       await ref.read(authNotifierProvider.notifier).signOut();
     } catch (_) {
@@ -34,7 +59,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         IconButton(
           tooltip: 'Cerrar sesión',
           onPressed: loading ? null : () => _handleSignOut(context, ref),
-          icon: const Icon(Icons.logout),
+          icon: const Icon(Icons.logout, color: OcgColors.error),
         ),
       ],
       railTrailing: OutlinedButton.icon(
@@ -210,6 +235,30 @@ class _SignOutButton extends ConsumerWidget {
         onPressed: loading
             ? null
             : () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Cerrar sesión'),
+                    content: const Text('¿Deseas cerrar tu sesión de administrador?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => popDialog(ctx, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: OcgColors.error,
+                          foregroundColor: OcgColors.ivory,
+                        ),
+                        onPressed: () => popDialog(ctx, true),
+                        child: const Text('Cerrar sesión'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
+
                 try {
                   await ref.read(authNotifierProvider.notifier).signOut();
                 } catch (_) {
@@ -219,13 +268,14 @@ class _SignOutButton extends ConsumerWidget {
                   );
                 }
               },
-        icon: const Icon(Icons.logout, color: OcgColors.espresso),
+        icon: const Icon(Icons.logout, color: OcgColors.error),
         label: const Text(
           'Cerrar sesión',
-          style: TextStyle(color: OcgColors.espresso),
+          style: TextStyle(color: OcgColors.error),
         ),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: OcgColors.espresso),
+          backgroundColor: OcgColors.error.withOpacity(0.08),
+          side: BorderSide(color: OcgColors.error.withOpacity(0.5)),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

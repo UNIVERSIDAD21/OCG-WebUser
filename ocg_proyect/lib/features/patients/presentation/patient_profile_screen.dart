@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
@@ -33,15 +34,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         content: const Text('¿Deseas cerrar tu sesión?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () => popDialog(ctx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.espresso,
+              backgroundColor: OcgColors.error,
               foregroundColor: OcgColors.ivory,
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () => popDialog(ctx, true),
             child: const Text('Cerrar sesión'),
           ),
         ],
@@ -77,7 +78,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
             IconButton(
               tooltip: 'Cerrar sesión',
               onPressed: _signingOut ? null : _handleSignOut,
-              icon: const Icon(Icons.logout),
+              icon: const Icon(Icons.logout, color: OcgColors.error),
             ),
           ],
         ),
@@ -94,7 +95,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           IconButton(
             tooltip: 'Cerrar sesión',
             onPressed: _signingOut ? null : _handleSignOut,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: OcgColors.error),
           ),
         ],
       ),

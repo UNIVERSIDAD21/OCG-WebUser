@@ -7,6 +7,7 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
@@ -23,15 +24,15 @@ class AdminPatientsScreen extends ConsumerWidget {
         content: const Text('¿Deseas cerrar tu sesión?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () => popDialog(ctx, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.espresso,
+              backgroundColor: OcgColors.error,
               foregroundColor: OcgColors.ivory,
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () => popDialog(ctx, true),
             child: const Text('Cerrar sesión'),
           ),
         ],
@@ -185,7 +186,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         IconButton(
           tooltip: 'Cerrar sesión',
           onPressed: loading ? null : () => _handleSignOut(context, ref),
-          icon: const Icon(Icons.logout),
+          icon: const Icon(Icons.logout, color: OcgColors.error),
         ),
       ],
       railTrailing: OutlinedButton.icon(

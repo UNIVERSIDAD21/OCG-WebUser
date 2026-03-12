@@ -76,7 +76,7 @@ class _PatientAppointmentsScreenState
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.espresso,
+              backgroundColor: OcgColors.error,
               foregroundColor: OcgColors.ivory,
             ),
             onPressed: () => popDialog(ctx, true),
@@ -441,7 +441,7 @@ class _PatientAppointmentsScreenState
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: OcgColors.error),
             onPressed: _handleSignOut,
           ),
         ],
