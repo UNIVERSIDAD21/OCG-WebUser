@@ -62,33 +62,16 @@ class AppointmentsRepository {
 
   Future<String> createAppointment(AppointmentModel appointment) async {
     try {
-      final snapshot = await _appointmentsRef
-          .where(
-            'fechaHora',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(appointment.fechaHora),
-          )
-          .where(
-            'fechaHora',
-            isLessThan: Timestamp.fromDate(
-              appointment.fechaHora.add(
-                Duration(minutes: appointment.duracionMinutos),
-              ),
-            ),
-          )
-          .get();
-
-      final hasConflict = snapshot.docs.any((doc) {
-        final model = AppointmentModel.fromJson(doc.data());
-        return model.estado != AppointmentStatus.cancelada &&
-            model.estado != AppointmentStatus.noAsistio &&
-            model.estado != AppointmentStatus.reprogramada;
-      });
+      final hasConflict = await _hasTimeConflict(
+        start: appointment.fechaHora,
+        durationMinutes: appointment.duracionMinutos,
+      );
 
       if (hasConflict) {
         throw FirebaseException(
           plugin: 'appointments',
           code: 'SLOT_TAKEN',
-          message: 'Este horario acaba de ser tomado. Por favor elige otro.',
+          message: 'Ese horario ya está ocupado. Por favor elige otro.',
         );
       }
 
@@ -110,11 +93,27 @@ class AppointmentsRepository {
     AppointmentModel appointment,
   ) async {
     try {
+      final hasConflict = await _hasTimeConflict(
+        start: appointment.fechaHora,
+        durationMinutes: appointment.duracionMinutos,
+      );
+
+      if (hasConflict) {
+        throw FirebaseException(
+          plugin: 'appointments',
+          code: 'SLOT_TAKEN',
+          message: 'Ese horario ya está ocupado. Por favor elige otro.',
+        );
+      }
+
       final ref = _appointmentsRef.doc();
       await ref.set(appointment.copyWith(id: ref.id).toJson());
       await _updatePatientNextAppointment(appointment.patientId);
       return ref.id;
     } catch (e) {
+      if (e is FirebaseException && e.code == 'SLOT_TAKEN') {
+        throw Exception('Error: ${e.message}');
+      }
       rethrow;
     }
   }
@@ -165,6 +164,20 @@ class AppointmentsRepository {
     required String originalId,
     required AppointmentModel newAppointment,
   }) async {
+    final hasConflict = await _hasTimeConflict(
+      start: newAppointment.fechaHora,
+      durationMinutes: newAppointment.duracionMinutos,
+      excludeAppointmentId: originalId,
+    );
+
+    if (hasConflict) {
+      throw FirebaseException(
+        plugin: 'appointments',
+        code: 'SLOT_TAKEN',
+        message: 'Ese horario ya está ocupado. Por favor elige otro.',
+      );
+    }
+
     // Marcar la cita original como reprogramada
     await _appointmentsRef.doc(originalId).update({
       'estado': AppointmentStatus.reprogramada.name,
@@ -175,6 +188,45 @@ class AppointmentsRepository {
     final ref = _appointmentsRef.doc();
     await ref.set(newAppointment.copyWith(id: ref.id).toJson());
     await _updatePatientNextAppointment(newAppointment.patientId);
+  }
+
+  // ─── Validación de solapes de horario ─────────────────────────────────────
+
+  Future<bool> _hasTimeConflict({
+    required DateTime start,
+    required int durationMinutes,
+    String? excludeAppointmentId,
+  }) async {
+    final dayStart = DateTime(start.year, start.month, start.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final newEnd = start.add(Duration(minutes: durationMinutes));
+
+    final snapshot = await _appointmentsRef
+        .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .where('fechaHora', isLessThan: Timestamp.fromDate(dayEnd))
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final appt = AppointmentModel.fromJson(doc.data());
+
+      if (excludeAppointmentId != null && appt.id == excludeAppointmentId) {
+        continue;
+      }
+
+      if (appt.estado == AppointmentStatus.cancelada ||
+          appt.estado == AppointmentStatus.noAsistio ||
+          appt.estado == AppointmentStatus.reprogramada) {
+        continue;
+      }
+
+      final existingStart = appt.fechaHora;
+      final existingEnd = existingStart.add(Duration(minutes: appt.duracionMinutos));
+      final overlaps = start.isBefore(existingEnd) && existingStart.isBefore(newEnd);
+
+      if (overlaps) return true;
+    }
+
+    return false;
   }
 
   // ─── Helper: actualizar próxima cita del paciente ─────────────────────────
