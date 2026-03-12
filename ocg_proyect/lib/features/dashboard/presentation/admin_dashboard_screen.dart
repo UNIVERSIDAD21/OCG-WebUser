@@ -81,6 +81,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         ),
       ),
       body: _DashboardBody(
+        ref: ref,
         onSignOut: () => _handleSignOut(context, ref),
         loading: loading,
         appointmentsAsync: appointmentsAsync,
@@ -92,12 +93,14 @@ class AdminDashboardScreen extends ConsumerWidget {
 
 class _DashboardBody extends StatelessWidget {
   const _DashboardBody({
+    required this.ref,
     required this.onSignOut,
     required this.loading,
     required this.appointmentsAsync,
     required this.patientsAsync,
   });
 
+  final WidgetRef ref;
   final VoidCallback onSignOut;
   final bool loading;
   final AsyncValue<List<AppointmentModel>> appointmentsAsync;
@@ -238,6 +241,7 @@ class _DashboardBody extends StatelessWidget {
 
           const SizedBox(height: 16),
           _TodayAgendaCard(
+            ref: ref,
             loading: appointmentsAsync.isLoading,
             hasError: appointmentsAsync.hasError,
             appointments: todaysAppointments.take(8).toList(),
@@ -340,11 +344,13 @@ class _AlertRow extends StatelessWidget {
 
 class _TodayAgendaCard extends StatelessWidget {
   const _TodayAgendaCard({
+    required this.ref,
     required this.loading,
     required this.hasError,
     required this.appointments,
   });
 
+  final WidgetRef ref;
   final bool loading;
   final bool hasError;
   final List<AppointmentModel> appointments;
@@ -391,6 +397,25 @@ class _TodayAgendaCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     _StatusPill(status: a.estado),
+                    const SizedBox(width: 6),
+                    if (a.estado == AppointmentStatus.programada)
+                      IconButton(
+                        tooltip: 'Confirmar',
+                        icon: const Icon(Icons.check_circle_outline, size: 18, color: OcgColors.success),
+                        onPressed: () => _updateStatus(context, a, AppointmentStatus.confirmada),
+                      ),
+                    if (a.estado == AppointmentStatus.confirmada)
+                      IconButton(
+                        tooltip: 'Completar',
+                        icon: const Icon(Icons.task_alt, size: 18, color: OcgColors.success),
+                        onPressed: () => _updateStatus(context, a, AppointmentStatus.completada),
+                      ),
+                    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                      IconButton(
+                        tooltip: 'Cancelar',
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: OcgColors.error),
+                        onPressed: () => _updateStatus(context, a, AppointmentStatus.cancelada),
+                      ),
                   ],
                 ),
               ),
@@ -398,6 +423,27 @@ class _TodayAgendaCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _updateStatus(
+    BuildContext context,
+    AppointmentModel appointment,
+    AppointmentStatus status,
+  ) async {
+    try {
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .updateAppointmentStatus(appointment.id, status);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Estado de cita actualizado.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar: $e')),
+      );
+    }
   }
 
   static String _fmtHour(DateTime d) {
