@@ -412,6 +412,12 @@ class _TodayAgendaCard extends StatelessWidget {
                       ),
                     if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
                       IconButton(
+                        tooltip: 'Reprogramar',
+                        icon: const Icon(Icons.edit_calendar_outlined, size: 18, color: OcgColors.bronze),
+                        onPressed: () => _showRescheduleDialog(context, a),
+                      ),
+                    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                      IconButton(
                         tooltip: 'Cancelar',
                         icon: const Icon(Icons.cancel_outlined, size: 18, color: OcgColors.error),
                         onPressed: () => _updateStatus(context, a, AppointmentStatus.cancelada),
@@ -444,6 +450,87 @@ class _TodayAgendaCard extends StatelessWidget {
         SnackBar(content: Text('No se pudo actualizar: $e')),
       );
     }
+  }
+
+  Future<void> _showRescheduleDialog(
+    BuildContext context,
+    AppointmentModel appointment,
+  ) async {
+    DateTime selected = appointment.fechaHora.add(const Duration(days: 1));
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selected,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 120)),
+    );
+    if (pickedDate == null || !context.mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(selected),
+    );
+    if (pickedTime == null) return;
+
+    selected = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar reprogramación'),
+        content: Text('Nueva fecha: ${_fmtDateTime(selected)}'),
+        actions: [
+          TextButton(
+            onPressed: () => popDialog(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.bronze,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => popDialog(ctx, true),
+            child: const Text('Reprogramar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ref.read(appointmentsRepositoryProvider).rescheduleAppointment(
+            originalId: appointment.id,
+            newAppointment: appointment.copyWith(
+              id: '',
+              fechaHora: selected,
+              estado: AppointmentStatus.programada,
+            ),
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita reprogramada exitosamente.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo reprogramar: $e')),
+      );
+    }
+  }
+
+  static String _fmtDateTime(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final hour = d.hour.toString().padLeft(2, '0');
+    final minute = d.minute.toString().padLeft(2, '0');
+    return '$day/$month/${d.year} $hour:$minute';
   }
 
   static String _fmtHour(DateTime d) {
