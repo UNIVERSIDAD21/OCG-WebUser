@@ -16,6 +16,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     this.title,
     this.appBarActions,
     this.floatingActionButton,
+    this.railTrailing,
   });
 
   final Widget body;
@@ -32,6 +33,9 @@ class OcgAdaptiveScaffold extends StatelessWidget {
 
   /// FAB opcional.
   final Widget? floatingActionButton;
+
+  /// Widget opcional al final del NavigationRail (pantallas anchas).
+  final Widget? railTrailing;
 
   // ─── Destinos del NavigationRail ──────────────────────────────────────────
 
@@ -124,6 +128,12 @@ class OcgAdaptiveScaffold extends StatelessWidget {
                 ),
                 indicatorColor: OcgColors.bronze.withOpacity(0.15),
                 destinations: _destinations,
+                trailing: railTrailing == null
+                    ? null
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                        child: railTrailing,
+                      ),
               ),
             ),
             // ── Separador ───────────────────────────────────────────────────

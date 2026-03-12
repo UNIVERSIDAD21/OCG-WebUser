@@ -188,6 +188,17 @@ class AdminPatientsScreen extends ConsumerWidget {
           icon: const Icon(Icons.logout),
         ),
       ],
+      railTrailing: OutlinedButton.icon(
+        onPressed: loading ? null : () => _handleSignOut(context, ref),
+        icon: const Icon(Icons.logout, size: 18),
+        label: const Text('Cerrar sesión'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OcgColors.ivory,
+          side: BorderSide(color: OcgColors.ivory.withOpacity(0.35)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddPatientDialog(context, ref),
         backgroundColor: OcgColors.bronze,

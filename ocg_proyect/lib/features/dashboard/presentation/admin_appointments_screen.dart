@@ -978,6 +978,17 @@ class _AdminAppointmentsScreenState
           onPressed: _handleSignOut,
         ),
       ],
+      railTrailing: OutlinedButton.icon(
+        onPressed: _handleSignOut,
+        icon: const Icon(Icons.logout, size: 18),
+        label: const Text('Cerrar sesión'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OcgColors.ivory,
+          side: BorderSide(color: OcgColors.ivory.withOpacity(0.35)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
       body: Column(
         children: [
           // ── Selector de fecha ─────────────────────────────────────────
