@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
+import '../../domain/appointments_business_rules.dart';
 import '../models/appointment_model.dart';
 
 class AppointmentsRepository {
@@ -62,6 +63,18 @@ class AppointmentsRepository {
 
   Future<String> createAppointment(AppointmentModel appointment) async {
     try {
+      final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
+        start: appointment.fechaHora,
+        durationMinutes: appointment.duracionMinutos,
+      );
+      if (workingHoursError != null) {
+        throw FirebaseException(
+          plugin: 'appointments',
+          code: 'OUTSIDE_WORKING_HOURS',
+          message: workingHoursError,
+        );
+      }
+
       final hasConflict = await _hasTimeConflict(
         start: appointment.fechaHora,
         durationMinutes: appointment.duracionMinutos,
@@ -93,6 +106,18 @@ class AppointmentsRepository {
     AppointmentModel appointment,
   ) async {
     try {
+      final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
+        start: appointment.fechaHora,
+        durationMinutes: appointment.duracionMinutos,
+      );
+      if (workingHoursError != null) {
+        throw FirebaseException(
+          plugin: 'appointments',
+          code: 'OUTSIDE_WORKING_HOURS',
+          message: workingHoursError,
+        );
+      }
+
       final hasConflict = await _hasTimeConflict(
         start: appointment.fechaHora,
         durationMinutes: appointment.duracionMinutos,
@@ -164,6 +189,18 @@ class AppointmentsRepository {
     required String originalId,
     required AppointmentModel newAppointment,
   }) async {
+    final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
+      start: newAppointment.fechaHora,
+      durationMinutes: newAppointment.duracionMinutos,
+    );
+    if (workingHoursError != null) {
+      throw FirebaseException(
+        plugin: 'appointments',
+        code: 'OUTSIDE_WORKING_HOURS',
+        message: workingHoursError,
+      );
+    }
+
     final hasConflict = await _hasTimeConflict(
       start: newAppointment.fechaHora,
       durationMinutes: newAppointment.duracionMinutos,
@@ -220,7 +257,13 @@ class AppointmentsRepository {
       }
 
       final existingStart = appt.fechaHora;
-      final existingEnd = existingStart.add(Duration(minutes: appt.duracionMinutos));
+      final existingEnd = existingStart.add(
+        Duration(
+          minutes:
+              appt.duracionMinutos +
+              AppointmentsBusinessRules.bufferMinutesBetweenAppointments,
+        ),
+      );
       final overlaps = start.isBefore(existingEnd) && existingStart.isBefore(newEnd);
 
       if (overlaps) return true;

@@ -7,6 +7,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
@@ -456,60 +457,130 @@ class _TodayAgendaCard extends StatelessWidget {
     BuildContext context,
     AppointmentModel appointment,
   ) async {
+    final existingAppointments =
+        ref.read(appointmentsProvider).asData?.value ?? const <AppointmentModel>[];
     DateTime selected = appointment.fechaHora.add(const Duration(days: 1));
 
-    final pickedDate = await showDatePicker(
+    final result = await showDialog<DateTime>(
       context: context,
-      initialDate: selected,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 120)),
-    );
-    if (pickedDate == null || !context.mounted) return;
+      builder: (ctx) {
+        DateTime localSelected = selected;
 
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(selected),
-    );
-    if (pickedTime == null) return;
+        List<AppointmentTimeSlot> slotsForDay(DateTime day) {
+          return AppointmentsBusinessRules.buildDailySlots(
+            day: day,
+            existingAppointments: existingAppointments,
+            durationMinutes: appointment.duracionMinutos,
+            excludeAppointmentId: appointment.id,
+            stepMinutes: 30,
+          );
+        }
 
-    selected = DateTime(
-      pickedDate.year,
-      pickedDate.month,
-      pickedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar reprogramación'),
-        content: Text('Nueva fecha: ${_fmtDateTime(selected)}'),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.bronze,
-              foregroundColor: OcgColors.ivory,
+        return StatefulBuilder(
+          builder: (ctx, setDs) => AlertDialog(
+            title: const Text('Reprogramar cita'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Nueva fecha: ${_fmtDateTime(localSelected)}'),
+                    subtitle: const Text('Horario laboral 08:00 - 17:00'),
+                    trailing: const Icon(Icons.edit_calendar),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: localSelected,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 120)),
+                      );
+                      if (d == null) return;
+                      final firstAvailable =
+                          slotsForDay(d).where((s) => s.isAvailable).firstOrNull;
+                      setDs(() {
+                        localSelected = firstAvailable?.start ??
+                            DateTime(
+                              d.year,
+                              d.month,
+                              d.day,
+                              AppointmentsBusinessRules.workdayStartHour,
+                              0,
+                            );
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: slotsForDay(localSelected).map((slot) {
+                      final label =
+                          '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
+                      return ChoiceChip(
+                        label: Text(label),
+                        selected: slot.start == localSelected,
+                        onSelected: slot.isAvailable
+                            ? (_) => setDs(() => localSelected = slot.start)
+                            : null,
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
             ),
-            onPressed: () => popDialog(ctx, true),
-            child: const Text('Reprogramar'),
+            actions: [
+              TextButton(
+                onPressed: () => popDialog(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: OcgColors.bronze,
+                  foregroundColor: OcgColors.ivory,
+                ),
+                onPressed: () => popDialog(ctx, localSelected),
+                child: const Text('Reprogramar'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
 
-    if (confirm != true) return;
+    if (result == null) return;
+
+    final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
+      start: result,
+      durationMinutes: appointment.duracionMinutos,
+    );
+    if (workingHoursError != null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(workingHoursError)));
+      return;
+    }
+
+    final hasConflict = AppointmentsBusinessRules.hasTimeConflict(
+      existingAppointments: existingAppointments,
+      newStart: result,
+      durationMinutes: appointment.duracionMinutos,
+      excludeAppointmentId: appointment.id,
+    );
+    if (hasConflict) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ese horario está ocupado o dentro del buffer de 10 min.')),
+      );
+      return;
+    }
 
     try {
       await ref.read(appointmentsRepositoryProvider).rescheduleAppointment(
             originalId: appointment.id,
             newAppointment: appointment.copyWith(
               id: '',
-              fechaHora: selected,
+              fechaHora: result,
               estado: AppointmentStatus.programada,
             ),
           );

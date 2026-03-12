@@ -136,11 +136,20 @@ class _PatientAppointmentsScreenState
       selectedDateTime.year,
       selectedDateTime.month,
       selectedDateTime.day,
-      10,
+      AppointmentsBusinessRules.workdayStartHour,
       0,
     );
     String? errorMsg;
     bool saving = false;
+
+    List<AppointmentTimeSlot> slotsForDay(DateTime day) {
+      return AppointmentsBusinessRules.buildDailySlots(
+        day: day,
+        existingAppointments: existingAppointments,
+        durationMinutes: 30,
+        stepMinutes: 30,
+      );
+    }
 
     showDialog<void>(
       context: context,
@@ -176,7 +185,7 @@ class _PatientAppointmentsScreenState
                     Icons.schedule,
                     color: OcgColors.espresso,
                   ),
-                  title: const Text('Fecha y hora'),
+                  title: const Text('Fecha'),
                   subtitle: Text(
                     _fmtDateTime(selectedDateTime),
                     style: const TextStyle(
@@ -188,27 +197,50 @@ class _PatientAppointmentsScreenState
                     final pickedDate = await showDatePicker(
                       context: dialogContext,
                       initialDate: selectedDateTime,
-                      firstDate: DateTime.now().add(const Duration(hours: 2)),
+                      firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 90)),
                     );
                     if (pickedDate == null) return;
-                    if (!dialogContext.mounted) return;
-                    final pickedTime = await showTimePicker(
-                      context: dialogContext,
-                      initialTime: TimeOfDay.fromDateTime(selectedDateTime),
-                    );
-                    if (pickedTime == null) return;
+                    final slots = slotsForDay(pickedDate);
+                    final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
                     setDs(() {
-                      selectedDateTime = DateTime(
-                        pickedDate.year,
-                        pickedDate.month,
-                        pickedDate.day,
-                        pickedTime.hour,
-                        pickedTime.minute,
-                      );
+                      selectedDateTime = firstAvailable?.start ??
+                          DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            AppointmentsBusinessRules.workdayStartHour,
+                            0,
+                          );
                       errorMsg = null;
                     });
                   },
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Horarios disponibles (08:00 - 17:00, buffer 10 min)',
+                    style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: slotsForDay(selectedDateTime).map((slot) {
+                    final label =
+                        '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: slot.start == selectedDateTime,
+                      onSelected: slot.isAvailable
+                          ? (_) => setDs(() {
+                              selectedDateTime = slot.start;
+                              errorMsg = null;
+                            })
+                          : null,
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -255,6 +287,30 @@ class _PatientAppointmentsScreenState
                         setDs(() => errorMsg = sameDayError);
                         return;
                       }
+
+                      final workingHoursError =
+                          AppointmentsBusinessRules.validateWithinWorkingHours(
+                            start: selectedDateTime,
+                            durationMinutes: 30,
+                          );
+                      if (workingHoursError != null) {
+                        setDs(() => errorMsg = workingHoursError);
+                        return;
+                      }
+
+                      final hasConflict = AppointmentsBusinessRules.hasTimeConflict(
+                        existingAppointments: existingAppointments,
+                        newStart: selectedDateTime,
+                        durationMinutes: 30,
+                      );
+                      if (hasConflict) {
+                        setDs(
+                          () => errorMsg =
+                              'Ese horario está ocupado o dentro del buffer de 10 min.',
+                        );
+                        return;
+                      }
+
                       setDs(() => saving = true);
 
                       final resolvedFromProvider = ref
