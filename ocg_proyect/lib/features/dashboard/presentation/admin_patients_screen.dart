@@ -10,9 +10,23 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
+import '../../auth/providers/auth_providers.dart';
 
 class AdminPatientsScreen extends ConsumerWidget {
   const AdminPatientsScreen({super.key});
+
+  Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authNotifierProvider.notifier).signOut();
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cerrar sesión. Intenta de nuevo.'),
+        ),
+      );
+    }
+  }
 
   static const _filters = <String>[
     'Todos',
@@ -60,6 +74,7 @@ class AdminPatientsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncPatients = ref.watch(patientsStreamProvider);
+    final loading = ref.watch(authNotifierProvider).isLoading;
     final filteredPatients = ref.watch(filteredPatientsProvider);
     final selectedFilter = ref.watch(patientsFilterProvider);
 
@@ -142,6 +157,13 @@ class AdminPatientsScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 1, // Pacientes = índice 1
       title: 'Pacientes',
+      appBarActions: [
+        IconButton(
+          tooltip: 'Cerrar sesión',
+          onPressed: loading ? null : () => _handleSignOut(context, ref),
+          icon: const Icon(Icons.logout),
+        ),
+      ],
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddPatientDialog(context, ref),
         backgroundColor: OcgColors.bronze,

@@ -21,6 +21,25 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   bool _savingPhone = false;
   bool _uploadingPhoto = false;
   bool _sendingReset = false;
+  bool _signingOut = false;
+
+  Future<void> _handleSignOut() async {
+    if (_signingOut) return;
+
+    setState(() => _signingOut = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cerrar sesión. Intenta de nuevo.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +47,16 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Mi perfil')),
+        appBar: AppBar(
+          title: const Text('Mi perfil'),
+          actions: [
+            IconButton(
+              tooltip: 'Cerrar sesión',
+              onPressed: _signingOut ? null : _handleSignOut,
+              icon: const Icon(Icons.logout),
+            ),
+          ],
+        ),
         body: const Center(child: Text('Debes iniciar sesión para ver tu perfil.')),
       );
     }
@@ -36,7 +64,16 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final patientAsync = ref.watch(patientByIdProvider(user.uid));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi perfil')),
+      appBar: AppBar(
+        title: const Text('Mi perfil'),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: _signingOut ? null : _handleSignOut,
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
       body: patientAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
