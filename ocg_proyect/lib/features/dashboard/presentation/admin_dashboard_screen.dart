@@ -382,47 +382,85 @@ class _TodayAgendaCard extends StatelessWidget {
             const Text('No hay citas programadas para hoy.')
           else
             ...appointments.map(
-              (a) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
+              (a) => Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: OcgColors.mist,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
+                ),
+                child: Column(
                   children: [
-                    SizedBox(
-                      width: 58,
-                      child: Text(_fmtHour(a.fechaHora), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: OcgColors.ivory,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _fmtHour(a.fechaHora),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                a.patientName.isEmpty ? 'Paciente sin nombre' : a.patientName,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                '${_tipoLabel(a.tipo)} • ${a.duracionMinutos} min',
+                                style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _StatusPill(status: a.estado),
+                      ],
                     ),
-                    Expanded(
-                      child: Text(
-                        a.patientName.isEmpty ? 'Paciente sin nombre' : a.patientName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (a.estado == AppointmentStatus.programada)
+                          _ActionBtn(
+                            tooltip: 'Confirmar',
+                            icon: Icons.check_circle_outline,
+                            color: OcgColors.success,
+                            onTap: () => _updateStatus(context, a, AppointmentStatus.confirmada),
+                          ),
+                        if (a.estado == AppointmentStatus.confirmada)
+                          _ActionBtn(
+                            tooltip: 'Completar',
+                            icon: Icons.task_alt,
+                            color: OcgColors.success,
+                            onTap: () => _updateStatus(context, a, AppointmentStatus.completada),
+                          ),
+                        if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                          _ActionBtn(
+                            tooltip: 'Reprogramar',
+                            icon: Icons.edit_calendar_outlined,
+                            color: OcgColors.bronze,
+                            onTap: () => _showRescheduleDialog(context, a),
+                          ),
+                        if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                          _ActionBtn(
+                            tooltip: 'Cancelar',
+                            icon: Icons.cancel_outlined,
+                            color: OcgColors.error,
+                            onTap: () => _updateStatus(context, a, AppointmentStatus.cancelada),
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _StatusPill(status: a.estado),
-                    const SizedBox(width: 6),
-                    if (a.estado == AppointmentStatus.programada)
-                      IconButton(
-                        tooltip: 'Confirmar',
-                        icon: const Icon(Icons.check_circle_outline, size: 18, color: OcgColors.success),
-                        onPressed: () => _updateStatus(context, a, AppointmentStatus.confirmada),
-                      ),
-                    if (a.estado == AppointmentStatus.confirmada)
-                      IconButton(
-                        tooltip: 'Completar',
-                        icon: const Icon(Icons.task_alt, size: 18, color: OcgColors.success),
-                        onPressed: () => _updateStatus(context, a, AppointmentStatus.completada),
-                      ),
-                    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
-                      IconButton(
-                        tooltip: 'Reprogramar',
-                        icon: const Icon(Icons.edit_calendar_outlined, size: 18, color: OcgColors.bronze),
-                        onPressed: () => _showRescheduleDialog(context, a),
-                      ),
-                    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
-                      IconButton(
-                        tooltip: 'Cancelar',
-                        icon: const Icon(Icons.cancel_outlined, size: 18, color: OcgColors.error),
-                        onPressed: () => _updateStatus(context, a, AppointmentStatus.cancelada),
-                      ),
                   ],
                 ),
               ),
@@ -604,10 +642,55 @@ class _TodayAgendaCard extends StatelessWidget {
     return '$day/$month/${d.year} $hour:$minute';
   }
 
+  static String _tipoLabel(AppointmentType t) => switch (t) {
+    AppointmentType.valoracion => 'Valoración',
+    AppointmentType.control => 'Control',
+    AppointmentType.instalacion => 'Instalación',
+    AppointmentType.urgencia => 'Urgencia',
+    AppointmentType.alta => 'Alta',
+  };
+
   static String _fmtHour(DateTime d) {
     final h = d.hour.toString().padLeft(2, '0');
     final m = d.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  const _ActionBtn({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 17, color: color),
+          ),
+        ),
+      ),
+    );
   }
 }
 
