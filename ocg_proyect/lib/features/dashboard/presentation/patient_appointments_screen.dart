@@ -237,24 +237,22 @@ class _PatientAppointmentsScreenState
                     }
 
                     final availability = snapshot.data;
-                    final fallbackLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                    final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
                       day: selectedDateTime,
                       stepMinutes: 30,
-                    ).map((s) => s.label).toList();
-
-                    final availableLabels = snapshot.hasError
-                        ? fallbackLabels
-                        : availability == null
-                            ? fallbackLabels
-                            : (availability.slots.entries)
-                                .where((e) => e.value)
-                                .map((e) => e.key)
-                                .toList()
+                    ).map((s) => s.label).toList()
                       ..sort();
 
-                    if (availableLabels.isEmpty) {
+                    final availableSet = snapshot.hasError || availability == null
+                        ? allLabels.toSet()
+                        : availability.slots.entries
+                            .where((e) => e.value)
+                            .map((e) => e.key)
+                            .toSet();
+
+                    if (allLabels.isEmpty) {
                       return const Text(
-                        'No hay horarios disponibles para ese día.',
+                        'No hay horarios configurados para ese día.',
                         style: TextStyle(color: OcgColors.error),
                       );
                     }
@@ -262,15 +260,26 @@ class _PatientAppointmentsScreenState
                     return Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: availableLabels.map((label) {
+                      children: allLabels.map((label) {
                         final slotDate = dateFromLabel(selectedDateTime, label);
+                        final isAvailable = availableSet.contains(label);
+
                         return ChoiceChip(
-                          label: Text(label),
-                          selected: slotDate == selectedDateTime,
-                          onSelected: (_) => setDs(() {
-                            selectedDateTime = slotDate;
-                            errorMsg = null;
-                          }),
+                          label: Text(
+                            label,
+                            style: TextStyle(
+                              color: isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                            ),
+                          ),
+                          selected: isAvailable && slotDate == selectedDateTime,
+                          disabledColor: Colors.grey.shade300,
+                          selectedColor: OcgColors.sand,
+                          onSelected: isAvailable
+                              ? (_) => setDs(() {
+                                  selectedDateTime = slotDate;
+                                  errorMsg = null;
+                                })
+                              : null,
                         );
                       }).toList(),
                     );
