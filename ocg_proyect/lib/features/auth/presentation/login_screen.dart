@@ -65,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   // ─── Diálogo de registro ─────────────────────────────────────────────────
   //
-  // ✅ CAMBIO: Después de crear la cuenta se hace sign-out inmediato,
+  // Después de crear la cuenta se hace sign-out inmediato,
   //    se muestra un banner de éxito y el usuario debe iniciar sesión
   //    manualmente (flujo correcto para un sistema clínico).
 
