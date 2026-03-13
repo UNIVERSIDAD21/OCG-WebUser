@@ -9,6 +9,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
 import '../providers/auth_providers.dart';
+import '../../../shared/utils/dialog_utils.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -287,7 +288,8 @@ class _RegisterPatientDialog extends ConsumerStatefulWidget {
       _RegisterPatientDialogState();
 }
 
-class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> {
+class _RegisterPatientDialogState
+    extends ConsumerState<_RegisterPatientDialog> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isSubmitting = false;
@@ -298,6 +300,7 @@ class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> 
   String _pass = '';
   String _confirm = '';
 
+  // DESPUÉS — signOut inmediato antes de cerrar el diálogo:
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -307,26 +310,45 @@ class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> 
     });
 
     try {
-      await ref.read(authNotifierProvider.notifier).registerPatient(
+      // 1. Crear la cuenta (esto hace auto-login internamente)
+      await ref
+          .read(authNotifierProvider.notifier)
+          .registerPatient(
             email: _email.trim(),
             password: _pass,
             displayName: _name.trim(),
           );
+
+      // 2. Sign-out inmediato — previene el redirect a /patient/home
+      await ref.read(authServiceProvider).signOut();
+
+      // 3. Cerrar el diálogo pasando true para activar el banner
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      popDialog(context, true);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _registerError = e.code == 'email-already-in-use'
+            ? 'Este correo ya está registrado.'
+            : 'No se pudo crear la cuenta [${e.code}].';
+      });
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
       setState(() {
-        _registerError = e.message ??
+        _isSubmitting = false;
+        _registerError =
+            e.message ??
             (e.code == 'already-exists'
                 ? 'Este correo ya está registrado.'
                 : 'No se pudo crear la cuenta.');
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _registerError = 'No se pudo crear la cuenta: $e');
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      setState(() {
+        _isSubmitting = false;
+        _registerError = 'No se pudo crear la cuenta. Intenta de nuevo.';
+      });
     }
   }
 
@@ -392,7 +414,9 @@ class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> 
       ),
       actions: [
         TextButton(
-          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+          onPressed: _isSubmitting
+              ? null
+              : () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
