@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
+import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
@@ -20,6 +21,11 @@ String _fmtDateTime(DateTime d) =>
     '${_fmtDate(d)} a las '
     '${d.hour.toString().padLeft(2, '0')}:'
     '${d.minute.toString().padLeft(2, '0')}';
+
+String _dayKey(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}'
+    '${d.month.toString().padLeft(2, '0')}'
+    '${d.day.toString().padLeft(2, '0')}';
 
 String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.valoracion => 'Valoración',
@@ -142,13 +148,11 @@ class _PatientAppointmentsScreenState
     String? errorMsg;
     bool saving = false;
 
-    List<AppointmentTimeSlot> slotsForDay(DateTime day) {
-      return AppointmentsBusinessRules.buildDailySlots(
-        day: day,
-        existingAppointments: existingAppointments,
-        durationMinutes: 30,
-        stepMinutes: 30,
-      );
+    DateTime dateFromLabel(DateTime baseDay, String label) {
+      final parts = label.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      return DateTime(baseDay.year, baseDay.month, baseDay.day, hour, minute);
     }
 
     showDialog<void>(
@@ -201,17 +205,14 @@ class _PatientAppointmentsScreenState
                       lastDate: DateTime.now().add(const Duration(days: 90)),
                     );
                     if (pickedDate == null) return;
-                    final slots = slotsForDay(pickedDate);
-                    final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
                     setDs(() {
-                      selectedDateTime = firstAvailable?.start ??
-                          DateTime(
-                            pickedDate.year,
-                            pickedDate.month,
-                            pickedDate.day,
-                            AppointmentsBusinessRules.workdayStartHour,
-                            0,
-                          );
+                      selectedDateTime = DateTime(
+                        pickedDate.year,
+                        pickedDate.month,
+                        pickedDate.day,
+                        AppointmentsBusinessRules.workdayStartHour,
+                        0,
+                      );
                       errorMsg = null;
                     });
                   },
@@ -224,23 +225,48 @@ class _PatientAppointmentsScreenState
                   ),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: slotsForDay(selectedDateTime).map((slot) {
-                    final label =
-                        '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
-                    return ChoiceChip(
-                      label: Text(label),
-                      selected: slot.start == selectedDateTime,
-                      onSelected: slot.isAvailable
-                          ? (_) => setDs(() {
-                              selectedDateTime = slot.start;
-                              errorMsg = null;
-                            })
-                          : null,
+                StreamBuilder(
+                  stream: ref
+                      .read(availabilityRepositoryProvider)
+                      .watchAvailabilityByDay(_dayKey(selectedDateTime)),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: LinearProgressIndicator(),
+                      );
+                    }
+
+                    final availability = snapshot.data;
+                    final availableLabels = (availability?.slots.entries ?? const <MapEntry<String, bool>>[])
+                        .where((e) => e.value)
+                        .map((e) => e.key)
+                        .toList()
+                      ..sort();
+
+                    if (availableLabels.isEmpty) {
+                      return const Text(
+                        'No hay horarios disponibles para ese día.',
+                        style: TextStyle(color: OcgColors.error),
+                      );
+                    }
+
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: availableLabels.map((label) {
+                        final slotDate = dateFromLabel(selectedDateTime, label);
+                        return ChoiceChip(
+                          label: Text(label),
+                          selected: slotDate == selectedDateTime,
+                          onSelected: (_) => setDs(() {
+                            selectedDateTime = slotDate;
+                            errorMsg = null;
+                          }),
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -298,15 +324,15 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
-                      final hasConflict = AppointmentsBusinessRules.hasTimeConflict(
-                        existingAppointments: existingAppointments,
-                        newStart: selectedDateTime,
-                        durationMinutes: 30,
-                      );
-                      if (hasConflict) {
+                      final availability = await ref
+                          .read(availabilityRepositoryProvider)
+                          .getAvailabilityByDay(_dayKey(selectedDateTime));
+                      final slotLabel =
+                          '${selectedDateTime.hour.toString().padLeft(2, '0')}:${selectedDateTime.minute.toString().padLeft(2, '0')}';
+                      if (availability == null || !availability.isSlotAvailable(slotLabel)) {
                         setDs(
                           () => errorMsg =
-                              'Ese horario está ocupado o dentro del buffer de 10 min.',
+                              'Ese horario ya no está disponible. Selecciona otro.',
                         );
                         return;
                       }

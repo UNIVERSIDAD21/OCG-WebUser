@@ -1,13 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../domain/appointments_business_rules.dart';
 import '../models/appointment_model.dart';
 
 class AppointmentsRepository {
-  AppointmentsRepository(this._db);
+  AppointmentsRepository(this._db, [FirebaseFunctions? functions])
+      : _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseFunctions _functions;
 
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
@@ -105,41 +108,27 @@ class AppointmentsRepository {
   Future<String> createAppointmentAsPatient(
     AppointmentModel appointment,
   ) async {
+    final callable = _functions.httpsCallable('reserveAppointment');
+    final date =
+        '${appointment.fechaHora.year.toString().padLeft(4, '0')}-'
+        '${appointment.fechaHora.month.toString().padLeft(2, '0')}-'
+        '${appointment.fechaHora.day.toString().padLeft(2, '0')}';
+    final time =
+        '${appointment.fechaHora.hour.toString().padLeft(2, '0')}:'
+        '${appointment.fechaHora.minute.toString().padLeft(2, '0')}';
+
     try {
-      final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-        start: appointment.fechaHora,
-        durationMinutes: appointment.duracionMinutos,
-      );
-      if (workingHoursError != null) {
-        throw FirebaseException(
-          plugin: 'appointments',
-          code: 'OUTSIDE_WORKING_HOURS',
-          message: workingHoursError,
-        );
-      }
-
-      final hasConflict = await _hasTimeConflict(
-        start: appointment.fechaHora,
-        durationMinutes: appointment.duracionMinutos,
-      );
-
-      if (hasConflict) {
-        throw FirebaseException(
-          plugin: 'appointments',
-          code: 'SLOT_TAKEN',
-          message: 'Ese horario ya está ocupado. Por favor elige otro.',
-        );
-      }
-
-      final ref = _appointmentsRef.doc();
-      await ref.set(appointment.copyWith(id: ref.id).toJson());
-      await _updatePatientNextAppointment(appointment.patientId);
-      return ref.id;
-    } catch (e) {
-      if (e is FirebaseException && e.code == 'SLOT_TAKEN') {
-        throw Exception('Error: ${e.message}');
-      }
-      rethrow;
+      final result = await callable.call(<String, dynamic>{
+        'date': date,
+        'time': time,
+        'durationMinutes': appointment.duracionMinutos,
+        'type': appointment.tipo.name,
+        'notes': appointment.notas,
+      });
+      final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
+      return (data['appointmentId'] ?? '').toString();
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'No se pudo reservar la cita.');
     }
   }
 
