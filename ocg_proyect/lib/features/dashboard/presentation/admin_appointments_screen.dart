@@ -192,7 +192,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                       try {
                         await ref
                             .read(authNotifierProvider.notifier)
-                            .registerPatient(
+                            .createPatientByAdmin(
                               email: email.trim(),
                               password: pass,
                               displayName: name.trim(),

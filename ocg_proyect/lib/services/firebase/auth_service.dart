@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../shared/constants/firestore_paths.dart';
+
 class AuthService {
   AuthService({
     FirebaseAuth? auth,
@@ -42,17 +44,57 @@ class AuthService {
     );
   }
 
-  Future<void> registerPatient({
+  Future<void> registerPatientSelf({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+
+    final user = credential.user;
+    final cleanName = displayName?.trim() ?? '';
+    if (user == null) return;
+
+    if (cleanName.isNotEmpty) {
+      await user.updateDisplayName(cleanName);
+    }
+
+    await _db.collection(FirestorePaths.patients).doc(user.uid).set({
+      'id': user.uid,
+      'nombre': cleanName,
+      'email': email.trim().toLowerCase(),
+      'telefono': '',
+      'fcmToken': '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> createPatientByAdmin({
     required String email,
     required String password,
     String? displayName,
   }) async {
     final callable = _functions.httpsCallable('createPatientAccount');
-    await callable.call({
+    final result = await callable.call({
       'email': email.trim().toLowerCase(),
       'password': password,
       'displayName': displayName?.trim() ?? '',
     });
+
+    final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
+    final uid = (data['uid'] ?? '').toString();
+    if (uid.isNotEmpty) {
+      await _db.collection(FirestorePaths.patients).doc(uid).set({
+        'id': uid,
+        'nombre': displayName?.trim() ?? '',
+        'email': email.trim().toLowerCase(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   Future<void> signOut() => _auth.signOut();

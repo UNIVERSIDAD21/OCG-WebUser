@@ -79,7 +79,23 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final authService = ref.read(authServiceProvider);
-      await authService.registerPatient(
+      await authService.registerPatientSelf(
+        email: email,
+        password: password,
+        displayName: displayName,
+      );
+    });
+  }
+
+  Future<void> createPatientByAdmin({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final authService = ref.read(authServiceProvider);
+      await authService.createPatientByAdmin(
         email: email,
         password: password,
         displayName: displayName,
