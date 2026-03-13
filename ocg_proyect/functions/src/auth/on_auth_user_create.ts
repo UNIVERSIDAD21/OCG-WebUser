@@ -12,7 +12,6 @@ export const onAuthUserCreate = functions.auth.user().onCreate(async (user) => {
   await db.collection('patients').doc(user.uid).set(
     {
       id: user.uid,                    
-      nombre: user.displayName ?? '',   // ← AGREGAR ESTA LÍNEA
       email: user.email ?? '',
       telefono: '',
       fechaNacimiento: null,
