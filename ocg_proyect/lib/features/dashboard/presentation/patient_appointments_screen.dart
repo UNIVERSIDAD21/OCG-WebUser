@@ -8,8 +8,10 @@ import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
+import '../../../shared/utils/whatsapp_support.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -444,7 +446,40 @@ class _PatientAppointmentsScreenState
                 backgroundColor: const Color(0xFF25D366),
                 foregroundColor: Colors.white,
               ),
-              onPressed: () => popDialog(ctx),
+              onPressed: () async {
+                popDialog(ctx);
+
+                final clinicPhone = ContactChannels.clinicWhatsapp;
+                if (clinicPhone.isEmpty) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'No hay número de WhatsApp configurado para la clínica.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                final opened = await WhatsAppSupport.openChat(
+                  phoneDigits: clinicPhone,
+                  message:
+                      'Hola, necesito cancelar/reprogramar mi cita del ${_fmtDateTime(appt.fechaHora)}. '
+                      'Paciente: ${appt.patientName.isEmpty ? 'No registrado' : appt.patientName}.',
+                );
+
+                if (opened) return;
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'No se pudo abrir WhatsApp automáticamente. '
+                      'Por favor contacta a la clínica desde tu app o navegador.',
+                    ),
+                  ),
+                );
+              },
               child: const Text('Abrir WhatsApp'),
             ),
           ],
