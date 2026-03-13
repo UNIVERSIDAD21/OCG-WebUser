@@ -32,7 +32,8 @@ class AppointmentsRepository {
               .where(
                 (a) =>
                     a.estado != AppointmentStatus.cancelada &&
-                    a.estado != AppointmentStatus.noAsistio,
+                    a.estado != AppointmentStatus.noAsistio &&
+                    a.estado != AppointmentStatus.reprogramada,
               )
               .toList();
         });
