@@ -5,6 +5,9 @@ class AppointmentTimeSlot {
 
   final DateTime start;
   final bool isAvailable;
+
+  String get label =>
+      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
 }
 
 class AppointmentsBusinessRules {
@@ -106,6 +109,25 @@ class AppointmentsBusinessRules {
     }
 
     return false;
+  }
+
+  static List<AppointmentTimeSlot> buildAllWorkdaySlots({
+    required DateTime day,
+    int stepMinutes = 30,
+  }) {
+    final dayStart = DateTime(day.year, day.month, day.day, workdayStartHour);
+    final dayEnd = DateTime(day.year, day.month, day.day, workdayEndHour);
+
+    final slots = <AppointmentTimeSlot>[];
+    for (
+      DateTime cursor = dayStart;
+      cursor.isBefore(dayEnd);
+      cursor = cursor.add(Duration(minutes: stepMinutes))
+    ) {
+      slots.add(AppointmentTimeSlot(start: cursor, isAvailable: true));
+    }
+
+    return slots;
   }
 
   static List<AppointmentTimeSlot> buildDailySlots({

@@ -6,6 +6,7 @@ import {setAdminRole} from './auth/set_admin_role';
 import {setFcmToken} from './auth/set_fcm_token';
 import {reserveAppointment} from './appointments/reserve_appointment';
 import {onAppointmentWrite} from './appointments/on_appointment_write';
+import {seedAvailability} from './appointments/seed_availability';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -19,4 +20,5 @@ export {
   setFcmToken,
   reserveAppointment,
   onAppointmentWrite,
+  seedAvailability,
 };
