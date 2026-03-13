@@ -289,22 +289,14 @@ class _RegisterPatientDialog extends ConsumerStatefulWidget {
 
 class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
 
   bool _isSubmitting = false;
   String? _registerError;
 
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
-    _confirmCtrl.dispose();
-    super.dispose();
-  }
+  String _name = '';
+  String _email = '';
+  String _pass = '';
+  String _confirm = '';
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -316,9 +308,9 @@ class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> 
 
     try {
       await ref.read(authNotifierProvider.notifier).registerPatient(
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
-            displayName: _nameCtrl.text.trim(),
+            email: _email.trim(),
+            password: _pass,
+            displayName: _name.trim(),
           );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -349,44 +341,43 @@ class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog> 
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                controller: _nameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   labelText: 'Nombre completo',
                   prefixIcon: Icon(Icons.person_outlined),
                 ),
+                onChanged: (v) => _name = v,
                 validator: Validators.fullName,
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Correo electrónico',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
+                onChanged: (v) => _email = v,
                 validator: Validators.email,
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _passCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
                   prefixIcon: Icon(Icons.lock_outlined),
                 ),
+                onChanged: (v) => _pass = v,
                 validator: Validators.passwordForRegister,
               ),
               const SizedBox(height: 10),
               TextFormField(
-                controller: _confirmCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Confirmar contraseña',
                   prefixIcon: Icon(Icons.lock_outlined),
                 ),
-                validator: (value) =>
-                    Validators.confirmPassword(value, _passCtrl.text),
+                onChanged: (v) => _confirm = v,
+                validator: (value) => Validators.confirmPassword(value, _pass),
               ),
               if (_registerError != null) ...[
                 const SizedBox(height: 10),
