@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,12 +71,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //    manualmente (flujo correcto para un sistema clínico).
 
   Future<void> _openRegisterDialog() async {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     var isSubmitting = false;
+    String name = '';
+    String email = '';
+    String password = '';
+    String confirmPassword = '';
+    String? registerError;
 
     await showDialog<void>(
       context: context,
@@ -90,45 +92,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    controller: nameCtrl,
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Nombre completo',
                       prefixIcon: Icon(Icons.person_outlined),
                     ),
+                    onChanged: (v) => name = v,
                     validator: Validators.fullName,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    controller: emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
+                    onChanged: (v) => email = v,
                     validator: Validators.email,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    controller: passCtrl,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Contraseña',
                       prefixIcon: Icon(Icons.lock_outlined),
                     ),
+                    onChanged: (v) => password = v,
                     validator: Validators.passwordForRegister,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    controller: confirmCtrl,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Confirmar contraseña',
                       prefixIcon: Icon(Icons.lock_outlined),
                     ),
+                    onChanged: (v) => confirmPassword = v,
                     validator: (value) =>
-                        Validators.confirmPassword(value, passCtrl.text),
+                        Validators.confirmPassword(value, password),
                   ),
+                  if (registerError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      registerError!,
+                      style: const TextStyle(color: OcgColors.error, fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -156,45 +165,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         await ref
                             .read(authNotifierProvider.notifier)
                             .registerPatient(
-                              email: emailCtrl.text.trim(),
-                              password: passCtrl.text,
-                              displayName: nameCtrl.text.trim(),
+                              email: email.trim(),
+                              password: password,
+                              displayName: name.trim(),
                             );
 
-                        // 2. ✅ Sign out inmediato — el paciente debe iniciar
-                        //    sesión manualmente con sus credenciales.
-                        //    Esto previene el auto-login y el redirect a /patient/home.
-                        await ref.read(authServiceProvider).signOut();
-
-                        // 3. Cerrar diálogo y mostrar banner en login
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
                         }
 
-                        // 4. Mostrar banner de cuenta creada en la pantalla de login
                         if (mounted) {
                           setState(() => _showAccountCreatedBanner = true);
                         }
-                      } on FirebaseAuthException catch (e) {
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'No se pudo crear la cuenta [${e.code}]: ${e.message}',
-                              ),
-                              backgroundColor: OcgColors.error,
-                            ),
-                          );
-                        }
+                      } on FirebaseFunctionsException catch (e) {
+                        setDialogState(() {
+                          registerError = e.message ??
+                              (e.code == 'already-exists'
+                                  ? 'Este correo ya está registrado.'
+                                  : 'No se pudo crear la cuenta.');
+                        });
                       } catch (e) {
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            SnackBar(
-                              content: Text('No se pudo crear la cuenta: $e'),
-                              backgroundColor: OcgColors.error,
-                            ),
-                          );
-                        }
+                        setDialogState(() {
+                          registerError = 'No se pudo crear la cuenta: $e';
+                        });
                       } finally {
                         if (dialogContext.mounted) {
                           setDialogState(() => isSubmitting = false);
@@ -217,10 +210,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
 
-    nameCtrl.dispose();
-    emailCtrl.dispose();
-    passCtrl.dispose();
-    confirmCtrl.dispose();
   }
 
   @override
