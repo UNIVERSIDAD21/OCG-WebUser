@@ -240,10 +240,15 @@ class _PatientAppointmentsScreenState
                     }
 
                     final availability = snapshot.data;
-                    final availableLabels = (availability?.slots.entries ?? const <MapEntry<String, bool>>[])
-                        .where((e) => e.value)
-                        .map((e) => e.key)
-                        .toList()
+                    final availableLabels = availability == null
+                        ? AppointmentsBusinessRules.buildAllWorkdaySlots(
+                            day: selectedDateTime,
+                            stepMinutes: 30,
+                          ).map((s) => s.label).toList()
+                        : (availability.slots.entries)
+                            .where((e) => e.value)
+                            .map((e) => e.key)
+                            .toList()
                       ..sort();
 
                     if (availableLabels.isEmpty) {
