@@ -19,8 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
+  String _email = '';
+  String _password = '';
   bool _obscure = true;
   String? _error;
 
@@ -29,8 +29,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -46,8 +44,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref
           .read(authNotifierProvider.notifier)
-          .signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
+          .signIn(_email.trim(), _password);
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         if (e.code == 'wrong-password' ||
             e.code == 'invalid-credential' ||
@@ -60,6 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() => _error = 'No se pudo iniciar sesión. Intenta de nuevo.');
     }
   }
@@ -328,18 +328,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       children: [
                         TextFormField(
-                          controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
                             labelText: 'Correo electrónico',
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
+                          onChanged: (v) => _email = v,
                           validator: Validators.email,
                           onFieldSubmitted: (_) => _submit(),
                         ),
                         const SizedBox(height: 14),
                         TextFormField(
-                          controller: _passwordCtrl,
                           obscureText: _obscure,
                           decoration: InputDecoration(
                             labelText: 'Contraseña',
@@ -354,6 +353,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   setState(() => _obscure = !_obscure),
                             ),
                           ),
+                          onChanged: (v) => _password = v,
                           validator: (v) => (v == null || v.isEmpty)
                               ? 'Ingresa tu contraseña'
                               : null,
