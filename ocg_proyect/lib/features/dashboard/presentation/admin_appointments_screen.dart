@@ -92,12 +92,12 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
     String? errorMsg;
+    String name = '';
+    String email = '';
+    String pass = '';
 
     await showDialog<void>(
       context: context,
@@ -118,33 +118,33 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    controller: nameCtrl,
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Nombre completo',
                       prefixIcon: Icon(Icons.person_outlined),
                     ),
+                    onChanged: (v) => name = v,
                     validator: Validators.fullName,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    controller: emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
+                    onChanged: (v) => email = v,
                     validator: Validators.email,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
-                    controller: passCtrl,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Contraseña temporal',
                       prefixIcon: Icon(Icons.lock_outlined),
                       helperText: 'El paciente puede cambiarla desde la app',
                     ),
+                    onChanged: (v) => pass = v,
                     validator: Validators.passwordForRegister,
                   ),
                   if (errorMsg != null) ...[
@@ -193,11 +193,11 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         await ref
                             .read(authNotifierProvider.notifier)
                             .registerPatient(
-                              email: emailCtrl.text.trim(),
-                              password: passCtrl.text,
-                              displayName: nameCtrl.text.trim(),
+                              email: email.trim(),
+                              password: pass,
+                              displayName: name.trim(),
                             );
-                        final nombre = nameCtrl.text.trim();
+                        final nombre = name.trim();
                         popDialog(dialogCtx);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -238,11 +238,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
           ],
         ),
       ),
-    ).then((_) {
-      nameCtrl.dispose();
-      emailCtrl.dispose();
-      passCtrl.dispose();
-    });
+    );
   }
 
   static String _fmtDate(DateTime d) =>
