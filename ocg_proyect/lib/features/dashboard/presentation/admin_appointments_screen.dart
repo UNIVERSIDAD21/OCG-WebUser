@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -197,34 +197,22 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                               password: passCtrl.text,
                               displayName: nameCtrl.text.trim(),
                             );
-                        await ref.read(authServiceProvider).signOut();
                         final nombre = nameCtrl.text.trim();
                         popDialog(dialogCtx);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                '✓ Cuenta creada para $nombre. '
-                                'Vuelve a iniciar sesión.',
-                              ),
-                              duration: const Duration(seconds: 6),
+                              content: Text('✓ Cuenta creada para $nombre.'),
+                              duration: const Duration(seconds: 4),
                               backgroundColor: const Color(0xFF2E7D32),
                             ),
                           );
                         }
-                      } on FirebaseAuthException catch (e) {
-                        String msg;
-                        switch (e.code) {
-                          case 'email-already-in-use':
-                            msg = 'Este correo ya tiene una cuenta registrada.';
-                            break;
-                          case 'weak-password':
-                            msg = 'Contraseña muy débil (mín. 6 caracteres).';
-                            break;
-                          default:
-                            msg =
-                                '[${e.code}] ${e.message ?? 'Error desconocido.'}';
-                        }
+                      } on FirebaseFunctionsException catch (e) {
+                        final msg = e.message ??
+                            (e.code == 'already-exists'
+                                ? 'Este correo ya tiene una cuenta registrada.'
+                                : 'No se pudo crear la cuenta del paciente.');
                         setDs(() {
                           errorMsg = msg;
                           isSubmitting = false;

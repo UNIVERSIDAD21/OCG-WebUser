@@ -71,10 +71,6 @@ class AuthNotifier extends AsyncNotifier<void> {
     }
   }
 
-  /// Registra un nuevo paciente y hace sign-out INMEDIATAMENTE dentro del
-  /// mismo guard para prevenir la race condition donde el router detecta el
-  /// auth state change y redirige a /patient/home antes de que el llamador
-  /// pueda cerrar sesión.
   Future<void> registerPatient({
     required String email,
     required String password,
@@ -83,18 +79,11 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final authService = ref.read(authServiceProvider);
-
-      // 1. Crear la cuenta — Firebase Auth + Firestore doc (via Cloud Function)
       await authService.registerPatient(
         email: email,
         password: password,
         displayName: displayName,
       );
-
-      // 2. ✅ Sign-out INMEDIATO dentro del guard, antes de que el router
-      //    detecte el cambio de auth state y pueda redirigir.
-      //    El paciente deberá iniciar sesión manualmente con sus credenciales.
-      await authService.signOut();
     });
   }
 

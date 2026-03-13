@@ -2,8 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../shared/constants/firestore_paths.dart';
-
 class AuthService {
   AuthService({
     FirebaseAuth? auth,
@@ -44,31 +42,17 @@ class AuthService {
     );
   }
 
-  Future<UserCredential> registerPatient({
+  Future<void> registerPatient({
     required String email,
     required String password,
     String? displayName,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-    final user = credential.user;
-    final nombreLimpio = displayName?.trim() ?? '';
-
-    if (nombreLimpio.isNotEmpty) {
-      await user?.updateDisplayName(nombreLimpio);
-    }
-
-    // Solo actualizar el nombre — Cloud Function ya crea el documento completo
-    if (user != null && nombreLimpio.isNotEmpty) {
-      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
-        'nombre': nombreLimpio,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-
-    return credential;
+    final callable = _functions.httpsCallable('createPatientAccount');
+    await callable.call({
+      'email': email.trim().toLowerCase(),
+      'password': password,
+      'displayName': displayName?.trim() ?? '',
+    });
   }
 
   Future<void> signOut() => _auth.signOut();
