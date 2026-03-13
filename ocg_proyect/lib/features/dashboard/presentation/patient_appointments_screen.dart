@@ -239,23 +239,20 @@ class _PatientAppointmentsScreenState
                       );
                     }
 
-                    if (snapshot.hasError) {
-                      return const Text(
-                        'No se pudo cargar disponibilidad en tiempo real.',
-                        style: TextStyle(color: OcgColors.error),
-                      );
-                    }
-
                     final availability = snapshot.data;
-                    final availableLabels = availability == null
-                        ? AppointmentsBusinessRules.buildAllWorkdaySlots(
-                            day: selectedDateTime,
-                            stepMinutes: 30,
-                          ).map((s) => s.label).toList()
-                        : (availability.slots.entries)
-                            .where((e) => e.value)
-                            .map((e) => e.key)
-                            .toList()
+                    final fallbackLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                      day: selectedDateTime,
+                      stepMinutes: 30,
+                    ).map((s) => s.label).toList();
+
+                    final availableLabels = snapshot.hasError
+                        ? fallbackLabels
+                        : availability == null
+                            ? fallbackLabels
+                            : (availability.slots.entries)
+                                .where((e) => e.value)
+                                .map((e) => e.key)
+                                .toList()
                       ..sort();
 
                     if (availableLabels.isEmpty) {
