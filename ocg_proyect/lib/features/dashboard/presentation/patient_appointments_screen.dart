@@ -159,8 +159,10 @@ class _PatientAppointmentsScreenState
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDs) => AlertDialog(
           title: const Text('Agendar nueva cita'),
-          content: SingleChildScrollView(
-            child: Column(
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<AppointmentType>(

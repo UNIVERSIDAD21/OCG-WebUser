@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/data/models/availability_day_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
+import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
@@ -21,6 +23,11 @@ String _appointmentFmtDateTime(DateTime date) =>
     '${_appointmentFmtDate(date)} '
     '${date.hour.toString().padLeft(2, '0')}:'
     '${date.minute.toString().padLeft(2, '0')}';
+
+String _appointmentDayKey(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}'
+    '${d.month.toString().padLeft(2, '0')}'
+    '${d.day.toString().padLeft(2, '0')}';
 
 enum _AgendaFilter { hoy, activas, completadas, perdidas, canceladas }
 
@@ -315,13 +322,31 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     super.dispose();
   }
 
-  List<AppointmentTimeSlot> _slotsForCurrentDay() {
-    return AppointmentsBusinessRules.buildDailySlots(
+  List<AppointmentTimeSlot> _slotsForCurrentDay([
+    AvailabilityDayModel? availability,
+  ]) {
+    if (availability == null) {
+      return AppointmentsBusinessRules.buildDailySlots(
+        day: _dateTime,
+        existingAppointments: widget.existingAppointments,
+        durationMinutes: _durationMinutes,
+        stepMinutes: 30,
+      );
+    }
+
+    final allSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
       day: _dateTime,
-      existingAppointments: widget.existingAppointments,
-      durationMinutes: _durationMinutes,
       stepMinutes: 30,
     );
+
+    return allSlots
+        .map(
+          (slot) => AppointmentTimeSlot(
+            start: slot.start,
+            isAvailable: availability.isSlotAvailable(slot.label),
+          ),
+        )
+        .toList();
   }
 
   Future<void> _pickDateTime() async {
@@ -333,23 +358,14 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     );
     if (d == null) return;
 
-    final slots = AppointmentsBusinessRules.buildDailySlots(
-      day: d,
-      existingAppointments: widget.existingAppointments,
-      durationMinutes: _durationMinutes,
-      stepMinutes: 30,
-    );
-
-    final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
     setState(() {
-      _dateTime = firstAvailable?.start ??
-          DateTime(
-            d.year,
-            d.month,
-            d.day,
-            AppointmentsBusinessRules.workdayStartHour,
-            0,
-          );
+      _dateTime = DateTime(
+        d.year,
+        d.month,
+        d.day,
+        AppointmentsBusinessRules.workdayStartHour,
+        0,
+      );
     });
   }
 
@@ -421,6 +437,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     //    sin destruir ni recrear el árbol del AlertDialog.
     final patients =
         ref.watch(patientsStreamProvider).asData?.value ?? const [];
+    final availability = ref
+        .watch(availabilityByDayProvider(_appointmentDayKey(_dateTime)))
+        .asData
+        ?.value;
 
     // Lista filtrada — solo se calcula en build, no en StatefulBuilder
     final filtered = _searchCtrl.text.isEmpty
@@ -582,7 +602,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: _slotsForCurrentDay().map((slot) {
+                children: _slotsForCurrentDay(availability).map((slot) {
                   final isSelected = slot.start == _dateTime;
                   final label =
                       '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
@@ -610,12 +630,15 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                     .toList(),
                 onChanged: (v) {
                   final nextDuration = v ?? 30;
-                  final slots = AppointmentsBusinessRules.buildDailySlots(
-                    day: _dateTime,
-                    existingAppointments: widget.existingAppointments,
-                    durationMinutes: nextDuration,
-                    stepMinutes: 30,
-                  );
+                  final slots = availability == null
+                      ? AppointmentsBusinessRules.buildDailySlots(
+                          day: _dateTime,
+                          existingAppointments: widget.existingAppointments,
+                          durationMinutes: nextDuration,
+                          stepMinutes: 30,
+                        )
+                      : _slotsForCurrentDay(availability);
+
                   final currentStillAvailable = slots.any(
                     (s) => s.start == _dateTime && s.isAvailable,
                   );
