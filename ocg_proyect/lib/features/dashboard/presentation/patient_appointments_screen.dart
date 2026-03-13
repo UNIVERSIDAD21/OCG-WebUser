@@ -133,10 +133,7 @@ class _PatientAppointmentsScreenState
             .trim();
     final patientPhone = cachedPatient?.telefono ?? '';
 
-    // ✅ Controlador creado FUERA del builder. Se dispone en .then() una vez
-    //    que showDialog() haya terminado por completo — evita el crash
-    //    "TextEditingController was used after being disposed".
-    final notesCtrl = TextEditingController();
+    String notesText = '';
 
     AppointmentType selectedType = AppointmentType.valoracion;
     DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1));
@@ -281,7 +278,8 @@ class _PatientAppointmentsScreenState
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
-                  controller: notesCtrl,
+                  initialValue: notesText,
+                  onChanged: (v) => notesText = v,
                   decoration: const InputDecoration(
                     labelText: 'Notas (opcional)',
                     prefixIcon: Icon(Icons.notes_outlined),
@@ -366,9 +364,7 @@ class _PatientAppointmentsScreenState
                           ? resolvedFromProvider!
                           : authDisplayName;
 
-                      // ✅ Capturar texto ANTES del await — el controlador
-                      //    no debe leerse después de que el diálogo cierre.
-                      final notasTexto = notesCtrl.text.trim();
+                      final notasTexto = notesText.trim();
 
                       try {
                         await ref
@@ -424,11 +420,7 @@ class _PatientAppointmentsScreenState
           ],
         ),
       ),
-    ).then((_) {
-      // ✅ Dispose SEGURO: se ejecuta después de que el diálogo se
-      //    ha desmontado completamente del árbol de widgets.
-      notesCtrl.dispose();
-    });
+    );
   }
 
   // ─── Cancelar cita (con regla de 24 horas) ───────────────────────────────
