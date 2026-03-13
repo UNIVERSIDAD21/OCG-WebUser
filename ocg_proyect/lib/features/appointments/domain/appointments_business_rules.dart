@@ -24,6 +24,28 @@ class AppointmentsBusinessRules {
     return patientAllowedTypes.contains(type);
   }
 
+  static bool isHistoricalStatus(AppointmentStatus status) {
+    return status == AppointmentStatus.cancelada ||
+        status == AppointmentStatus.noAsistio ||
+        status == AppointmentStatus.reprogramada;
+  }
+
+  static bool isOperationalStatus(
+    AppointmentStatus status, {
+    bool includeCompleted = true,
+  }) {
+    if (isHistoricalStatus(status)) return false;
+    if (!includeCompleted && status == AppointmentStatus.completada) return false;
+    return true;
+  }
+
+  static bool shouldIncludeInDayAgenda(
+    AppointmentStatus status, {
+    bool includeCompleted = true,
+  }) {
+    return isOperationalStatus(status, includeCompleted: includeCompleted);
+  }
+
   static String? validateNoSameDayAppointment({
     required List<AppointmentModel> existingAppointments,
     required DateTime newAppointmentDateTime,
