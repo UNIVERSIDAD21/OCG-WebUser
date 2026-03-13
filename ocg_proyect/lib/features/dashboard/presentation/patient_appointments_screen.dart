@@ -239,6 +239,13 @@ class _PatientAppointmentsScreenState
                       );
                     }
 
+                    if (snapshot.hasError) {
+                      return const Text(
+                        'No se pudo cargar disponibilidad en tiempo real.',
+                        style: TextStyle(color: OcgColors.error),
+                      );
+                    }
+
                     final availability = snapshot.data;
                     final availableLabels = availability == null
                         ? AppointmentsBusinessRules.buildAllWorkdaySlots(
@@ -331,17 +338,22 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
-                      final availability = await ref
-                          .read(availabilityRepositoryProvider)
-                          .getAvailabilityByDay(_dayKey(selectedDateTime));
                       final slotLabel =
                           '${selectedDateTime.hour.toString().padLeft(2, '0')}:${selectedDateTime.minute.toString().padLeft(2, '0')}';
-                      if (availability == null || !availability.isSlotAvailable(slotLabel)) {
-                        setDs(
-                          () => errorMsg =
-                              'Ese horario ya no está disponible. Selecciona otro.',
-                        );
-                        return;
+                      try {
+                        final availability = await ref
+                            .read(availabilityRepositoryProvider)
+                            .getAvailabilityByDay(_dayKey(selectedDateTime));
+                        if (availability != null && !availability.isSlotAvailable(slotLabel)) {
+                          setDs(
+                            () => errorMsg =
+                                'Ese horario ya no está disponible. Selecciona otro.',
+                          );
+                          return;
+                        }
+                      } catch (_) {
+                        // Si falla lectura de disponibilidad, dejamos que backend
+                        // haga validación final y devuelva error consistente.
                       }
 
                       setDs(() => saving = true);
