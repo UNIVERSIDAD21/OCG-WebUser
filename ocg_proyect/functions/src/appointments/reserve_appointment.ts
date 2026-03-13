@@ -6,7 +6,6 @@ import {rebuildAvailabilityForDay} from './availability';
 type ReserveAppointmentData = {
   date?: string; // YYYY-MM-DD
   time?: string; // HH:mm
-  durationMinutes?: number;
   type?: string;
   notes?: string;
 };
@@ -14,6 +13,14 @@ type ReserveAppointmentData = {
 const WORKDAY_START_HOUR = 8;
 const WORKDAY_END_HOUR = 17;
 const BUFFER_MINUTES = 10;
+
+const APPOINTMENT_TYPE_CONFIG: Record<string, {clinicalMinutes: number; patientCanBook: boolean}> = {
+  valoracion: {clinicalMinutes: 50, patientCanBook: true},
+  control: {clinicalMinutes: 30, patientCanBook: true},
+  instalacion: {clinicalMinutes: 60, patientCanBook: false},
+  urgencia: {clinicalMinutes: 40, patientCanBook: false},
+  alta: {clinicalMinutes: 30, patientCanBook: false},
+};
 
 function parseDateTime(date?: string, time?: string): Date {
   if (!date || !time) {
@@ -58,9 +65,19 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
   }
 
-  const durationMinutes = Math.max(15, Number(request.data?.durationMinutes ?? 30));
+  const type = (request.data?.type ?? 'control').toString();
+  const typeConfig = APPOINTMENT_TYPE_CONFIG[type];
+  if (!typeConfig) {
+    throw new HttpsError('invalid-argument', 'Tipo de cita inválido.');
+  }
+  if (!typeConfig.patientCanBook) {
+    throw new HttpsError('permission-denied', 'Este tipo de cita solo puede agendarlo la clínica.');
+  }
+
+  const clinicalMinutes = typeConfig.clinicalMinutes;
+  const operationalMinutes = clinicalMinutes + BUFFER_MINUTES;
   const startAt = parseDateTime(request.data?.date, request.data?.time);
-  validateWorkingHours(startAt, durationMinutes);
+  validateWorkingHours(startAt, operationalMinutes);
 
   const db = admin.firestore();
   const dayStart = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate(), 0, 0, 0, 0);
@@ -72,7 +89,7 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     .where('fechaHora', '<', admin.firestore.Timestamp.fromDate(dayEnd))
     .get();
 
-  const newEnd = new Date(startAt.getTime() + durationMinutes * 60000);
+  const newEnd = new Date(startAt.getTime() + operationalMinutes * 60000);
   const hasConflict = snapshot.docs.some((doc) => {
     const data = doc.data() as any;
     const estado = data.estado as string | undefined;
@@ -97,10 +114,11 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     patientId: uid,
     patientName: (patient.nombre ?? '').toString(),
     patientPhone: (patient.telefono ?? '').toString(),
-    tipo: (request.data?.type ?? 'control').toString(),
+    tipo: type,
     estado: 'programada',
     fechaHora: admin.firestore.Timestamp.fromDate(startAt),
-    duracionMinutos: durationMinutes,
+    duracionMinutos: clinicalMinutes,
+    bufferMinutos: BUFFER_MINUTES,
     creadoPor: uid,
     notas: (request.data?.notes ?? '').toString(),
     recordatorio24hEnviado: false,
@@ -111,5 +129,11 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
 
   await rebuildAvailabilityForDay(dayStart);
 
-  return {ok: true, appointmentId: ref.id};
+  return {
+    ok: true,
+    appointmentId: ref.id,
+    clinicalMinutes,
+    bufferMinutes: BUFFER_MINUTES,
+    operationalMinutes,
+  };
 });
