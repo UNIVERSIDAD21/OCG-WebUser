@@ -163,170 +163,182 @@ class _PatientAppointmentsScreenState
             width: 400,
             child: SingleChildScrollView(
               child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<AppointmentType>(
-                  value: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de cita',
-                    prefixIcon: Icon(Icons.medical_services_outlined),
-                  ),
-                  items: [AppointmentType.valoracion, AppointmentType.control]
-                      .map(
-                        (t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(_tipoLabel(t)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setDs(
-                    () => selectedType = v ?? AppointmentType.valoracion,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.schedule,
-                    color: OcgColors.espresso,
-                  ),
-                  title: const Text('Fecha'),
-                  subtitle: Text(
-                    _fmtDateTime(selectedDateTime),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: OcgColors.espresso,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<AppointmentType>(
+                    value: selectedType,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de cita',
+                      prefixIcon: Icon(Icons.medical_services_outlined),
+                    ),
+                    items: [AppointmentType.valoracion, AppointmentType.control]
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(_tipoLabel(t)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDs(
+                      () => selectedType = v ?? AppointmentType.valoracion,
                     ),
                   ),
-                  onTap: () async {
-                    final pickedDate = await showDatePicker(
-                      context: dialogContext,
-                      initialDate: selectedDateTime,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 90)),
-                    );
-                    if (pickedDate == null) return;
-                    setDs(() {
-                      selectedDateTime = DateTime(
-                        pickedDate.year,
-                        pickedDate.month,
-                        pickedDate.day,
-                        AppointmentsBusinessRules.workdayStartHour,
-                        0,
+                  const SizedBox(height: 14),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.schedule,
+                      color: OcgColors.espresso,
+                    ),
+                    title: const Text('Fecha'),
+                    subtitle: Text(
+                      _fmtDateTime(selectedDateTime),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: selectedDateTime,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 90)),
                       );
-                      errorMsg = null;
-                    });
-                  },
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Horarios disponibles (08:00 - 17:00, buffer 10 min)',
-                    style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                      if (pickedDate == null) return;
+                      setDs(() {
+                        selectedDateTime = DateTime(
+                          pickedDate.year,
+                          pickedDate.month,
+                          pickedDate.day,
+                          AppointmentsBusinessRules.workdayStartHour,
+                          0,
+                        );
+                        errorMsg = null;
+                      });
+                    },
                   ),
-                ),
-                const SizedBox(height: 6),
-                StreamBuilder(
-                  stream: ref
-                      .read(availabilityRepositoryProvider)
-                      .watchAvailabilityByDay(_dayKey(selectedDateTime)),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: LinearProgressIndicator(),
-                      );
-                    }
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Horarios disponibles (08:00 - 17:00, buffer 10 min)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: OcgColors.ink.withOpacity(0.65),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  StreamBuilder(
+                    stream: ref
+                        .read(availabilityRepositoryProvider)
+                        .watchAvailabilityByDay(_dayKey(selectedDateTime)),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: LinearProgressIndicator(),
+                        );
+                      }
 
-                    final availability = snapshot.data;
-                    final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
-                      day: selectedDateTime,
-                      stepMinutes: 30,
-                    ).map((s) => s.label).toList()
-                      ..sort();
+                      final availability = snapshot.data;
+                      final allLabels =
+                          AppointmentsBusinessRules.buildAllWorkdaySlots(
+                            day: selectedDateTime,
+                            stepMinutes: 30,
+                          ).map((s) => s.label).toList()..sort();
 
-                    final availableSet = snapshot.hasError
-                        ? <String>{}
-                        : availability == null
-                            ? allLabels.toSet()
-                            : availability.slots.entries
+                      final availableSet = snapshot.hasError
+                          ? <String>{}
+                          : availability == null
+                          ? allLabels.toSet()
+                          : availability.slots.entries
                                 .where((e) => e.value)
                                 .map((e) => e.key)
                                 .toSet();
 
-                    if (allLabels.isEmpty) {
-                      return const Text(
-                        'No hay horarios configurados para ese día.',
-                        style: TextStyle(color: OcgColors.error),
-                      );
-                    }
+                      if (allLabels.isEmpty) {
+                        return const Text(
+                          'No hay horarios configurados para ese día.',
+                          style: TextStyle(color: OcgColors.error),
+                        );
+                      }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (snapshot.hasError)
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              'No se pudo consultar disponibilidad de la clínica. Intenta nuevamente.',
-                              style: TextStyle(color: OcgColors.error, fontSize: 12),
-                            ),
-                          ),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: allLabels.map((label) {
-                            final slotDate = dateFromLabel(selectedDateTime, label);
-                            final isAvailable = availableSet.contains(label);
-
-                            return ChoiceChip(
-                              label: Text(
-                                label,
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (snapshot.hasError)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                'No se pudo consultar disponibilidad de la clínica. Intenta nuevamente.',
                                 style: TextStyle(
-                                  color: isAvailable
-                                      ? OcgColors.espresso
-                                      : Colors.grey.shade600,
+                                  color: OcgColors.error,
+                                  fontSize: 12,
                                 ),
                               ),
-                              selected: isAvailable && slotDate == selectedDateTime,
-                              disabledColor: Colors.grey.shade300,
-                              selectedColor: OcgColors.sand,
-                              onSelected: isAvailable
-                                  ? (_) => setDs(() {
-                                      selectedDateTime = slotDate;
-                                      errorMsg = null;
-                                    })
-                                  : null,
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  initialValue: notesText,
-                  onChanged: (v) => notesText = v,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                    prefixIcon: Icon(Icons.notes_outlined),
+                            ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: allLabels.map((label) {
+                              final slotDate = dateFromLabel(
+                                selectedDateTime,
+                                label,
+                              );
+                              final isAvailable = availableSet.contains(label);
+
+                              return ChoiceChip(
+                                label: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: isAvailable
+                                        ? OcgColors.espresso
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                                selected:
+                                    isAvailable && slotDate == selectedDateTime,
+                                disabledColor: Colors.grey.shade300,
+                                selectedColor: OcgColors.sand,
+                                onSelected: isAvailable
+                                    ? (_) => setDs(() {
+                                        selectedDateTime = slotDate;
+                                        errorMsg = null;
+                                      })
+                                    : null,
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                  maxLines: 2,
-                ),
-                if (errorMsg != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    errorMsg!,
-                    style: const TextStyle(
-                      color: OcgColors.error,
-                      fontSize: 12,
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    initialValue: notesText,
+                    onChanged: (v) => notesText = v,
+                    decoration: const InputDecoration(
+                      labelText: 'Notas (opcional)',
+                      prefixIcon: Icon(Icons.notes_outlined),
                     ),
+                    maxLines: 2,
                   ),
+                  if (errorMsg != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      errorMsg!,
+                      style: const TextStyle(
+                        color: OcgColors.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
+          //
           actions: [
             TextButton(
               onPressed: saving ? null : () => popDialog(dialogContext),
@@ -367,7 +379,8 @@ class _PatientAppointmentsScreenState
                         final availability = await ref
                             .read(availabilityRepositoryProvider)
                             .getAvailabilityByDay(_dayKey(selectedDateTime));
-                        if (availability != null && !availability.isSlotAvailable(slotLabel)) {
+                        if (availability != null &&
+                            !availability.isSlotAvailable(slotLabel)) {
                           setDs(
                             () => errorMsg =
                                 'Ese horario ya no está disponible. Selecciona otro.',
