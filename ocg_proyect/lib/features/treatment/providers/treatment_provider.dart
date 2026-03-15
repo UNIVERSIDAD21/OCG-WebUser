@@ -37,6 +37,6 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
   }
 }
 
-final updateStageProvider = AsyncNotifierProvider<UpdateStageNotifier, void>(
+final updateStageProvider = AsyncNotifierProvider.autoDispose<UpdateStageNotifier, void>(
   UpdateStageNotifier.new,
 );
