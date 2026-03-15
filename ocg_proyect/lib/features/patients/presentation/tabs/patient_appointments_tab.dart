@@ -18,45 +18,51 @@ class PatientAppointmentsTab extends ConsumerWidget {
       patientAppointmentsProvider(patient.id),
     );
 
-    return Scaffold(
-      backgroundColor: OcgColors.ivory,
-      body: appointmentsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text(
-            'No se pudo cargar citas: $error',
-            style: const TextStyle(color: OcgColors.error),
-            textAlign: TextAlign.center,
+    return Stack(
+      children: [
+        appointmentsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: Text(
+              'No se pudo cargar citas: $error',
+              style: const TextStyle(color: OcgColors.error),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          data: (appointments) {
+            if (appointments.isEmpty) {
+              return const OcgEmptyState(
+                icon: Icons.event_note_outlined,
+                title: 'Sin citas registradas',
+                subtitle: 'Este paciente no tiene citas aún.',
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              itemCount: appointments.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) =>
+                  AppointmentCard(appointment: appointments[index]),
+            );
+          },
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton.small(
+            backgroundColor: OcgColors.espresso,
+            foregroundColor: OcgColors.ivory,
+            heroTag: 'add_appointment_tab',
+            onPressed: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              preselectedPatient: patient,
+            ),
+            child: const Icon(Icons.add),
           ),
         ),
-        data: (appointments) {
-          if (appointments.isEmpty) {
-            return const OcgEmptyState(
-              icon: Icons.event_note_outlined,
-              title: 'Sin citas registradas',
-              subtitle: 'Sin citas registradas',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: appointments.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, index) =>
-                AppointmentCard(appointment: appointments[index]),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.small(
-        backgroundColor: OcgColors.espresso,
-        foregroundColor: OcgColors.ivory,
-        onPressed: () => AdminAppointmentsScreen.showCreateDialog(
-          context,
-          ref,
-          preselectedPatient: patient,
-        ),
-        child: const Icon(Icons.add),
-      ),
+      ],
     );
   }
 }
