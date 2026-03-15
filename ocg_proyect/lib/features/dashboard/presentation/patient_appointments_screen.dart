@@ -166,7 +166,7 @@ class _PatientAppointmentsScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<AppointmentType>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de cita',
                       prefixIcon: Icon(Icons.medical_services_outlined),
@@ -739,7 +739,7 @@ class _PatientAppointmentsScreenState
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final appt = filtered[i];
                     final canCancel =

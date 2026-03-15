@@ -538,7 +538,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
               // ── Tipo ───────────────────────────────────────────────────
               DropdownButtonFormField<AppointmentType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de cita',
                   prefixIcon: Icon(Icons.medical_services_outlined),
@@ -602,7 +602,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
               // ── Duración ───────────────────────────────────────────────
               DropdownButtonFormField<int>(
-                value: _durationMinutes,
+                initialValue: _durationMinutes,
                 decoration: const InputDecoration(
                   labelText: 'Duración',
                   prefixIcon: Icon(Icons.timer_outlined),
@@ -811,7 +811,7 @@ class _AdminAppointmentsScreenState
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: newDuration,
+                  initialValue: newDuration,
                   decoration: const InputDecoration(
                     labelText: 'Duración (min)',
                   ),
@@ -1099,7 +1099,7 @@ class _AdminAppointmentsScreenState
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final appt = items[index];
         final repo = ref.read(appointmentsRepositoryProvider);

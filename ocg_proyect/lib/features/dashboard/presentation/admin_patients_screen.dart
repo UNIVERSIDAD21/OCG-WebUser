@@ -241,7 +241,7 @@ class _PatientCard extends StatelessWidget {
               radius: 24,
               backgroundColor: OcgColors.bronze.withOpacity(0.18),
               backgroundImage: hasPhoto ? NetworkImage(patient.fotoUrl!) : null,
-              onBackgroundImageError: hasPhoto ? (_, __) {} : null,
+              onBackgroundImageError: hasPhoto ? (_, _) {} : null,
               child: hasPhoto
                   ? null
                   : Text(
