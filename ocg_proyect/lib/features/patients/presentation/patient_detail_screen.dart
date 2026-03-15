@@ -114,6 +114,10 @@ class _PatientDetailView extends ConsumerWidget {
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
+            labelColor: OcgColors.ivory,
+            unselectedLabelColor: OcgColors.sand,
+            indicatorColor: OcgColors.bronze,
+            dividerColor: Colors.transparent,
             tabs: [
               Tab(text: 'Perfil'),
               Tab(text: 'Tratamiento'),
