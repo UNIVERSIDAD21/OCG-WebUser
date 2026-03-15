@@ -245,26 +245,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   // ── Links ──
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextButton(
-                        onPressed: () =>
-                            context.push(RouteNames.forgotPassword),
-                        child: const Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            color: OcgColors.bronze,
-                            fontSize: 13,
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () => context.push(RouteNames.forgotPassword),
+                            child: const Text(
+                              '¿Olvidaste tu contraseña?',
+                              style: TextStyle(
+                                color: OcgColors.bronze,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: _openRegisterDialog,
-                        child: const Text(
-                          'Crear cuenta',
-                          style: TextStyle(
-                            color: OcgColors.espresso,
-                            fontSize: 13,
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _openRegisterDialog,
+                            child: const Text(
+                              'Crear cuenta',
+                              style: TextStyle(
+                                color: OcgColors.espresso,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                       ),

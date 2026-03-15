@@ -104,7 +104,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
           isLoading: isLoading,
           onPressed: (!canAdvance || !_isNotesValid || isLoading)
               ? null
-              : () => _submit(context, nextStage!),
+              : () => _submit(nextStage!),
         ),
       ],
     );
@@ -112,7 +112,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
 
   bool get _isNotesValid => _notasController.text.trim().length >= 10;
 
-  Future<void> _submit(BuildContext context, TreatmentStage nextStage) async {
+  Future<void> _submit(TreatmentStage nextStage) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     try {

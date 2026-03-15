@@ -24,7 +24,7 @@ class StageHistoryList extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: historial.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final entry = historial[index];
         final notes = entry.notas.trim();
