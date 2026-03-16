@@ -19,10 +19,12 @@ String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
-String _appointmentFmtDateTime(DateTime date) =>
-    '${_appointmentFmtDate(date)} '
-    '${date.hour.toString().padLeft(2, '0')}:'
-    '${date.minute.toString().padLeft(2, '0')}';
+String _appointmentFmtDateTime(DateTime d) =>
+    '${_appointmentFmtDate(d)} ${() {
+      final h = d.hour == 0 ? 12 : d.hour > 12 ? d.hour - 12 : d.hour;
+      final ap = d.hour < 12 ? 'AM' : 'PM';
+      return '$h:${d.minute.toString().padLeft(2, '0')} $ap';
+    }()}';
 
 String _appointmentDayKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}'
