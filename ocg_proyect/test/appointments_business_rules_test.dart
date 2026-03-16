@@ -92,17 +92,33 @@ void main() {
   });
 
   group('AppointmentsBusinessRules working hours', () {
-    test('rechaza cuando excede 17:00', () {
+    test('rechaza cuando cruza bloque de almuerzo', () {
       final error = AppointmentsBusinessRules.validateWithinWorkingHours(
-        start: DateTime(2026, 3, 13, 16, 30),
-        durationMinutes: 40,
+        start: DateTime(2026, 3, 13, 11, 50),
+        durationMinutes: 30,
       );
       expect(error, isNotNull);
     });
 
-    test('acepta dentro del rango', () {
+    test('rechaza domingo por clínica cerrada', () {
+      final error = AppointmentsBusinessRules.validateWithinWorkingHours(
+        start: DateTime(2026, 3, 15, 8, 0),
+        durationMinutes: 30,
+      );
+      expect(error, isNotNull);
+    });
+
+    test('acepta dentro del rango de mañana', () {
       final error = AppointmentsBusinessRules.validateWithinWorkingHours(
         start: DateTime(2026, 3, 13, 8, 0),
+        durationMinutes: 30,
+      );
+      expect(error, isNull);
+    });
+
+    test('acepta dentro del rango de tarde', () {
+      final error = AppointmentsBusinessRules.validateWithinWorkingHours(
+        start: DateTime(2026, 3, 13, 14, 30),
         durationMinutes: 30,
       );
       expect(error, isNull);

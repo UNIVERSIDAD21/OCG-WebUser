@@ -546,7 +546,7 @@ class _TodayAgendaCard extends StatelessWidget {
             existingAppointments: existingAppointments,
             durationMinutes: appointment.duracionMinutos,
             excludeAppointmentId: appointment.id,
-            stepMinutes: 30,
+            stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
           );
         }
 
@@ -561,7 +561,7 @@ class _TodayAgendaCard extends StatelessWidget {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text('Nueva fecha: ${_fmtDateTime(localSelected)}'),
-                    subtitle: const Text('Horario laboral 08:00 - 17:00'),
+                    subtitle: const Text('Horario laboral L-V 08:00-12:00 / 14:00-18:00 · Sáb 08:00-12:00'),
                     trailing: const Icon(Icons.edit_calendar),
                     onTap: () async {
                       final d = await showDatePicker(
@@ -589,15 +589,15 @@ class _TodayAgendaCard extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: slotsForDay(localSelected).map((slot) {
+                    children: slotsForDay(localSelected)
+                        .where((slot) => slot.isAvailable)
+                        .map((slot) {
                       final label =
                           '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
                       return ChoiceChip(
                         label: Text(label),
                         selected: slot.start == localSelected,
-                        onSelected: slot.isAvailable
-                            ? (_) => setDs(() => localSelected = slot.start)
-                            : null,
+                        onSelected: (_) => setDs(() => localSelected = slot.start),
                       );
                     }).toList(),
                   ),

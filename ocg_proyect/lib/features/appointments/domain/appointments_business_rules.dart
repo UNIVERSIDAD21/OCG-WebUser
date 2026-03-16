@@ -10,22 +10,54 @@ class AppointmentTimeSlot {
       '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
 }
 
+/// Bloque horario: hora de inicio y hora de fin (exclusiva).
+class ScheduleBlock {
+  const ScheduleBlock({required this.startHour, required this.endHour});
+
+  final int startHour;
+  final int endHour;
+}
+
 class AppointmentsBusinessRules {
   static const List<AppointmentType> patientAllowedTypes = [
     AppointmentType.valoracion,
     AppointmentType.control,
   ];
 
-  /// Horario laboral: 8:00 a 17:00
+  /// Hora de inicio laboral — usada como valor por defecto al seleccionar fecha.
   static const int workdayStartHour = 8;
-  static const int workdayEndHour = 17;
 
-  /// Buffer mínimo entre citas (en minutos)
+  /// Buffer mínimo entre citas (en minutos).
   static const int bufferMinutesBetweenAppointments = 10;
 
-  static bool isTypeAllowedForPatient(AppointmentType type) {
-    return patientAllowedTypes.contains(type);
+  /// Granularidad de slots de disponibilidad.
+  static const int slotStepMinutes = 15;
+
+  /// Devuelve los bloques horarios del día dado.
+  /// Retorna lista vacía si el día está cerrado (domingo).
+  static List<ScheduleBlock> scheduleBlocksForDay(DateTime day) {
+    switch (day.weekday) {
+      case DateTime.monday:
+      case DateTime.tuesday:
+      case DateTime.wednesday:
+      case DateTime.thursday:
+      case DateTime.friday:
+        return const [
+          ScheduleBlock(startHour: 8, endHour: 12),
+          ScheduleBlock(startHour: 14, endHour: 18),
+        ];
+      case DateTime.saturday:
+        return const [ScheduleBlock(startHour: 8, endHour: 12)];
+      default:
+        return const []; // Domingo cerrado
+    }
   }
+
+  /// Retorna true si la clínica trabaja ese día.
+  static bool isWorkingDay(DateTime day) => scheduleBlocksForDay(day).isNotEmpty;
+
+  static bool isTypeAllowedForPatient(AppointmentType type) =>
+      patientAllowedTypes.contains(type);
 
   static bool isHistoricalStatus(AppointmentStatus status) {
     return status == AppointmentStatus.cancelada ||
@@ -45,9 +77,8 @@ class AppointmentsBusinessRules {
   static bool shouldIncludeInDayAgenda(
     AppointmentStatus status, {
     bool includeCompleted = true,
-  }) {
-    return isOperationalStatus(status, includeCompleted: includeCompleted);
-  }
+  }) =>
+      isOperationalStatus(status, includeCompleted: includeCompleted);
 
   static String? validateNoSameDayAppointment({
     required List<AppointmentModel> existingAppointments,
@@ -70,13 +101,23 @@ class AppointmentsBusinessRules {
     required DateTime start,
     required int durationMinutes,
   }) {
-    final dayStart = DateTime(start.year, start.month, start.day, workdayStartHour);
-    final dayEnd = DateTime(start.year, start.month, start.day, workdayEndHour);
+    final blocks = scheduleBlocksForDay(start);
+    if (blocks.isEmpty) {
+      return 'La clínica está cerrada el día seleccionado';
+    }
+
     final end = start.add(Duration(minutes: durationMinutes));
 
-    if (start.isBefore(dayStart) || end.isAfter(dayEnd)) {
-      return 'Solo se permiten citas entre 08:00 y 17:00';
+    final withinAnyBlock = blocks.any((block) {
+      final blockStart = DateTime(start.year, start.month, start.day, block.startHour);
+      final blockEnd = DateTime(start.year, start.month, start.day, block.endHour);
+      return !start.isBefore(blockStart) && !end.isAfter(blockEnd);
+    });
+
+    if (!withinAnyBlock) {
+      return 'Horario disponible: L-V 08:00-12:00 y 14:00-18:00, Sáb 08:00-12:00';
     }
+
     return null;
   }
 
@@ -113,18 +154,24 @@ class AppointmentsBusinessRules {
 
   static List<AppointmentTimeSlot> buildAllWorkdaySlots({
     required DateTime day,
-    int stepMinutes = 30,
+    int stepMinutes = slotStepMinutes,
   }) {
-    final dayStart = DateTime(day.year, day.month, day.day, workdayStartHour);
-    final dayEnd = DateTime(day.year, day.month, day.day, workdayEndHour);
+    final blocks = scheduleBlocksForDay(day);
+    if (blocks.isEmpty) return const [];
 
     final slots = <AppointmentTimeSlot>[];
-    for (
-      DateTime cursor = dayStart;
-      cursor.isBefore(dayEnd);
-      cursor = cursor.add(Duration(minutes: stepMinutes))
-    ) {
-      slots.add(AppointmentTimeSlot(start: cursor, isAvailable: true));
+
+    for (final block in blocks) {
+      final blockStart = DateTime(day.year, day.month, day.day, block.startHour);
+      final blockEnd = DateTime(day.year, day.month, day.day, block.endHour);
+
+      for (
+        DateTime cursor = blockStart;
+        cursor.isBefore(blockEnd);
+        cursor = cursor.add(Duration(minutes: stepMinutes))
+      ) {
+        slots.add(AppointmentTimeSlot(start: cursor, isAvailable: true));
+      }
     }
 
     return slots;
@@ -135,24 +182,30 @@ class AppointmentsBusinessRules {
     required List<AppointmentModel> existingAppointments,
     required int durationMinutes,
     String? excludeAppointmentId,
-    int stepMinutes = 30,
+    int stepMinutes = slotStepMinutes,
   }) {
-    final dayStart = DateTime(day.year, day.month, day.day, workdayStartHour);
-    final dayEnd = DateTime(day.year, day.month, day.day, workdayEndHour);
+    final blocks = scheduleBlocksForDay(day);
+    if (blocks.isEmpty) return const [];
 
     final slots = <AppointmentTimeSlot>[];
-    for (
-      DateTime cursor = dayStart;
-      !cursor.add(Duration(minutes: durationMinutes)).isAfter(dayEnd);
-      cursor = cursor.add(Duration(minutes: stepMinutes))
-    ) {
-      final available = !hasTimeConflict(
-        existingAppointments: existingAppointments,
-        newStart: cursor,
-        durationMinutes: durationMinutes,
-        excludeAppointmentId: excludeAppointmentId,
-      );
-      slots.add(AppointmentTimeSlot(start: cursor, isAvailable: available));
+
+    for (final block in blocks) {
+      final blockStart = DateTime(day.year, day.month, day.day, block.startHour);
+      final blockEnd = DateTime(day.year, day.month, day.day, block.endHour);
+
+      for (
+        DateTime cursor = blockStart;
+        !cursor.add(Duration(minutes: durationMinutes)).isAfter(blockEnd);
+        cursor = cursor.add(Duration(minutes: stepMinutes))
+      ) {
+        final available = !hasTimeConflict(
+          existingAppointments: existingAppointments,
+          newStart: cursor,
+          durationMinutes: durationMinutes,
+          excludeAppointmentId: excludeAppointmentId,
+        );
+        slots.add(AppointmentTimeSlot(start: cursor, isAvailable: available));
+      }
     }
 
     return slots;

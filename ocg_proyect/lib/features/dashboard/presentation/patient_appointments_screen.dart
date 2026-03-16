@@ -221,7 +221,7 @@ class _PatientAppointmentsScreenState
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Horarios disponibles (08:00 - 17:00, buffer 10 min)',
+                      'Horarios disponibles (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
                       style: TextStyle(
                         fontSize: 12,
                         color: OcgColors.ink.withOpacity(0.65),
@@ -242,24 +242,26 @@ class _PatientAppointmentsScreenState
                       }
 
                       final availability = snapshot.data;
-                      final allLabels =
-                          AppointmentsBusinessRules.buildAllWorkdaySlots(
-                            day: selectedDateTime,
-                            stepMinutes: 30,
-                          ).map((s) => s.label).toList()..sort();
+                      final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                        day: selectedDateTime,
+                        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      ).map((s) => s.label).toList()
+                        ..sort();
 
                       final availableSet = snapshot.hasError
                           ? <String>{}
                           : availability == null
-                          ? allLabels.toSet()
-                          : availability.slots.entries
-                                .where((e) => e.value)
-                                .map((e) => e.key)
-                                .toSet();
+                              ? allLabels.toSet()
+                              : availability.slots.entries.where((e) => e.value).map((e) => e.key).toSet();
 
-                      if (allLabels.isEmpty) {
+                      final visibleLabels = allLabels
+                          .where(availableSet.contains)
+                          .toList()
+                        ..sort();
+
+                      if (visibleLabels.isEmpty) {
                         return const Text(
-                          'No hay horarios configurados para ese día.',
+                          'No hay horarios disponibles para ese día.',
                           style: TextStyle(color: OcgColors.error),
                         );
                       }
@@ -281,32 +283,17 @@ class _PatientAppointmentsScreenState
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children: allLabels.map((label) {
-                              final slotDate = dateFromLabel(
-                                selectedDateTime,
-                                label,
-                              );
-                              final isAvailable = availableSet.contains(label);
+                            children: visibleLabels.map((label) {
+                              final slotDate = dateFromLabel(selectedDateTime, label);
 
                               return ChoiceChip(
-                                label: Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: isAvailable
-                                        ? OcgColors.espresso
-                                        : Colors.grey.shade600,
-                                  ),
-                                ),
-                                selected:
-                                    isAvailable && slotDate == selectedDateTime,
-                                disabledColor: Colors.grey.shade300,
+                                label: Text(label, style: const TextStyle(color: OcgColors.espresso)),
+                                selected: slotDate == selectedDateTime,
                                 selectedColor: OcgColors.sand,
-                                onSelected: isAvailable
-                                    ? (_) => setDs(() {
-                                        selectedDateTime = slotDate;
-                                        errorMsg = null;
-                                      })
-                                    : null,
+                                onSelected: (_) => setDs(() {
+                                  selectedDateTime = slotDate;
+                                  errorMsg = null;
+                                }),
                               );
                             }).toList(),
                           ),

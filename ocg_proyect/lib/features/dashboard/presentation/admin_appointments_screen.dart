@@ -314,13 +314,13 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
         day: _dateTime,
         existingAppointments: widget.existingAppointments,
         durationMinutes: _durationMinutes,
-        stepMinutes: 30,
+        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
       );
     }
 
     final allSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
       day: _dateTime,
-      stepMinutes: 30,
+      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
     );
 
     return allSlots
@@ -578,7 +578,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Horarios (08:00 - 17:00, buffer 10 min)',
+                  'Horarios (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
                   style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
                 ),
               ),
@@ -586,16 +586,16 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: _slotsForCurrentDay(availability).map((slot) {
+                children: _slotsForCurrentDay(availability)
+                    .where((slot) => slot.isAvailable)
+                    .map((slot) {
                   final isSelected = slot.start == _dateTime;
                   final label =
                       '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
                   return ChoiceChip(
                     label: Text(label),
                     selected: isSelected,
-                    onSelected: slot.isAvailable
-                        ? (_) => setState(() => _dateTime = slot.start)
-                        : null,
+                    onSelected: (_) => setState(() => _dateTime = slot.start),
                   );
                 }).toList(),
               ),
@@ -619,7 +619,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                           day: _dateTime,
                           existingAppointments: widget.existingAppointments,
                           durationMinutes: nextDuration,
-                          stepMinutes: 30,
+                          stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                         )
                       : _slotsForCurrentDay(availability);
 
@@ -747,7 +747,7 @@ class _AdminAppointmentsScreenState
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(_appointmentFmtDateTime(newDateTime)),
-                  subtitle: const Text('Fecha (horario 08:00 - 17:00)'),
+                  subtitle: const Text('Fecha (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)'),
                   trailing: const Icon(Icons.edit_calendar, size: 18),
                   onTap: () async {
                     final d = await showDatePicker(
@@ -763,7 +763,7 @@ class _AdminAppointmentsScreenState
                       existingAppointments: existingAppointments,
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
-                      stepMinutes: 30,
+                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                     );
                     final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
 
@@ -796,7 +796,7 @@ class _AdminAppointmentsScreenState
                     existingAppointments: existingAppointments,
                     durationMinutes: newDuration,
                     excludeAppointmentId: appt.id,
-                    stepMinutes: 30,
+                    stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                   ).map((slot) {
                     final label =
                         '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
@@ -828,7 +828,7 @@ class _AdminAppointmentsScreenState
                       existingAppointments: existingAppointments,
                       durationMinutes: nextDuration,
                       excludeAppointmentId: appt.id,
-                      stepMinutes: 30,
+                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                     );
                     final currentAvailable =
                         slots.any((s) => s.start == newDateTime && s.isAvailable);
