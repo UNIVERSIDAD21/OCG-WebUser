@@ -6,10 +6,19 @@ type AppointmentLite = {
   duracionMinutos?: number;
 };
 
-const WORKDAY_START_HOUR = 8;
-const WORKDAY_END_HOUR = 17;
-const SLOT_MINUTES = 30;
+const SLOT_MINUTES = 15;
 const BUFFER_MINUTES = 10;
+
+/** Bloques horarios por día de semana (getDay(): 0=Dom, 1=Lun … 6=Sab) */
+const SCHEDULE: Record<number, Array<{start: number; end: number}>> = {
+  1: [{start: 8, end: 12}, {start: 14, end: 18}], // Lunes
+  2: [{start: 8, end: 12}, {start: 14, end: 18}], // Martes
+  3: [{start: 8, end: 12}, {start: 14, end: 18}], // Miércoles
+  4: [{start: 8, end: 12}, {start: 14, end: 18}], // Jueves
+  5: [{start: 8, end: 12}, {start: 14, end: 18}], // Viernes
+  6: [{start: 8, end: 12}], // Sábado
+  0: [], // Domingo cerrado
+};
 
 function toDayKey(date: Date): string {
   const y = date.getFullYear().toString().padStart(4, '0');
@@ -25,15 +34,22 @@ function toDateIso(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function buildBaseSlots(): Record<string, boolean> {
+/** Construye el mapa base de slots para el día dado según el horario de la clínica. */
+function buildBaseSlots(day: Date): Record<string, boolean> {
   const slots: Record<string, boolean> = {};
-  for (let hour = WORKDAY_START_HOUR; hour < WORKDAY_END_HOUR; hour++) {
-    for (const minute of [0, 30]) {
-      const hh = hour.toString().padStart(2, '0');
-      const mm = minute.toString().padStart(2, '0');
-      slots[`${hh}:${mm}`] = true;
+  const dayOfWeek = day.getDay();
+  const blocks = SCHEDULE[dayOfWeek] ?? [];
+
+  for (const block of blocks) {
+    for (let hour = block.start; hour < block.end; hour++) {
+      for (let minute = 0; minute < 60; minute += SLOT_MINUTES) {
+        const hh = hour.toString().padStart(2, '0');
+        const mm = minute.toString().padStart(2, '0');
+        slots[`${hh}:${mm}`] = true;
+      }
     }
   }
+
   return slots;
 }
 
@@ -52,7 +68,7 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
     .where('fechaHora', '<', admin.firestore.Timestamp.fromDate(end))
     .get();
 
-  const slots = buildBaseSlots();
+  const slots = buildBaseSlots(day);
 
   const appointments = snapshot.docs.map((d) => d.data() as AppointmentLite);
   for (const appt of appointments) {
@@ -62,7 +78,7 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
     const duration = Math.max(15, Number(appt.duracionMinutos ?? 30));
     const endAt = new Date(startAt.getTime() + (duration + BUFFER_MINUTES) * 60000);
 
-    for (const [label] of Object.entries(slots)) {
+    for (const label of Object.keys(slots)) {
       const [hh, mm] = label.split(':').map((n) => Number(n));
       const slotStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm, 0, 0);
       const slotEnd = new Date(slotStart.getTime() + SLOT_MINUTES * 60000);
@@ -84,8 +100,7 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
   );
 }
 
-export function parseDayFromTimestamp(ts?: admin.firestore.Timestamp): Date | null {
-  if (!ts) return null;
+export function parseDayFromTimestamp(ts: admin.firestore.Timestamp): Date {
   const d = ts.toDate();
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
