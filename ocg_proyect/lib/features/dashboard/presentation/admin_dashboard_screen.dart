@@ -673,9 +673,10 @@ class _TodayAgendaCard extends StatelessWidget {
   static String _fmtDateTime(DateTime d) {
     final day = d.day.toString().padLeft(2, '0');
     final month = d.month.toString().padLeft(2, '0');
-    final hour = d.hour.toString().padLeft(2, '0');
+    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
     final minute = d.minute.toString().padLeft(2, '0');
-    return '$day/$month/${d.year} $hour:$minute';
+    final suffix = d.hour >= 12 ? 'PM' : 'AM';
+    return '$day/$month/${d.year} ${hour12.toString().padLeft(2, '0')}:$minute $suffix';
   }
 
   static String _tipoLabel(AppointmentType t) => switch (t) {

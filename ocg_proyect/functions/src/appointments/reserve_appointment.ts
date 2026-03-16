@@ -40,7 +40,7 @@ function parseDateTime(date?: string, time?: string): Date {
   if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) {
     throw new HttpsError('invalid-argument', 'Formato de fecha/hora inválido.');
   }
-  return new Date(y, m - 1, d, hh, mm, 0, 0);
+  return new Date(Date.UTC(y, m - 1, d, hh + 5, mm, 0, 0));
 }
 
 function validateWorkingHours(startAt: Date, durationMinutes: number): void {

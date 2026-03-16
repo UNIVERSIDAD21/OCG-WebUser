@@ -19,10 +19,13 @@ String _fmtDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/'
     '${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-String _fmtDateTime(DateTime d) =>
-    '${_fmtDate(d)} a las '
-    '${d.hour.toString().padLeft(2, '0')}:'
-    '${d.minute.toString().padLeft(2, '0')}';
+String _fmtDateTime(DateTime d) {
+  final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final suffix = d.hour >= 12 ? 'PM' : 'AM';
+  return '${_fmtDate(d)} a las '
+      '${hour12.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')} $suffix';
+}
 
 String _dayKey(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}'

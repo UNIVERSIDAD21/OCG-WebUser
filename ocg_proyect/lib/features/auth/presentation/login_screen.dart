@@ -387,6 +387,7 @@ class _RegisterPatientDialogState
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
                 onChanged: (v) => _email = v,
+                onSaved: (v) => _email = v?.trim() ?? '',
                 validator: Validators.email,
               ),
               const SizedBox(height: 10),
