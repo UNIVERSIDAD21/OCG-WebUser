@@ -251,7 +251,40 @@ class _PatientAppointmentsScreenState
                       ).map((s) => s.label).toList()
                         ..sort();
 
-                      if (allLabels.isEmpty) {
+                      const operationalMinutes =
+                          30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
+
+                      bool isStartAvailable(String label) {
+                        if (snapshot.hasError) return false;
+
+                        final start = dateFromLabel(selectedDateTime, label);
+                        final fitsWorkingHours = AppointmentsBusinessRules.validateWithinWorkingHours(
+                              start: start,
+                              durationMinutes: operationalMinutes,
+                            ) ==
+                            null;
+                        if (!fitsWorkingHours) return false;
+
+                        if (availability == null) return true;
+
+                        final end = start.add(const Duration(minutes: operationalMinutes));
+                        for (final slotLabel in allLabels) {
+                          final slotStart = dateFromLabel(selectedDateTime, slotLabel);
+                          final slotEnd = slotStart.add(
+                            Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
+                          );
+                          final overlaps = slotStart.isBefore(end) && start.isBefore(slotEnd);
+                          if (overlaps && availability.slots[slotLabel] == false) {
+                            return false;
+                          }
+                        }
+
+                        return true;
+                      }
+
+                      final availableLabels = allLabels.where(isStartAvailable).toList();
+
+                      if (availableLabels.isEmpty) {
                         return const Text(
                           'No hay horarios disponibles para ese día.',
                           style: TextStyle(color: OcgColors.error),
@@ -275,30 +308,20 @@ class _PatientAppointmentsScreenState
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children: allLabels.map((label) {
+                            children: availableLabels.map((label) {
                               final slotDate = dateFromLabel(selectedDateTime, label);
-                              final isAvailable = snapshot.hasError
-                                  ? false
-                                  : availability == null
-                                      ? true
-                                      : (availability.slots[label] != false);
 
                               return ChoiceChip(
                                 label: Text(
                                   label,
-                                  style: TextStyle(
-                                    color: isAvailable ? OcgColors.espresso : Colors.grey.shade600,
-                                  ),
+                                  style: const TextStyle(color: OcgColors.espresso),
                                 ),
-                                selected: isAvailable && slotDate == selectedDateTime,
+                                selected: slotDate == selectedDateTime,
                                 selectedColor: OcgColors.sand,
-                                disabledColor: Colors.grey.shade300,
-                                onSelected: isAvailable
-                                    ? (_) => setDs(() {
-                                        selectedDateTime = slotDate;
-                                        errorMsg = null;
-                                      })
-                                    : null,
+                                onSelected: (_) => setDs(() {
+                                  selectedDateTime = slotDate;
+                                  errorMsg = null;
+                                }),
                               );
                             }).toList(),
                           ),
