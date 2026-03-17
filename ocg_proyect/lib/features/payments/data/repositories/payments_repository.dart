@@ -24,6 +24,23 @@ class PaymentsRepository {
         .map((snap) => snap.docs.map((d) => PaymentTransaction.fromJson(d.data())).toList());
   }
 
+  Future<PaymentModel?> getPatientPayment(String patientId) async {
+    final snap = await _db.collection(FirestorePaths.payments).doc(patientId).get();
+    final data = snap.data();
+    if (!snap.exists || data == null) return null;
+    return PaymentModel.fromJson(data);
+  }
+
+  Future<PaymentTransaction?> getLatestTransaction(String patientId) async {
+    final snap = await _db
+        .collection(FirestorePaths.transactions(patientId))
+        .orderBy('fecha', descending: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return PaymentTransaction.fromJson(snap.docs.first.data());
+  }
+
   Future<void> initializePaymentDocument({
     required String patientId,
     required double totalTratamiento,
