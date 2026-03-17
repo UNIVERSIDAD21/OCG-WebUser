@@ -8,6 +8,8 @@ import {createPatientAccount} from './auth/create_patient_account';
 import {reserveAppointment} from './appointments/reserve_appointment';
 import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
+import {createPayuSession} from './payments/create_payu_session';
+import {payuWebhook} from './payments/payu_webhook';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -23,4 +25,6 @@ export {
   reserveAppointment,
   onAppointmentWrite,
   seedAvailability,
+  createPayuSession,
+  payuWebhook,
 };
