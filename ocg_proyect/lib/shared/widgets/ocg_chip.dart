@@ -3,9 +3,16 @@ import 'package:flutter/material.dart';
 import '../theme/ocg_colors.dart';
 
 class OcgChip extends StatelessWidget {
-  const OcgChip({super.key, required this.label});
+  const OcgChip({
+    super.key,
+    required this.label,
+    this.backgroundColor,
+    this.textColor,
+  });
 
   final String label;
+  final Color? backgroundColor;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
