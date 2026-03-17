@@ -44,36 +44,47 @@ export const createPatientAccount = onCall<CreatePatientAccountData>(
       throw e;
     }
 
-    await admin.auth().setCustomUserClaims(user.uid, {role: 'patient'});
+    const now = new Date();
 
-    await admin.firestore().collection('patients').doc(user.uid).set(
-      {
-        id: user.uid,
-        nombre: displayName,
+    try {
+      // 1) Crear SIEMPRE el documento de paciente (fuente de verdad para la app)
+      await admin.firestore().collection('patients').doc(user.uid).set(
+        {
+          id: user.uid,
+          uid: user.uid,
+          nombre: displayName,
+          email,
+          telefono: '',
+          fechaNacimiento: admin.firestore.Timestamp.fromDate(now),
+          fotoUrl: null,
+          tipoTratamiento: null,
+          etapaActual: 'diagnostico',
+          fechaInicio: admin.firestore.Timestamp.fromDate(now),
+          fechaEstimadaFin: null,
+          notasClinicas: '',
+          totalTratamiento: 0,
+          saldoPendiente: 0,
+          fechaProximoPago: null,
+          proximaCita: null,
+          fcmToken: '',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+
+      // 2) Claim de rol (si falla, no dejamos el alta parcial)
+      await admin.auth().setCustomUserClaims(user.uid, {role: 'patient'});
+
+      return {
+        ok: true,
+        uid: user.uid,
         email,
-        telefono: '',
-        fechaNacimiento: null,
-        fotoUrl: null,
-        tipoTratamiento: null,
-        etapaActual: null,
-        fechaInicio: null,
-        fechaEstimadaFin: null,
-        notasClinicas: '',
-        totalTratamiento: 0,
-        saldoPendiente: 0,
-        fechaProximoPago: null,
-        proximaCita: null,
-        fcmToken: '',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      {merge: true},
-    );
-
-    return {
-      ok: true,
-      uid: user.uid,
-      email,
-    };
+      };
+    } catch (e) {
+      // Evitar cuentas huérfanas en Auth sin documento en patients.
+      await admin.auth().deleteUser(user.uid).catch(() => undefined);
+      throw e;
+    }
   },
 );
