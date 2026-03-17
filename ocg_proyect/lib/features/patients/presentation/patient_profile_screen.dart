@@ -12,7 +12,9 @@ import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
 
 class PatientProfileScreen extends ConsumerStatefulWidget {
-  const PatientProfileScreen({super.key});
+  const PatientProfileScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<PatientProfileScreen> createState() => _PatientProfileScreenState();
@@ -71,35 +73,12 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final user = ref.watch(authStateProvider).asData?.value;
 
     if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Mi perfil'),
-          actions: [
-            IconButton(
-              tooltip: 'Cerrar sesión',
-              onPressed: _signingOut ? null : _handleSignOut,
-              icon: const Icon(Icons.logout, color: OcgColors.error),
-            ),
-          ],
-        ),
-        body: const Center(child: Text('Debes iniciar sesión para ver tu perfil.')),
-      );
+      return const Center(child: Text('Debes iniciar sesión para ver tu perfil.'));
     }
 
     final patientAsync = ref.watch(patientByIdProvider(user.uid));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        actions: [
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: _signingOut ? null : _handleSignOut,
-            icon: const Icon(Icons.logout, color: OcgColors.error),
-          ),
-        ],
-      ),
-      body: patientAsync.when(
+    final content = patientAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Text(
@@ -195,7 +174,22 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
             ],
           );
         },
+      );
+
+    if (widget.embedded) return content;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mi perfil'),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: _signingOut ? null : _handleSignOut,
+            icon: const Icon(Icons.logout, color: OcgColors.error),
+          ),
+        ],
       ),
+      body: content,
     );
   }
 

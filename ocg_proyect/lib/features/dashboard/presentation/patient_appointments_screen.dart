@@ -63,7 +63,9 @@ enum _PatientFilter { proximas, historial }
 // ─── PatientAppointmentsScreen ────────────────────────────────────────────────
 
 class PatientAppointmentsScreen extends ConsumerStatefulWidget {
-  const PatientAppointmentsScreen({super.key});
+  const PatientAppointmentsScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<PatientAppointmentsScreen> createState() =>
@@ -646,10 +648,166 @@ class _PatientAppointmentsScreenState
     final user = ref.watch(authStateProvider).asData?.value;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Debes iniciar sesión.')));
+      return const Center(child: Text('Debes iniciar sesión.'));
     }
 
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
+
+    final content = Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [OcgColors.espresso, OcgColors.bronze],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Mis citas',
+                style: TextStyle(
+                  color: OcgColors.ivory,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Próximas citas e historial',
+                style: TextStyle(
+                  color: OcgColors.ivory.withOpacity(0.7),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+          child: SegmentedButton<_PatientFilter>(
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith(
+                (s) => s.contains(WidgetState.selected)
+                    ? OcgColors.espresso
+                    : OcgColors.ivory,
+              ),
+              foregroundColor: WidgetStateProperty.resolveWith(
+                (s) => s.contains(WidgetState.selected)
+                    ? OcgColors.ivory
+                    : OcgColors.espresso,
+              ),
+            ),
+            segments: const [
+              ButtonSegment(
+                value: _PatientFilter.proximas,
+                label: Text('Próximas'),
+                icon: Icon(Icons.upcoming_outlined, size: 16),
+              ),
+              ButtonSegment(
+                value: _PatientFilter.historial,
+                label: Text('Historial'),
+                icon: Icon(Icons.history, size: 16),
+              ),
+            ],
+            selected: {_filter},
+            onSelectionChanged: (s) => setState(() => _filter = s.first),
+          ),
+        ),
+        Expanded(
+          child: appointmentsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text(
+                'Error al cargar citas: $e',
+                textAlign: TextAlign.center,
+              ),
+            ),
+            data: (all) {
+              final now = DateTime.now();
+              final filtered = _filter == _PatientFilter.proximas
+                  ? all
+                      .where(
+                        (a) =>
+                            a.fechaHora.isAfter(now) &&
+                            a.estado != AppointmentStatus.cancelada &&
+                            a.estado != AppointmentStatus.noAsistio &&
+                            a.estado != AppointmentStatus.completada,
+                      )
+                      .toList()
+                  : all
+                      .where(
+                        (a) =>
+                            a.fechaHora.isBefore(now) ||
+                            a.estado == AppointmentStatus.cancelada ||
+                            a.estado == AppointmentStatus.completada ||
+                            a.estado == AppointmentStatus.noAsistio,
+                      )
+                      .toList();
+
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Text(
+                    _filter == _PatientFilter.proximas
+                        ? 'No tienes citas próximas.\nToca + para agendar.'
+                        : 'Sin historial de citas aún.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                itemCount: filtered.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  final appt = filtered[i];
+                  final canCancel =
+                      appt.estado == AppointmentStatus.programada ||
+                      appt.estado == AppointmentStatus.confirmada;
+                  return _AppointmentTile(
+                    appointment: appt,
+                    onCancel: canCancel
+                        ? () => _handleCancelTap(context, ref, appt)
+                        : null,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (widget.embedded) {
+      return Stack(
+        children: [
+          content,
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton.extended(
+              backgroundColor: OcgColors.espresso,
+              foregroundColor: OcgColors.ivory,
+              icon: const Icon(Icons.add),
+              label: const Text('Agendar cita'),
+              onPressed: () => _showNewAppointmentDialog(
+                context,
+                ref,
+                user.uid,
+                appointmentsAsync.asData?.value ?? const [],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -674,142 +832,7 @@ class _PatientAppointmentsScreenState
           appointmentsAsync.asData?.value ?? const [],
         ),
       ),
-      body: Column(
-        children: [
-          // ── Header ────────────────────────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [OcgColors.espresso, OcgColors.bronze],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Mis citas',
-                  style: TextStyle(
-                    color: OcgColors.ivory,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Próximas citas e historial',
-                  style: TextStyle(
-                    color: OcgColors.ivory.withOpacity(0.7),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Filtro ────────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-            child: SegmentedButton<_PatientFilter>(
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith(
-                  (s) => s.contains(WidgetState.selected)
-                      ? OcgColors.espresso
-                      : OcgColors.ivory,
-                ),
-                foregroundColor: WidgetStateProperty.resolveWith(
-                  (s) => s.contains(WidgetState.selected)
-                      ? OcgColors.ivory
-                      : OcgColors.espresso,
-                ),
-              ),
-              segments: const [
-                ButtonSegment(
-                  value: _PatientFilter.proximas,
-                  label: Text('Próximas'),
-                  icon: Icon(Icons.upcoming_outlined, size: 16),
-                ),
-                ButtonSegment(
-                  value: _PatientFilter.historial,
-                  label: Text('Historial'),
-                  icon: Icon(Icons.history, size: 16),
-                ),
-              ],
-              selected: {_filter},
-              onSelectionChanged: (s) => setState(() => _filter = s.first),
-            ),
-          ),
-
-          // ── Lista ─────────────────────────────────────────────────────────
-          Expanded(
-            child: appointmentsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(
-                  'Error al cargar citas: $e',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              data: (all) {
-                final now = DateTime.now();
-                final filtered = _filter == _PatientFilter.proximas
-                    ? all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isAfter(now) &&
-                                a.estado != AppointmentStatus.cancelada &&
-                                a.estado != AppointmentStatus.noAsistio &&
-                                a.estado != AppointmentStatus.completada,
-                          )
-                          .toList()
-                    : all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isBefore(now) ||
-                                a.estado == AppointmentStatus.cancelada ||
-                                a.estado == AppointmentStatus.completada ||
-                                a.estado == AppointmentStatus.noAsistio,
-                          )
-                          .toList();
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Text(
-                      _filter == _PatientFilter.proximas
-                          ? 'No tienes citas próximas.\nToca + para agendar.'
-                          : 'Sin historial de citas aún.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final appt = filtered[i];
-                    final canCancel =
-                        appt.estado == AppointmentStatus.programada ||
-                        appt.estado == AppointmentStatus.confirmada;
-                    return _AppointmentTile(
-                      appointment: appt,
-                      onCancel: canCancel
-                          ? () => _handleCancelTap(context, ref, appt)
-                          : null,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      body: content,
     );
   }
 }

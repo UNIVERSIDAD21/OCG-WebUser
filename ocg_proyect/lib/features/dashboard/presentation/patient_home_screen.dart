@@ -29,9 +29,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     final sections = [
       _InicioSection(userId: user?.uid ?? ''),
-      const PatientAppointmentsScreen(),
+      const PatientAppointmentsScreen(embedded: true),
       _TratamientoSection(userId: user?.uid ?? ''),
-      const PatientProfileScreen(),
+      const PatientProfileScreen(embedded: true),
     ];
 
     return Scaffold(
