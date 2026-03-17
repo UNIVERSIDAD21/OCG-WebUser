@@ -289,7 +289,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
   PatientModel? _selectedPatient;
   AppointmentType _type = AppointmentType.control;
-  int _durationMinutes = 30;
+  final int _durationMinutes = 30;
   late DateTime _dateTime;
   bool _saving = false;
   String? _errorMsg;
@@ -316,25 +316,23 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   List<AppointmentTimeSlot> _slotsForCurrentDay([
     AvailabilityDayModel? availability,
   ]) {
-    if (availability == null) {
-      return AppointmentsBusinessRules.buildDailySlots(
-        day: _dateTime,
-        existingAppointments: widget.existingAppointments,
-        durationMinutes: _durationMinutes,
-        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-      );
-    }
-
-    final allSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
+    final base = AppointmentsBusinessRules.buildDailySlots(
       day: _dateTime,
+      existingAppointments: widget.existingAppointments,
+      durationMinutes: _durationMinutes,
       stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
     );
 
-    return allSlots
+    final now = DateTime.now();
+    final notPast = base.where((slot) => slot.start.isAfter(now)).toList();
+
+    if (availability == null) return notPast;
+
+    return notPast
         .map(
           (slot) => AppointmentTimeSlot(
             start: slot.start,
-            isAvailable: availability.isSlotAvailable(slot.label),
+            isAvailable: slot.isAvailable && availability.isSlotAvailable(slot.label),
           ),
         )
         .toList();
@@ -365,6 +363,14 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       setState(() => _errorMsg = 'Selecciona un paciente de la lista.');
       return;
     }
+    final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+      start: _dateTime,
+    );
+    if (notPastError != null) {
+      setState(() => _errorMsg = notPastError);
+      return;
+    }
+
     final workingHoursError =
         AppointmentsBusinessRules.validateWithinWorkingHours(
           start: _dateTime,
@@ -867,6 +873,17 @@ class _AdminAppointmentsScreenState
                 foregroundColor: OcgColors.ivory,
               ),
               onPressed: () async {
+                final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+                  start: newDateTime,
+                );
+                if (notPastError != null) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(notPastError)),
+                  );
+                  return;
+                }
+
                 final workingHoursError =
                     AppointmentsBusinessRules.validateWithinWorkingHours(
                       start: newDateTime,

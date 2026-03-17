@@ -258,6 +258,11 @@ class _PatientAppointmentsScreenState
                         if (snapshot.hasError) return false;
 
                         final start = dateFromLabel(selectedDateTime, label);
+                        final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+                          start: start,
+                        );
+                        if (notPastError != null) return false;
+
                         final fitsWorkingHours = AppointmentsBusinessRules.validateWithinWorkingHours(
                               start: start,
                               durationMinutes: operationalMinutes,
@@ -378,6 +383,14 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
+                      final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+                        start: selectedDateTime,
+                      );
+                      if (notPastError != null) {
+                        setDs(() => errorMsg = notPastError);
+                        return;
+                      }
+
                       final workingHoursError =
                           AppointmentsBusinessRules.validateWithinWorkingHours(
                             start: selectedDateTime,
@@ -388,19 +401,43 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
-                      final slotLabel =
-                          '${selectedDateTime.hour.toString().padLeft(2, '0')}:${selectedDateTime.minute.toString().padLeft(2, '0')}';
                       try {
                         final availability = await ref
                             .read(availabilityRepositoryProvider)
                             .getAvailabilityByDay(_dayKey(selectedDateTime));
-                        if (availability != null &&
-                            !availability.isSlotAvailable(slotLabel)) {
-                          setDs(
-                            () => errorMsg =
-                                'Ese horario ya no está disponible. Selecciona otro.',
+
+                        if (availability != null) {
+                          const operationalMinutes =
+                              30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
+                          final end = selectedDateTime.add(
+                            const Duration(minutes: operationalMinutes),
                           );
-                          return;
+
+                          final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                            day: selectedDateTime,
+                            stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                          ).map((s) => s.label);
+
+                          bool stillAvailable = true;
+                          for (final label in allLabels) {
+                            final slotStart = dateFromLabel(selectedDateTime, label);
+                            final slotEnd = slotStart.add(
+                              Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
+                            );
+                            final overlaps = slotStart.isBefore(end) && selectedDateTime.isBefore(slotEnd);
+                            if (overlaps && availability.slots[label] == false) {
+                              stillAvailable = false;
+                              break;
+                            }
+                          }
+
+                          if (!stillAvailable) {
+                            setDs(
+                              () => errorMsg =
+                                  'Ese horario ya no está disponible. Selecciona otro.',
+                            );
+                            return;
+                          }
                         }
                       } catch (_) {
                         // Si falla lectura de disponibilidad, dejamos que backend

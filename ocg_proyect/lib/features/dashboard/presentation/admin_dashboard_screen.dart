@@ -153,7 +153,12 @@ class _DashboardBody extends StatelessWidget {
     final tomorrowStart = todayStart.add(const Duration(days: 1));
 
     final todaysAppointments = appointments
-        .where((a) => !a.fechaHora.isBefore(todayStart) && a.fechaHora.isBefore(tomorrowStart))
+        .where(
+          (a) =>
+              !a.fechaHora.isBefore(todayStart) &&
+              a.fechaHora.isBefore(tomorrowStart) &&
+              AppointmentsBusinessRules.shouldIncludeInDayAgenda(a.estado),
+        )
         .toList()
       ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 

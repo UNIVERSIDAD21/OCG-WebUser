@@ -211,6 +211,17 @@ class AppointmentsBusinessRules {
     return slots;
   }
 
+  static String? validateStartNotInPast({
+    required DateTime start,
+    DateTime? now,
+  }) {
+    final referenceNow = now ?? DateTime.now();
+    if (!start.isAfter(referenceNow)) {
+      return 'No se pueden agendar citas en horarios que ya pasaron.';
+    }
+    return null;
+  }
+
   static bool canCancelAppointment(DateTime appointmentDateTime, {DateTime? now}) {
     final referenceNow = now ?? DateTime.now();
     final horasRestantes = appointmentDateTime.difference(referenceNow).inHours;
