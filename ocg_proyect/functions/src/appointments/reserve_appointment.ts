@@ -25,10 +25,10 @@ const SCHEDULE_BLOCKS: Record<number, Array<{start: number; end: number}>> = {
 };
 
 const APPOINTMENT_TYPE_CONFIG: Record<string, {clinicalMinutes: number; patientCanBook: boolean}> = {
-  valoracion: {clinicalMinutes: 50, patientCanBook: true},
+  valoracion: {clinicalMinutes: 30, patientCanBook: true},
   control: {clinicalMinutes: 30, patientCanBook: true},
-  instalacion: {clinicalMinutes: 60, patientCanBook: false},
-  urgencia: {clinicalMinutes: 40, patientCanBook: false},
+  instalacion: {clinicalMinutes: 30, patientCanBook: false},
+  urgencia: {clinicalMinutes: 30, patientCanBook: false},
   alta: {clinicalMinutes: 30, patientCanBook: false},
 };
 
