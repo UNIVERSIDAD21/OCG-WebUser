@@ -47,6 +47,31 @@ class AdminDashboardScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _initializeAllPayments(BuildContext context) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('initializeAllPaymentDocuments');
+      final result = await callable.call();
+      final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
+      final created = data['created'];
+      final message = data['message']?.toString() ?? 'Inicialización completada.';
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$message (creados: $created)')),
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'No se pudo inicializar pagos.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo inicializar pagos.')),
+      );
+    }
+  }
+
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -94,6 +119,11 @@ class AdminDashboardScreen extends ConsumerWidget {
       selectedIndex: 0,
       title: 'Dashboard',
       appBarActions: [
+        TextButton.icon(
+          onPressed: () => _initializeAllPayments(context),
+          icon: const Icon(Icons.payments_outlined, size: 18),
+          label: const Text('Inicializar pagos'),
+        ),
         IconButton(
           tooltip: 'Inicializar disponibilidad (90 días)',
           onPressed: () => _seedAvailability(context),

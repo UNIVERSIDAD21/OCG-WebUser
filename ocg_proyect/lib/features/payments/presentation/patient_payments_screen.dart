@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
 import 'widgets/payment_summary_card.dart';
 import 'widgets/transaction_list.dart';
@@ -61,8 +62,15 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
               style: const TextStyle(color: OcgColors.error),
             ),
             data: (payment) {
-              final saldo = payment?.saldoPendiente ?? 0;
-              if (saldo <= 0) {
+              if (payment == null) {
+                return const Text(
+                  'No existe resumen financiero para este paciente.',
+                  style: TextStyle(color: OcgColors.error),
+                );
+              }
+
+              final saldo = payment.saldoPendiente;
+              if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal) {
                 return OcgChip(
                   label: 'Tratamiento pagado en su totalidad',
                   backgroundColor: OcgColors.success.withValues(alpha: 0.14),
