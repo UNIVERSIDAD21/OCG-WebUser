@@ -8,7 +8,7 @@ type AppointmentLite = {
 
 const SLOT_MINUTES = 15;
 const BUFFER_MINUTES = 10;
-const COLOMBIA_UTC_OFFSET_HOURS = 5; // Bogotá (UTC-5) => local +5 = UTC
+const COLOMBIA_UTC_OFFSET_HOURS = 5; // Bogotá UTC-5
 
 /** Bloques horarios por día de semana (getDay(): 0=Dom, 1=Lun … 6=Sab) */
 const SCHEDULE: Record<number, Array<{start: number; end: number}>> = {
@@ -21,21 +21,19 @@ const SCHEDULE: Record<number, Array<{start: number; end: number}>> = {
   0: [],
 };
 
-function toDayKey(date: Date): string {
-  const y = date.getFullYear().toString().padStart(4, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
-  return `${y}${m}${d}`;
+function toDayKeyFromYmd(year: number, month: number, day: number): string {
+  return `${year.toString().padStart(4, '0')}${month.toString().padStart(2, '0')}${day
+    .toString()
+    .padStart(2, '0')}`;
 }
 
-function toDateIso(date: Date): string {
-  const y = date.getFullYear().toString().padStart(4, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
-  return `${y}-${m}-${d}`;
+function toDateIsoFromYmd(year: number, month: number, day: number): string {
+  return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day
+    .toString()
+    .padStart(2, '0')}`;
 }
 
-/** Convierte un Date UTC a componentes de fecha/hora de Bogotá. */
+/** Date UTC -> partes en hora Bogotá. */
 function toBogotaDateParts(utcDate: Date): {
   year: number;
   month: number;
@@ -55,16 +53,9 @@ function toBogotaDateParts(utcDate: Date): {
   };
 }
 
-/** Construye UTC date desde fecha/hora de Bogotá. */
-function bogotaToUtcDate(year: number, month: number, day: number, hour = 0, minute = 0): Date {
-  return new Date(Date.UTC(year, month - 1, day, hour + COLOMBIA_UTC_OFFSET_HOURS, minute, 0, 0));
-}
-
-/** Construye el mapa base de slots para el día dado según el horario de la clínica (hora Bogotá). */
-function buildBaseSlots(day: Date): Record<string, boolean> {
+function buildBaseSlotsForWeekday(weekday: number): Record<string, boolean> {
   const slots: Record<string, boolean> = {};
-  const parts = toBogotaDateParts(day);
-  const blocks = SCHEDULE[parts.weekday] ?? [];
+  const blocks = SCHEDULE[weekday] ?? [];
 
   for (const block of blocks) {
     for (let hour = block.start; hour < block.end; hour++) {
@@ -83,13 +74,19 @@ function isBlockingStatus(status?: string): boolean {
   return status !== 'cancelada' && status !== 'noAsistio' && status !== 'reprogramada';
 }
 
+/**
+ * [day] debe venir normalizado como marcador UTC del día Bogotá (YYYY-MM-DD a las 00:00 UTC).
+ */
 export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
   const db = admin.firestore();
 
-  // El parámetro day representa día calendario de Bogotá.
-  const d = toBogotaDateParts(day);
-  const startUtc = bogotaToUtcDate(d.year, d.month, d.day, 0, 0);
-  const endUtc = bogotaToUtcDate(d.year, d.month, d.day + 1, 0, 0);
+  const year = day.getUTCFullYear();
+  const month = day.getUTCMonth() + 1;
+  const dom = day.getUTCDate();
+
+  // Ventana UTC que corresponde al día calendario Bogotá [00:00, 24:00).
+  const startUtc = new Date(Date.UTC(year, month - 1, dom, COLOMBIA_UTC_OFFSET_HOURS, 0, 0, 0));
+  const endUtc = new Date(Date.UTC(year, month - 1, dom + 1, COLOMBIA_UTC_OFFSET_HOURS, 0, 0, 0));
 
   const snapshot = await db
     .collection('appointments')
@@ -97,7 +94,12 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
     .where('fechaHora', '<', admin.firestore.Timestamp.fromDate(endUtc))
     .get();
 
-  const slots = buildBaseSlots(day);
+  // Weekday real en Bogotá para ese Y-M-D.
+  const weekday = new Date(
+    Date.UTC(year, month - 1, dom, COLOMBIA_UTC_OFFSET_HOURS, 0, 0, 0),
+  ).getUTCDay();
+
+  const slots = buildBaseSlotsForWeekday(weekday);
 
   const appointments = snapshot.docs.map((doc) => doc.data() as AppointmentLite);
   for (const appt of appointments) {
@@ -119,10 +121,10 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
     }
   }
 
-  const dayKey = `${d.year.toString().padStart(4, '0')}${d.month.toString().padStart(2, '0')}${d.day.toString().padStart(2, '0')}`;
+  const dayKey = toDayKeyFromYmd(year, month, dom);
   await db.collection('availability').doc(dayKey).set(
     {
-      date: `${d.year.toString().padStart(4, '0')}-${d.month.toString().padStart(2, '0')}-${d.day.toString().padStart(2, '0')}`,
+      date: toDateIsoFromYmd(year, month, dom),
       timezone: 'America/Bogota',
       slotDurationMinutes: SLOT_MINUTES,
       slots,
@@ -132,9 +134,9 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
   );
 }
 
+/** Timestamp UTC de cita -> marcador UTC del día Bogotá (YYYY-MM-DD 00:00:00Z). */
 export function parseDayFromTimestamp(ts?: admin.firestore.Timestamp): Date | null {
   if (!ts) return null;
   const p = toBogotaDateParts(ts.toDate());
-  // Día Bogotá normalizado (00:00) para reusar en rebuildAvailabilityForDay.
   return new Date(Date.UTC(p.year, p.month - 1, p.day, 0, 0, 0, 0));
 }
