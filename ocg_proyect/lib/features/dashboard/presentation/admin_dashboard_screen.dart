@@ -589,15 +589,22 @@ class _TodayAgendaCard extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: slotsForDay(localSelected)
-                        .where((slot) => slot.isAvailable)
-                        .map((slot) {
+                    children: slotsForDay(localSelected).map((slot) {
                       final label =
                           '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
                       return ChoiceChip(
-                        label: Text(label),
-                        selected: slot.start == localSelected,
-                        onSelected: (_) => setDs(() => localSelected = slot.start),
+                        label: Text(
+                          label,
+                          style: TextStyle(
+                            color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                          ),
+                        ),
+                        selected: slot.start == localSelected && slot.isAvailable,
+                        disabledColor: Colors.grey.shade300,
+                        selectedColor: OcgColors.sand,
+                        onSelected: slot.isAvailable
+                            ? (_) => setDs(() => localSelected = slot.start)
+                            : null,
                       );
                     }).toList(),
                   ),

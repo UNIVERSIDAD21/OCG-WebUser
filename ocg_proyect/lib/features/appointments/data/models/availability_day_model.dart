@@ -24,5 +24,5 @@ class AvailabilityDayModel {
     );
   }
 
-  bool isSlotAvailable(String time) => slots[time] == true;
+  bool isSlotAvailable(String time) => slots[time] != false;
 }

@@ -251,18 +251,7 @@ class _PatientAppointmentsScreenState
                       ).map((s) => s.label).toList()
                         ..sort();
 
-                      final availableSet = snapshot.hasError
-                          ? <String>{}
-                          : availability == null
-                              ? allLabels.toSet()
-                              : availability.slots.entries.where((e) => e.value).map((e) => e.key).toSet();
-
-                      final visibleLabels = allLabels
-                          .where(availableSet.contains)
-                          .toList()
-                        ..sort();
-
-                      if (visibleLabels.isEmpty) {
+                      if (allLabels.isEmpty) {
                         return const Text(
                           'No hay horarios disponibles para ese día.',
                           style: TextStyle(color: OcgColors.error),
@@ -286,17 +275,30 @@ class _PatientAppointmentsScreenState
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children: visibleLabels.map((label) {
+                            children: allLabels.map((label) {
                               final slotDate = dateFromLabel(selectedDateTime, label);
+                              final isAvailable = snapshot.hasError
+                                  ? false
+                                  : availability == null
+                                      ? true
+                                      : (availability.slots[label] != false);
 
                               return ChoiceChip(
-                                label: Text(label, style: const TextStyle(color: OcgColors.espresso)),
-                                selected: slotDate == selectedDateTime,
+                                label: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                                  ),
+                                ),
+                                selected: isAvailable && slotDate == selectedDateTime,
                                 selectedColor: OcgColors.sand,
-                                onSelected: (_) => setDs(() {
-                                  selectedDateTime = slotDate;
-                                  errorMsg = null;
-                                }),
+                                disabledColor: Colors.grey.shade300,
+                                onSelected: isAvailable
+                                    ? (_) => setDs(() {
+                                        selectedDateTime = slotDate;
+                                        errorMsg = null;
+                                      })
+                                    : null,
                               );
                             }).toList(),
                           ),

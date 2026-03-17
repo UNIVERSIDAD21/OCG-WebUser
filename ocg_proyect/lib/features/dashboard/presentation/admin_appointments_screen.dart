@@ -588,16 +588,23 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: _slotsForCurrentDay(availability)
-                    .where((slot) => slot.isAvailable)
-                    .map((slot) {
+                children: _slotsForCurrentDay(availability).map((slot) {
                   final isSelected = slot.start == _dateTime;
                   final label =
                       '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
                   return ChoiceChip(
-                    label: Text(label),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _dateTime = slot.start),
+                    label: Text(
+                      label,
+                      style: TextStyle(
+                        color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                      ),
+                    ),
+                    selected: isSelected && slot.isAvailable,
+                    disabledColor: Colors.grey.shade300,
+                    selectedColor: OcgColors.sand,
+                    onSelected: slot.isAvailable
+                        ? (_) => setState(() => _dateTime = slot.start)
+                        : null,
                   );
                 }).toList(),
               ),
