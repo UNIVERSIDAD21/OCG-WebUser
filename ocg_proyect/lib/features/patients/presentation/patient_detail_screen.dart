@@ -178,7 +178,7 @@ class _PatientDetailView extends ConsumerWidget {
                   PatientProfileTab(patient: patient),
                   PatientTreatmentTab(patientId: patient.id, patient: patient),
                   PatientAppointmentsTab(patient: patient),
-                  PatientPaymentsTab(patient: patient),
+                  PatientPaymentsTab(patientId: patient.id),
                   PatientSimulatorTab(patient: patient),
                 ],
               ),
