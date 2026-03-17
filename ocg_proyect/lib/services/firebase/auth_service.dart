@@ -79,22 +79,50 @@ class AuthService {
     String? displayName,
   }) async {
     final callable = _functions.httpsCallable('createPatientAccount');
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanName = displayName?.trim() ?? '';
+
     final result = await callable.call({
-      'email': email.trim().toLowerCase(),
+      'email': cleanEmail,
       'password': password,
-      'displayName': displayName?.trim() ?? '',
+      'displayName': cleanName,
     });
 
     final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
     final uid = (data['uid'] ?? '').toString();
-    if (uid.isNotEmpty) {
-      await _db.collection(FirestorePaths.patients).doc(uid).set({
-        'id': uid,
-        'nombre': displayName?.trim() ?? '',
-        'email': email.trim().toLowerCase(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+
+    if (uid.isEmpty) {
+      throw FirebaseFunctionsException(
+        code: 'internal',
+        message: 'No se recibió uid al crear el paciente.',
+      );
     }
+
+    final now = DateTime.now();
+
+    // Refuerzo local: dejamos el documento exactamente en el formato esperado
+    // por el módulo de pacientes (igual que registro/autocreación).
+    await _db.collection(FirestorePaths.patients).doc(uid).set({
+      'id': uid,
+      'uid': uid,
+      'nombre': cleanName,
+      'email': cleanEmail,
+      'telefono': '',
+      'fechaNacimiento': Timestamp.fromDate(now),
+      'fotoUrl': null,
+      'tipoTratamiento': null,
+      'etapaActual': 'diagnostico',
+      'fechaInicio': Timestamp.fromDate(now),
+      'fechaEstimadaFin': null,
+      'notasClinicas': '',
+      'totalTratamiento': 0,
+      'saldoPendiente': 0,
+      'fechaProximoPago': null,
+      'proximaCita': null,
+      'fcmToken': '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> signOut() => _auth.signOut();
