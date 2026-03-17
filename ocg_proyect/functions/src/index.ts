@@ -10,6 +10,7 @@ import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
 import {createPayuSession} from './payments/create_payu_session';
 import {payuWebhook} from './payments/payu_webhook';
+import {reconcilePatientBalances} from './payments/reconcile_balances';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -27,4 +28,5 @@ export {
   seedAvailability,
   createPayuSession,
   payuWebhook,
+  reconcilePatientBalances,
 };

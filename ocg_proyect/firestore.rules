@@ -74,13 +74,22 @@ service cloud.firestore {
     // ─── payments/ ────────────────────────────────────────────────────────────
 
     match /payments/{patientId} {
+      // Admin puede leer/escribir todo en payments.
+      // Paciente solo puede leer su propio resumen financiero.
       allow read: if isAdmin() || isOwnPatient(patientId);
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
 
       match /transactions/{txId} {
+        // Admin puede leer/escribir todas las transacciones.
+        // Paciente solo puede leer las suyas.
         allow read: if isAdmin() || isOwnPatient(patientId);
-        allow write: if isAdmin();
+        allow create, update, delete: if isAdmin();
       }
+    }
+
+    // No exponer sesiones PayU al cliente (ni admin ni paciente en cliente SDK).
+    match /payu_sessions/{sessionId} {
+      allow read, write: if false;
     }
 
     // ─── simulations/ ─────────────────────────────────────────────────────────
