@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../services/api/payu_service.dart';
 import '../../../shared/constants/firestore_paths.dart';
+import '../services/payu_service.dart';
 import '../data/models/payment_model.dart';
 import '../data/repositories/payments_repository.dart';
 import '../services/pdf_receipt_service.dart';
@@ -96,16 +96,22 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
   Future<String> initiate({
     required String patientId,
     required double monto,
+    required String patientEmail,
+    required String patientName,
   }) async {
     state = const AsyncLoading();
 
-    state = await AsyncValue.guard(() async {
-      ref.read(payuServiceProvider); // stub: integración real en Prompt 07
-      return 'https://payu-placeholder.ocg.local/checkout?patientId=$patientId&monto=$monto';
-    });
+    state = await AsyncValue.guard(
+      () => ref.read(payuServiceProvider).createPaymentSession(
+            patientId: patientId,
+            monto: monto,
+            patientEmail: patientEmail,
+            patientName: patientName,
+          ),
+    );
 
-    return state.requireValue ??
-        'https://payu-placeholder.ocg.local/checkout?patientId=$patientId&monto=$monto';
+    if (state.hasError) throw state.error!;
+    return state.requireValue!;
   }
 }
 

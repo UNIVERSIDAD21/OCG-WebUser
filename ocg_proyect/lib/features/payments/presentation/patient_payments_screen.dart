@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -8,11 +10,31 @@ import '../providers/payments_provider.dart';
 import 'widgets/payment_summary_card.dart';
 import 'widgets/transaction_list.dart';
 
-class PatientPaymentsScreen extends ConsumerWidget {
+class PatientPaymentsScreen extends ConsumerStatefulWidget {
   const PatientPaymentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PatientPaymentsScreen> createState() => _PatientPaymentsScreenState();
+}
+
+class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AsyncValue<String?>>(initiatePayuPaymentProvider, (previous, next) {
+      if (!mounted) return;
+      next.whenOrNull(
+        data: (url) {
+          if (url == null || url.isEmpty) return;
+          context.push('${RouteNames.patientPayuCheckout}?checkoutUrl=${Uri.encodeComponent(url)}');
+        },
+        error: (error, _) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        },
+      );
+    });
+
     final user = ref.watch(authStateProvider).asData?.value;
 
     if (user == null) {
@@ -53,7 +75,13 @@ class PatientPaymentsScreen extends ConsumerWidget {
                     backgroundColor: OcgColors.espresso,
                     foregroundColor: OcgColors.ivory,
                   ),
-                  onPressed: () => _confirmAndPayu(context, ref, user.uid, saldo),
+                  onPressed: () => _confirmAndPayu(
+                    context,
+                    user.uid,
+                    saldo,
+                    user.email ?? '',
+                    user.displayName ?? 'Paciente',
+                  ),
                   icon: const Icon(Icons.credit_card),
                   label: const Text('Pagar con PayU'),
                 );
@@ -78,9 +106,10 @@ class PatientPaymentsScreen extends ConsumerWidget {
 
   Future<void> _confirmAndPayu(
     BuildContext context,
-    WidgetRef ref,
     String patientId,
     double monto,
+    String patientEmail,
+    String patientName,
   ) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -102,38 +131,11 @@ class PatientPaymentsScreen extends ConsumerWidget {
 
     if (ok != true) return;
 
-    try {
-      final url = await ref.read(initiatePayuPaymentProvider.notifier).initiate(
-            patientId: patientId,
-            monto: monto,
-          );
-
-      if (!context.mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PayuCheckoutScreen(url: url)),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
-  }
-}
-
-class PayuCheckoutScreen extends StatelessWidget {
-  const PayuCheckoutScreen({super.key, required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Checkout PayU')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SelectableText(url),
-      ),
-    );
+    await ref.read(initiatePayuPaymentProvider.notifier).initiate(
+          patientId: patientId,
+          monto: monto,
+          patientEmail: patientEmail,
+          patientName: patientName,
+        );
   }
 }
