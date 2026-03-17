@@ -9,6 +9,7 @@ import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
+import '../../payments/presentation/patient_payments_screen.dart';
 import 'patient_appointments_screen.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
 import '../../treatment/presentation/widgets/treatment_timeline.dart';
@@ -33,6 +34,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       _InicioSection(userId: user?.uid ?? ''),
       const PatientAppointmentsScreen(embedded: true),
       _TratamientoSection(userId: user?.uid ?? ''),
+      const PatientPaymentsScreen(embedded: true),
       const PatientProfileScreen(embedded: true),
     ];
 
@@ -71,6 +73,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             icon: Icon(Icons.medical_services_outlined),
             selectedIcon: Icon(Icons.medical_services),
             label: 'Tratamiento',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Pagos',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
