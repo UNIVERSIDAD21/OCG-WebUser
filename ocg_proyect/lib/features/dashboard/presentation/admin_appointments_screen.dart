@@ -21,7 +21,11 @@ String _appointmentFmtDate(DateTime date) =>
 
 String _appointmentFmtDateTime(DateTime d) =>
     '${_appointmentFmtDate(d)} ${() {
-      final h = d.hour == 0 ? 12 : d.hour > 12 ? d.hour - 12 : d.hour;
+      final h = d.hour == 0
+          ? 12
+          : d.hour > 12
+          ? d.hour - 12
+          : d.hour;
       final ap = d.hour < 12 ? 'AM' : 'PM';
       return '$h:${d.minute.toString().padLeft(2, '0')} $ap';
     }()}';
@@ -211,7 +215,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                           );
                         }
                       } on FirebaseFunctionsException catch (e) {
-                        final msg = e.message ??
+                        final msg =
+                            e.message ??
                             (e.code == 'already-exists'
                                 ? 'Este correo ya tiene una cuenta registrada.'
                                 : 'No se pudo crear la cuenta del paciente.');
@@ -360,10 +365,11 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       setState(() => _errorMsg = 'Selecciona un paciente de la lista.');
       return;
     }
-    final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-      start: _dateTime,
-      durationMinutes: _durationMinutes,
-    );
+    final workingHoursError =
+        AppointmentsBusinessRules.validateWithinWorkingHours(
+          start: _dateTime,
+          durationMinutes: _durationMinutes,
+        );
     if (workingHoursError != null) {
       setState(() => _errorMsg = workingHoursError);
       return;
@@ -375,7 +381,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       durationMinutes: _durationMinutes,
     );
     if (hasConflict) {
-      setState(() => _errorMsg = 'Ese horario está ocupado o dentro del buffer de 10 min.');
+      setState(
+        () => _errorMsg =
+            'Ese horario está ocupado o dentro del buffer de 10 min.',
+      );
       return;
     }
 
@@ -581,7 +590,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Horarios (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
-                  style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: OcgColors.ink.withOpacity(0.65),
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -596,7 +608,9 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                     label: Text(
                       label,
                       style: TextStyle(
-                        color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                        color: slot.isAvailable
+                            ? OcgColors.espresso
+                            : Colors.grey.shade600,
                       ),
                     ),
                     selected: isSelected && slot.isAvailable,
@@ -610,46 +624,12 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               ),
 
               // ── Duración ───────────────────────────────────────────────
-              DropdownButtonFormField<int>(
-                initialValue: _durationMinutes,
-                decoration: const InputDecoration(
-                  labelText: 'Duración',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                ),
-                items: [15, 30, 45, 60, 90, 120]
-                    .map(
-                      (m) => DropdownMenuItem(value: m, child: Text('$m min')),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  final nextDuration = v ?? 30;
-                  final slots = availability == null
-                      ? AppointmentsBusinessRules.buildDailySlots(
-                          day: _dateTime,
-                          existingAppointments: widget.existingAppointments,
-                          durationMinutes: nextDuration,
-                          stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                        )
-                      : _slotsForCurrentDay(availability);
-
-                  final currentStillAvailable = slots.any(
-                    (s) => s.start == _dateTime && s.isAvailable,
-                  );
-                  final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
-
-                  setState(() {
-                    _durationMinutes = nextDuration;
-                    if (!currentStillAvailable && firstAvailable != null) {
-                      _dateTime = firstAvailable.start;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
+              //No va a llevar duracion porque cada cita puede durar en promedio 30 a 45 minutos.
 
               // ── Notas ──────────────────────────────────────────────────
               TextField(
                 controller: _notesCtrl,
+
                 decoration: const InputDecoration(
                   labelText: 'Notas (opcional)',
                   prefixIcon: Icon(Icons.notes_outlined),
@@ -741,7 +721,8 @@ class _AdminAppointmentsScreenState
     DateTime newDateTime = appt.fechaHora;
     int newDuration = appt.duracionMinutos;
     final existingAppointments =
-        ref.read(appointmentsProvider).asData?.value ?? const <AppointmentModel>[];
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
     final notesCtrl = TextEditingController(text: appt.notas ?? '');
 
     await showDialog<void>(
@@ -756,7 +737,9 @@ class _AdminAppointmentsScreenState
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(_appointmentFmtDateTime(newDateTime)),
-                  subtitle: const Text('Fecha (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)'),
+                  subtitle: const Text(
+                    'Fecha (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
+                  ),
                   trailing: const Icon(Icons.edit_calendar, size: 18),
                   onTap: () async {
                     final d = await showDatePicker(
@@ -774,10 +757,13 @@ class _AdminAppointmentsScreenState
                       excludeAppointmentId: appt.id,
                       stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                     );
-                    final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
+                    final firstAvailable = slots
+                        .where((s) => s.isAvailable)
+                        .firstOrNull;
 
                     setDs(() {
-                      newDateTime = firstAvailable?.start ??
+                      newDateTime =
+                          firstAvailable?.start ??
                           DateTime(
                             d.year,
                             d.month,
@@ -793,30 +779,34 @@ class _AdminAppointmentsScreenState
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Horarios disponibles (buffer 10 min)',
-                    style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: OcgColors.ink.withOpacity(0.65),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: AppointmentsBusinessRules.buildDailySlots(
-                    day: newDateTime,
-                    existingAppointments: existingAppointments,
-                    durationMinutes: newDuration,
-                    excludeAppointmentId: appt.id,
-                    stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                  ).map((slot) {
-                    final label =
-                        '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
-                    return ChoiceChip(
-                      label: Text(label),
-                      selected: slot.start == newDateTime,
-                      onSelected: slot.isAvailable
-                          ? (_) => setDs(() => newDateTime = slot.start)
-                          : null,
-                    );
-                  }).toList(),
+                  children:
+                      AppointmentsBusinessRules.buildDailySlots(
+                        day: newDateTime,
+                        existingAppointments: existingAppointments,
+                        durationMinutes: newDuration,
+                        excludeAppointmentId: appt.id,
+                        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      ).map((slot) {
+                        final label =
+                            '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
+                        return ChoiceChip(
+                          label: Text(label),
+                          selected: slot.start == newDateTime,
+                          onSelected: slot.isAvailable
+                              ? (_) => setDs(() => newDateTime = slot.start)
+                              : null,
+                        );
+                      }).toList(),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
@@ -839,9 +829,12 @@ class _AdminAppointmentsScreenState
                       excludeAppointmentId: appt.id,
                       stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                     );
-                    final currentAvailable =
-                        slots.any((s) => s.start == newDateTime && s.isAvailable);
-                    final firstAvailable = slots.where((s) => s.isAvailable).firstOrNull;
+                    final currentAvailable = slots.any(
+                      (s) => s.start == newDateTime && s.isAvailable,
+                    );
+                    final firstAvailable = slots
+                        .where((s) => s.isAvailable)
+                        .firstOrNull;
 
                     setDs(() {
                       newDuration = nextDuration;
@@ -874,15 +867,16 @@ class _AdminAppointmentsScreenState
                 foregroundColor: OcgColors.ivory,
               ),
               onPressed: () async {
-                final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-                  start: newDateTime,
-                  durationMinutes: newDuration,
-                );
+                final workingHoursError =
+                    AppointmentsBusinessRules.validateWithinWorkingHours(
+                      start: newDateTime,
+                      durationMinutes: newDuration,
+                    );
                 if (workingHoursError != null) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(workingHoursError)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(workingHoursError)));
                   return;
                 }
 
@@ -896,7 +890,9 @@ class _AdminAppointmentsScreenState
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Ese horario está ocupado o dentro del buffer de 10 min.'),
+                      content: Text(
+                        'Ese horario está ocupado o dentro del buffer de 10 min.',
+                      ),
                     ),
                   );
                   return;
@@ -1175,7 +1171,9 @@ class _AdminAppointmentsScreenState
           backgroundColor: OcgColors.error.withOpacity(0.14),
           side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       body: Column(
