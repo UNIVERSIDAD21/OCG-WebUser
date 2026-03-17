@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
@@ -194,7 +196,11 @@ class _InicioSection extends ConsumerWidget {
                         title: Text(
                           'Saldo pendiente: \$${patient.saldoPendiente.toStringAsFixed(0)} COP',
                         ),
-                        subtitle: const Text('Toca "Perfil" para ver el detalle'),
+                        subtitle: const Text('Toca "Pagos" para ver y pagar tu saldo'),
+                        trailing: TextButton(
+                          onPressed: () => context.go(RouteNames.patientPayments),
+                          child: const Text('Ir a pagos'),
+                        ),
                       ),
                     ),
                   ],
