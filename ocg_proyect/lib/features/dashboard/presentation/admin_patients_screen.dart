@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../patients/providers/patients_provider.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
+import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
@@ -70,28 +72,135 @@ class AdminPatientsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
+    final formKey = GlobalKey<FormState>();
+    String fullName = '';
+    String email = '';
+    String password = '';
+    String confirmPassword = '';
+    bool submitting = false;
+    String? formError;
+
     await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Agregar paciente'),
-        content: const Text(
-          'Para agregar un paciente, el paciente debe crear su cuenta desde '
-          'la pantalla de login. Una vez registrado, aparecerá aquí para '
-          'completar sus datos clínicos.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDs) => AlertDialog(
+          title: const Text('Agregar paciente'),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre completo',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: Validators.fullName,
+                    onSaved: (v) => fullName = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: Validators.email,
+                    onSaved: (v) => email = v?.trim() ?? '',
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Contraseña temporal',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    validator: Validators.passwordForRegister,
+                    onChanged: (v) => password = v,
+                    onSaved: (v) => password = v ?? '',
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirmar contraseña',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                    validator: (v) => Validators.confirmPassword(v, password),
+                    onChanged: (v) => confirmPassword = v,
+                    onSaved: (v) => confirmPassword = v ?? '',
+                  ),
+                  if (formError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      formError!,
+                      style: const TextStyle(color: OcgColors.error, fontSize: 12),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      formKey.currentState!.save();
+
+                      if (confirmPassword != password) {
+                        setDs(() => formError = 'Las contraseñas no coinciden');
+                        return;
+                      }
+
+                      setDs(() {
+                        submitting = true;
+                        formError = null;
+                      });
+
+                      try {
+                        await ref.read(authNotifierProvider.notifier).createPatientByAdmin(
+                              email: email,
+                              password: password,
+                              displayName: fullName,
+                            );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Paciente creado correctamente.')),
+                          );
+                        }
+                        if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                      } on FirebaseAuthException catch (e) {
+                        setDs(() {
+                          submitting = false;
+                          formError = e.code == 'email-already-in-use'
+                              ? 'Este correo ya está registrado.'
+                              : 'No se pudo crear la cuenta [${e.code}].';
+                        });
+                      } catch (_) {
+                        setDs(() {
+                          submitting = false;
+                          formError = 'No se pudo crear la cuenta. Intenta de nuevo.';
+                        });
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Crear cuenta'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Entendido'),
-          ),
-          FilledButton(
-            onPressed: () {
-              ref.read(patientsFilterProvider.notifier).setFilter('Pendientes');
-              Navigator.of(context).pop();
-            },
-            child: const Text('Ver pendientes de completar'),
-          ),
-        ],
       ),
     );
   }

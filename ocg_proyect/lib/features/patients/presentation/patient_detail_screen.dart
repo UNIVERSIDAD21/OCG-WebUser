@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
@@ -94,41 +95,70 @@ class _PatientDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: 5,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(patient.nombre),
-          actions: [
-            IconButton(
-              tooltip: 'Eliminar paciente',
-              onPressed: () => _deletePatient(context, ref),
-              icon: const Icon(Icons.delete_outline),
-            ),
-            IconButton(
-              tooltip: 'Editar paciente',
-              onPressed: () => context.go(
-                RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
-              ),
-              icon: const Icon(Icons.edit),
-            ),
-          ],
-          bottom: const TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: OcgColors.ivory,
-            unselectedLabelColor: OcgColors.sand,
-            indicatorColor: OcgColors.bronze,
-            dividerColor: Colors.transparent,
-            tabs: [
-              Tab(text: 'Perfil'),
-              Tab(text: 'Tratamiento'),
-              Tab(text: 'Citas'),
-              Tab(text: 'Pagos'),
-              Tab(text: 'Simulador'),
-            ],
-          ),
-        ),
+      child: OcgAdaptiveScaffold(
+        selectedIndex: 1,
         body: Column(
           children: [
+            Material(
+              color: OcgColors.espresso,
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Volver',
+                            onPressed: () => context.go(RouteNames.adminPatients),
+                            icon: const Icon(Icons.arrow_back, color: OcgColors.ivory),
+                          ),
+                          Expanded(
+                            child: Text(
+                              patient.nombre,
+                              style: const TextStyle(
+                                color: OcgColors.ivory,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Eliminar paciente',
+                            onPressed: () => _deletePatient(context, ref),
+                            icon: const Icon(Icons.delete_outline, color: OcgColors.ivory),
+                          ),
+                          IconButton(
+                            tooltip: 'Editar paciente',
+                            onPressed: () => context.go(
+                              RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+                            ),
+                            icon: const Icon(Icons.edit, color: OcgColors.ivory),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const TabBar(
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      labelColor: OcgColors.ivory,
+                      unselectedLabelColor: OcgColors.sand,
+                      indicatorColor: OcgColors.bronze,
+                      dividerColor: Colors.transparent,
+                      tabs: [
+                        Tab(text: 'Perfil'),
+                        Tab(text: 'Tratamiento'),
+                        Tab(text: 'Citas'),
+                        Tab(text: 'Pagos'),
+                        Tab(text: 'Simulador'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
