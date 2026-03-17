@@ -11,6 +11,7 @@ type ReserveAppointmentData = {
 };
 
 const BUFFER_MINUTES = 10;
+const COLOMBIA_OFFSET_HOURS = 5; // UTC-5 => sumar 5 para UTC
 
 /** Bloques horarios por día (getDay(): 0=Dom … 6=Sab) */
 const SCHEDULE_BLOCKS: Record<number, Array<{start: number; end: number}>> = {
@@ -31,6 +32,10 @@ const APPOINTMENT_TYPE_CONFIG: Record<string, {clinicalMinutes: number; patientC
   alta: {clinicalMinutes: 30, patientCanBook: false},
 };
 
+/**
+ * Parsea fecha (YYYY-MM-DD) y hora (HH:mm) como hora local de Bogotá (UTC-5, sin DST)
+ * y devuelve el Date equivalente en UTC para almacenar correctamente en Firestore.
+ */
 function parseDateTime(date?: string, time?: string): Date {
   if (!date || !time) {
     throw new HttpsError('invalid-argument', 'Fecha y hora requeridas.');
@@ -40,38 +45,36 @@ function parseDateTime(date?: string, time?: string): Date {
   if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) {
     throw new HttpsError('invalid-argument', 'Formato de fecha/hora inválido.');
   }
-  return new Date(Date.UTC(y, m - 1, d, hh + 5, mm, 0, 0));
+  return new Date(Date.UTC(y, m - 1, d, hh + COLOMBIA_OFFSET_HOURS, mm, 0, 0));
 }
 
-function validateWorkingHours(startAt: Date, durationMinutes: number): void {
-  const dayOfWeek = startAt.getDay();
+function toBogotaParts(utcDate: Date): {year: number; month: number; day: number; weekday: number; hour: number; minute: number} {
+  const bogota = new Date(utcDate.getTime() - COLOMBIA_OFFSET_HOURS * 60 * 60 * 1000);
+  return {
+    year: bogota.getUTCFullYear(),
+    month: bogota.getUTCMonth() + 1,
+    day: bogota.getUTCDate(),
+    weekday: bogota.getUTCDay(),
+    hour: bogota.getUTCHours(),
+    minute: bogota.getUTCMinutes(),
+  };
+}
+
+function validateWorkingHours(startAtUtc: Date, durationMinutes: number): void {
+  const start = toBogotaParts(startAtUtc);
+  const dayOfWeek = start.weekday;
   const blocks = SCHEDULE_BLOCKS[dayOfWeek] ?? [];
+
   if (blocks.length === 0) {
     throw new HttpsError('failed-precondition', 'La clínica no trabaja ese día.');
   }
 
-  const endAt = new Date(startAt.getTime() + durationMinutes * 60000);
+  const endMinutes = start.hour * 60 + start.minute + durationMinutes;
   const fits = blocks.some((block) => {
-    const blockStart = new Date(
-      startAt.getFullYear(),
-      startAt.getMonth(),
-      startAt.getDate(),
-      block.start,
-      0,
-      0,
-      0,
-    );
-    const blockEnd = new Date(
-      startAt.getFullYear(),
-      startAt.getMonth(),
-      startAt.getDate(),
-      block.end,
-      0,
-      0,
-      0,
-    );
-
-    return startAt >= blockStart && endAt <= blockEnd;
+    const blockStartMin = block.start * 60;
+    const blockEndMin = block.end * 60;
+    const startMinutes = start.hour * 60 + start.minute;
+    return startMinutes >= blockStartMin && endMinutes <= blockEndMin;
   });
 
   if (!fits) {
@@ -103,13 +106,15 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
   validateWorkingHours(startAt, operationalMinutes);
 
   const db = admin.firestore();
-  const dayStart = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate(), 0, 0, 0, 0);
-  const dayEnd = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate() + 1, 0, 0, 0, 0);
+
+  const startBogota = toBogotaParts(startAt);
+  const dayStartUtc = new Date(Date.UTC(startBogota.year, startBogota.month - 1, startBogota.day, COLOMBIA_OFFSET_HOURS, 0, 0, 0));
+  const dayEndUtc = new Date(Date.UTC(startBogota.year, startBogota.month - 1, startBogota.day + 1, COLOMBIA_OFFSET_HOURS, 0, 0, 0));
 
   const snapshot = await db
     .collection('appointments')
-    .where('fechaHora', '>=', admin.firestore.Timestamp.fromDate(dayStart))
-    .where('fechaHora', '<', admin.firestore.Timestamp.fromDate(dayEnd))
+    .where('fechaHora', '>=', admin.firestore.Timestamp.fromDate(dayStartUtc))
+    .where('fechaHora', '<', admin.firestore.Timestamp.fromDate(dayEndUtc))
     .get();
 
   const newEnd = new Date(startAt.getTime() + operationalMinutes * 60000);
@@ -150,7 +155,8 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  await rebuildAvailabilityForDay(dayStart);
+  // Rebuild usando día Bogotá normalizado.
+  await rebuildAvailabilityForDay(new Date(Date.UTC(startBogota.year, startBogota.month - 1, startBogota.day, 0, 0, 0, 0)));
 
   return {
     ok: true,
