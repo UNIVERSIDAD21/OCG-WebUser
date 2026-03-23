@@ -35,55 +35,43 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
     String? referencia,
     String? notas,
   }) async {
-    if (!ref.mounted) return;
-    state = const AsyncLoading();
-
     final repository = ref.read(paymentsRepositoryProvider);
     final pdfService = ref.read(pdfReceiptServiceProvider);
 
-    final guarded = await AsyncValue.guard(() async {
-      await repository.registerManualPayment(
-        patientId: patientId,
-        monto: monto,
-        metodo: metodo,
-        adminId: adminId,
-        referencia: referencia,
-        notas: notas,
-      );
+    await repository.registerManualPayment(
+      patientId: patientId,
+      monto: monto,
+      metodo: metodo,
+      adminId: adminId,
+      referencia: referencia,
+      notas: notas,
+    );
 
-      try {
-        final tx = await repository.getLatestTransaction(patientId);
-        final summary = await repository.getPatientPayment(patientId);
-        final patientDoc = await FirebaseFirestore.instance
-            .collection(FirestorePaths.patients)
-            .doc(patientId)
-            .get();
+    try {
+      final tx = await repository.getLatestTransaction(patientId);
+      final summary = await repository.getPatientPayment(patientId);
+      final patientDoc = await FirebaseFirestore.instance
+          .collection(FirestorePaths.patients)
+          .doc(patientId)
+          .get();
 
-        if (tx != null && summary != null && patientDoc.exists) {
-          final patientData = patientDoc.data() ?? <String, dynamic>{};
-          final patientName = (patientData['nombre'] ?? '').toString();
-          final patientDocument =
-              (patientData['numeroDocumento'] ?? patientData['documento'] ?? '').toString();
+      if (tx != null && summary != null && patientDoc.exists) {
+        final patientData = patientDoc.data() ?? <String, dynamic>{};
+        final patientName = (patientData['nombre'] ?? '').toString();
+        final patientDocument =
+            (patientData['numeroDocumento'] ?? patientData['documento'] ?? '').toString();
 
-          await pdfService.generateAndUpload(
-                patientId: patientId,
-                transactionId: tx.id,
-                transaction: tx,
-                paymentSummary: summary,
-                patientName: patientName,
-                patientDocument: patientDocument,
-              );
-        }
-      } catch (_) {
-        // El pago ya fue registrado; no revertir por fallo en PDF.
+        await pdfService.generateAndUpload(
+              patientId: patientId,
+              transactionId: tx.id,
+              transaction: tx,
+              paymentSummary: summary,
+              patientName: patientName,
+              patientDocument: patientDocument,
+            );
       }
-    });
-
-    if (!ref.mounted) return;
-    state = guarded;
-
-    if (guarded.hasError) {
-      throw guarded.error!;
+    } catch (_) {
+      // El pago ya fue registrado; no revertir por fallo en PDF.
     }
   }
 }
