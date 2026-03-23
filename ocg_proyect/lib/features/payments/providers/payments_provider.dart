@@ -36,7 +36,8 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
     String? notas,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+
+    final guarded = await AsyncValue.guard(() async {
       final repository = ref.read(paymentsRepositoryProvider);
 
       await repository.registerManualPayment(
@@ -75,13 +76,15 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
         // El pago ya fue registrado; no revertir por fallo en PDF.
       }
     });
+
+    if (!ref.mounted) return;
+    state = guarded;
   }
 }
 
-final registerPaymentProvider =
-    AsyncNotifierProvider.autoDispose<RegisterPaymentNotifier, void>(
-      RegisterPaymentNotifier.new,
-    );
+final registerPaymentProvider = AsyncNotifierProvider<RegisterPaymentNotifier, void>(
+  RegisterPaymentNotifier.new,
+);
 
 final payuServiceProvider = Provider<PayuService>((ref) => PayuService());
 
@@ -101,7 +104,7 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
   }) async {
     state = const AsyncLoading();
 
-    state = await AsyncValue.guard(
+    final guarded = await AsyncValue.guard(
       () => ref.read(payuServiceProvider).createPaymentSession(
             patientId: patientId,
             monto: monto,
@@ -110,6 +113,11 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
           ),
     );
 
+    if (!ref.mounted) {
+      throw Exception('PROVIDER_DISPOSED');
+    }
+
+    state = guarded;
     if (state.hasError) throw state.error!;
     return state.requireValue!;
   }
