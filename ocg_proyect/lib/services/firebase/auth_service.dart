@@ -62,6 +62,8 @@ class AuthService {
       );
 
       final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      final secondaryDb = FirebaseFirestore.instanceFor(app: secondaryApp);
+
       final credential = await secondaryAuth.createUserWithEmailAndPassword(
         email: cleanEmail,
         password: password,
@@ -76,7 +78,9 @@ class AuthService {
         await user.updateDisplayName(cleanName);
       }
 
-      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
+      // Importante: escribir con la misma app secundaria (sesión del usuario recién creado)
+      // para cumplir reglas de seguridad en /patients/{uid}.
+      await secondaryDb.collection(FirestorePaths.patients).doc(user.uid).set({
         'id': user.uid,
         'uid': user.uid,
         'nombre': cleanName,
