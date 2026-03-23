@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1046,6 +1047,130 @@ class _AdminAppointmentsScreenState
     }
   }
 
+  Future<void> _onCompletarCitaConDictamen(AppointmentModel appt) async {
+    try {
+      if (appt.tipo != AppointmentType.valoracion) {
+        await ref
+            .read(appointmentsRepositoryProvider)
+            .updateAppointmentStatus(appt.id, AppointmentStatus.completada);
+        return;
+      }
+
+      final patient = await ref.read(patientByIdProvider(appt.patientId).future);
+      final alreadyDefined = patient?.tipoTratamiento != null;
+
+      if (!alreadyDefined) {
+        final decision = await _showValoracionDictamenDialog(patientName: appt.patientName);
+        if (decision == null) return;
+
+        await ref.read(patientsRepositoryProvider).updatePatientClinicalData(appt.patientId, {
+          'tipoTratamiento': (decision['tipoTratamiento'] as TreatmentType).name,
+          'etapaActual': TreatmentStage.estudioPlaneacion.name,
+          'notasClinicas': (decision['nota'] as String?)?.trim() ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .updateAppointmentStatus(appt.id, AppointmentStatus.completada);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita completada y dictamen inicial registrado.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo completar la cita: $e')),
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> _showValoracionDictamenDialog({required String patientName}) async {
+    TreatmentType? selected;
+    final notaCtrl = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Dictamen de valoración inicial'),
+          content: SizedBox(
+            width: 430,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Paciente: $patientName'),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<TreatmentType>(
+                  value: selected,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de tratamiento (obligatorio)',
+                    prefixIcon: Icon(Icons.medical_services_outlined),
+                  ),
+                  items: TreatmentType.values
+                      .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
+                      .toList(),
+                  onChanged: (v) => setSt(() => selected = v),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: notaCtrl,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Nota clínica inicial (opcional)',
+                    hintText: 'Resumen del diagnóstico y plan inicial',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => popDialog(ctx),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: selected == null
+                  ? null
+                  : () => popDialog(ctx, {
+                        'tipoTratamiento': selected,
+                        'nota': notaCtrl.text,
+                      }),
+              child: const Text('Guardar y completar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    notaCtrl.dispose();
+    return result;
+  }
+
+  String _labelTipoTratamiento(TreatmentType type) {
+    switch (type) {
+      case TreatmentType.convencional:
+        return 'Convencional';
+      case TreatmentType.estetico:
+        return 'Estético';
+      case TreatmentType.autoligado:
+        return 'Autoligado';
+      case TreatmentType.alineadores:
+        return 'Alineadores';
+      case TreatmentType.ortopedia:
+        return 'Ortopedia';
+      case TreatmentType.interceptivo:
+        return 'Interceptivo';
+      case TreatmentType.retenedores:
+        return 'Retenedores';
+    }
+  }
+
   List<AppointmentModel> _applyFilter(
     List<AppointmentModel> all,
     DateTime selectedDate,
@@ -1136,10 +1261,7 @@ class _AdminAppointmentsScreenState
                   )
                 : null,
             onCompletar: appt.estado == AppointmentStatus.confirmada
-                ? () async => repo.updateAppointmentStatus(
-                    appt.id,
-                    AppointmentStatus.completada,
-                  )
+                ? () async => _onCompletarCitaConDictamen(appt)
                 : null,
             onReprogramar: () => _showRescheduleDialog(appt),
             onCancelar: () => _showCancelDialog(appt),
