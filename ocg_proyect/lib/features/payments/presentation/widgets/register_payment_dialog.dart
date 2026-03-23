@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
@@ -45,7 +46,7 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final monto = double.tryParse(_montoController.text.replaceAll(',', '.'));
+    final monto = _parseMonto(_montoController.text);
     final saldaDeuda = monto != null && monto == widget.saldoPendiente;
 
     return AlertDialog(
@@ -58,13 +59,24 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
             children: [
               TextFormField(
                 controller: _montoController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
                   labelText: 'Monto',
                   prefixText: r'$ ',
+                  hintText: 'Ej: 250.000',
                 ),
                 validator: _validateMonto,
-                onChanged: (_) => setState(() {}),
+                onChanged: (value) {
+                  final formatted = _formatMontoInput(value);
+                  if (formatted != value) {
+                    _montoController.value = TextEditingValue(
+                      text: formatted,
+                      selection: TextSelection.collapsed(offset: formatted.length),
+                    );
+                  }
+                  setState(() {});
+                },
               ),
               if (saldaDeuda) ...[
                 const SizedBox(height: 8),
@@ -158,12 +170,31 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
     final raw = (value ?? '').trim();
     if (raw.isEmpty) return 'Ingresa el monto';
 
-    final monto = double.tryParse(raw.replaceAll(',', '.'));
+    final monto = _parseMonto(raw);
     if (monto == null || monto <= 0) return 'El monto debe ser mayor a cero';
     if (monto > widget.saldoPendiente) {
       return 'El monto no puede superar el saldo pendiente';
     }
     return null;
+  }
+
+  double? _parseMonto(String raw) {
+    final digits = raw.replaceAll('.', '').replaceAll(',', '').trim();
+    if (digits.isEmpty) return null;
+    return double.tryParse(digits);
+  }
+
+  String _formatMontoInput(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+
+    final chars = digits.split('').reversed.toList();
+    final buffer = StringBuffer();
+    for (var i = 0; i < chars.length; i++) {
+      if (i > 0 && i % 3 == 0) buffer.write('.');
+      buffer.write(chars[i]);
+    }
+    return buffer.toString().split('').reversed.join();
   }
 
   Future<void> _submit() async {
@@ -178,7 +209,7 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
       return;
     }
 
-    final monto = double.parse(_montoController.text.trim().replaceAll(',', '.'));
+    final monto = _parseMonto(_montoController.text) ?? 0;
 
     setState(() => _saving = true);
 

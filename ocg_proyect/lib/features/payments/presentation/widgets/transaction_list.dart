@@ -57,6 +57,11 @@ class TransactionList extends ConsumerWidget {
                   if ((tx.referencia ?? '').isNotEmpty)
                     Text('Ref: ${tx.referencia}', style: const TextStyle(color: OcgColors.ink)),
                   Text('Registrado por: ${tx.registradoPor}', style: const TextStyle(color: OcgColors.ink)),
+                  if ((tx.notas ?? '').trim().isNotEmpty)
+                    Text(
+                      'Notas: ${tx.notas!.trim()}',
+                      style: const TextStyle(color: OcgColors.ink),
+                    ),
                 ],
               ),
               trailing: Column(
