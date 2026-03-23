@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/before_after_slider.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
 import '../providers/simulation_provider.dart';
@@ -98,17 +99,34 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               if (flow.uiState == SimulatorUiState.waitingManualResult ||
                   flow.uiState == SimulatorUiState.saving ||
                   flow.uiState == SimulatorUiState.saved) ...[
-                _previewCard(
-                  title: 'Imagen original',
-                  imageUrl: flow.originalUrl,
-                  emptyLabel: 'Aún no cargada',
-                ),
-                const SizedBox(height: 12),
-                _previewCard(
-                  title: 'Imagen resultado manual',
-                  imageUrl: flow.resultUrl,
-                  emptyLabel: 'Pendiente por cargar',
-                ),
+                if (flow.hasOriginal && flow.hasResult)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Comparación visual',
+                        style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                      ),
+                      const SizedBox(height: 8),
+                      BeforeAfterSlider(
+                        before: Image.network(flow.originalUrl!, fit: BoxFit.cover),
+                        after: Image.network(flow.resultUrl!, fit: BoxFit.cover),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _previewCard(
+                    title: 'Imagen original',
+                    imageUrl: flow.originalUrl,
+                    emptyLabel: 'Aún no cargada',
+                  ),
+                  const SizedBox(height: 12),
+                  _previewCard(
+                    title: 'Imagen resultado manual',
+                    imageUrl: flow.resultUrl,
+                    emptyLabel: 'Pendiente por cargar',
+                  ),
+                ],
                 const SizedBox(height: 12),
                 const Text(
                   'Paso 2: carga o reemplaza imagen resultado manual',

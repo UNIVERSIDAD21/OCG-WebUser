@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../providers/simulation_provider.dart';
@@ -59,13 +60,19 @@ class PatientSimulationsScreen extends ConsumerWidget {
                             Text('Notas: ${s.notes!.trim()}'),
                           ],
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(child: _img(s.originalUrl, 'Original')),
-                              const SizedBox(width: 8),
-                              Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
-                            ],
-                          ),
+                          if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
+                            BeforeAfterSlider(
+                              before: Image.network(s.originalUrl, fit: BoxFit.cover),
+                              after: Image.network(s.resultUrl!, fit: BoxFit.cover),
+                            )
+                          else
+                            Row(
+                              children: [
+                                Expanded(child: _img(s.originalUrl, 'Original')),
+                                const SizedBox(width: 8),
+                                Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
+                              ],
+                            ),
                         ],
                       ),
                     ),
