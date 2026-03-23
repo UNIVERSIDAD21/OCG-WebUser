@@ -1,4 +1,4 @@
-# BLOQUE_08 — Simulador de Sonrisa (MANUAL + MOCK, PREPARADO PARA MOTOR FUTURO)
+# BLOQUE_08 — Simulador de Sonrisa (v2.1 — Ejecución profesional por fases)
 
 > **Stack inicial:** Flutter + Firebase Storage + Firestore + Riverpod + ML Kit  
 > **Stack futuro opcional:** Cloud Functions + API de generación de imágenes  
@@ -9,6 +9,54 @@
 > - Bloque 04 (pacientes) ✅  
 > - Bloque 05 (agenda/citas) ✅  
 > - StoragePaths y estructura Firebase operativa ✅
+
+---
+
+## Ajustes v2.1 (obligatorios para ejecución sin fricción)
+
+### 1) Vertical slice más pequeño (primero valor real)
+
+**Fase 1 (obligatoria primero):**
+- `SimulationModel`
+- `SimulationRepository`
+- guardado `draft`
+- carga de imagen original
+- carga manual de imagen resultado
+- guardar simulación
+- compartir/descompartir
+- vista paciente (solo compartidas)
+
+**Fase 2 (después):**
+- mock interno
+- ML Kit
+- refinamientos de UX
+
+> Motivo: el modo manual entrega valor clínico/comercial real desde el día 1 y reduce riesgo técnico temprano.
+
+### 2) No atar arquitectura a bytes en memoria
+
+- `beforeBytes/afterBytes` se usan solo para preview temporal.
+- Persistencia y lectura deben basarse en `storagePath`/referencias estables.
+- Historial debe consumir miniaturas (thumbnails), no imágenes completas.
+
+### 3) Estado draft real (no simular completitud)
+
+Toda simulación debe tener estado explícito:
+- `draft`
+- `ready`
+- `shared`
+- `archived`
+
+Regla crítica:
+- Si no existe imagen resultado, la simulación **permanece en `draft`**.
+
+### 4) Seguridad: Storage + Firestore + reglas
+
+No depender de URL suelta como control de acceso.
+Control real:
+- Firestore (`compartidaConPaciente`, `estado`, ownership)
+- Security Rules de Firestore y Storage
+- persistencia por rutas/referencias, no por links pegados en múltiples lugares
 
 ---
 
@@ -758,37 +806,35 @@ Este bloque SOLO puede darse por cerrado si se cumple TODO lo siguiente:
 
 ---
 
-# Orden recomendado de implementación
+# Orden recomendado de implementación (v2.1)
 
-## Fase 1 — Base visual y persistencia
-1. `SimulationModel`
-2. `SimulationRepository`
-3. rutas
-4. `patient_simulator_tab.dart`
-5. historial admin/paciente
+## Fase 1 — Núcleo manual (MVP de negocio)
+1. `SimulationModel` con estados `draft/ready/shared/archived`
+2. `SimulationRepository` (Firestore + Storage por rutas)
+3. creación de `draft` con imagen original
+4. carga manual de imagen resultado
+5. transición de estado `draft -> ready`
+6. compartir/descompartir (`ready <-> shared`)
+7. vista paciente (solo `shared`)
+8. historial admin/paciente con miniaturas
 
-## Fase 2 — Carga de imagen
-6. `ImagePickerService`
-7. carga de imagen original
-8. guardado en Storage
+## Fase 2 — Robustez técnica
+9. reglas Firestore/Storage alineadas a visibilidad
+10. manejo de reemplazo de imagen resultado
+11. archivado (`archived`) sin borrado destructivo
+12. disclaimers clínicos en toda la UI
 
-## Fase 3 — ML Kit y ayuda visual
-9. `FaceDetectionService`
-10. sugerencia de zona / ajuste manual
+## Fase 3 — Evolución visual
+13. `MockSimulationService`
+14. `BeforeAfterSlider` avanzado
+15. refinamientos UX y accesibilidad
 
-## Fase 4 — Modo mock
-11. `MockSimulationService`
-12. generar resultado mock
-13. `BeforeAfterSlider`
+## Fase 4 — Preparación IA futura
+16. `FaceDetectionService` (ML Kit) para asistencia de encuadre
+17. metadatos de prompt/pipeline en modelo
+18. contrato de integración para motor externo (sin activarlo aún)
 
-## Fase 5 — Modo manual
-14. carga manual de imagen resultado
-15. reemplazo de resultado
-16. guardado final
-
-## Fase 6 — Cierre
-17. compartir/descompartir
-18. disclaimers
+## Fase 5 — Cierre
 19. tests
 20. analyze
 
