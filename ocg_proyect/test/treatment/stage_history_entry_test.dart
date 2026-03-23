@@ -58,7 +58,7 @@ void main() {
 
       await repo.updateStage(
         patientId: patientId,
-        etapaAnterior: TreatmentStage.controles,
+        etapaActual: TreatmentStage.controles,
         nuevaEtapa: TreatmentStage.instalacion,
         notas:
             'Retroceso por pérdida de aparatología y nueva instalación clínica',
