@@ -1,368 +1,817 @@
-# BLOQUE_08 — Simulador de Sonrisa
+# BLOQUE_08 — Simulador de Sonrisa (MANUAL + MOCK, PREPARADO PARA MOTOR FUTURO)
 
-> **Stack:** Flutter + Firebase Storage + OpenAI API (inpainting) + ML Kit (detección facial)
-> **Prioridad:** ALTA — Feature estrella de OCG, diferenciador comercial
-> **Depende de:** Bloque 04 (pacientes) ✅, Bloque 01 (StoragePaths) ✅
-
----
-
-## Objetivo del bloque
-
-Implementar el simulador de sonrisa: el paciente o la doctora sube una foto del paciente, el sistema detecta la boca con ML Kit, envía la imagen a OpenAI con un prompt específico de ortodoncia, y devuelve una imagen mejorada de la sonrisa que se puede comparar con el original usando `BeforeAfterSlider`.
-
----
-
-## Lo que debes entregar al cerrar este bloque
-
-- [ ] `ImagePickerService` — captura / selección de imagen desde cámara y galería
-- [ ] `FaceDetectionService` — ML Kit para detectar la región de la boca
-- [ ] `OpenAiService` — llamada real a la API de inpainting de OpenAI
-- [ ] `SimulationRepository` — persistencia en Firestore y Storage
-- [ ] `simulation_provider` Riverpod con estados de progreso
-- [ ] `BeforeAfterSlider` widget (ya especificado en Bloque 01 — implementarlo aquí)
-- [ ] `SimulatorScreen` completa para admin y paciente
-- [ ] Tab de Simulador en `PatientDetailScreen` funcional
-- [ ] `flutter analyze` ✅ y `flutter test` ✅
+> **Stack inicial:** Flutter + Firebase Storage + Firestore + Riverpod + ML Kit  
+> **Stack futuro opcional:** Cloud Functions + API de generación de imágenes  
+> **Prioridad:** ALTA — diferenciador comercial y apoyo visual en consulta  
+> **Estado:** ⬅️ EMPIEZA AQUÍ  
+> **Dependencias:**  
+> - Bloque 01 (arquitectura, rutas, widgets base) ✅  
+> - Bloque 04 (pacientes) ✅  
+> - Bloque 05 (agenda/citas) ✅  
+> - StoragePaths y estructura Firebase operativa ✅
 
 ---
 
-## Flujo completo del simulador
+## Objetivo real de este bloque
 
+Implementar un **Simulador de Sonrisa funcional y usable desde ya**, pero **sin depender todavía de una API de generación automática**.
+
+La primera versión NO generará la imagen “después” dentro de la app mediante IA externa.  
+En su lugar, funcionará en dos modos:
+
+### Modo 1 — Mock interno
+La app toma la foto original y genera una **vista orientativa visual** dentro de la propia aplicación, sin IA generativa real.  
+Esto sirve para validar la experiencia, la interfaz, el historial y el flujo completo.
+
+### Modo 2 — Manual asistido por la doctora
+La doctora toma la imagen original, genera por fuera una imagen “después” usando su herramienta externa, y luego sube esa imagen manualmente al sistema.  
+La app se encarga de:
+- guardar ambas imágenes,
+- compararlas,
+- mostrarlas con un `BeforeAfterSlider`,
+- almacenarlas en el historial del paciente,
+- y controlar si se comparten o no con el paciente.
+
+---
+
+## Enfoque estratégico del bloque
+
+Este bloque NO debe construirse como una “integración temprana con IA costosa”.  
+Debe construirse como un **producto interno sólido**, de manera que más adelante solo haya que **reemplazar el origen de la imagen de salida**.
+
+### Arquitectura mental correcta
+
+```text
+Imagen original -> proceso de simulación -> imagen resultado -> comparación -> guardado -> historial -> compartir
 ```
-1. Usuario toca "Simular sonrisa"
-2. Selecciona foto (cámara o galería)
-3. ML Kit analiza la imagen → genera máscara de la región bucal
-4. Imagen + máscara → OpenAI inpainting API
-5. OpenAI devuelve imagen con sonrisa mejorada
-6. Se muestra resultado con BeforeAfterSlider
-7. Admin/Paciente puede guardar el resultado en Firestore/Storage
-8. El resultado queda en la subcolección simulations/{id}
+
+### En la versión inicial
+- **Imagen original:** la sube el usuario o la doctora
+- **Proceso de simulación:** mock interno o generación manual externa
+- **Imagen resultado:** la produce el mock o la sube la doctora
+- **Comparación / guardado / historial / compartir:** lo hace la app
+
+### En la versión futura
+- **Imagen original:** igual
+- **Proceso de simulación:** Cloud Function + motor de generación API
+- **Imagen resultado:** la devuelve la Function
+- **Comparación / guardado / historial / compartir:** exactamente igual
+
+---
+
+## Qué se busca cerrar en esta versión
+
+Esta primera versión debe cerrar el simulador como **módulo funcional**, aunque todavía no tenga generación automática real.
+
+Eso significa que al cerrar este bloque debe existir:
+- pantalla completa del simulador,
+- carga de imagen original,
+- modo mock funcional,
+- modo manual funcional,
+- comparación antes/después,
+- historial de simulaciones por paciente,
+- almacenamiento de imágenes en Storage,
+- metadatos en Firestore,
+- control de visibilidad para paciente,
+- integración en el flujo del admin y del paciente,
+- base técnica lista para conectar un motor real más adelante.
+
+---
+
+# Alcance de esta versión
+
+## Lo que SÍ entra en este bloque
+
+- Cargar imagen desde cámara o galería
+- Detectar rostro / apoyar visualmente con ML Kit
+- Reencuadrar o sugerir zona de sonrisa
+- Generar un resultado mock interno
+- Permitir subir manualmente la imagen “después”
+- Mostrar comparación visual
+- Guardar ambas imágenes
+- Registrar simulación en Firestore
+- Ver historial por paciente
+- Compartir / descompartir con paciente
+- Preparar estructura para futuro motor real
+
+## Lo que NO entra todavía
+
+- Inpainting real por API
+- Cloud Function de generación automática
+- Prompting automatizado contra un motor externo
+- Máscara perfecta para edición real
+- Automatización n8n / proveedor externo
+- Costo por generación de imágenes
+- Flujo de producción con IA real
+
+---
+
+# Flujo funcional del simulador — versión inicial
+
+## Flujo A — Mock interno
+
+```text
+1. Admin abre Simulador desde el paciente
+2. Sube foto original
+3. ML Kit detecta rostro / ayuda a centrar
+4. Usuario confirma o ajusta la zona de sonrisa
+5. App genera una simulación orientativa interna (mock)
+6. Se muestra comparación Before / After
+7. Admin guarda la simulación
+8. Se almacenan original + mock + metadatos
+9. Puede marcar si se comparte con el paciente
+```
+
+## Flujo B — Manual con imagen “después” subida por la doctora
+
+```text
+1. Admin abre Simulador desde el paciente
+2. Sube foto original
+3. ML Kit detecta rostro / ayuda visual
+4. La doctora genera por fuera una imagen orientativa “después”
+5. La doctora sube esa imagen resultado manualmente
+6. La app muestra comparación Before / After
+7. Se guarda la simulación
+8. Se decide si se comparte con el paciente
+```
+
+## Flujo C — Paciente
+
+```text
+1. Paciente abre su módulo de simulaciones
+2. Solo ve simulaciones marcadas como compartidas
+3. Puede abrir cada simulación
+4. Puede deslizar el comparador Before / After
+5. Puede ver fecha, notas y contexto orientativo
 ```
 
 ---
 
-## Archivos a crear
+# Principios funcionales y clínicos
 
-### 1. `lib/services/api/openai_service.dart`
+## Regla 1 — Simulación orientativa, no promesa clínica
+En toda la UI debe quedar claro que la imagen “después” es una:
+- simulación visual orientativa,
+- referencia preliminar,
+- apoyo para explicación comercial/clínica,
+- no garantía exacta de resultado final.
 
-```dart
-class OpenAiService {
-  // La API key NUNCA va en el cliente Flutter.
-  // Debe estar en Cloud Functions como variable de entorno.
-  // El cliente llama a la Cloud Function, que hace la petición real.
-  
-  // Llama a la Cloud Function 'simulateSmile'
-  // Recibe: imageBytes (base64), maskBytes (base64)
-  // Devuelve: imageBytes resultado (base64)
-  Future<Uint8List> simulateSmile({
-    required Uint8List imageBytes,
-    required Uint8List maskBytes,
-  });
-}
-```
+## Regla 2 — La imagen del “después” puede venir de dos orígenes
+Cada simulación debe registrar su origen:
+- `mock`
+- `manual_doctora`
 
-**Cloud Function `simulateSmile` (functions/src/index.ts):**
-```typescript
-export const simulateSmile = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', '...');
-  
-  const { imageBase64, maskBase64 } = data;
-  
-  // Llamar a OpenAI DALL-E inpainting
-  const response = await openai.images.edit({
-    image: Buffer.from(imageBase64, 'base64'),
-    mask: Buffer.from(maskBase64, 'base64'),
-    prompt: "Professional dental smile improvement for orthodontic consultation. Natural-looking, healthy teeth, same person, same lighting, photorealistic.",
-    n: 1,
-    size: "1024x1024",
-  });
-  
-  return { resultBase64: response.data[0].b64_json };
-});
-```
+Más adelante se podrá agregar:
+- `api`
+- `ml_pipeline`
+- `n8n_external`
+
+## Regla 3 — El paciente solo ve lo que el admin comparte
+Toda simulación debe tener control de visibilidad.
+
+## Regla 4 — La estructura debe quedar preparada para evolución futura
+No se debe hardcodear el módulo como “manual para siempre”.  
+Debe quedar listo para que luego el origen del “después” sea automático.
 
 ---
 
-### 2. `lib/services/firebase/image_picker_service.dart`
+# Diseño funcional detallado
 
-```dart
-class ImagePickerService {
-  // Seleccionar desde galería — devuelve bytes
-  Future<Uint8List?> pickFromGallery();
-  
-  // Capturar desde cámara — devuelve bytes
-  Future<Uint8List?> captureFromCamera();
-  
-  // Comprimir imagen a tamaño máximo razonable para API
-  // Máximo: 4MB (límite OpenAI), recomendado: < 2MB
-  Future<Uint8List> compress(Uint8List bytes, {int maxWidthPx = 1024});
-}
+## Pantalla principal del simulador
+
+Archivo esperado:
+
+```text
+lib/features/simulator/presentation/simulator_screen.dart
 ```
 
-Dependencias requeridas en `pubspec.yaml`:
-```yaml
-image_picker: ^1.x.x
-flutter_image_compress: ^2.x.x
-```
+### Estados visuales esperados
+
+#### Estado `idle`
+- Botón `Subir foto`
+- Botón `Usar cámara`
+- Texto breve explicando que la simulación es orientativa
+- Si admin: opción de elegir modo `Mock` o `Manual`
+
+#### Estado `pickingImage`
+- Loading sutil
+- Texto: `Cargando imagen...`
+
+#### Estado `detectingFace`
+- Barra de progreso
+- Texto: `Analizando rostro...`
+
+#### Estado `editingRegion`
+- Vista previa de la imagen
+- Sugerencia de zona de sonrisa detectada por ML Kit
+- Opción de ajustar manualmente el encuadre
+- Botón `Confirmar zona`
+
+#### Estado `mockReady`
+- Imagen before/after con mock generado
+- Opción `Guardar simulación`
+- Opción `Volver a intentar`
+
+#### Estado `waitingManualResult`
+- Se muestra la imagen original ya subida
+- Botón `Subir imagen resultado`
+- Texto: `La imagen resultado puede ser cargada manualmente por la doctora`
+
+#### Estado `manualReady`
+- BeforeAfterSlider activo con original + resultado manual
+- Opción `Guardar simulación`
+- Opción `Reemplazar imagen resultado`
+
+#### Estado `saved`
+- Confirmación
+- Opción `Compartir con paciente`
+- Opción `Ver historial`
+
+#### Estado `error`
+- `OcgEmptyState`
+- Mensaje claro
+- Botón `Intentar de nuevo`
 
 ---
 
-### 3. `lib/services/firebase/face_detection_service.dart`
+# ML Kit en esta versión
 
-```dart
-class FaceDetectionService {
-  // Detecta rostros en la imagen
-  // Devuelve la región de la boca como Rect normalizado (0.0 a 1.0)
-  // Si no detecta boca, devuelve null → el usuario debe enmarcar manualmente
-  Future<Rect?> detectMouthRegion(Uint8List imageBytes);
-  
-  // Genera máscara PNG: blanco en región de boca, negro en el resto
-  // La máscara es lo que OpenAI usa para el inpainting
-  Future<Uint8List> generateMask(Uint8List imageBytes, Rect mouthRegion);
-}
+## Objetivo de ML Kit en fase inicial
+
+ML Kit NO se usará todavía para generar una máscara de inpainting real.  
+Se usará para:
+- detectar si hay rostro,
+- mejorar encuadre,
+- sugerir zona facial/bucal,
+- dar soporte visual al mock interno,
+- preparar la app para el futuro motor de IA.
+
+## Qué debe hacer realmente
+
+Archivo esperado:
+
+```text
+lib/services/firebase/face_detection_service.dart
 ```
 
-Dependencias requeridas:
-```yaml
-google_mlkit_face_detection: ^0.x.x
-```
+### Funciones mínimas esperadas
 
-**Nota:** Si ML Kit no detecta la boca con suficiente precisión, el usuario puede ajustar la región manualmente con un `InteractiveViewer` o un `GestureDetector` sobre la imagen.
+- Detectar si la imagen contiene al menos un rostro
+- Obtener puntos o regiones útiles del rostro
+- Sugerir una región de interés centrada en la boca/sonrisa
+- Devolver una estructura usable por UI para dibujar el recuadro sugerido
+
+### Qué NO debe hacer todavía
+
+- Máscara compleja final para API externa
+- Segmentación perfecta de dientes
+- Automatización completa del resultado
+
+## Comportamiento si ML Kit falla
+Si no detecta bien la zona:
+- no se rompe el flujo,
+- se deja ajuste manual,
+- el usuario puede continuar.
 
 ---
 
-### 4. `lib/features/simulator/data/models/simulation_model.dart`
+# Mock interno — definición exacta
+
+## Qué es el mock
+Es una **simulación visual interna** generada por la app, sin usar una API externa.
+
+## Qué debe lograr
+No debe intentar “inventar dientes nuevos”.  
+Debe producir una versión visualmente más limpia y orientativa de la sonrisa.
+
+## Opciones válidas de mock
+Puede usar una o varias:
+- recorte/reencuadre centrado en sonrisa,
+- leve mejora de brillo,
+- reducción de tono amarillento,
+- contraste controlado,
+- nitidez suave,
+- resaltado visual de la zona dental,
+- overlay clínico opcional,
+- guía de arco o línea media opcional.
+
+## Qué NO debe hacer el mock
+- deformar rostro
+- cambiar identidad del paciente
+- cambiar labios o piel agresivamente
+- parecer una promesa de resultado real
+- verse caricaturesco o artificial
+
+## Archivo esperado
+
+```text
+lib/services/simulator/mock_simulation_service.dart
+```
+
+### Responsabilidades
+- recibir bytes originales
+- recibir región sugerida
+- producir bytes “resultado mock”
+- permitir cambiar la intensidad del mock si hace falta
+- ser reemplazable más adelante por un motor real
+
+---
+
+# Modo manual — definición exacta
+
+## Qué es
+La doctora genera la imagen “después” usando una herramienta externa y luego la carga al sistema manualmente.
+
+## Qué debe soportar la app
+- cargar imagen original
+- dejar simulación pendiente
+- permitir cargar imagen resultado después
+- reemplazar resultado si fue incorrecto
+- guardar versión final
+- registrar que el origen fue manual
+
+## Cuándo conviene usarlo
+- consultas importantes
+- casos donde el mock no es suficiente
+- pruebas tempranas de valor comercial
+- validación de prompts externos antes de automatizar
+
+---
+
+# Modelo de datos
+
+## Archivo esperado
+
+```text
+lib/features/simulator/data/models/simulation_model.dart
+```
+
+## Estructura recomendada
 
 ```dart
 class SimulationModel {
   final String id;
   final String patientId;
-  final String originalUrl;      // URL de imagen original en Storage
-  final String resultUrl;        // URL de imagen resultado en Storage
-  final bool compartidaConPaciente; // Admin puede compartir o no
+  final String originalUrl;
+  final String? resultUrl;
+  final String mode; // mock | manual_doctora | api_futuro
+  final bool compartidaConPaciente;
   final DateTime createdAt;
-  final String creadoPor;       // adminId o patientId
+  final DateTime? updatedAt;
+  final String creadoPor;
+  final String? treatmentType;
+  final String status; // draft | ready | shared | archived
+  final String? notes;
+  final bool mlKitUsed;
+  final Map<String, dynamic>? detectedRegion;
+  final Map<String, dynamic>? promptMetadata;
 }
 ```
 
+## Campos obligatorios mínimos
+- `id`
+- `patientId`
+- `originalUrl`
+- `mode`
+- `compartidaConPaciente`
+- `createdAt`
+- `creadoPor`
+- `status`
+
+## Campos estratégicos para el futuro
+- `treatmentType`
+- `mlKitUsed`
+- `detectedRegion`
+- `promptMetadata`
+
+Estos campos deben existir aunque inicialmente algunos vayan nulos.
+
 ---
 
-### 5. `lib/features/simulator/data/repositories/simulation_repository.dart`
+# Firestore — estructura recomendada
 
-```dart
-class SimulationRepository {
-  // Stream de simulaciones de un paciente (ordenadas por fecha)
-  Stream<List<SimulationModel>> watchSimulations(String patientId);
-  
-  // Subir imagen original a Storage (StoragePaths.simulationResult)
-  Future<String> uploadOriginalImage(String patientId, String simId, Uint8List bytes);
-  
-  // Subir imagen resultado a Storage
-  Future<String> uploadResultImage(String patientId, String simId, Uint8List bytes);
-  
-  // Guardar simulación en Firestore
-  Future<void> saveSimulation(SimulationModel simulation);
-  
-  // Compartir/descompartir con paciente (solo admin)
-  Future<void> toggleShare(String simulationId, bool compartir);
+## Colección sugerida
+
+```text
+patients/{patientId}/simulations/{simulationId}
+```
+
+## Ejemplo conceptual de documento
+
+```json
+{
+  "id": "sim_001",
+  "patientId": "patient_123",
+  "originalUrl": "storage://...",
+  "resultUrl": "storage://...",
+  "mode": "manual_doctora",
+  "compartidaConPaciente": true,
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp",
+  "creadoPor": "admin_001",
+  "treatmentType": "alineadores",
+  "status": "ready",
+  "notes": "Simulación orientativa para explicación comercial",
+  "mlKitUsed": true,
+  "detectedRegion": {
+    "x": 0.31,
+    "y": 0.54,
+    "width": 0.36,
+    "height": 0.18
+  },
+  "promptMetadata": {
+    "templateId": null,
+    "source": "manual_externo"
+  }
 }
 ```
 
-**Reglas de Storage:**
-- Las URLs de fotos son **temporales** (signed URLs) — nunca URLs permanentes públicas
-- Usar `StoragePaths.simulationResult(patientId, simId, fileName)`
+## Reglas funcionales Firestore
+- No borrar simulaciones por defecto; preferir archivado si luego se implementa
+- Timestamps siempre consistentes
+- Registrar origen del resultado
+- Permitir listar por paciente ordenado por fecha
 
 ---
 
-### 6. `lib/features/simulator/providers/simulation_provider.dart`
+# Storage — estructura recomendada
+
+## Rutas sugeridas
+
+```text
+simulations/{patientId}/{simulationId}/original.jpg
+simulations/{patientId}/{simulationId}/result.jpg
+simulations/{patientId}/{simulationId}/thumb_before.jpg
+simulations/{patientId}/{simulationId}/thumb_after.jpg
+```
+
+## Qué debe guardarse
+- original
+- resultado
+- opcionalmente miniaturas para historial rápido
+
+## Qué no debe hacerse
+- URLs públicas permanentes abiertas
+- nombres ambiguos
+- imágenes sueltas fuera de la ruta del paciente/simulación
+
+---
+
+# Repository
+
+## Archivo esperado
+
+```text
+lib/features/simulator/data/repositories/simulation_repository.dart
+```
+
+## Responsabilidades mínimas
+- subir imagen original
+- subir imagen resultado
+- guardar documento de simulación
+- listar simulaciones del paciente
+- actualizar visibilidad compartida
+- actualizar una simulación pendiente/manual
+- borrar o archivar si luego se requiere
+
+## Métodos mínimos sugeridos
 
 ```dart
-final simulationRepositoryProvider = Provider<SimulationRepository>(...);
+Stream<List<SimulationModel>> watchSimulations(String patientId);
 
-// Stream de simulaciones de un paciente
-final simulationsProvider = StreamProvider.family<List<SimulationModel>, String>(
-  (ref, patientId) => ...,
-);
+Future<String> uploadOriginalImage(String patientId, String simulationId, Uint8List bytes);
 
-// Notifier del proceso de simulación — con estados de progreso
-enum SimulatorStep { idle, pickingImage, detectingFace, processing, done, error }
+Future<String> uploadResultImage(String patientId, String simulationId, Uint8List bytes);
 
-class SimulatorNotifier extends AutoDisposeNotifier<SimulatorState> {
-  // Estado incluye: step, originalBytes, resultBytes, errorMessage
-  
-  Future<void> startSimulation(String patientId, String adminId);
-  Future<void> saveResult(String patientId, String createdBy);
-  void reset();
+Future<void> saveSimulation(SimulationModel simulation);
+
+Future<void> updateSimulation(String patientId, String simulationId, Map<String, dynamic> data);
+
+Future<void> toggleShare(String patientId, String simulationId, bool compartir);
+```
+
+---
+
+# Provider / estado del módulo
+
+## Archivo esperado
+
+```text
+lib/features/simulator/providers/simulation_provider.dart
+```
+
+## Enum de estados recomendado
+
+```dart
+enum SimulatorStep {
+  idle,
+  pickingImage,
+  detectingFace,
+  editingRegion,
+  generatingMock,
+  waitingManualResult,
+  previewReady,
+  saving,
+  saved,
+  error,
 }
 ```
 
-El estado debe exponer el `step` para mostrar progress indicators al usuario.
+## State recomendado
+Debe incluir como mínimo:
+- `step`
+- `originalBytes`
+- `resultBytes`
+- `errorMessage`
+- `mode`
+- `detectedRegion`
+- `selectedTreatmentType`
+- `notes`
+
+## Notifier recomendado
+Debe permitir:
+- seleccionar imagen
+- correr ML Kit
+- ajustar zona
+- generar mock
+- cargar resultado manual
+- guardar simulación
+- resetear flujo
 
 ---
 
-### 7. `lib/shared/widgets/before_after_slider.dart`
+# BeforeAfterSlider
 
-Widget interactivo de comparación antes/después.
+## Archivo esperado
+
+```text
+lib/shared/widgets/before_after_slider.dart
+```
+
+## Responsabilidades
+- recibir `beforeBytes`
+- recibir `afterBytes`
+- mostrar comparador fluido
+- permitir drag horizontal
+- verse bien tanto en admin como en paciente
+
+## Requisitos UX
+- divisor visible
+- handle claro
+- transición suave
+- fallback si una imagen falta
+- responsive
+
+---
+
+# Historial de simulaciones
+
+## Admin
+Debe poder:
+- ver todas las simulaciones del paciente
+- abrir una simulación
+- ver origen (`mock` o `manual_doctora`)
+- compartir / descompartir
+- ver fecha y notas
+- crear nueva simulación
+
+## Paciente
+Debe poder:
+- ver solo simulaciones compartidas
+- abrir comparación before/after
+- no editar
+- no subir resultados
+
+---
+
+# Integración en pacientes
+
+## Tab de simulador
+Archivo esperado:
+
+```text
+lib/features/patients/presentation/tabs/patient_simulator_tab.dart
+```
+
+## Contenido esperado
+- listado de simulaciones
+- botón `Nueva simulación` para admin
+- estado vacío elegante
+- acceso a detalle
+
+---
+
+# Rutas
+
+## route_names.dart
+Agregar al menos:
 
 ```dart
-class BeforeAfterSlider extends StatefulWidget {
-  final Uint8List beforeBytes;  // Imagen original
-  final Uint8List afterBytes;   // Imagen resultado
-  final double initialPosition; // 0.0 a 1.0 — posición inicial del divisor (default 0.5)
-}
-```
-
-**Implementación:**
-- Usar `Stack` con dos `Image.memory` en capas
-- La imagen "after" tiene un `ClipRect` que recorta desde el divisor hacia la derecha
-- Una línea vertical blanca con un círculo/handle en el centro
-- `GestureDetector` con `onHorizontalDragUpdate` para mover el divisor
-- El handle tiene un ícono `Icons.compare_arrows` o similar
-
----
-
-### 8. `lib/features/simulator/presentation/simulator_screen.dart`
-
-Pantalla completa del simulador (para admin y paciente):
-
-```
-Estado: idle
-  → Botón "Subir foto" + Botón "Usar cámara"
-  
-Estado: pickingImage
-  → Loading sutil
-
-Estado: detectingFace
-  → "Analizando imagen..." + LinearProgressIndicator
-
-Estado: processing
-  → "Generando simulación..." + LinearProgressIndicator animado
-  → Texto: "Esto puede tardar 10-15 segundos"
-
-Estado: done
-  → BeforeAfterSlider con original vs resultado
-  → Botón "Guardar simulación" (si admin: también "Compartir con paciente")
-  → Botón "Volver a intentar"
-  
-Estado: error
-  → OcgEmptyState con mensaje de error + botón "Intentar de nuevo"
-```
-
----
-
-### 9. Llenar `patient_simulator_tab.dart` (admin)
-
-```dart
-// lib/features/patients/presentation/tabs/patient_simulator_tab.dart
-
-Column(
-  children: [
-    // Lista de simulaciones previas
-    SimulationHistoryList(patientId: patientId),
-    
-    // Botón para nueva simulación
-    ElevatedButton.icon(
-      icon: Icon(Icons.auto_awesome),
-      label: Text('Nueva simulación'),
-      onPressed: () => context.push('/admin/patients/$patientId/simulator'),
-    ),
-  ],
-)
-```
-
----
-
-### 10. Rutas nuevas a agregar en `route_names.dart` y `app_router.dart`
-
-```dart
-// route_names.dart
 static const String adminPatientSimulator = '/admin/patients/:patientId/simulator';
 static const String patientSimulator = '/patient/simulator';
-
-// app_router.dart — agregar rutas:
-GoRoute(
-  path: RouteNames.adminPatientSimulator,
-  builder: (context, state) {
-    final patientId = state.pathParameters['patientId'] ?? '';
-    return SimulatorScreen(patientId: patientId);
-  },
-),
-GoRoute(
-  path: RouteNames.patientSimulator,
-  builder: (context, state) => const SimulatorScreen(),
-),
 ```
+
+## app_router.dart
+Agregar rutas correspondientes.
 
 ---
 
-## Cloud Function a crear en `functions/src/index.ts`
+# Prompts — preparación para el futuro
 
-```typescript
-import * as OpenAI from 'openai';
+## Importante
+En esta fase NO se generarán prompts automáticos contra una API.  
+Pero la estructura debe quedar preparada para eso.
 
-const openai = new OpenAI.OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+## Estrategia futura recomendada
+Guardar metadatos de prompt, aunque todavía no se consuman automáticamente.
 
-export const simulateSmile = functions.https.onCall(async (data, context) => {
-  // 1. Verificar autenticación
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Usuario no autenticado');
-  }
-  
-  // 2. Recibir imagen y máscara en base64
-  const { imageBase64, maskBase64 } = data as { imageBase64: string; maskBase64: string };
-  
-  if (!imageBase64 || !maskBase64) {
-    throw new functions.https.HttpsError('invalid-argument', 'Imagen o máscara faltante');
-  }
-  
-  // 3. Llamar a OpenAI DALL-E inpainting
-  const response = await openai.images.edit({
-    image: Buffer.from(imageBase64, 'base64'),
-    mask: Buffer.from(maskBase64, 'base64'),
-    prompt: "Professional orthodontic smile simulation. Improve teeth alignment and whitening naturally. Same person, same lighting, photorealistic result.",
-    n: 1,
-    size: "1024x1024",
-    response_format: "b64_json",
-  });
-  
-  return { resultBase64: response.data[0].b64_json };
-});
-```
+### Estructura conceptual
+- `promptBase`
+- `promptTreatmentType`
+- `extraInstructions`
+- `templateId`
 
-**Variables de entorno requeridas en Cloud Functions:**
-```
-OPENAI_API_KEY=sk-...
-```
-Configurar con: `firebase functions:config:set openai.key="sk-..."`
+## Tratamientos sugeridos para futuras plantillas
+- ortodoncia convencional
+- alineadores
+- blanqueamiento
+- diseño de sonrisa
+- finalización / retención
+
+## Por qué dejar esto desde ahora
+Porque más adelante podrás conectar el motor sin rediseñar toda la BD.
 
 ---
 
-## Criterios de cierre del bloque
+# Validaciones y reglas
 
-- [ ] El usuario puede seleccionar imagen desde galería o cámara
-- [ ] ML Kit detecta la región de la boca (o el usuario ajusta manualmente)
-- [ ] La Cloud Function `simulateSmile` está desplegada y funcional
-- [ ] `BeforeAfterSlider` muestra la comparación correctamente con drag fluido
-- [ ] El admin puede guardar y compartir el resultado con el paciente
-- [ ] El paciente ve sus simulaciones previas y puede crear nuevas
-- [ ] El tab de Simulador en `PatientDetailScreen` está funcional
-- [ ] Las imágenes se almacenan en Storage con las rutas correctas
+## Validaciones mínimas
+- no continuar sin imagen original
+- no guardar simulación manual sin imagen resultado
+- si ML Kit falla, permitir ajuste manual
+- si no hay rostro detectable, mostrar advertencia amigable
+- no compartir simulación inexistente o incompleta
+- no permitir que paciente vea simulaciones no compartidas
+
+## Reglas de negocio
+- El paciente NO crea simulaciones manuales
+- El admin sí crea y comparte
+- `mode` debe quedar registrado siempre
+- Toda simulación debe quedar ligada a un paciente
+- Toda simulación debe tener `createdAt`
+
+---
+
+# Textos y disclaimers recomendados
+
+## En admin
+**“Esta simulación es una referencia visual orientativa para apoyar la explicación del tratamiento. No representa una promesa exacta del resultado final.”**
+
+## En paciente
+**“La imagen mostrada es una simulación orientativa con fines informativos y de valoración.”**
+
+---
+
+# Archivos a crear o completar
+
+## Nuevos archivos
+- `lib/features/simulator/data/models/simulation_model.dart`
+- `lib/features/simulator/data/repositories/simulation_repository.dart`
+- `lib/features/simulator/providers/simulation_provider.dart`
+- `lib/features/simulator/presentation/simulator_screen.dart`
+- `lib/services/simulator/mock_simulation_service.dart`
+- `lib/shared/widgets/before_after_slider.dart`
+
+## Archivos a completar/integrar
+- `lib/services/firebase/image_picker_service.dart`
+- `lib/services/firebase/face_detection_service.dart`
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `lib/app/router/route_names.dart`
+- `lib/app/router/app_router.dart`
+
+---
+
+# Entregables obligatorios del bloque
+
+- [ ] `ImagePickerService` funcional
+- [ ] `FaceDetectionService` con ML Kit funcional para detección/sugerencia
+- [ ] `MockSimulationService` funcional
+- [ ] `SimulationModel` creado y serializable
+- [ ] `SimulationRepository` funcional con Storage + Firestore
+- [ ] `simulation_provider` funcional
+- [ ] `BeforeAfterSlider` funcional
+- [ ] `SimulatorScreen` funcional en modo mock
+- [ ] `SimulatorScreen` funcional en modo manual
+- [ ] `patient_simulator_tab.dart` funcional
+- [ ] Rutas integradas
+- [ ] Historial admin funcional
+- [ ] Vista paciente funcional para simulaciones compartidas
+- [ ] Textos orientativos agregados
 - [ ] `flutter analyze` ✅
-- [ ] `flutter test` ✅ (serialización SimulationModel, lógica de estados del notifier)
+- [ ] `flutter test` ✅
 
 ---
 
-## Orden recomendado de ejecución
+# Criterios de cierre del bloque
 
-1. Cloud Function `simulateSmile` (functions/) + variables de entorno
-2. `SimulationModel` + serialización + tests
-3. `ImagePickerService`
-4. `FaceDetectionService` (con ML Kit)
-5. `OpenAiService` (cliente que llama a Cloud Function)
-6. `SimulationRepository`
-7. `simulation_provider`
-8. `BeforeAfterSlider` widget
-9. `SimulatorScreen` con máquina de estados visual
-10. Llenar `patient_simulator_tab.dart`
-11. Rutas nuevas en router
-12. Validación manual + analyze + tests
+Este bloque SOLO puede darse por cerrado si se cumple TODO lo siguiente:
+
+## Flujo base
+- [ ] El admin puede abrir el simulador desde un paciente real
+- [ ] El admin puede cargar una imagen original desde cámara o galería
+- [ ] El sistema procesa la imagen sin romperse aunque ML Kit no detecte la región exacta
+- [ ] Existe una sugerencia visual de rostro/sonrisa o un ajuste manual equivalente
+
+## Modo mock
+- [ ] El sistema puede generar una imagen resultado mock interna
+- [ ] La comparación before/after funciona correctamente
+- [ ] El admin puede guardar una simulación creada en modo mock
+
+## Modo manual
+- [ ] El admin puede crear una simulación manual
+- [ ] El admin puede subir la imagen “después” manualmente
+- [ ] El admin puede reemplazar la imagen resultado si se equivocó
+- [ ] La comparación before/after funciona también para modo manual
+
+## Persistencia
+- [ ] La imagen original se guarda en Storage
+- [ ] La imagen resultado se guarda en Storage
+- [ ] Los metadatos de la simulación se guardan correctamente en Firestore
+- [ ] Cada simulación queda ligada al paciente correcto
+- [ ] El historial de simulaciones del paciente carga correctamente
+
+## Compartir con paciente
+- [ ] El admin puede compartir o descompartir una simulación
+- [ ] El paciente solo ve simulaciones compartidas
+- [ ] El paciente no puede editar simulaciones
+
+## Arquitectura futura
+- [ ] El modelo de datos deja listo el campo `mode`
+- [ ] Existe espacio para `promptMetadata`
+- [ ] La arquitectura permite conectar después un motor real sin rehacer el módulo completo
+
+## Calidad
+- [ ] `flutter analyze` ejecuta limpio
+- [ ] `flutter test` ejecuta limpio
+- [ ] El módulo no rompe navegación ni pantallas de pacientes
+- [ ] Los textos dejan claro que es una simulación orientativa
+
+---
+
+# Orden recomendado de implementación
+
+## Fase 1 — Base visual y persistencia
+1. `SimulationModel`
+2. `SimulationRepository`
+3. rutas
+4. `patient_simulator_tab.dart`
+5. historial admin/paciente
+
+## Fase 2 — Carga de imagen
+6. `ImagePickerService`
+7. carga de imagen original
+8. guardado en Storage
+
+## Fase 3 — ML Kit y ayuda visual
+9. `FaceDetectionService`
+10. sugerencia de zona / ajuste manual
+
+## Fase 4 — Modo mock
+11. `MockSimulationService`
+12. generar resultado mock
+13. `BeforeAfterSlider`
+
+## Fase 5 — Modo manual
+14. carga manual de imagen resultado
+15. reemplazo de resultado
+16. guardado final
+
+## Fase 6 — Cierre
+17. compartir/descompartir
+18. disclaimers
+19. tests
+20. analyze
+
+---
+
+# Resultado esperado al cerrar el bloque
+
+Al finalizar este bloque, OCG debe tener un **Simulador de Sonrisa usable desde ya**, donde:
+- el admin puede crear simulaciones,
+- el sistema soporta mock interno,
+- la doctora puede subir manualmente imágenes resultado,
+- existe comparación before/after,
+- todo queda guardado y ordenado por paciente,
+- el paciente puede ver simulaciones compartidas,
+- y la arquitectura queda lista para que en el futuro solo se conecte un motor real por API sin rehacer la base del módulo.
+
+---
+
+# Nota final para el desarrollador
+
+NO conviertas este bloque en una integración temprana con APIs externas.  
+PRIMERO cierra el producto interno, la UX, la persistencia, el comparador y el historial.  
+DESPUÉS, si el uso real demuestra valor, se conecta el motor de generación.
+
+La prioridad aquí no es “magia IA”.  
+La prioridad aquí es **producto usable, escalable y listo para evolucionar**.
