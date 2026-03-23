@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../patients/data/models/patient_model.dart';
 import '../../../../shared/theme/ocg_colors.dart';
-import 'treatment_timeline.dart';
 
 class TreatmentProgressBar extends StatelessWidget {
   const TreatmentProgressBar({super.key, required this.etapaActual});

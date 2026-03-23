@@ -6,18 +6,55 @@ enum TreatmentType {
   autoligado,
   alineadores,
   ortopedia,
+  interceptivo,
   retenedores,
 }
 
 enum TreatmentStage {
-  diagnostico,
-  planificacion,
+  valoracionInicial,
+  estudioPlaneacion,
   instalacion,
-  seguimientoActivo,
-  ajusteFinal,
+  controles,
   retencion,
   alta,
 }
+
+const Map<TreatmentStage, String> stageNames = {
+  TreatmentStage.valoracionInicial: 'Valoración inicial',
+  TreatmentStage.estudioPlaneacion: 'Estudio y planeación',
+  TreatmentStage.instalacion: 'Instalación',
+  TreatmentStage.controles: 'Controles',
+  TreatmentStage.retencion: 'Retención',
+  TreatmentStage.alta: 'Alta',
+};
+
+const Map<TreatmentStage, String> stageDescriptions = {
+  TreatmentStage.valoracionInicial:
+      'Realizamos tu valoración completa: fotografías clínicas, radiografías panorámica y de perfil, '
+      'y modelos de estudio. Esto nos da el punto de partida de tu tratamiento.',
+  TreatmentStage.estudioPlaneacion:
+      'Con toda la información recopilada, la doctora elabora tu plan de tratamiento personalizado. '
+      'Analizamos tu caso en detalle para definir el camino más adecuado para ti.',
+  TreatmentStage.instalacion:
+      'Instalamos o cementamos tu aparatología de ortodoncia. '
+      'Es el inicio oficial del movimiento dental hacia los objetivos de tu plan.',
+  TreatmentStage.controles:
+      'Fase activa del tratamiento. Pasarás por tres momentos: '
+      'primero ordenamos tus dientes (alineación y nivelación), '
+      'luego realizamos los ajustes principales (trabajo), '
+      'y finalmente los detalles milimétricos (finalización).',
+  TreatmentStage.retencion:
+      'El tratamiento activo ha concluido. Instalamos tus retenedores para mantener '
+      'los resultados obtenidos y estabilizar la posición de tus dientes.',
+  TreatmentStage.alta:
+      'Tu tratamiento ha finalizado exitosamente. '
+      'Hemos alcanzado los objetivos clínicos y estéticos planificados.',
+};
+
+const String controlesSubetapasInfo =
+    'Alineación y nivelación (aprox. 6–9 meses): ordenamos la posición de tus dientes.\n'
+    'Trabajo (aprox. 6–8 meses): cierre de espacios y acople de mordida.\n'
+    'Finalización (aprox. 2–6 meses): detalles, ajustes milimétricos y estabilidad.';
 
 class PatientModel {
   const PatientModel({
@@ -96,9 +133,21 @@ class PatientModel {
 
   static TreatmentStage _parseTreatmentStage(dynamic value) {
     final raw = (value ?? '').toString();
+
+    const legacyMap = {
+      'diagnostico': TreatmentStage.valoracionInicial,
+      'planificacion': TreatmentStage.estudioPlaneacion,
+      'seguimientoActivo': TreatmentStage.controles,
+      'ajusteFinal': TreatmentStage.controles,
+    };
+
+    if (legacyMap.containsKey(raw)) {
+      return legacyMap[raw]!;
+    }
+
     return TreatmentStage.values.firstWhere(
       (e) => e.name == raw,
-      orElse: () => TreatmentStage.diagnostico,
+      orElse: () => TreatmentStage.valoracionInicial,
     );
   }
 

@@ -42,16 +42,14 @@ class PatientTreatmentTab extends ConsumerWidget {
               etapaActual: patient.etapaActual,
               historial: historial,
               isAdmin: true,
-              onAdvanceStage: patient.etapaActual == TreatmentStage.alta
-                  ? null
-                  : () => showDialog<void>(
-                        context: context,
-                        builder: (_) => UpdateStageDialog(
-                          patientId: patientId,
-                          etapaActual: patient.etapaActual,
-                          adminId: adminId,
-                        ),
-                      ),
+              onAdvanceStage: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => UpdateStageDialog(
+                      patientId: patientId,
+                      etapaActual: patient.etapaActual,
+                      adminId: adminId,
+                    ),
+                  ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -61,7 +59,7 @@ class PatientTreatmentTab extends ConsumerWidget {
                   ),
             ),
             const SizedBox(height: 12),
-            StageHistoryList(historial: historial),
+            StageHistoryList(historial: historial, isAdmin: true),
           ],
         ),
       ),

@@ -5,7 +5,6 @@ import '../../../patients/data/models/patient_model.dart';
 import '../../providers/treatment_provider.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_button.dart';
-import 'treatment_timeline.dart';
 
 class UpdateStageDialog extends ConsumerStatefulWidget {
   const UpdateStageDialog({
@@ -25,72 +24,181 @@ class UpdateStageDialog extends ConsumerStatefulWidget {
 
 class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
   final _formKey = GlobalKey<FormState>();
+
   late final TextEditingController _notasController;
+  late final TextEditingController _motivoController;
+  late final TextEditingController _diagnosticoController;
+  late final TextEditingController _planController;
+  late final TextEditingController _adjuntosController;
+
+  TreatmentStage? _nuevaEtapa;
+  DateTime? _fechaEfectiva;
 
   @override
   void initState() {
     super.initState();
     _notasController = TextEditingController();
+    _motivoController = TextEditingController();
+    _diagnosticoController = TextEditingController();
+    _planController = TextEditingController();
+    _adjuntosController = TextEditingController();
   }
 
   @override
   void dispose() {
     _notasController.dispose();
+    _motivoController.dispose();
+    _diagnosticoController.dispose();
+    _planController.dispose();
+    _adjuntosController.dispose();
     super.dispose();
   }
+
+  bool get _hasNotesError {
+    final value = _notasController.text.trim();
+    return value.isNotEmpty && value.length < 10;
+  }
+
+  bool get _isRetroceso {
+    if (_nuevaEtapa == null) return false;
+    return TreatmentStage.values.indexOf(_nuevaEtapa!) < TreatmentStage.values.indexOf(widget.etapaActual);
+  }
+
+  bool get _canSave => _nuevaEtapa != null && !_hasNotesError;
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(updateStageProvider);
     final isLoading = state.isLoading;
-    final canAdvance = widget.etapaActual != TreatmentStage.alta;
-
-    final int currentIdx = TreatmentStage.values.indexOf(widget.etapaActual);
-    final TreatmentStage? nextStage = canAdvance ? TreatmentStage.values[currentIdx + 1] : null;
 
     return AlertDialog(
-      title: const Text('Avanzar etapa del tratamiento'),
+      title: const Text('Cambiar etapa del tratamiento'),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text(stageNames[widget.etapaActual] ?? widget.etapaActual.name)),
-                const Icon(Icons.arrow_forward),
-                Expanded(
-                  child: Text(
-                    nextStage != null ? (stageNames[nextStage] ?? nextStage.name) : 'Sin siguiente etapa',
-                    textAlign: TextAlign.end,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Etapa actual: ${stageNames[widget.etapaActual] ?? widget.etapaActual.name}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<TreatmentStage>(
+                value: _nuevaEtapa,
+                decoration: const InputDecoration(labelText: 'Nueva etapa'),
+                items: TreatmentStage.values
+                    .where((e) => e != widget.etapaActual)
+                    .map(
+                      (e) => DropdownMenuItem<TreatmentStage>(
+                        value: e,
+                        child: Text(stageNames[e] ?? e.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isLoading
+                    ? null
+                    : (value) {
+                        setState(() => _nuevaEtapa = value);
+                      },
+              ),
+              if (_isRetroceso) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: OcgColors.warning.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: OcgColors.warning.withOpacity(0.4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.undo, color: OcgColors.warning, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Estás registrando un retroceso de etapa. Quedará registrado en el historial clínico.',
+                          style: TextStyle(color: OcgColors.warning, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notasController,
-              minLines: 3,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Notas del cambio'),
-              validator: (value) {
-                final v = value?.trim() ?? '';
-                if (v.isEmpty) return 'Las notas son obligatorias';
-                if (v.length < 10) return 'Mínimo 10 caracteres';
-                return null;
-              },
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Esta acción no se puede deshacer. El historial quedará registrado.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: OcgColors.error,
-                    fontWeight: FontWeight.w600,
+              const SizedBox(height: 14),
+              const Text('Campos opcionales', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _notasController,
+                minLines: 3,
+                maxLines: 4,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Nota clínica',
+                  errorText: _hasNotesError ? 'Si escribes nota, debe tener mínimo 10 caracteres.' : null,
+                  helperText: '${_notasController.text.trim().length} / mín. 10 caracteres',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _motivoController,
+                maxLines: 1,
+                decoration: const InputDecoration(labelText: 'Motivo del cambio'),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _diagnosticoController,
+                minLines: 1,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Diagnóstico breve'),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _planController,
+                minLines: 1,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Plan siguiente etapa'),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _adjuntosController,
+                maxLines: 1,
+                decoration: const InputDecoration(
+                  labelText: 'Adjuntos',
+                  hintText: 'Describe los adjuntos asociados',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _fechaEfectiva == null
+                          ? 'Fecha efectiva (opcional): no definida'
+                          : 'Fecha efectiva: ${_formatDate(_fechaEfectiva!)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
-            ),
-          ],
+                  TextButton(
+                    onPressed: isLoading ? null : _pickFechaEfectiva,
+                    child: const Text('Seleccionar fecha'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: OcgColors.error.withOpacity(0.25)),
+                ),
+                child: const Text(
+                  'El historial de cambios quedará registrado y no puede eliminarse.',
+                  style: TextStyle(color: OcgColors.error, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -100,36 +208,56 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
           onPressed: isLoading ? null : () => Navigator.of(context).pop(),
         ),
         OcgButton(
-          label: 'Confirmar',
+          label: 'Guardar cambio',
           isLoading: isLoading,
-          onPressed: (!canAdvance || !_isNotesValid || isLoading)
-              ? null
-              : () => _submit(nextStage!),
+          onPressed: (!_canSave || isLoading) ? null : _submit,
         ),
       ],
     );
   }
 
-  bool get _isNotesValid => _notasController.text.trim().length >= 10;
+  Future<void> _pickFechaEfectiva() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaEfectiva ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 2),
+    );
 
-  Future<void> _submit(TreatmentStage nextStage) async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (picked != null) {
+      setState(() {
+        _fechaEfectiva = DateTime(picked.year, picked.month, picked.day);
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_nuevaEtapa == null) return;
 
     try {
       await ref.read(updateStageProvider.notifier).updateStage(
             patientId: widget.patientId,
-            etapaAnterior: widget.etapaActual,
-            nuevaEtapa: nextStage,
-            notas: _notasController.text.trim(),
+            etapaActual: widget.etapaActual,
+            nuevaEtapa: _nuevaEtapa!,
+            notas: _notasController.text,
             adminId: widget.adminId,
+            motivoCambio: _motivoController.text,
+            diagnosticoBreve: _diagnosticoController.text,
+            planSiguienteEtapa: _planController.text,
+            adjuntosDescripcion: _adjuntosController.text,
+            fechaEfectiva: _fechaEfectiva,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
+  }
+
+  String _formatDate(DateTime date) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year}';
   }
 }

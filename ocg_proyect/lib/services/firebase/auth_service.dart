@@ -111,7 +111,7 @@ class AuthService {
       'fechaNacimiento': Timestamp.fromDate(now),
       'fotoUrl': null,
       'tipoTratamiento': null,
-      'etapaActual': 'diagnostico',
+      'etapaActual': 'valoracionInicial',
       'fechaInicio': Timestamp.fromDate(now),
       'fechaEstimadaFin': null,
       'notasClinicas': '',

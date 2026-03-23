@@ -19,20 +19,30 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
 
   Future<void> updateStage({
     required String patientId,
-    required TreatmentStage etapaAnterior,
+    required TreatmentStage etapaActual,
     required TreatmentStage nuevaEtapa,
     required String notas,
     required String adminId,
+    String? motivoCambio,
+    String? diagnosticoBreve,
+    String? planSiguienteEtapa,
+    String? adjuntosDescripcion,
+    DateTime? fechaEfectiva,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(treatmentRepositoryProvider).updateStage(
-        patientId: patientId,
-        etapaAnterior: etapaAnterior,
-        nuevaEtapa: nuevaEtapa,
-        notas: notas,
-        adminId: adminId,
-      ),
+            patientId: patientId,
+            etapaActual: etapaActual,
+            nuevaEtapa: nuevaEtapa,
+            notas: notas,
+            adminId: adminId,
+            motivoCambio: motivoCambio,
+            diagnosticoBreve: diagnosticoBreve,
+            planSiguienteEtapa: planSiguienteEtapa,
+            adjuntosDescripcion: adjuntosDescripcion,
+            fechaEfectiva: fechaEfectiva,
+          ),
     );
   }
 }

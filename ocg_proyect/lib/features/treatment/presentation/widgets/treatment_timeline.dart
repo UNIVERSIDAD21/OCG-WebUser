@@ -6,33 +6,6 @@ import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_button.dart';
 import '../../../../shared/widgets/ocg_card.dart';
 
-const Map<TreatmentStage, String> stageNames = {
-  TreatmentStage.diagnostico: 'Diagnóstico',
-  TreatmentStage.planificacion: 'Planificación',
-  TreatmentStage.instalacion: 'Instalación',
-  TreatmentStage.seguimientoActivo: 'Seguimiento activo',
-  TreatmentStage.ajusteFinal: 'Ajuste final',
-  TreatmentStage.retencion: 'Retención',
-  TreatmentStage.alta: 'Alta',
-};
-
-const Map<TreatmentStage, String> stageDescriptions = {
-  TreatmentStage.diagnostico:
-      'Valoración inicial completa: radiografías panorámicas, fotografías clínicas y elaboración del plan de tratamiento personalizado.',
-  TreatmentStage.planificacion:
-      'Plan clínico detallado definido y aprobado. Presupuesto acordado y consentimiento informado firmado.',
-  TreatmentStage.instalacion:
-      'Colocación de brackets, alineadores o aparatología indicada. Inicio oficial del movimiento dental.',
-  TreatmentStage.seguimientoActivo:
-      'Fase de controles periódicos. Se realizan ajustes y se monitorea el movimiento dental.',
-  TreatmentStage.ajusteFinal:
-      'Refinamientos finales de la posición dental. Detallado estético y correcciones menores.',
-  TreatmentStage.retencion:
-      'Tratamiento activo completado. Retenedores instalados para estabilizar el resultado.',
-  TreatmentStage.alta:
-      'Tratamiento finalizado exitosamente. Se han logrado los objetivos clínicos y estéticos.',
-};
-
 enum _NodeState { completed, active, pending }
 
 class TreatmentTimeline extends StatefulWidget {
@@ -108,8 +81,7 @@ class _TreatmentTimelineState extends State<TreatmentTimeline> with SingleTicker
                       child: Column(
                         children: [
                           _buildNode(state),
-                          if (index != TreatmentStage.values.length - 1)
-                            _buildConnector(state: state),
+                          if (index != TreatmentStage.values.length - 1) _buildConnector(state: state),
                         ],
                       ),
                     ),
@@ -137,8 +109,8 @@ class _TreatmentTimelineState extends State<TreatmentTimeline> with SingleTicker
                   stage: stage,
                   state: state,
                   changedAt: _changedAtForStage(stage),
-                  showAdvanceButton: widget.isAdmin && state == _NodeState.active,
-                  onAdvanceStage: widget.onAdvanceStage,
+                  showChangeButton: widget.isAdmin && state == _NodeState.active,
+                  onChangeStage: widget.onAdvanceStage,
                 ),
               ),
           ],
@@ -226,15 +198,15 @@ class _StageCard extends StatelessWidget {
     required this.stage,
     required this.state,
     required this.changedAt,
-    required this.showAdvanceButton,
-    required this.onAdvanceStage,
+    required this.showChangeButton,
+    required this.onChangeStage,
   });
 
   final TreatmentStage stage;
   final _NodeState state;
   final DateTime? changedAt;
-  final bool showAdvanceButton;
-  final VoidCallback? onAdvanceStage;
+  final bool showChangeButton;
+  final VoidCallback? onChangeStage;
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +226,22 @@ class _StageCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(stageDescriptions[stage] ?? ''),
+          if (stage == TreatmentStage.controles) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: OcgColors.warning.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: OcgColors.warning.withOpacity(0.2)),
+              ),
+              child: Text(
+                controlesSubetapasInfo,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             statusText,
@@ -262,9 +250,9 @@ class _StageCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          if (showAdvanceButton && onAdvanceStage != null) ...[
+          if (showChangeButton && onChangeStage != null) ...[
             const SizedBox(height: 12),
-            OcgButton(label: 'Avanzar etapa', onPressed: onAdvanceStage),
+            OcgButton(label: 'Cambiar etapa', onPressed: onChangeStage),
           ],
         ],
       ),

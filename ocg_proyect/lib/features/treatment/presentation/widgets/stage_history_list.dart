@@ -4,12 +4,17 @@ import '../../data/models/stage_history_entry.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 import '../../../../../shared/widgets/ocg_card.dart';
 import '../../../../../shared/widgets/ocg_empty_state.dart';
-import 'treatment_timeline.dart';
+import '../../../patients/data/models/patient_model.dart';
 
 class StageHistoryList extends StatelessWidget {
-  const StageHistoryList({super.key, required this.historial});
+  const StageHistoryList({
+    super.key,
+    required this.historial,
+    required this.isAdmin,
+  });
 
   final List<StageHistoryEntry> historial;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +48,15 @@ class StageHistoryList extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
+                  if (entry.esRetroceso) ...[
+                    const Icon(Icons.undo, size: 14, color: OcgColors.warning),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Retroceso',
+                      style: TextStyle(color: OcgColors.warning, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(child: Text(stageNames[entry.etapaAnterior] ?? entry.etapaAnterior.name)),
                   const Icon(Icons.arrow_forward, size: 16),
                   Expanded(
@@ -53,25 +67,38 @@ class StageHistoryList extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (notes.length <= 80)
-                Text(notes)
-              else
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  title: Text('${notes.substring(0, 80)}...'),
-                  children: [
-                    Align(alignment: Alignment.centerLeft, child: Text(notes)),
-                  ],
+              if (notes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                if (notes.length <= 120)
+                  Text(notes)
+                else
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    title: Text('${notes.substring(0, 120)}...'),
+                    children: [
+                      Align(alignment: Alignment.centerLeft, child: Text(notes)),
+                    ],
+                  ),
+              ],
+              if (isAdmin) ...[
+                if (_hasInternalFields(entry)) ...[
+                  const SizedBox(height: 8),
+                  _AdminField(label: 'Motivo', value: entry.motivoCambio),
+                  _AdminField(label: 'Diagnóstico', value: entry.diagnosticoBreve),
+                  _AdminField(label: 'Plan siguiente etapa', value: entry.planSiguienteEtapa),
+                  _AdminField(label: 'Adjuntos', value: entry.adjuntosDescripcion),
+                  _AdminField(
+                    label: 'Fecha efectiva',
+                    value: entry.fechaEfectiva == null ? null : _formatDate(entry.fechaEfectiva!),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  'Admin: ${entry.adminId}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF7B746E)),
                 ),
-              const SizedBox(height: 8),
-              Text(
-                'Admin: ${entry.adminId}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF7B746E),
-                    ),
-              ),
+              ],
             ],
           ),
         );
@@ -79,23 +106,38 @@ class StageHistoryList extends StatelessWidget {
     );
   }
 
+  bool _hasInternalFields(StageHistoryEntry e) {
+    return (e.motivoCambio?.trim().isNotEmpty ?? false) ||
+        (e.diagnosticoBreve?.trim().isNotEmpty ?? false) ||
+        (e.planSiguienteEtapa?.trim().isNotEmpty ?? false) ||
+        (e.adjuntosDescripcion?.trim().isNotEmpty ?? false) ||
+        e.fechaEfectiva != null;
+  }
+
   String _formatDate(DateTime date) {
-    const months = [
-      'ene',
-      'feb',
-      'mar',
-      'abr',
-      'may',
-      'jun',
-      'jul',
-      'ago',
-      'sep',
-      'oct',
-      'nov',
-      'dic',
-    ];
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     String two(int value) => value.toString().padLeft(2, '0');
     final month = months[date.month - 1];
     return '${two(date.day)} $month ${date.year}, ${two(date.hour)}:${two(date.minute)}';
+  }
+}
+
+class _AdminField extends StatelessWidget {
+  const _AdminField({required this.label, required this.value});
+
+  final String label;
+  final String? value;
+
+  @override
+  Widget build(BuildContext context) {
+    final clean = value?.trim() ?? '';
+    if (clean.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text(
+        '$label: $clean',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF6C655E)),
+      ),
+    );
   }
 }

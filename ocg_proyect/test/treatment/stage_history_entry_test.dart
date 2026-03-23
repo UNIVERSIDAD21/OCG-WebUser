@@ -8,70 +8,92 @@ import 'package:ocg_proyect/shared/constants/firestore_paths.dart';
 
 void main() {
   group('StageHistoryEntry', () {
-    test('toJson produce los campos correctos', () {
+    test('toJson / fromJson serializa esRetroceso y campos opcionales', () {
       final entry = StageHistoryEntry(
         id: 'h1',
-        etapaAnterior: TreatmentStage.diagnostico,
-        etapaNueva: TreatmentStage.planificacion,
-        notas: 'avance',
+        etapaAnterior: TreatmentStage.instalacion,
+        etapaNueva: TreatmentStage.controles,
+        esRetroceso: false,
+        notas: 'Control realizado sin novedades',
+        motivoCambio: 'Cronograma clínico',
+        diagnosticoBreve: 'Evolución favorable',
+        planSiguienteEtapa: 'Continuar controles mensuales',
+        adjuntosDescripcion: 'Foto intraoral + panorámica',
+        fechaEfectiva: DateTime(2026, 3, 1),
         adminId: 'admin-1',
-        fechaCambio: DateTime(2026, 1, 1),
+        fechaCambio: DateTime(2026, 3, 2),
       );
 
       final json = entry.toJson();
 
       expect(json['id'], 'h1');
-      expect(json['etapaAnterior'], TreatmentStage.diagnostico.name);
-      expect(json['etapaNueva'], TreatmentStage.planificacion.name);
-      expect(json['notas'], 'avance');
-      expect(json['adminId'], 'admin-1');
-      expect(json['fechaCambio'], isA<FieldValue>());
-    });
+      expect(json['etapaAnterior'], TreatmentStage.instalacion.name);
+      expect(json['etapaNueva'], TreatmentStage.controles.name);
+      expect(json['esRetroceso'], false);
+      expect(json['motivoCambio'], 'Cronograma clínico');
+      expect(json['fechaEfectiva'], isA<Timestamp>());
+      expect(json['fechaCambio'], isA<Timestamp>());
 
-    test('fromJson deserializa etapaAnterior y etapaNueva correctamente', () {
-      final json = {
-        'id': 'h2',
-        'etapaAnterior': TreatmentStage.instalacion.name,
-        'etapaNueva': TreatmentStage.seguimientoActivo.name,
-        'notas': 'ok',
-        'adminId': 'admin-2',
-        'fechaCambio': Timestamp.fromDate(DateTime(2026, 2, 2)),
-      };
+      final decoded = StageHistoryEntry.fromJson({
+        ...json,
+        'fechaCambio': Timestamp.fromDate(DateTime(2026, 3, 2)),
+      });
 
-      final entry = StageHistoryEntry.fromJson(json);
-
-      expect(entry.id, 'h2');
-      expect(entry.etapaAnterior, TreatmentStage.instalacion);
-      expect(entry.etapaNueva, TreatmentStage.seguimientoActivo);
-      expect(entry.notas, 'ok');
-      expect(entry.adminId, 'admin-2');
-      expect(entry.fechaCambio, DateTime(2026, 2, 2));
+      expect(decoded.esRetroceso, isFalse);
+      expect(decoded.motivoCambio, 'Cronograma clínico');
+      expect(decoded.fechaEfectiva, DateTime(2026, 3, 1));
     });
   });
 
-  group('TreatmentRepository', () {
-    test('updateStage lanza Exception("STAGE_REGRESSION") en regresión', () async {
+  group('TreatmentRepository.updateStage', () {
+    test('permite retroceso y lo guarda con esRetroceso=true', () async {
       final db = FakeFirebaseFirestore();
       final repo = TreatmentRepository(db);
       const patientId = 'p-1';
 
       await db.collection(FirestorePaths.patients).doc(patientId).set({
         'id': patientId,
-        'etapaActual': TreatmentStage.seguimientoActivo.name,
+        'etapaActual': TreatmentStage.controles.name,
       });
 
+      await repo.updateStage(
+        patientId: patientId,
+        etapaActual: TreatmentStage.controles,
+        nuevaEtapa: TreatmentStage.instalacion,
+        notas: 'Retroceso por pérdida de aparatología y nueva instalación clínica',
+        adminId: 'admin-3',
+      );
+
+      final historySnap = await db.collection(FirestorePaths.stageHistory(patientId)).get();
+      expect(historySnap.docs.length, 1);
+      expect(historySnap.docs.first.data()['esRetroceso'], true);
+    });
+
+    test('lanza STAGE_SAME cuando nueva etapa == etapa actual', () async {
+      final repo = TreatmentRepository(FakeFirebaseFirestore());
       expect(
         () => repo.updateStage(
-          patientId: patientId,
-          etapaAnterior: TreatmentStage.seguimientoActivo,
-          nuevaEtapa: TreatmentStage.planificacion,
-          notas: 'retroceso inválido',
-          adminId: 'admin-3',
+          patientId: 'p-2',
+          etapaActual: TreatmentStage.controles,
+          nuevaEtapa: TreatmentStage.controles,
+          notas: '',
+          adminId: 'admin',
         ),
-        throwsA(
-          predicate((e) =>
-              e is Exception && e.toString().contains('STAGE_REGRESSION')),
+        throwsA(predicate((e) => e is Exception && e.toString().contains('STAGE_SAME'))),
+      );
+    });
+
+    test('lanza NOTES_TOO_SHORT cuando nota 1-9 caracteres', () async {
+      final repo = TreatmentRepository(FakeFirebaseFirestore());
+      expect(
+        () => repo.updateStage(
+          patientId: 'p-2',
+          etapaActual: TreatmentStage.controles,
+          nuevaEtapa: TreatmentStage.retencion,
+          notas: 'corta',
+          adminId: 'admin',
         ),
+        throwsA(predicate((e) => e is Exception && e.toString().contains('NOTES_TOO_SHORT'))),
       );
     });
   });

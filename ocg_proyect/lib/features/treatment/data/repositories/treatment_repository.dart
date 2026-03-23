@@ -21,17 +21,28 @@ class TreatmentRepository {
 
   Future<void> updateStage({
     required String patientId,
-    required TreatmentStage etapaAnterior,
+    required TreatmentStage etapaActual,
     required TreatmentStage nuevaEtapa,
     required String notas,
     required String adminId,
+    String? motivoCambio,
+    String? diagnosticoBreve,
+    String? planSiguienteEtapa,
+    String? adjuntosDescripcion,
+    DateTime? fechaEfectiva,
   }) async {
-    final idxAnterior = _stageOrder.indexOf(etapaAnterior);
-    final idxNueva = _stageOrder.indexOf(nuevaEtapa);
-
-    if (idxNueva <= idxAnterior) {
-      throw Exception('STAGE_REGRESSION');
+    if (nuevaEtapa == etapaActual) {
+      throw Exception('STAGE_SAME');
     }
+
+    final notasClean = notas.trim();
+    if (notasClean.isNotEmpty && notasClean.length < 10) {
+      throw Exception('NOTES_TOO_SHORT');
+    }
+
+    final idxAnterior = _stageOrder.indexOf(etapaActual);
+    final idxNueva = _stageOrder.indexOf(nuevaEtapa);
+    final esRetroceso = idxNueva < idxAnterior;
 
     final batch = _db.batch();
     final patientRef = _db.collection(FirestorePaths.patients).doc(patientId);
@@ -39,19 +50,31 @@ class TreatmentRepository {
 
     final entry = StageHistoryEntry(
       id: historyRef.id,
-      etapaAnterior: etapaAnterior,
+      etapaAnterior: etapaActual,
       etapaNueva: nuevaEtapa,
-      notas: notas,
+      esRetroceso: esRetroceso,
+      notas: notasClean,
+      motivoCambio: _nullableTrim(motivoCambio),
+      diagnosticoBreve: _nullableTrim(diagnosticoBreve),
+      planSiguienteEtapa: _nullableTrim(planSiguienteEtapa),
+      adjuntosDescripcion: _nullableTrim(adjuntosDescripcion),
+      fechaEfectiva: fechaEfectiva,
       adminId: adminId,
       fechaCambio: DateTime.now(),
     );
 
     batch.update(patientRef, {
       'etapaActual': nuevaEtapa.name,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': Timestamp.now(),
     });
     batch.set(historyRef, entry.toJson());
 
     await batch.commit();
+  }
+
+  String? _nullableTrim(String? value) {
+    if (value == null) return null;
+    final clean = value.trim();
+    return clean.isEmpty ? null : clean;
   }
 }

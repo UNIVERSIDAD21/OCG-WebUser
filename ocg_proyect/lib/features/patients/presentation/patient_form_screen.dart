@@ -36,7 +36,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   DateTime? _fechaEstimadaFin;
 
   TreatmentType _tipo = TreatmentType.convencional;
-  TreatmentStage _etapa = TreatmentStage.diagnostico;
+  TreatmentStage _etapa = TreatmentStage.valoracionInicial;
 
   bool _loading = false;
   bool _loadedInitialData = false;

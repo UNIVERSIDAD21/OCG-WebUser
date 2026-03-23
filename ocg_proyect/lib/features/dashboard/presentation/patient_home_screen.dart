@@ -11,6 +11,7 @@ import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import 'patient_appointments_screen.dart';
+import '../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
 import '../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../treatment/providers/treatment_provider.dart';
@@ -285,6 +286,10 @@ class _TratamientoSection extends ConsumerWidget {
                   isAdmin: false,
                   onAdvanceStage: null,
                 ),
+                const SizedBox(height: 20),
+                Text('Historial', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 10),
+                StageHistoryList(historial: historial, isAdmin: false),
               ],
             ),
           ),
