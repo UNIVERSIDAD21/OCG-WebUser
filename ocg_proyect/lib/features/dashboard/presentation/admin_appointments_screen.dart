@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1063,12 +1062,14 @@ class _AdminAppointmentsScreenState
         final decision = await _showValoracionDictamenDialog(patientName: appt.patientName);
         if (decision == null) return;
 
-        await ref.read(patientsRepositoryProvider).updatePatientClinicalData(appt.patientId, {
-          'tipoTratamiento': (decision['tipoTratamiento'] as TreatmentType).name,
-          'etapaActual': TreatmentStage.estudioPlaneacion.name,
-          'notasClinicas': (decision['nota'] as String?)?.trim() ?? '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        await ref.read(patientsRepositoryProvider).defineInitialTreatmentPlanAndFinance(
+              patientId: appt.patientId,
+              tipoTratamiento: decision['tipoTratamiento'] as TreatmentType,
+              totalTratamiento: decision['totalTratamiento'] as double,
+              etapaActual: TreatmentStage.estudioPlaneacion,
+              notasClinicas: (decision['nota'] as String?)?.trim() ?? '',
+              fechaProximoPago: decision['fechaProximoPago'] as DateTime?,
+            );
       }
 
       await ref
@@ -1089,66 +1090,119 @@ class _AdminAppointmentsScreenState
 
   Future<Map<String, dynamic>?> _showValoracionDictamenDialog({required String patientName}) async {
     TreatmentType? selected;
+    DateTime? fechaProximoPago;
     final notaCtrl = TextEditingController();
+    final montoCtrl = TextEditingController();
+
+    bool montoValido(String value) {
+      final v = double.tryParse(value.replaceAll(',', '.').trim());
+      return v != null && v > 0;
+    }
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Dictamen de valoración inicial'),
-          content: SizedBox(
-            width: 430,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Paciente: $patientName'),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<TreatmentType>(
-                  value: selected,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de tratamiento (obligatorio)',
-                    prefixIcon: Icon(Icons.medical_services_outlined),
+        builder: (ctx, setSt) {
+          final montoOk = montoValido(montoCtrl.text);
+          return AlertDialog(
+            title: const Text('Dictamen de valoración inicial'),
+            content: SizedBox(
+              width: 430,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Paciente: $patientName'),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<TreatmentType>(
+                    value: selected,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de tratamiento (obligatorio)',
+                      prefixIcon: Icon(Icons.medical_services_outlined),
+                    ),
+                    items: TreatmentType.values
+                        .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
+                        .toList(),
+                    onChanged: (v) => setSt(() => selected = v),
                   ),
-                  items: TreatmentType.values
-                      .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
-                      .toList(),
-                  onChanged: (v) => setSt(() => selected = v),
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: notaCtrl,
-                  minLines: 2,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Nota clínica inicial (opcional)',
-                    hintText: 'Resumen del diagnóstico y plan inicial',
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: montoCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setSt(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Valor total del tratamiento (obligatorio)',
+                      prefixText: r'$ ',
+                      errorText: montoCtrl.text.isEmpty || montoOk
+                          ? null
+                          : 'Ingresa un monto válido mayor a cero',
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          fechaProximoPago == null
+                              ? 'Próximo pago: no definido'
+                              : 'Próximo pago: ${_appointmentFmtDate(fechaProximoPago!)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: DateTime.now().add(const Duration(days: 30)),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 3650)),
+                          );
+                          if (picked != null) {
+                            setSt(() => fechaProximoPago = picked);
+                          }
+                        },
+                        child: const Text('Definir fecha'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: notaCtrl,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Nota clínica inicial (opcional)',
+                      hintText: 'Resumen del diagnóstico y plan inicial',
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => popDialog(ctx),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: selected == null
-                  ? null
-                  : () => popDialog(ctx, {
-                        'tipoTratamiento': selected,
-                        'nota': notaCtrl.text,
-                      }),
-              child: const Text('Guardar y completar'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => popDialog(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: (selected == null || !montoOk)
+                    ? null
+                    : () => popDialog(ctx, {
+                          'tipoTratamiento': selected,
+                          'totalTratamiento': double.parse(montoCtrl.text.replaceAll(',', '.').trim()),
+                          'fechaProximoPago': fechaProximoPago,
+                          'nota': notaCtrl.text,
+                        }),
+                child: const Text('Guardar y completar'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
     notaCtrl.dispose();
+    montoCtrl.dispose();
     return result;
   }
 
