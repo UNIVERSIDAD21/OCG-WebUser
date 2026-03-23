@@ -26,8 +26,15 @@ import 'package:flutter/material.dart';
 /// ```
 void popDialog<T>(BuildContext context, [T? result]) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (context.mounted) {
-      Navigator.of(context).pop(result);
+    if (!context.mounted) return;
+
+    try {
+      final navigator = Navigator.of(context, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop(result);
+      }
+    } catch (_) {
+      // Evita crashear UI por pop tardío en Flutter Web.
     }
   });
 }

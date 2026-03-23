@@ -47,8 +47,9 @@ class AppointmentsRepository {
         .orderBy('fechaHora', descending: true)
         .snapshots()
         .map(
-          (s) =>
-              s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
+          (s) => _dedupeAppointments(
+            s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
+          ),
         );
   }
 
@@ -58,8 +59,9 @@ class AppointmentsRepository {
         .orderBy('fechaHora', descending: true)
         .snapshots()
         .map(
-          (s) =>
-              s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
+          (s) => _dedupeAppointments(
+            s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
+          ),
         );
   }
 
@@ -109,6 +111,11 @@ class AppointmentsRepository {
   Future<String> createAppointmentAsPatient(
     AppointmentModel appointment,
   ) async {
+    final existingSameSlot = await _findExistingSameSlotForPatient(appointment);
+    if (existingSameSlot != null) {
+      return existingSameSlot;
+    }
+
     final callable = _functions.httpsCallable('reserveAppointment');
     final date =
         '${appointment.fechaHora.year.toString().padLeft(4, '0')}-'
@@ -285,5 +292,64 @@ class AppointmentsRepository {
     } catch (_) {
       // No bloquear el flujo principal si falla la actualización de caché
     }
+  }
+
+  List<AppointmentModel> _dedupeAppointments(List<AppointmentModel> items) {
+    final map = <String, AppointmentModel>{};
+
+    for (final a in items) {
+      final key = a.id.trim().isNotEmpty
+          ? 'id:${a.id.trim()}'
+          : 'fp:${a.patientId}|${a.fechaHora.toIso8601String()}|${a.tipo.name}|${a.estado.name}';
+
+      final existing = map[key];
+      if (existing == null) {
+        map[key] = a;
+      } else {
+        final currentTs = a.createdAt ?? a.updatedAt ?? a.fechaHora;
+        final existingTs = existing.createdAt ?? existing.updatedAt ?? existing.fechaHora;
+        if (currentTs.isAfter(existingTs)) {
+          map[key] = a;
+        }
+      }
+    }
+
+    final deduped = map.values.toList()
+      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+    return deduped;
+  }
+
+  Future<String?> _findExistingSameSlotForPatient(AppointmentModel appointment) async {
+    final start = appointment.fechaHora;
+    final end = start.add(Duration(minutes: appointment.duracionMinutos));
+
+    final sameDayStart = DateTime(start.year, start.month, start.day);
+    final sameDayEnd = sameDayStart.add(const Duration(days: 1));
+
+    final snapshot = await _appointmentsRef
+        .where('patientId', isEqualTo: appointment.patientId)
+        .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(sameDayStart))
+        .where('fechaHora', isLessThan: Timestamp.fromDate(sameDayEnd))
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final current = AppointmentModel.fromJson(doc.data());
+
+      if (current.estado == AppointmentStatus.cancelada ||
+          current.estado == AppointmentStatus.noAsistio ||
+          current.estado == AppointmentStatus.reprogramada) {
+        continue;
+      }
+
+      final currentStart = current.fechaHora;
+      final currentEnd = currentStart.add(Duration(minutes: current.duracionMinutos));
+      final overlaps = currentStart.isBefore(end) && start.isBefore(currentEnd);
+
+      if (overlaps) {
+        return current.id.isNotEmpty ? current.id : doc.id;
+      }
+    }
+
+    return null;
   }
 }
