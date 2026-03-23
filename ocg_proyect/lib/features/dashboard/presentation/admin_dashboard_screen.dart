@@ -19,10 +19,10 @@ class AdminDashboardScreen extends ConsumerWidget {
 
   Future<void> _seedAvailability(BuildContext context) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('seedAvailability');
-      await callable.call(<String, dynamic>{
-        'days': 90,
-      });
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'seedAvailability',
+      );
+      await callable.call(<String, dynamic>{'days': 90});
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -40,25 +40,26 @@ class AdminDashboardScreen extends ConsumerWidget {
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo inicializar disponibilidad.'),
-        ),
+        const SnackBar(content: Text('No se pudo inicializar disponibilidad.')),
       );
     }
   }
 
   Future<void> _initializeAllPayments(BuildContext context) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('initializeAllPaymentDocuments');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'initializeAllPaymentDocuments',
+      );
       final result = await callable.call();
       final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
       final created = data['created'];
-      final message = data['message']?.toString() ?? 'Inicialización completada.';
+      final message =
+          data['message']?.toString() ?? 'Inicialización completada.';
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$message (creados: $created)')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$message (creados: $created)')));
     } on FirebaseFunctionsException catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +145,9 @@ class AdminDashboardScreen extends ConsumerWidget {
           backgroundColor: OcgColors.error.withOpacity(0.14),
           side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       body: _DashboardBody(
@@ -175,22 +178,24 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appointments = appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
+    final appointments =
+        appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
     final patients = patientsAsync.asData?.value ?? const <PatientModel>[];
 
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrowStart = todayStart.add(const Duration(days: 1));
 
-    final todaysAppointments = appointments
-        .where(
-          (a) =>
-              !a.fechaHora.isBefore(todayStart) &&
-              a.fechaHora.isBefore(tomorrowStart) &&
-              AppointmentsBusinessRules.shouldIncludeInDayAgenda(a.estado),
-        )
-        .toList()
-      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final todaysAppointments =
+        appointments
+            .where(
+              (a) =>
+                  !a.fechaHora.isBefore(todayStart) &&
+                  a.fechaHora.isBefore(tomorrowStart) &&
+                  AppointmentsBusinessRules.shouldIncludeInDayAgenda(a.estado),
+            )
+            .toList()
+          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
     final pendingConfirm = todaysAppointments
         .where((a) => a.estado == AppointmentStatus.programada)
@@ -198,11 +203,19 @@ class _DashboardBody extends StatelessWidget {
 
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
     final canceladasSemana = appointments
-        .where((a) => a.estado == AppointmentStatus.cancelada && a.fechaHora.isAfter(sevenDaysAgo))
+        .where(
+          (a) =>
+              a.estado == AppointmentStatus.cancelada &&
+              a.fechaHora.isAfter(sevenDaysAgo),
+        )
         .length;
 
     final nuevosPacientes30d = patients
-        .where((p) => p.createdAt != null && p.createdAt!.isAfter(now.subtract(const Duration(days: 30))))
+        .where(
+          (p) =>
+              p.createdAt != null &&
+              p.createdAt!.isAfter(now.subtract(const Duration(days: 30))),
+        )
         .length;
 
     final citasSinConfirmar2h = todaysAppointments
@@ -243,7 +256,10 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Resumen operativo del día en OCG Clínica',
-            style: TextStyle(fontSize: 14, color: OcgColors.ink.withOpacity(0.55)),
+            style: TextStyle(
+              fontSize: 14,
+              color: OcgColors.ink.withOpacity(0.55),
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -258,10 +274,26 @@ class _DashboardBody extends StatelessWidget {
                 mainAxisSpacing: 10,
                 childAspectRatio: isCompact ? 1.4 : 1.7,
                 children: [
-                  _KpiCard(title: 'Citas hoy', value: '${todaysAppointments.length}', icon: Icons.today_outlined),
-                  _KpiCard(title: 'Sin confirmar', value: '$pendingConfirm', icon: Icons.pending_actions_outlined),
-                  _KpiCard(title: 'Canceladas (7d)', value: '$canceladasSemana', icon: Icons.event_busy_outlined),
-                  _KpiCard(title: 'Pacientes nuevos', value: '$nuevosPacientes30d', icon: Icons.person_add_alt_1_outlined),
+                  _KpiCard(
+                    title: 'Citas hoy',
+                    value: '${todaysAppointments.length}',
+                    icon: Icons.today_outlined,
+                  ),
+                  _KpiCard(
+                    title: 'Citas Sin confirmar',
+                    value: '$pendingConfirm',
+                    icon: Icons.pending_actions_outlined,
+                  ),
+                  _KpiCard(
+                    title: 'Canceladas (7d)',
+                    value: '$canceladasSemana',
+                    icon: Icons.event_busy_outlined,
+                  ),
+                  _KpiCard(
+                    title: 'Pacientes nuevos(30d)',
+                    value: '$nuevosPacientes30d',
+                    icon: Icons.person_add_alt_1_outlined,
+                  ),
                 ],
               );
             },
@@ -270,7 +302,11 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 24),
           const Text(
             'Acceso rápido',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: OcgColors.espresso),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(height: 12),
           LayoutBuilder(
@@ -328,7 +364,11 @@ class _DashboardBody extends StatelessWidget {
 }
 
 class _KpiCard extends StatelessWidget {
-  const _KpiCard({required this.title, required this.value, required this.icon});
+  const _KpiCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
 
   final String title;
   final String value;
@@ -348,8 +388,21 @@ class _KpiCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Icon(icon, color: OcgColors.bronze),
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
-          Text(title, style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65))),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: OcgColors.ink.withOpacity(0.65),
+            ),
+          ),
         ],
       ),
     );
@@ -380,10 +433,22 @@ class _AlertsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Alertas operativas', style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          const Text(
+            'Alertas operativas',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
           const SizedBox(height: 8),
-          _AlertRow(label: 'Citas en < 2h sin confirmar', value: citasSinConfirmar2h),
-          _AlertRow(label: 'Perfiles pendientes de completar', value: perfilesPendientes),
+          _AlertRow(
+            label: 'Citas en < 2h sin confirmar',
+            value: citasSinConfirmar2h,
+          ),
+          _AlertRow(
+            label: 'Perfiles pendientes de completar',
+            value: perfilesPendientes,
+          ),
           _AlertRow(label: 'Pagos vencidos', value: pagosVencidos),
         ],
       ),
@@ -404,10 +469,22 @@ class _AlertRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(isCritical ? Icons.warning_amber_rounded : Icons.check_circle_outline, size: 16, color: isCritical ? OcgColors.warning : OcgColors.success),
+          Icon(
+            isCritical
+                ? Icons.warning_amber_rounded
+                : Icons.check_circle_outline,
+            size: 16,
+            color: isCritical ? OcgColors.warning : OcgColors.success,
+          ),
           const SizedBox(width: 8),
           Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
-          Text('$value', style: TextStyle(fontWeight: FontWeight.w700, color: isCritical ? OcgColors.warning : OcgColors.success)),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isCritical ? OcgColors.warning : OcgColors.success,
+            ),
+          ),
         ],
       ),
     );
@@ -440,7 +517,13 @@ class _TodayAgendaCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Agenda de hoy', style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          const Text(
+            'Agenda de hoy',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
           const SizedBox(height: 8),
           if (loading)
             const Padding(
@@ -484,13 +567,20 @@ class _TodayAgendaCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                a.patientName.isEmpty ? 'Paciente sin nombre' : a.patientName,
+                                a.patientName.isEmpty
+                                    ? 'Paciente sin nombre'
+                                    : a.patientName,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               Text(
                                 '${_tipoLabel(a.tipo)} • ${a.duracionMinutos} min',
-                                style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.65)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: OcgColors.ink.withOpacity(0.65),
+                                ),
                               ),
                             ],
                           ),
@@ -507,28 +597,42 @@ class _TodayAgendaCard extends StatelessWidget {
                             tooltip: 'Confirmar',
                             icon: Icons.check_circle_outline,
                             color: OcgColors.success,
-                            onTap: () => _updateStatus(context, a, AppointmentStatus.confirmada),
+                            onTap: () => _updateStatus(
+                              context,
+                              a,
+                              AppointmentStatus.confirmada,
+                            ),
                           ),
                         if (a.estado == AppointmentStatus.confirmada)
                           _ActionBtn(
                             tooltip: 'Completar',
                             icon: Icons.task_alt,
                             color: OcgColors.success,
-                            onTap: () => _updateStatus(context, a, AppointmentStatus.completada),
+                            onTap: () => _updateStatus(
+                              context,
+                              a,
+                              AppointmentStatus.completada,
+                            ),
                           ),
-                        if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                        if (a.estado == AppointmentStatus.programada ||
+                            a.estado == AppointmentStatus.confirmada)
                           _ActionBtn(
                             tooltip: 'Reprogramar',
                             icon: Icons.edit_calendar_outlined,
                             color: OcgColors.bronze,
                             onTap: () => _showRescheduleDialog(context, a),
                           ),
-                        if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada)
+                        if (a.estado == AppointmentStatus.programada ||
+                            a.estado == AppointmentStatus.confirmada)
                           _ActionBtn(
                             tooltip: 'Cancelar',
                             icon: Icons.cancel_outlined,
                             color: OcgColors.error,
-                            onTap: () => _updateStatus(context, a, AppointmentStatus.cancelada),
+                            onTap: () => _updateStatus(
+                              context,
+                              a,
+                              AppointmentStatus.cancelada,
+                            ),
                           ),
                       ],
                     ),
@@ -556,9 +660,9 @@ class _TodayAgendaCard extends StatelessWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo actualizar: $e')));
     }
   }
 
@@ -567,7 +671,8 @@ class _TodayAgendaCard extends StatelessWidget {
     AppointmentModel appointment,
   ) async {
     final existingAppointments =
-        ref.read(appointmentsProvider).asData?.value ?? const <AppointmentModel>[];
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
     DateTime selected = appointment.fechaHora.add(const Duration(days: 1));
 
     final result = await showDialog<DateTime>(
@@ -596,7 +701,9 @@ class _TodayAgendaCard extends StatelessWidget {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text('Nueva fecha: ${_fmtDateTime(localSelected)}'),
-                    subtitle: const Text('Horario laboral L-V 08:00-12:00 / 14:00-18:00 · Sáb 08:00-12:00'),
+                    subtitle: const Text(
+                      'Horario laboral L-V 08:00-12:00 / 14:00-18:00 · Sáb 08:00-12:00',
+                    ),
                     trailing: const Icon(Icons.edit_calendar),
                     onTap: () async {
                       final d = await showDatePicker(
@@ -606,10 +713,12 @@ class _TodayAgendaCard extends StatelessWidget {
                         lastDate: DateTime.now().add(const Duration(days: 120)),
                       );
                       if (d == null) return;
-                      final firstAvailable =
-                          slotsForDay(d).where((s) => s.isAvailable).firstOrNull;
+                      final firstAvailable = slotsForDay(
+                        d,
+                      ).where((s) => s.isAvailable).firstOrNull;
                       setDs(() {
-                        localSelected = firstAvailable?.start ??
+                        localSelected =
+                            firstAvailable?.start ??
                             DateTime(
                               d.year,
                               d.month,
@@ -631,10 +740,13 @@ class _TodayAgendaCard extends StatelessWidget {
                         label: Text(
                           label,
                           style: TextStyle(
-                            color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                            color: slot.isAvailable
+                                ? OcgColors.espresso
+                                : Colors.grey.shade600,
                           ),
                         ),
-                        selected: slot.start == localSelected && slot.isAvailable,
+                        selected:
+                            slot.start == localSelected && slot.isAvailable,
                         disabledColor: Colors.grey.shade300,
                         selectedColor: OcgColors.sand,
                         onSelected: slot.isAvailable
@@ -667,13 +779,16 @@ class _TodayAgendaCard extends StatelessWidget {
 
     if (result == null) return;
 
-    final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-      start: result,
-      durationMinutes: appointment.duracionMinutos,
-    );
+    final workingHoursError =
+        AppointmentsBusinessRules.validateWithinWorkingHours(
+          start: result,
+          durationMinutes: appointment.duracionMinutos,
+        );
     if (workingHoursError != null) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(workingHoursError)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(workingHoursError)));
       return;
     }
 
@@ -686,13 +801,19 @@ class _TodayAgendaCard extends StatelessWidget {
     if (hasConflict) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ese horario está ocupado o dentro del buffer de 10 min.')),
+        const SnackBar(
+          content: Text(
+            'Ese horario está ocupado o dentro del buffer de 10 min.',
+          ),
+        ),
       );
       return;
     }
 
     try {
-      await ref.read(appointmentsRepositoryProvider).rescheduleAppointment(
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .rescheduleAppointment(
             originalId: appointment.id,
             newAppointment: appointment.copyWith(
               id: '',
@@ -706,9 +827,9 @@ class _TodayAgendaCard extends StatelessWidget {
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo reprogramar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo reprogramar: $e')));
     }
   }
 
@@ -797,7 +918,11 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -870,7 +995,9 @@ class _SignOutButton extends ConsumerWidget {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Cerrar sesión'),
-                    content: const Text('¿Deseas cerrar tu sesión de administrador?'),
+                    content: const Text(
+                      '¿Deseas cerrar tu sesión de administrador?',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => popDialog(ctx, false),
