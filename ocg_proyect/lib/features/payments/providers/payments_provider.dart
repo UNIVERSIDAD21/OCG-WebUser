@@ -35,11 +35,13 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
     String? referencia,
     String? notas,
   }) async {
+    if (!ref.mounted) return;
     state = const AsyncLoading();
 
-    final guarded = await AsyncValue.guard(() async {
-      final repository = ref.read(paymentsRepositoryProvider);
+    final repository = ref.read(paymentsRepositoryProvider);
+    final pdfService = ref.read(pdfReceiptServiceProvider);
 
+    final guarded = await AsyncValue.guard(() async {
       await repository.registerManualPayment(
         patientId: patientId,
         monto: monto,
@@ -63,7 +65,7 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
           final patientDocument =
               (patientData['numeroDocumento'] ?? patientData['documento'] ?? '').toString();
 
-          await ref.read(pdfReceiptServiceProvider).generateAndUpload(
+          await pdfService.generateAndUpload(
                 patientId: patientId,
                 transactionId: tx.id,
                 transaction: tx,
@@ -79,6 +81,10 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
 
     if (!ref.mounted) return;
     state = guarded;
+
+    if (guarded.hasError) {
+      throw guarded.error!;
+    }
   }
 }
 

@@ -182,35 +182,32 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
 
     setState(() => _saving = true);
 
-    await ref.read(registerPaymentProvider.notifier).registerManual(
-          patientId: widget.patientId,
-          monto: monto,
-          metodo: _metodo,
-          adminId: adminId,
-          referencia: _referenciaController.text.trim().isEmpty
-              ? null
-              : _referenciaController.text.trim(),
-          notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
-        );
+    try {
+      await ref.read(registerPaymentProvider.notifier).registerManual(
+            patientId: widget.patientId,
+            monto: monto,
+            metodo: _metodo,
+            adminId: adminId,
+            referencia: _referenciaController.text.trim().isEmpty
+                ? null
+                : _referenciaController.text.trim(),
+            notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
+          );
 
-    final result = ref.read(registerPaymentProvider);
-
-    if (!mounted) return;
-
-    if (result.hasError) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pago registrado correctamente.'),
+          backgroundColor: OcgColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.error.toString())),
+        SnackBar(content: Text(e.toString())),
       );
-      return;
     }
-
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pago registrado correctamente.'),
-        backgroundColor: OcgColors.success,
-      ),
-    );
   }
 }
