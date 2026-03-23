@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
+import '../../firebase_options.dart';
 import '../../shared/constants/firestore_paths.dart';
 
 class AuthService {
@@ -49,28 +51,48 @@ class AuthService {
     required String password,
     String? displayName,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-
-    final user = credential.user;
+    final cleanEmail = email.trim().toLowerCase();
     final cleanName = displayName?.trim() ?? '';
-    if (user == null) return;
 
-    if (cleanName.isNotEmpty) {
-      await user.updateDisplayName(cleanName);
+    FirebaseApp? secondaryApp;
+    try {
+      secondaryApp = await Firebase.initializeApp(
+        name: 'ocg-register-${DateTime.now().microsecondsSinceEpoch}',
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: cleanEmail,
+        password: password,
+      );
+
+      final user = credential.user;
+      if (user == null) {
+        throw FirebaseAuthException(code: 'unknown', message: 'No se pudo crear el usuario.');
+      }
+
+      if (cleanName.isNotEmpty) {
+        await user.updateDisplayName(cleanName);
+      }
+
+      await _db.collection(FirestorePaths.patients).doc(user.uid).set({
+        'id': user.uid,
+        'uid': user.uid,
+        'nombre': cleanName,
+        'email': cleanEmail,
+        'telefono': '',
+        'fcmToken': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await secondaryAuth.signOut();
+    } finally {
+      if (secondaryApp != null) {
+        await secondaryApp.delete();
+      }
     }
-
-    await _db.collection(FirestorePaths.patients).doc(user.uid).set({
-      'id': user.uid,
-      'nombre': cleanName,
-      'email': email.trim().toLowerCase(),
-      'telefono': '',
-      'fcmToken': '',
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
   }
 
   Future<void> createPatientByAdmin({

@@ -327,10 +327,7 @@ class _RegisterPatientDialogState
             displayName: _name.trim(),
           );
 
-      // 2. Sign-out inmediato — previene el redirect a /patient/home
-      await ref.read(authServiceProvider).signOut();
-
-      // 3. Cerrar el diálogo pasando true para activar el banner
+      // 2. Cerrar el diálogo pasando true para activar el banner
       if (!mounted) return;
       popDialog(context, true);
     } on FirebaseAuthException catch (e) {

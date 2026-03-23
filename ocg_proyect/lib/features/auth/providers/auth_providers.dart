@@ -84,8 +84,6 @@ class AuthNotifier extends AsyncNotifier<void> {
         password: password,
         displayName: displayName,
       );
-      // Flujo requerido: no auto-login tras registro
-      await authService.signOut();
     });
   }
 
