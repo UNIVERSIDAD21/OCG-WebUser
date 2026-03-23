@@ -153,7 +153,9 @@ class _AdminSimulationCard extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Compartir'),
                     value: simulation.compartidaConPaciente,
-                    onChanged: simulation.status == SimulationStatus.draft ? null : onToggleShare,
+                    onChanged: (simulation.status == SimulationStatus.draft || simulation.status == SimulationStatus.archived)
+                        ? null
+                        : onToggleShare,
                   ),
                 ),
               ],

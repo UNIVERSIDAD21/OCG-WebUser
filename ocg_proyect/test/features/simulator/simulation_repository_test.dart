@@ -105,4 +105,34 @@ void main() {
     expect(list.length, 2);
     expect(list.first.id, 'b');
   });
+
+  test('watchSharedSimulations solo retorna compartidas en status shared', () async {
+    await db.collection(FirestorePaths.patientSimulations('p-5')).add({
+      ...base(
+        id: 'shared-ok',
+        patientId: 'p-5',
+        resultUrl: 'https://x/result.jpg',
+        status: SimulationStatus.shared,
+        shared: true,
+      ).toJson(),
+      'id': 'shared-ok',
+      'createdAt': Timestamp.fromDate(DateTime(2026, 3, 2)),
+    });
+
+    await db.collection(FirestorePaths.patientSimulations('p-5')).add({
+      ...base(
+        id: 'ready-no-share',
+        patientId: 'p-5',
+        resultUrl: 'https://x/result.jpg',
+        status: SimulationStatus.ready,
+        shared: true,
+      ).toJson(),
+      'id': 'ready-no-share',
+      'createdAt': Timestamp.fromDate(DateTime(2026, 3, 1)),
+    });
+
+    final list = await repo.watchSharedSimulations('p-5').first;
+    expect(list.length, 1);
+    expect(list.first.id, 'shared-ok');
+  });
 }

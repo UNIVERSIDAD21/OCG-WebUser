@@ -840,6 +840,33 @@ Este bloque SOLO puede darse por cerrado si se cumple TODO lo siguiente:
 
 ---
 
+## Estado de implementación (cierre técnico 2026-03-23)
+
+Implementado en código:
+- Modelo `SimulationModel` + enums (`mode`, `status`) y serialización.
+- Repositorio con persistencia en Firestore/Storage:
+  - `watchSimulations`
+  - `watchSharedSimulations`
+  - `uploadOriginalImage`
+  - `uploadResultImage`
+  - `saveSimulation`
+  - `updateSimulation`
+  - `toggleShare`
+- Flujo admin completo:
+  - modo `manual_doctora`
+  - modo `mock` interno local
+  - guardado `draft/ready/shared`
+  - historial por paciente
+  - abrir simulación existente
+  - compartir/descompartir
+- Comparador `BeforeAfterSlider` reutilizable integrado en admin y paciente.
+- Vista paciente solo lectura con filtro estricto de simulaciones compartidas.
+- Soporte ML Kit de detección facial y sugerencia de región con ajuste manual y fallback.
+- Disclaimers orientativos visibles en admin y paciente.
+
+Pendiente (fuera de este bloque):
+- IA externa real (API/Cloud Functions/inpainting real).
+
 # Resultado esperado al cerrar el bloque
 
 Al finalizar este bloque, OCG debe tener un **Simulador de Sonrisa usable desde ya**, donde:
