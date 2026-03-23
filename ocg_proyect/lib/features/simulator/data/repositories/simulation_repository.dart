@@ -87,6 +87,7 @@ class SimulationRepository {
     required String simulationId,
     String? resultUrl,
     bool clearResultUrl = false,
+    SimulationMode? mode,
     SimulationStatus? status,
     String? notes,
     bool clearNotes = false,
@@ -111,6 +112,7 @@ class SimulationRepository {
     final next = current.copyWith(
       resultUrl: resultUrl,
       clearResultUrl: clearResultUrl,
+      mode: mode,
       status: nextStatus,
       notes: notes,
       clearNotes: clearNotes,

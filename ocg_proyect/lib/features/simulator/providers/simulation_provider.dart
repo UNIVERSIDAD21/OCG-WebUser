@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../services/firebase/image_picker_service.dart';
+import '../../../services/simulator/mock_simulation_service.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
 import '../data/repositories/simulation_repository.dart';
@@ -12,6 +13,10 @@ final simulationRepositoryProvider = Provider<SimulationRepository>((ref) {
 
 final imagePickerServiceProvider = Provider<ImagePickerService>((ref) {
   return ImagePickerService();
+});
+
+final mockSimulationServiceProvider = Provider<MockSimulationService>((ref) {
+  return MockSimulationService();
 });
 
 final patientSimulationsProvider = StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
@@ -25,7 +30,8 @@ final sharedSimulationsProvider = StreamProvider.family<List<SimulationModel>, S
 enum SimulatorUiState {
   idle,
   pickingImage,
-  waitingManualResult,
+  generatingMock,
+  previewReady,
   saving,
   saved,
   error,
@@ -35,6 +41,7 @@ class SimulatorFlowState {
   const SimulatorFlowState({
     required this.uiState,
     this.patientId,
+    this.selectedMode = SimulationMode.manualDoctora,
     this.simulationId,
     this.originalUrl,
     this.resultUrl,
@@ -45,6 +52,7 @@ class SimulatorFlowState {
 
   final SimulatorUiState uiState;
   final String? patientId;
+  final SimulationMode selectedMode;
   final String? simulationId;
   final String? originalUrl;
   final String? resultUrl;
@@ -59,6 +67,7 @@ class SimulatorFlowState {
     SimulatorUiState? uiState,
     String? patientId,
     bool clearPatientId = false,
+    SimulationMode? selectedMode,
     String? simulationId,
     bool clearSimulationId = false,
     String? originalUrl,
@@ -74,6 +83,7 @@ class SimulatorFlowState {
     return SimulatorFlowState(
       uiState: uiState ?? this.uiState,
       patientId: clearPatientId ? null : (patientId ?? this.patientId),
+      selectedMode: selectedMode ?? this.selectedMode,
       simulationId: clearSimulationId ? null : (simulationId ?? this.simulationId),
       originalUrl: clearOriginalUrl ? null : (originalUrl ?? this.originalUrl),
       resultUrl: clearResultUrl ? null : (resultUrl ?? this.resultUrl),
@@ -92,12 +102,19 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
 
   SimulationRepository get _repo => ref.read(simulationRepositoryProvider);
   ImagePickerService get _picker => ref.read(imagePickerServiceProvider);
+  MockSimulationService get _mock => ref.read(mockSimulationServiceProvider);
+
+  void setMode(SimulationMode mode) {
+    final current = state.asData?.value ?? const SimulatorFlowState(uiState: SimulatorUiState.idle);
+    state = AsyncData(current.copyWith(selectedMode: mode));
+  }
 
   void loadExistingSimulation(SimulationModel simulation) {
     state = AsyncData(
       SimulatorFlowState(
-        uiState: SimulatorUiState.waitingManualResult,
+        uiState: SimulatorUiState.previewReady,
         patientId: simulation.patientId,
+        selectedMode: simulation.mode,
         simulationId: simulation.id,
         originalUrl: simulation.originalUrl,
         resultUrl: simulation.resultUrl,
@@ -151,6 +168,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       }
 
       final simulationId = 'sim_${DateTime.now().microsecondsSinceEpoch}';
+      final selectedMode = current.selectedMode;
+
       final originalUrl = await _repo.uploadOriginalImage(
         patientId: patientId,
         simulationId: simulationId,
@@ -164,7 +183,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           patientId: patientId,
           originalUrl: originalUrl,
           resultUrl: null,
-          mode: SimulationMode.manualDoctora,
+          mode: selectedMode,
           compartidaConPaciente: false,
           createdAt: DateTime.now(),
           updatedAt: null,
@@ -178,16 +197,63 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         ),
       );
 
-      state = AsyncData(
-        SimulatorFlowState(
-          uiState: SimulatorUiState.waitingManualResult,
+      if (selectedMode == SimulationMode.mock) {
+        state = AsyncData(
+          current.copyWith(
+            uiState: SimulatorUiState.generatingMock,
+            patientId: patientId,
+            simulationId: simulationId,
+            originalUrl: originalUrl,
+            clearResultUrl: true,
+            clearError: true,
+          ),
+        );
+
+        final mockBytes = _mock.generateMockResult(picked.bytes);
+        final mockUrl = await _repo.uploadResultImage(
           patientId: patientId,
           simulationId: simulationId,
-          originalUrl: originalUrl,
-          resultUrl: null,
-          shareWithPatient: false,
-        ),
-      );
+          bytes: mockBytes,
+          contentType: picked.mimeType,
+        );
+
+        await _repo.updateSimulation(
+          patientId: patientId,
+          simulationId: simulationId,
+          mode: SimulationMode.mock,
+          resultUrl: mockUrl,
+          status: SimulationStatus.ready,
+          promptMetadata: {
+            'source': 'internal_mock',
+            'version': 'v1',
+            'note': 'Ajuste visual orientativo sin IA externa',
+          },
+        );
+
+        state = AsyncData(
+          SimulatorFlowState(
+            uiState: SimulatorUiState.previewReady,
+            patientId: patientId,
+            selectedMode: SimulationMode.mock,
+            simulationId: simulationId,
+            originalUrl: originalUrl,
+            resultUrl: mockUrl,
+            shareWithPatient: false,
+          ),
+        );
+      } else {
+        state = AsyncData(
+          SimulatorFlowState(
+            uiState: SimulatorUiState.previewReady,
+            patientId: patientId,
+            selectedMode: SimulationMode.manualDoctora,
+            simulationId: simulationId,
+            originalUrl: originalUrl,
+            resultUrl: null,
+            shareWithPatient: false,
+          ),
+        );
+      }
     } catch (e) {
       state = AsyncData(
         current.copyWith(
@@ -210,7 +276,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     try {
       final picked = fromCamera ? await _picker.pickFromCamera() : await _picker.pickFromGallery();
       if (picked == null) {
-        state = AsyncData(current.copyWith(uiState: SimulatorUiState.waitingManualResult, clearError: true));
+        state = AsyncData(current.copyWith(uiState: SimulatorUiState.previewReady, clearError: true));
         return;
       }
 
@@ -224,13 +290,15 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       await _repo.updateSimulation(
         patientId: patientId,
         simulationId: current.simulationId!,
+        mode: SimulationMode.manualDoctora,
         resultUrl: resultUrl,
         status: current.shareWithPatient ? SimulationStatus.shared : SimulationStatus.ready,
       );
 
       state = AsyncData(
         current.copyWith(
-          uiState: SimulatorUiState.waitingManualResult,
+          uiState: SimulatorUiState.previewReady,
+          selectedMode: SimulationMode.manualDoctora,
           resultUrl: resultUrl,
           clearError: true,
         ),
@@ -263,7 +331,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       state = AsyncData(
         (current ?? const SimulatorFlowState(uiState: SimulatorUiState.idle)).copyWith(
           uiState: SimulatorUiState.error,
-          errorMessage: 'Debes cargar una imagen resultado antes de guardar.',
+          errorMessage: 'Debes tener resultado antes de guardar.',
         ),
       );
       return;
@@ -277,6 +345,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       await _repo.updateSimulation(
         patientId: patientId,
         simulationId: current.simulationId!,
+        mode: current.selectedMode,
         status: status,
         notes: current.notes,
       );

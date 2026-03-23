@@ -63,6 +63,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           );
         }
 
+        final inPreview = flow.uiState == SimulatorUiState.previewReady ||
+            flow.uiState == SimulatorUiState.saving ||
+            flow.uiState == SimulatorUiState.saved ||
+            flow.uiState == SimulatorUiState.generatingMock;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -70,6 +75,25 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             children: [
               _disclaimer(),
               const SizedBox(height: 12),
+              SegmentedButton<SimulationMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: SimulationMode.manualDoctora,
+                    icon: Icon(Icons.edit_outlined),
+                    label: Text('Manual doctora'),
+                  ),
+                  ButtonSegment(
+                    value: SimulationMode.mock,
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    label: Text('Mock interno'),
+                  ),
+                ],
+                selected: {flow.selectedMode},
+                onSelectionChanged: (sel) {
+                  ref.read(simulatorFlowProvider.notifier).setMode(sel.first);
+                },
+              ),
+              const SizedBox(height: 10),
               if (flow.uiState == SimulatorUiState.idle) ...[
                 const Text(
                   'Paso 1: carga imagen original',
@@ -80,25 +104,40 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   spacing: 8,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () => ref
-                          .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromGallery(patientId: widget.patientId, adminId: widget.adminId, treatmentType: widget.treatmentType),
+                      onPressed: () => ref.read(simulatorFlowProvider.notifier).pickOriginalFromGallery(
+                            patientId: widget.patientId,
+                            adminId: widget.adminId,
+                            treatmentType: widget.treatmentType,
+                          ),
                       icon: const Icon(Icons.photo_library_outlined),
                       label: const Text('Subir desde galería'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => ref
-                          .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromCamera(patientId: widget.patientId, adminId: widget.adminId, treatmentType: widget.treatmentType),
+                      onPressed: () => ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
+                            patientId: widget.patientId,
+                            adminId: widget.adminId,
+                            treatmentType: widget.treatmentType,
+                          ),
                       icon: const Icon(Icons.photo_camera_outlined),
                       label: const Text('Usar cámara'),
                     ),
                   ],
                 ),
               ],
-              if (flow.uiState == SimulatorUiState.waitingManualResult ||
-                  flow.uiState == SimulatorUiState.saving ||
-                  flow.uiState == SimulatorUiState.saved) ...[
+              if (flow.uiState == SimulatorUiState.generatingMock) ...[
+                const SizedBox(height: 12),
+                const Row(
+                  children: [
+                    SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Generando simulación mock orientativa...'),
+                    ),
+                  ],
+                ),
+              ],
+              if (inPreview) ...[
+                const SizedBox(height: 12),
                 if (flow.hasOriginal && flow.hasResult)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,41 +161,47 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ),
                   const SizedBox(height: 12),
                   _previewCard(
-                    title: 'Imagen resultado manual',
+                    title: 'Imagen resultado',
                     imageUrl: flow.resultUrl,
-                    emptyLabel: 'Pendiente por cargar',
+                    emptyLabel: flow.selectedMode == SimulationMode.mock
+                        ? 'Pendiente de generación mock'
+                        : 'Pendiente por cargar manualmente',
                   ),
                 ],
-                const SizedBox(height: 12),
-                const Text(
-                  'Paso 2: carga o reemplaza imagen resultado manual',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: flow.uiState == SimulatorUiState.saving
-                          ? null
-                          : () => ref
-                              .read(simulatorFlowProvider.notifier)
-                              .uploadOrReplaceManualResult(patientId: widget.patientId, fromCamera: false),
-                      icon: const Icon(Icons.upload_file),
-                      label: Text(flow.hasResult ? 'Reemplazar resultado' : 'Subir resultado manual'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: flow.uiState == SimulatorUiState.saving
-                          ? null
-                          : () => ref
-                              .read(simulatorFlowProvider.notifier)
-                              .uploadOrReplaceManualResult(patientId: widget.patientId, fromCamera: true),
-                      icon: const Icon(Icons.photo_camera_outlined),
-                      label: const Text('Tomar foto resultado'),
-                    ),
-                  ],
-                ),
+                if (flow.selectedMode == SimulationMode.manualDoctora) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Paso 2: carga o reemplaza imagen resultado manual',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: flow.uiState == SimulatorUiState.saving
+                            ? null
+                            : () => ref.read(simulatorFlowProvider.notifier).uploadOrReplaceManualResult(
+                                  patientId: widget.patientId,
+                                  fromCamera: false,
+                                ),
+                        icon: const Icon(Icons.upload_file),
+                        label: Text(flow.hasResult ? 'Reemplazar resultado' : 'Subir resultado manual'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: flow.uiState == SimulatorUiState.saving
+                            ? null
+                            : () => ref.read(simulatorFlowProvider.notifier).uploadOrReplaceManualResult(
+                                  patientId: widget.patientId,
+                                  fromCamera: true,
+                                ),
+                        icon: const Icon(Icons.photo_camera_outlined),
+                        label: const Text('Tomar foto resultado'),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 12),
                 SwitchListTile(
                   title: const Text('Compartir con paciente al guardar'),
