@@ -58,13 +58,16 @@ void main() {
 
       await repo.updateStage(
         patientId: patientId,
-        etapaActual: TreatmentStage.controles,
+        etapaAnterior: TreatmentStage.controles,
         nuevaEtapa: TreatmentStage.instalacion,
-        notas: 'Retroceso por pérdida de aparatología y nueva instalación clínica',
+        notas:
+            'Retroceso por pérdida de aparatología y nueva instalación clínica',
         adminId: 'admin-3',
       );
 
-      final historySnap = await db.collection(FirestorePaths.stageHistory(patientId)).get();
+      final historySnap = await db
+          .collection(FirestorePaths.stageHistory(patientId))
+          .get();
       expect(historySnap.docs.length, 1);
       expect(historySnap.docs.first.data()['esRetroceso'], true);
     });
@@ -79,7 +82,11 @@ void main() {
           notas: '',
           adminId: 'admin',
         ),
-        throwsA(predicate((e) => e is Exception && e.toString().contains('STAGE_SAME'))),
+        throwsA(
+          predicate(
+            (e) => e is Exception && e.toString().contains('STAGE_SAME'),
+          ),
+        ),
       );
     });
 
@@ -93,7 +100,11 @@ void main() {
           notas: 'corta',
           adminId: 'admin',
         ),
-        throwsA(predicate((e) => e is Exception && e.toString().contains('NOTES_TOO_SHORT'))),
+        throwsA(
+          predicate(
+            (e) => e is Exception && e.toString().contains('NOTES_TOO_SHORT'),
+          ),
+        ),
       );
     });
   });
