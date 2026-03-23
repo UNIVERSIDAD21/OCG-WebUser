@@ -7,11 +7,13 @@ class PickedImageData {
     required this.bytes,
     required this.fileName,
     required this.mimeType,
+    required this.filePath,
   });
 
   final Uint8List bytes;
   final String fileName;
   final String mimeType;
+  final String filePath;
 }
 
 class ImagePickerService {
@@ -40,6 +42,7 @@ class ImagePickerService {
       bytes: bytes,
       fileName: file.name,
       mimeType: mime,
+      filePath: file.path,
     );
   }
 }

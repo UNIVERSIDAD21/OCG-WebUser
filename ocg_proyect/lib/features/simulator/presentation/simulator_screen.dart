@@ -203,6 +203,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
+                _regionCard(flow),
+                const SizedBox(height: 12),
                 SwitchListTile(
                   title: const Text('Compartir con paciente al guardar'),
                   value: flow.shareWithPatient,
@@ -272,6 +274,106 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+
+  Widget _regionCard(SimulatorFlowState flow) {
+    final region = flow.detectedRegion;
+    if (region == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: OcgColors.sand),
+        ),
+        child: const Text(
+          'No se detectó región facial automáticamente. Puedes continuar y ajustar manualmente si lo deseas.',
+          style: TextStyle(color: OcgColors.ink),
+        ),
+      );
+    }
+
+    String f(num? v) => (v ?? 0).toStringAsFixed(1);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.sand),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            flow.mlKitUsed
+                ? 'Región sugerida por ML Kit · x:${f(region['x'] as num?)} y:${f(region['y'] as num?)} w:${f(region['w'] as num?)} h:${f(region['h'] as num?)}'
+                : 'Región cargada manualmente · x:${f(region['x'] as num?)} y:${f(region['y'] as num?)} w:${f(region['w'] as num?)} h:${f(region['h'] as num?)}',
+            style: const TextStyle(color: OcgColors.ink, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openAdjustRegionDialog(flow),
+            icon: const Icon(Icons.tune),
+            label: const Text('Ajustar región manualmente'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAdjustRegionDialog(SimulatorFlowState flow) async {
+    final region = flow.detectedRegion ?? {'x': 0.0, 'y': 0.0, 'w': 0.0, 'h': 0.0};
+
+    double x = (region['x'] as num?)?.toDouble() ?? 0;
+    double y = (region['y'] as num?)?.toDouble() ?? 0;
+    double w = (region['w'] as num?)?.toDouble() ?? 0;
+    double h = (region['h'] as num?)?.toDouble() ?? 0;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Ajustar región sugerida'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _slider('X', x, (v) => setSt(() => x = v)),
+                _slider('Y', y, (v) => setSt(() => y = v)),
+                _slider('W', w, (v) => setSt(() => w = v)),
+                _slider('H', h, (v) => setSt(() => h = v)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Guardar')),
+          ],
+        ),
+      ),
+    );
+
+    if (result != true) return;
+
+    await ref.read(simulatorFlowProvider.notifier).updateDetectedRegion(
+          patientId: widget.patientId,
+          x: x,
+          y: y,
+          w: w,
+          h: h,
+        );
+  }
+
+  Widget _slider(String label, double value, ValueChanged<double> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$label: ${value.toStringAsFixed(1)}'),
+        Slider(value: value.clamp(0, 4000), min: 0, max: 4000, onChanged: onChanged),
+      ],
     );
   }
 
