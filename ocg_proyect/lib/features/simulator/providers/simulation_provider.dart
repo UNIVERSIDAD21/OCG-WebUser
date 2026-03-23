@@ -14,6 +14,14 @@ final imagePickerServiceProvider = Provider<ImagePickerService>((ref) {
   return ImagePickerService();
 });
 
+final patientSimulationsProvider = StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
+  return ref.watch(simulationRepositoryProvider).watchSimulations(patientId);
+});
+
+final sharedSimulationsProvider = StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
+  return ref.watch(simulationRepositoryProvider).watchSharedSimulations(patientId);
+});
+
 enum SimulatorUiState {
   idle,
   pickingImage,
@@ -84,6 +92,20 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
 
   SimulationRepository get _repo => ref.read(simulationRepositoryProvider);
   ImagePickerService get _picker => ref.read(imagePickerServiceProvider);
+
+  void loadExistingSimulation(SimulationModel simulation) {
+    state = AsyncData(
+      SimulatorFlowState(
+        uiState: SimulatorUiState.waitingManualResult,
+        patientId: simulation.patientId,
+        simulationId: simulation.id,
+        originalUrl: simulation.originalUrl,
+        resultUrl: simulation.resultUrl,
+        shareWithPatient: simulation.compartidaConPaciente,
+        notes: simulation.notes,
+      ),
+    );
+  }
 
   Future<void> pickOriginalFromGallery({
     required String patientId,

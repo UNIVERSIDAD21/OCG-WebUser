@@ -14,6 +14,7 @@ import '../../features/patients/presentation/patient_form_screen.dart';
 import '../../features/patients/presentation/patient_profile_screen.dart';
 import '../../features/payments/presentation/patient_payments_screen.dart';
 import '../../features/payments/presentation/payu_checkout_screen.dart';
+import '../../features/simulator/presentation/patient_simulations_screen.dart';
 import 'route_names.dart';
 
 bool _isPublicRoute(String location) {
@@ -117,6 +118,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.patientPayments,
         builder: (context, state) => const PatientPaymentsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.patientSimulations,
+        builder: (context, state) => const PatientSimulationsScreen(),
       ),
       GoRoute(
         path: RouteNames.patientPayuCheckout,

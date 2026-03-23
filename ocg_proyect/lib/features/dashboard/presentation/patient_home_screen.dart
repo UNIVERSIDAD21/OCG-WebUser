@@ -10,6 +10,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
+import '../../simulator/presentation/patient_simulations_screen.dart';
 import 'patient_appointments_screen.dart';
 import '../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
@@ -36,6 +37,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       const PatientAppointmentsScreen(embedded: true),
       _TratamientoSection(userId: user?.uid ?? ''),
       const PatientPaymentsScreen(embedded: true),
+      const PatientSimulationsScreen(embedded: true),
       const PatientProfileScreen(embedded: true),
     ];
 
@@ -79,6 +81,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             icon: Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: Icon(Icons.account_balance_wallet),
             label: 'Pagos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Simulaciones',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),

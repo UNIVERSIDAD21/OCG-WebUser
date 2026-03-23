@@ -3,22 +3,49 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../patients/data/models/patient_model.dart';
+import '../data/models/simulation_model.dart';
 import '../providers/simulation_provider.dart';
 
-class SimulatorScreen extends ConsumerWidget {
+class SimulatorScreen extends ConsumerStatefulWidget {
   const SimulatorScreen({
     super.key,
     required this.patientId,
     required this.adminId,
     this.treatmentType,
+    this.initialSimulation,
   });
 
   final String patientId;
   final String adminId;
   final TreatmentType? treatmentType;
+  final SimulationModel? initialSimulation;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SimulatorScreen> createState() => _SimulatorScreenState();
+}
+
+class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sim = widget.initialSimulation;
+      if (sim != null) {
+        ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(sim);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant SimulatorScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSimulation?.id != oldWidget.initialSimulation?.id && widget.initialSimulation != null) {
+      ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(widget.initialSimulation!);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final flowAsync = ref.watch(simulatorFlowProvider);
 
     return flowAsync.when(
@@ -54,14 +81,14 @@ class SimulatorScreen extends ConsumerWidget {
                     ElevatedButton.icon(
                       onPressed: () => ref
                           .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromGallery(patientId: patientId, adminId: adminId, treatmentType: treatmentType),
+                          .pickOriginalFromGallery(patientId: widget.patientId, adminId: widget.adminId, treatmentType: widget.treatmentType),
                       icon: const Icon(Icons.photo_library_outlined),
                       label: const Text('Subir desde galería'),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => ref
                           .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromCamera(patientId: patientId, adminId: adminId, treatmentType: treatmentType),
+                          .pickOriginalFromCamera(patientId: widget.patientId, adminId: widget.adminId, treatmentType: widget.treatmentType),
                       icon: const Icon(Icons.photo_camera_outlined),
                       label: const Text('Usar cámara'),
                     ),
@@ -97,7 +124,7 @@ class SimulatorScreen extends ConsumerWidget {
                           ? null
                           : () => ref
                               .read(simulatorFlowProvider.notifier)
-                              .uploadOrReplaceManualResult(patientId: patientId, fromCamera: false),
+                              .uploadOrReplaceManualResult(patientId: widget.patientId, fromCamera: false),
                       icon: const Icon(Icons.upload_file),
                       label: Text(flow.hasResult ? 'Reemplazar resultado' : 'Subir resultado manual'),
                     ),
@@ -106,7 +133,7 @@ class SimulatorScreen extends ConsumerWidget {
                           ? null
                           : () => ref
                               .read(simulatorFlowProvider.notifier)
-                              .uploadOrReplaceManualResult(patientId: patientId, fromCamera: true),
+                              .uploadOrReplaceManualResult(patientId: widget.patientId, fromCamera: true),
                       icon: const Icon(Icons.photo_camera_outlined),
                       label: const Text('Tomar foto resultado'),
                     ),
@@ -136,7 +163,7 @@ class SimulatorScreen extends ConsumerWidget {
                 ElevatedButton.icon(
                   onPressed: (!flow.hasResult || flow.uiState == SimulatorUiState.saving)
                       ? null
-                      : () => ref.read(simulatorFlowProvider.notifier).saveFinalSimulation(patientId: patientId),
+                      : () => ref.read(simulatorFlowProvider.notifier).saveFinalSimulation(patientId: widget.patientId),
                   icon: flow.uiState == SimulatorUiState.saving
                       ? const SizedBox(
                           width: 14,

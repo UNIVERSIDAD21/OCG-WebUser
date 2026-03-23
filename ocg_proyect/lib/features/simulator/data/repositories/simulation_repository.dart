@@ -27,6 +27,14 @@ class SimulationRepository {
         .map((snap) => snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList());
   }
 
+  Stream<List<SimulationModel>> watchSharedSimulations(String patientId) {
+    return _simulationsRef(patientId)
+        .where('compartidaConPaciente', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList());
+  }
+
   Future<String> uploadOriginalImage({
     required String patientId,
     required String simulationId,
