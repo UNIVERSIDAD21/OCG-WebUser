@@ -10,8 +10,8 @@ import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/summary_card.dart';
+import '../../patient/presentation/web/components/highlight_card.dart';
 import '../../../shared/utils/dialog_utils.dart';
-import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
@@ -124,11 +124,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              OcgCard(
+              HighlightCard(
+                title: 'Datos personales',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Datos personales', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
                     const SizedBox(height: 12),
@@ -160,11 +160,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              OcgCard(
+              HighlightCard(
+                title: 'Resumen clínico (solo lectura)',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
                     _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
@@ -181,11 +181,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              OcgCard(
+              HighlightCard(
+                title: 'Estado financiero',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
                     _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),
