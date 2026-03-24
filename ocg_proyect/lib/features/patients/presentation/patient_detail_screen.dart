@@ -188,5 +188,15 @@ class _PatientDetailView extends ConsumerWidget {
         ),
       ),
     );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return AdminWebShell(
+        currentRoute: RouteNames.adminPatients,
+        title: 'Detalle de paciente',
+        child: content,
+      );
+    }
+
+    return content;
   }
 }

@@ -6,8 +6,10 @@ class WebLayoutContext {
   const WebLayoutContext._();
 
   static bool useDesktopShell(BuildContext context) =>
-      WebBreakpoints.isDesktop(context);
+      kIsWeb && WebBreakpoints.isDesktop(context);
 
   static bool useWebPatientNavRail(BuildContext context) =>
       WebBreakpoints.isDesktop(context);
+}
+eakpoints.isDesktop(context);
 }

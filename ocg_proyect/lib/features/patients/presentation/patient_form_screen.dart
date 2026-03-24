@@ -232,6 +232,16 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               ),
             ),
     );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return AdminWebShell(
+        currentRoute: RouteNames.adminPatients,
+        title: isEdit ? 'Editar paciente' : 'Nuevo paciente',
+        child: page,
+      );
+    }
+
+    return page;
   }
 
   String _formatCopInput(num value) {
