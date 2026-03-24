@@ -1,13 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/admin/presentation/admin_module_placeholder_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
+import '../../features/dashboard/presentation/admin_modules_screens.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
@@ -89,30 +88,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.adminTreatments,
-        builder: (context, state) => const AdminModulePlaceholderScreen(
-          title: 'Tratamientos',
-          description:
-              'Módulo operativo de tratamientos habilitado. Desde aquí podrás gestionar el seguimiento clínico y sus acciones por paciente.',
-          icon: Icons.monitor_heart_outlined,
-        ),
+        builder: (context, state) => const AdminTreatmentsScreen(),
       ),
       GoRoute(
         path: RouteNames.adminPayments,
-        builder: (context, state) => const AdminModulePlaceholderScreen(
-          title: 'Pagos',
-          description:
-              'Módulo de pagos habilitado. Aquí puedes centralizar el control financiero y el estado de cobros por paciente.',
-          icon: Icons.payments_outlined,
-        ),
+        builder: (context, state) => const AdminPaymentsScreen(),
       ),
       GoRoute(
         path: RouteNames.adminSimulator,
-        builder: (context, state) => const AdminModulePlaceholderScreen(
-          title: 'Simulador',
-          description:
-              'Módulo de simulador habilitado. Desde esta vista puedes continuar el flujo clínico visual sin rutas rotas.',
-          icon: Icons.auto_awesome_outlined,
-        ),
+        builder: (context, state) => const AdminSimulatorScreen(),
       ),
       GoRoute(
         path: RouteNames.adminPatientDetail,
