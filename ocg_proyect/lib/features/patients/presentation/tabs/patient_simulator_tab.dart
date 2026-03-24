@@ -87,6 +87,39 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                             compartida: value,
                           );
                     },
+                    onDelete: () async {
+                      final confirmar = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Eliminar simulación'),
+                          content: const Text(
+                            '¿Seguro que deseas eliminar esta simulación? Esta acción no se puede deshacer.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Eliminar'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmar != true) return;
+
+                      await ref.read(simulationRepositoryProvider).deleteSimulation(
+                            patientId: widget.patient.id,
+                            simulationId: s.id,
+                          );
+
+                      if (_openedSimulation?.id == s.id) {
+                        setState(() => _openedSimulation = null);
+                        ref.read(simulatorFlowProvider.notifier).resetFlow();
+                      }
+                    },
                   )),
             const SizedBox(height: 16),
             SimulatorScreen(
@@ -107,11 +140,13 @@ class _AdminSimulationCard extends StatelessWidget {
     required this.simulation,
     required this.onOpen,
     required this.onToggleShare,
+    required this.onDelete,
   });
 
   final SimulationModel simulation;
   final VoidCallback onOpen;
   final ValueChanged<bool> onToggleShare;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +180,12 @@ class _AdminSimulationCard extends StatelessWidget {
                     icon: const Icon(Icons.open_in_new),
                     label: const Text('Abrir'),
                   ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Eliminar simulación',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, color: OcgColors.error),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

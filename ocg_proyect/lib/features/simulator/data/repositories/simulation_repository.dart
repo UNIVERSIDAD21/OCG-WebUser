@@ -129,6 +129,31 @@ class SimulationRepository {
     await ref.set(next.toJson(), SetOptions(merge: true));
   }
 
+  Future<void> deleteSimulation({
+    required String patientId,
+    required String simulationId,
+  }) async {
+    // Borrar documento Firestore
+    await _simulationsRef(patientId).doc(simulationId).delete();
+
+    // Intentar limpiar archivos en Storage (best-effort)
+    final storage = _storage ?? FirebaseStorage.instance;
+    final paths = [
+      StoragePaths.simulationOriginal(patientId, simulationId),
+      StoragePaths.simulationResult(patientId, simulationId),
+      StoragePaths.simulationThumbOriginal(patientId, simulationId),
+      StoragePaths.simulationThumbResult(patientId, simulationId),
+    ];
+
+    for (final path in paths) {
+      try {
+        await storage.ref(path).delete();
+      } catch (_) {
+        // Puede no existir el archivo; no bloquea el borrado principal.
+      }
+    }
+  }
+
   Future<void> toggleShare({
     required String patientId,
     required String simulationId,
