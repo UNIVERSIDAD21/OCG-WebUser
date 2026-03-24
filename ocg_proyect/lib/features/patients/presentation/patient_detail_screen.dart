@@ -9,6 +9,9 @@ import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../admin/presentation/web/components/detail_header.dart';
+import '../../admin/presentation/web/components/action_toolbar.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
@@ -192,10 +195,82 @@ class _PatientDetailView extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
+      final desktopContent = DefaultTabController(
+        length: 5,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DetailHeader(
+              title: patient.nombre,
+              subtitle: 'Expediente clínico y financiero',
+              trailing: ActionToolbar(
+                actions: [
+                  OutlinedButton.icon(
+                    onPressed: () => context.go(RouteNames.adminPatients),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Volver'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => context.go(
+                      RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+                    ),
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Editar'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _deletePatient(context, ref),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Eliminar'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            SectionPanel(
+              title: 'Estado actual',
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                  OcgChip(label: formatTreatmentStage(patient.etapaActual)),
+                  OcgChip(label: 'Saldo: ${formatCop(patient.saldoPendiente)} COP'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                Tab(text: 'Perfil'),
+                Tab(text: 'Tratamiento'),
+                Tab(text: 'Citas'),
+                Tab(text: 'Pagos'),
+                Tab(text: 'Simulador'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 760,
+              child: TabBarView(
+                children: [
+                  PatientProfileTab(patient: patient),
+                  PatientTreatmentTab(patientId: patient.id, patient: patient),
+                  PatientAppointmentsTab(patient: patient),
+                  PatientPaymentsTab(patientId: patient.id),
+                  PatientSimulatorTab(patient: patient),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
       return AdminWebShell(
         currentRoute: RouteNames.adminPatients,
         title: 'Detalle de paciente',
-        child: content,
+        child: desktopContent,
       );
     }
 

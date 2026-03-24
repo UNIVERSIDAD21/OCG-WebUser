@@ -17,6 +17,10 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../admin/presentation/web/components/split_view_layout.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
+import '../../admin/presentation/web/components/action_toolbar.dart';
+import '../../admin/presentation/web/components/page_header.dart';
 
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
@@ -1710,10 +1714,59 @@ class _AdminAppointmentsScreenState
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
+      final desktopContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PageHeader(
+            title: 'Agenda clínica',
+            subtitle: 'Gestión operativa diaria de citas',
+          ),
+          const SizedBox(height: 12),
+          SplitViewLayout(
+            left: SectionPanel(
+              title: 'Filtros y fecha',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AdminAppointmentsScreen._fmtDate(selectedDate),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  ActionToolbar(
+                    actions: [
+                      OutlinedButton.icon(
+                        onPressed: () => ref.read(selectedAppointmentsDateProvider.notifier).setDate(DateTime.now()),
+                        icon: const Icon(Icons.today),
+                        label: const Text('Hoy'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => AdminAppointmentsScreen.showCreateDialog(
+                          context,
+                          ref,
+                          baseDate: selectedDate,
+                          existingAppointments: appointmentsAsync.asData?.value ?? const [],
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Nueva cita'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            right: SectionPanel(
+              title: 'Agenda por estado / fecha',
+              child: SizedBox(height: 720, child: agendaBody),
+            ),
+          ),
+        ],
+      );
+
       return AdminWebShell(
         currentRoute: '/admin/appointments',
         title: 'Agenda',
-        child: agendaBody,
+        child: desktopContent,
       );
     }
 
