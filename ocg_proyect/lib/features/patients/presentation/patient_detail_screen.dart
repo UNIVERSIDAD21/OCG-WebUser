@@ -96,7 +96,7 @@ class _PatientDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
+    final content = DefaultTabController(
       length: 5,
       child: OcgAdaptiveScaffold(
         selectedIndex: 1,
