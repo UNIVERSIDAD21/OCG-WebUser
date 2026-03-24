@@ -46,6 +46,44 @@ class AuthService {
     );
   }
 
+  Future<void> ensureCurrentPatientProfileExists({
+    String? email,
+    String? displayName,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final docRef = _db.collection(FirestorePaths.patients).doc(user.uid);
+    final snap = await docRef.get();
+    if (snap.exists) return;
+
+    final now = DateTime.now();
+    final cleanEmail = (email ?? user.email ?? '').trim().toLowerCase();
+    final cleanName = (displayName ?? user.displayName ?? '').trim();
+
+    await docRef.set({
+      'id': user.uid,
+      'uid': user.uid,
+      'nombre': cleanName,
+      'email': cleanEmail,
+      'telefono': '',
+      'fechaNacimiento': Timestamp.fromDate(now),
+      'fotoUrl': null,
+      'tipoTratamiento': null,
+      'etapaActual': 'valoracionInicial',
+      'fechaInicio': Timestamp.fromDate(now),
+      'fechaEstimadaFin': null,
+      'notasClinicas': '',
+      'totalTratamiento': 0,
+      'saldoPendiente': 0,
+      'fechaProximoPago': null,
+      'proximaCita': null,
+      'fcmToken': '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> registerPatientSelf({
     required String email,
     required String password,

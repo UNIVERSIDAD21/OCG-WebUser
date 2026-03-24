@@ -53,10 +53,20 @@ class AuthNotifier extends AsyncNotifier<void> {
 
       final uid = credential.user?.uid;
       if (uid != null) {
+        final role = await authService.getUserRole();
+        final effectiveRole = role == 'admin' ? 'admin' : 'patient';
+
+        // Auto-reparación: si el paciente existe en Auth pero no en Firestore,
+        // recrear perfil base para evitar "Perfil no encontrado".
+        if (effectiveRole == 'patient') {
+          await authService.ensureCurrentPatientProfileExists(
+            email: credential.user?.email,
+            displayName: credential.user?.displayName,
+          );
+        }
+
         unawaited(() async {
           try {
-            final role = await authService.getUserRole();
-            final effectiveRole = role == 'admin' ? 'admin' : 'patient';
             await _updateFcmTokenAfterLogin(uid: uid, role: effectiveRole);
           } catch (_) {
             // Evitar errores no capturados en background durante login web.
