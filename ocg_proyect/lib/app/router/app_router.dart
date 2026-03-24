@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/presentation/admin_module_placeholder_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
@@ -84,6 +86,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.adminAppointments,
         builder: (context, state) => const AdminAppointmentsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminTreatments,
+        builder: (context, state) => const AdminModulePlaceholderScreen(
+          title: 'Tratamientos',
+          description:
+              'Módulo operativo de tratamientos habilitado. Desde aquí podrás gestionar el seguimiento clínico y sus acciones por paciente.',
+          icon: Icons.monitor_heart_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.adminPayments,
+        builder: (context, state) => const AdminModulePlaceholderScreen(
+          title: 'Pagos',
+          description:
+              'Módulo de pagos habilitado. Aquí puedes centralizar el control financiero y el estado de cobros por paciente.',
+          icon: Icons.payments_outlined,
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.adminSimulator,
+        builder: (context, state) => const AdminModulePlaceholderScreen(
+          title: 'Simulador',
+          description:
+              'Módulo de simulador habilitado. Desde esta vista puedes continuar el flujo clínico visual sin rutas rotas.',
+          icon: Icons.auto_awesome_outlined,
+        ),
       ),
       GoRoute(
         path: RouteNames.adminPatientDetail,

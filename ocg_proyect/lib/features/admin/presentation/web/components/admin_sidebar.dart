@@ -42,16 +42,7 @@ class AdminSidebar extends StatelessWidget {
         icon: Icons.auto_awesome_outlined,
         route: RouteNames.adminSimulator,
       ), // ✅ ruta propia
-      (
-        label: 'Notificaciones',
-        icon: Icons.notifications_outlined,
-        route: RouteNames.adminNotifications,
-      ),
-      (
-        label: 'Configuración',
-        icon: Icons.settings_outlined,
-        route: RouteNames.adminSettings,
-      ),
+
     ];
 
     return Container(
