@@ -84,7 +84,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final patientAsync = ref.watch(patientByIdProvider(user.uid));
 
     final content = patientAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const OcgLoadingState(label: 'Cargando perfil...'),
         error: (error, _) => Center(
           child: Text(
             'No se pudo cargar tu perfil: $error',

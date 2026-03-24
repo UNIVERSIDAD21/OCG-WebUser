@@ -8,6 +8,8 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/payment_summary_panel.dart';
 import '../../../shared/widgets/ocg_chip.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
@@ -75,9 +77,10 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
             ),
             data: (payment) {
               if (payment == null) {
-                return const Text(
-                  'No existe resumen financiero para este paciente.',
-                  style: TextStyle(color: OcgColors.error),
+                return const OcgEmptyState(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Sin resumen financiero',
+                  subtitle: 'Aún no hay datos de pagos para este paciente.',
                 );
               }
 

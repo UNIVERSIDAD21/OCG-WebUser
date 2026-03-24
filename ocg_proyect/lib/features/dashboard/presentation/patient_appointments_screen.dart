@@ -16,6 +16,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_chip.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 
@@ -823,7 +824,7 @@ class _PatientAppointmentsScreenState
         ),
         Expanded(
           child: appointmentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const OcgLoadingState(label: 'Cargando tus citas...'),
             error: (e, _) => Center(
               child: Text(
                 'Error al cargar citas: $e',
@@ -853,14 +854,14 @@ class _PatientAppointmentsScreenState
                       .toList();
 
               if (filtered.isEmpty) {
-                return Center(
-                  child: Text(
-                    _filter == _PatientFilter.proximas
-                        ? 'No tienes citas próximas.\nToca + para agendar.'
-                        : 'Sin historial de citas aún.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
+                return OcgEmptyState(
+                  icon: Icons.event_busy_outlined,
+                  title: _filter == _PatientFilter.proximas
+                      ? 'No tienes citas próximas'
+                      : 'Sin historial de citas',
+                  subtitle: _filter == _PatientFilter.proximas
+                      ? 'Toca + para agendar tu próxima cita.'
+                      : 'Aún no hay citas registradas en este estado.',
                 );
               }
 
