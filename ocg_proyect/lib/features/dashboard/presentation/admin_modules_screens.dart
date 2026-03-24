@@ -77,21 +77,19 @@ class AdminTreatmentsScreen extends ConsumerWidget {
           ),
         ];
 
-        if (isDesktop) {
-          return Padding(
+        return SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: content,
             ),
-          );
-        }
-
-        return ListView(padding: const EdgeInsets.all(16), children: content);
+          ),
+        );
       },
     );
 
-    if (WebLayoutContext.useDesktopShell(context)) {
+    if (isDesktop) {
       return AdminWebShell(title: 'Tratamientos', child: body);
     }
 
@@ -165,21 +163,19 @@ class AdminPaymentsScreen extends ConsumerWidget {
           ),
         ];
 
-        if (isDesktop) {
-          return Padding(
+        return SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: content,
             ),
-          );
-        }
-
-        return ListView(padding: const EdgeInsets.all(16), children: content);
+          ),
+        );
       },
     );
 
-    if (WebLayoutContext.useDesktopShell(context)) {
+    if (isDesktop) {
       return AdminWebShell(title: 'Pagos', child: body);
     }
 
@@ -244,21 +240,19 @@ class AdminSimulatorScreen extends ConsumerWidget {
           ),
         ];
 
-        if (isDesktop) {
-          return Padding(
+        return SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: content,
             ),
-          );
-        }
-
-        return ListView(padding: const EdgeInsets.all(16), children: content);
+          ),
+        );
       },
     );
 
-    if (WebLayoutContext.useDesktopShell(context)) {
+    if (isDesktop) {
       return AdminWebShell(title: 'Simulador', child: body);
     }
 
