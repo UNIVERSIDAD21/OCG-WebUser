@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_skeleton.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../data/models/simulation_model.dart';
 import '../providers/simulation_provider.dart';
 
 class PatientSimulationsScreen extends ConsumerWidget {
@@ -28,7 +29,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
       body = ref
           .watch(sharedSimulationsProvider(userId))
           .when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const OcgSkeletonList(items: 3),
             error: (e, _) => Center(child: Text('No se pudieron cargar simulaciones: $e')),
             data: (items) {
               if (items.isEmpty) {
@@ -70,7 +71,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                         children: [
                           Text('Simulación ${_fmtDate(s.createdAt)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('Origen: ${_modeLabel(s.mode)}'),
+                          Text('Origen: ${formatSimulationMode(s.mode)}'),
                           if ((s.notes ?? '').trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text('Notas: ${s.notes!.trim()}'),
@@ -115,15 +116,6 @@ class PatientSimulationsScreen extends ConsumerWidget {
     );
   }
 
-  String _modeLabel(SimulationMode mode) {
-    switch (mode) {
-      case SimulationMode.mock:
-        return 'Mock interno';
-      case SimulationMode.manualDoctora:
-        return 'Manual doctora';
-    }
-  }
-
   Widget _img(String url, String label) {
     if (url.trim().isEmpty) {
       return Container(
@@ -154,4 +146,6 @@ class PatientSimulationsScreen extends ConsumerWidget {
   }
 
   String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }

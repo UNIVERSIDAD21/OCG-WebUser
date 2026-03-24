@@ -8,6 +8,7 @@ import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_card.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
 
@@ -275,10 +276,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     return '$d/$m/${value.year}';
   }
 
-  static String _fmtCop(num value) {
-    final digits = value.round().toString();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
-  }
 }
 
 class _ProfileAvatar extends StatelessWidget {

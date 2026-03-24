@@ -83,11 +83,14 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
       ),
       body: isEdit
-          ? Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _nameCtrl,
@@ -186,7 +189,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                   ),
                 ],
               ),
-            )
+            ),
+          )
           : Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -229,8 +233,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   }
 
   String _formatCopInput(num value) {
-    final digits = value.round().toString();
-    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+    return formatCop(value);
   }
 
   double _parseCopInput(String raw) {
@@ -246,10 +249,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       return;
     }
 
-    final formatted = digits.replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (m) => '.',
-    );
+    final formatted = formatCop(double.parse(digits));
 
     if (formatted == controller.text) return;
 
@@ -343,6 +343,14 @@ class _DatePickerRow extends StatelessWidget {
             IconButton(
               onPressed: onClear,
               icon: const Icon(Icons.clear),
+              tooltip: 'Limpiar',
+            ),
+        ],
+      ),
+    );
+  }
+}
+const Icon(Icons.clear),
               tooltip: 'Limpiar',
             ),
         ],

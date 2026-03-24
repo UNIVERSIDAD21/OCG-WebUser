@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';

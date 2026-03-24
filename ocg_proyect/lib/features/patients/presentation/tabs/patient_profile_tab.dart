@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/ocg_card.dart';
+import '../../../../shared/utils/ui_formatters.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientProfileTab extends StatelessWidget {
@@ -34,7 +35,7 @@ class PatientProfileTab extends StatelessWidget {
               const Text('Datos clínicos (solo admin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               _Field(label: 'Tipo de tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
-              _Field(label: 'Etapa actual', value: stageNames[patient.etapaActual] ?? patient.etapaActual.name),
+              _Field(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
               _Field(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
               _Field(label: 'Fecha estimada fin', value: patient.fechaEstimadaFin == null ? 'No definida' : _fmt(patient.fechaEstimadaFin!)),
               _Field(label: 'Notas clínicas', value: patient.notasClinicas.isEmpty ? 'Sin notas' : patient.notasClinicas),

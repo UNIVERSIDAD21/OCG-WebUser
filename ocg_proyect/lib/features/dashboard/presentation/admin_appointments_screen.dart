@@ -1688,7 +1688,20 @@ class AppointmentCard extends StatelessWidget {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: onCancelar,
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Cancelar cita'),
+                            content: const Text('¿Confirmas cancelar esta cita?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+                              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sí, cancelar')),
+                            ],
+                          ),
+                        );
+                        if (ok == true) onCancelar?.call();
+                      },
                     ),
                   if (onReabrirCompletada != null)
                     OutlinedButton.icon(
@@ -1720,7 +1733,20 @@ class AppointmentCard extends StatelessWidget {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: onNoCompletada,
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Marcar inasistencia'),
+                            content: const Text('¿Confirmas marcar esta cita como no asistida?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+                              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sí, marcar')),
+                            ],
+                          ),
+                        );
+                        if (ok == true) await onNoCompletada?.call();
+                      },
                     ),
                 ],
               ),

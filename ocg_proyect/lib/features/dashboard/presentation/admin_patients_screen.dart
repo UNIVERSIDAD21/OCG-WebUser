@@ -385,13 +385,20 @@ class _PatientCard extends StatelessWidget {
                       OcgChip(
                         label: patient.tipoTratamiento?.name ?? 'Pendiente',
                       ),
-                      OcgChip(label: stageNames[patient.etapaActual] ?? patient.etapaActual.name),
+                      OcgChip(label: formatTreatmentStage(patient.etapaActual)),
                     ],
                   ),
                 ],
               ),
             ),
             const Icon(Icons.chevron_right, color: OcgColors.bronze),
+          ],
+        ),
+      ),
+    );
+  }
+}
+or: OcgColors.bronze),
           ],
         ),
       ),

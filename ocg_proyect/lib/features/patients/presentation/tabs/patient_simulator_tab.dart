@@ -6,7 +6,9 @@ import '../../../../features/simulator/data/models/simulation_model.dart';
 import '../../../../features/simulator/presentation/simulator_screen.dart';
 import '../../../../features/simulator/providers/simulation_provider.dart';
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientSimulatorTab extends ConsumerStatefulWidget {
@@ -38,7 +40,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
     final simsAsync = ref.watch(patientSimulationsProvider(widget.patient.id));
 
     return simsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const OcgSkeletonList(items: 4),
       error: (e, _) => Center(child: Text('No se pudieron cargar simulaciones: $e')),
       data: (items) {
         return ListView(
@@ -81,11 +83,28 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                       setState(() => _openedSimulation = s);
                     },
                     onToggleShare: (value) async {
-                      await ref.read(simulationRepositoryProvider).toggleShare(
-                            patientId: widget.patient.id,
-                            simulationId: s.id,
-                            compartida: value,
-                          );
+                      try {
+                        await ref.read(simulationRepositoryProvider).toggleShare(
+                              patientId: widget.patient.id,
+                              simulationId: s.id,
+                              compartida: value,
+                            );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              value
+                                  ? 'Simulación compartida con paciente.'
+                                  : 'Simulación descompartida correctamente.',
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('No se pudo actualizar el estado de compartir: $e')),
+                        );
+                      }
                     },
                     onDelete: () async {
                       final confirmar = await showDialog<bool>(
@@ -177,11 +196,11 @@ class _AdminSimulationCard extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                Chip(label: Text(_statusLabel(simulation.status))),
+                Chip(label: Text(formatSimulationStatus(simulation.status))),
               ],
             ),
             const SizedBox(height: 4),
-            Text('Origen: ${_modeLabel(simulation.mode)}'),
+            Text('Origen: ${formatSimulationMode(simulation.mode)}'),
             if ((simulation.notes ?? '').trim().isNotEmpty) Text('Notas: ${simulation.notes!.trim()}'),
             const SizedBox(height: 8),
             Row(
@@ -220,26 +239,4 @@ class _AdminSimulationCard extends StatelessWidget {
   }
 
   String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-  String _statusLabel(SimulationStatus s) {
-    switch (s) {
-      case SimulationStatus.draft:
-        return 'Borrador';
-      case SimulationStatus.ready:
-        return 'Lista';
-      case SimulationStatus.shared:
-        return 'Compartida';
-      case SimulationStatus.archived:
-        return 'Archivada';
-    }
-  }
-
-  String _modeLabel(SimulationMode m) {
-    switch (m) {
-      case SimulationMode.mock:
-        return 'Mock interno';
-      case SimulationMode.manualDoctora:
-        return 'Manual doctora';
-    }
-  }
 }
