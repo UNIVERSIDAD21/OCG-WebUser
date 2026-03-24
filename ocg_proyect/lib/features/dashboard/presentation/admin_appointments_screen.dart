@@ -333,6 +333,8 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   final int _durationMinutes = 30;
   late DateTime _dateTime;
   bool _saving = false;
+  bool _expandMorning = true;
+  bool _expandAfternoon = true;
   String? _errorMsg;
 
   @override
@@ -636,7 +638,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Horarios (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
+                  'Horarios disponibles por jornada. Mañana arriba (08:00 a 11:30) y tarde abajo (14:00 en adelante). Puedes desplegar o recoger cada bloque.',
                   style: TextStyle(
                     fontSize: 12,
                     color: OcgColors.ink.withOpacity(0.65),
@@ -644,29 +646,102 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _slotsForCurrentDay(availability).map((slot) {
-                  final isSelected = slot.start == _dateTime;
-                  final label = slot.label;
-                  return ChoiceChip(
-                    label: Text(
-                      label,
-                      style: TextStyle(
-                        color: slot.isAvailable
-                            ? OcgColors.espresso
-                            : Colors.grey.shade600,
+              Builder(
+                builder: (_) {
+                  final sortedSlots = _slotsForCurrentDay(availability).toList()
+                    ..sort((a, b) => a.start.compareTo(b.start));
+                  final morningSlots = sortedSlots.where((s) => s.start.hour < 12).toList();
+                  final afternoonSlots = sortedSlots.where((s) => s.start.hour >= 12).toList();
+
+                  Widget slotChip(AppointmentTimeSlot slot) {
+                    final isSelected = slot.start == _dateTime;
+                    return ChoiceChip(
+                      label: Text(
+                        slot.label,
+                        style: TextStyle(
+                          color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                        ),
                       ),
-                    ),
-                    selected: isSelected && slot.isAvailable,
-                    disabledColor: Colors.grey.shade300,
-                    selectedColor: OcgColors.sand,
-                    onSelected: slot.isAvailable
-                        ? (_) => setState(() => _dateTime = slot.start)
-                        : null,
+                      selected: isSelected && slot.isAvailable,
+                      disabledColor: Colors.grey.shade300,
+                      selectedColor: OcgColors.sand,
+                      onSelected: slot.isAvailable
+                          ? (_) => setState(() => _dateTime = slot.start)
+                          : null,
+                    );
+                  }
+
+                  Widget section({
+                    required String title,
+                    required bool expanded,
+                    required VoidCallback onToggle,
+                    required List<AppointmentTimeSlot> slots,
+                  }) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7EF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: onToggle,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: OcgColors.espresso,
+                                    ),
+                                  ),
+                                ),
+                                Icon(expanded ? Icons.expand_less : Icons.expand_more, color: OcgColors.bronze),
+                              ],
+                            ),
+                          ),
+                          if (expanded) ...[
+                            const SizedBox(height: 8),
+                            if (slots.isEmpty)
+                              Text(
+                                'Sin horarios en esta jornada.',
+                                style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                              )
+                            else
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: slots.map(slotChip).toList(),
+                              ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      section(
+                        title: 'Mañana (08:00 - 11:30)',
+                        expanded: _expandMorning,
+                        onToggle: () => setState(() => _expandMorning = !_expandMorning),
+                        slots: morningSlots,
+                      ),
+                      section(
+                        title: 'Tarde (14:00 - cierre)',
+                        expanded: _expandAfternoon,
+                        onToggle: () => setState(() => _expandAfternoon = !_expandAfternoon),
+                        slots: afternoonSlots,
+                      ),
+                    ],
                   );
-                }).toList(),
+                },
               ),
 
               // ── Duración ───────────────────────────────────────────────
@@ -766,6 +841,8 @@ class _AdminAppointmentsScreenState
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
     int newDuration = appt.duracionMinutos;
+    bool expandMorning = true;
+    bool expandAfternoon = true;
     final existingAppointments =
         ref.read(appointmentsProvider).asData?.value ??
         const <AppointmentModel>[];
@@ -824,7 +901,7 @@ class _AdminAppointmentsScreenState
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Horarios disponibles (buffer 10 min)',
+                    'Horarios por jornada (secuenciales). Mañana arriba y tarde abajo. Puedes desplegar o recoger cada bloque.',
                     style: TextStyle(
                       fontSize: 12,
                       color: OcgColors.ink.withOpacity(0.65),
@@ -832,26 +909,101 @@ class _AdminAppointmentsScreenState
                   ),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children:
-                      AppointmentsBusinessRules.buildDailySlots(
-                        day: newDateTime,
-                        existingAppointments: existingAppointments,
-                        durationMinutes: newDuration,
-                        excludeAppointmentId: appt.id,
-                        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                      ).map((slot) {
-                        final label = slot.label;
-                        return ChoiceChip(
-                          label: Text(label),
-                          selected: slot.start == newDateTime,
-                          onSelected: slot.isAvailable
-                              ? (_) => setDs(() => newDateTime = slot.start)
-                              : null,
-                        );
-                      }).toList(),
+                Builder(
+                  builder: (_) {
+                    final slots = AppointmentsBusinessRules.buildDailySlots(
+                      day: newDateTime,
+                      existingAppointments: existingAppointments,
+                      durationMinutes: newDuration,
+                      excludeAppointmentId: appt.id,
+                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                    ).toList()
+                      ..sort((a, b) => a.start.compareTo(b.start));
+
+                    final morningSlots = slots.where((s) => s.start.hour < 12).toList();
+                    final afternoonSlots = slots.where((s) => s.start.hour >= 12).toList();
+
+                    Widget chip(AppointmentTimeSlot slot) {
+                      return ChoiceChip(
+                        label: Text(slot.label),
+                        selected: slot.start == newDateTime,
+                        onSelected: slot.isAvailable
+                            ? (_) => setDs(() => newDateTime = slot.start)
+                            : null,
+                      );
+                    }
+
+                    Widget section({
+                      required String title,
+                      required bool expanded,
+                      required VoidCallback onToggle,
+                      required List<AppointmentTimeSlot> sectionSlots,
+                    }) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7EF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: onToggle,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: OcgColors.espresso,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(expanded ? Icons.expand_less : Icons.expand_more, color: OcgColors.bronze),
+                                ],
+                              ),
+                            ),
+                            if (expanded) ...[
+                              const SizedBox(height: 8),
+                              if (sectionSlots.isEmpty)
+                                Text(
+                                  'Sin horarios en esta jornada.',
+                                  style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: sectionSlots.map(chip).toList(),
+                                ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        section(
+                          title: 'Mañana (08:00 - 11:30)',
+                          expanded: expandMorning,
+                          onToggle: () => setDs(() => expandMorning = !expandMorning),
+                          sectionSlots: morningSlots,
+                        ),
+                        section(
+                          title: 'Tarde (14:00 - cierre)',
+                          expanded: expandAfternoon,
+                          onToggle: () => setDs(() => expandAfternoon = !expandAfternoon),
+                          sectionSlots: afternoonSlots,
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
