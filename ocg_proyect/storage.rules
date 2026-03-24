@@ -6,8 +6,17 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function isAdminByClaim() {
       return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isAdminByDoc() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isAdminByClaim() || isAdminByDoc();
     }
 
     function isOwnPatient(patientId) {
