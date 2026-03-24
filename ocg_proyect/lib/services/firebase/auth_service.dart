@@ -148,7 +148,7 @@ class AuthService {
     }
   }
 
-  Future<void> createPatientByAdmin({
+  Future<String> createPatientByAdmin({
     required String email,
     required String password,
     String? displayName,
@@ -165,6 +165,8 @@ class AuthService {
       'email': cleanEmail,
       'password': password,
       'displayName': cleanName,
+      'treatmentType': cleanTreatment,
+      'totalTreatment': cleanTotal,
     });
 
     final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
@@ -202,6 +204,22 @@ class AuthService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    // Refuerzo financiero inicial para que el monto quede visible de inmediato
+    // en módulos que leen la colección de pagos.
+    await _db.collection(FirestorePaths.payments).doc(uid).set({
+      'id': uid,
+      'patientId': uid,
+      'totalTratamiento': cleanTotal,
+      'montoPagado': 0,
+      'saldoPendiente': cleanTotal,
+      'fechaProximoPago': null,
+      'estado': cleanTotal > 0 ? 'pendiente' : 'alDia',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return uid;
   }
 
   Future<void> signOut() => _auth.signOut();
