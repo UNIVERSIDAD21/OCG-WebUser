@@ -17,6 +17,7 @@ import '../../admin/presentation/web/components/data_table_card.dart';
 import '../../admin/presentation/web/components/page_header.dart';
 import '../../admin/presentation/web/components/status_badge.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
