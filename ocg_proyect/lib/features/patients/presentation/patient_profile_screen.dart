@@ -147,6 +147,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 },
               ),
               const SizedBox(height: 12),
+              const Text(
+                'Tu información',
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
               HighlightCard(
                 title: 'Datos personales',
                 child: Column(

@@ -57,7 +57,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                     return const HighlightCard(
                       title: 'Aviso importante',
                       child: Text(
-                        'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final.',
+                        'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final. Usa esta vista como referencia visual y consulta siempre con tu especialista.',
                       ),
                     );
                   }

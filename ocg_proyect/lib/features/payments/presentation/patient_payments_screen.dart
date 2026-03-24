@@ -119,10 +119,18 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                       icon: const Icon(Icons.credit_card),
                       label: const Text('Pagar con PayU'),
                     ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Mantén tus pagos al día para evitar retrasos en tu plan.',
-                    style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: OcgColors.sand.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Mantén tus pagos al día para evitar retrasos en tu plan.',
+                      style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.75)),
+                    ),
                   ),
                 ],
               );

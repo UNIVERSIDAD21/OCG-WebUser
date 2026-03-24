@@ -39,7 +39,14 @@ class HighlightCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                    fontSize: 15,
+                  ),
+                ),
               ),
               if (trailing != null) trailing!,
             ],
