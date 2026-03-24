@@ -10,7 +10,6 @@ import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/kpi_card.dart';
-import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/components/page_header.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
@@ -360,52 +359,6 @@ class _DashboardBody extends StatelessWidget {
 
           const SizedBox(height: 24),
           const _SignOutButton(),
-        ],
-      ),
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  const _KpiCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.24)),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: OcgColors.bronze),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: OcgColors.espresso,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: OcgColors.ink.withOpacity(0.65),
-            ),
-          ),
         ],
       ),
     );
