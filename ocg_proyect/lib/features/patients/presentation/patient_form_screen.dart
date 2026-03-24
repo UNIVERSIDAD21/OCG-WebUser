@@ -66,8 +66,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           _emailCtrl.text = patient.email;
           _phoneCtrl.text = patient.telefono;
           _notasCtrl.text = patient.notasClinicas;
-          _totalCtrl.text = patient.totalTratamiento.toStringAsFixed(0);
-          _saldoCtrl.text = patient.saldoPendiente.toStringAsFixed(0);
+          _totalCtrl.text = _formatCopInput(patient.totalTratamiento);
+          _saldoCtrl.text = _formatCopInput(patient.saldoPendiente);
           _fechaNacimiento = patient.fechaNacimiento;
           _fechaInicio = patient.fechaInicio;
           _fechaEstimadaFin = patient.fechaEstimadaFin;
@@ -143,6 +143,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                     controller: _totalCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
+                    onChanged: (value) => _applyCopMask(_totalCtrl, value),
                     validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
                   ),
                   const SizedBox(height: 10),
@@ -150,6 +151,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                     controller: _saldoCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
+                    onChanged: (value) => _applyCopMask(_saldoCtrl, value),
                     validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
                   ),
                   const SizedBox(height: 10),
@@ -226,6 +228,37 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
   }
 
+  String _formatCopInput(num value) {
+    final digits = value.round().toString();
+    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+  }
+
+  double _parseCopInput(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return 0;
+    return double.tryParse(digits) ?? 0;
+  }
+
+  void _applyCopMask(TextEditingController controller, String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      controller.value = const TextEditingValue(text: '');
+      return;
+    }
+
+    final formatted = digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (m) => '.',
+    );
+
+    if (formatted == controller.text) return;
+
+    controller.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (!widget.isEdit) return;
@@ -245,8 +278,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         fechaInicio: _fechaInicio,
         fechaEstimadaFin: _fechaEstimadaFin,
         notasClinicas: _notasCtrl.text.trim(),
-        totalTratamiento: double.tryParse(_totalCtrl.text.trim()) ?? 0,
-        saldoPendiente: double.tryParse(_saldoCtrl.text.trim()) ?? 0,
+        totalTratamiento: _parseCopInput(_totalCtrl.text),
+        saldoPendiente: _parseCopInput(_saldoCtrl.text),
       );
 
       await repo.updatePatientBasicData(patient.id, patient.toJson());

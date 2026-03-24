@@ -209,7 +209,7 @@ class _InicioSection extends ConsumerWidget {
                       child: ListTile(
                         leading: const Icon(Icons.account_balance_wallet_outlined, color: OcgColors.bronze),
                         title: Text(
-                          'Saldo pendiente: \$${patient.saldoPendiente.toStringAsFixed(0)} COP',
+                          'Saldo pendiente: \$${_formatCop(patient.saldoPendiente)} COP',
                         ),
                         subtitle: const Text('Toca "Pagos" para ver y pagar tu saldo'),
                         trailing: TextButton(
@@ -244,6 +244,11 @@ class _InicioSection extends ConsumerWidget {
       'dic',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatCop(num value) {
+    final digits = value.round().toString();
+    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
   }
 }
 

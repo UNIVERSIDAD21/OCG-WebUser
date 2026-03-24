@@ -162,8 +162,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                   children: [
                     const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
-                    _Field(label: 'Total tratamiento', value: '${patient.totalTratamiento.toStringAsFixed(0)} COP'),
-                    _Field(label: 'Saldo pendiente', value: '${patient.saldoPendiente.toStringAsFixed(0)} COP'),
+                    _Field(label: 'Total tratamiento', value: '${_fmtCop(patient.totalTratamiento)} COP'),
+                    _Field(label: 'Saldo pendiente', value: '${_fmtCop(patient.saldoPendiente)} COP'),
                     _Field(
                       label: 'Próximo pago',
                       value: patient.fechaProximoPago == null ? 'No definido' : _fmt(patient.fechaProximoPago!),
@@ -273,6 +273,11 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final d = value.day.toString().padLeft(2, '0');
     final m = value.month.toString().padLeft(2, '0');
     return '$d/$m/${value.year}';
+  }
+
+  static String _fmtCop(num value) {
+    final digits = value.round().toString();
+    return digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
   }
 }
 
