@@ -7,6 +7,7 @@ import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/simulation_preview_card.dart';
+import '../../patient/presentation/web/components/highlight_card.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -52,15 +53,9 @@ class PatientSimulationsScreen extends ConsumerWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
                   if (i == 0) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 2),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFD9C7B3)),
-                        borderRadius: BorderRadius.circular(12),
-                        color: const Color(0xFFFFF7EF),
-                      ),
-                      child: const Text(
+                    return const HighlightCard(
+                      title: 'Aviso importante',
+                      child: Text(
                         'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final.',
                       ),
                     );

@@ -56,6 +56,15 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Resumen de tu cuenta',
+            style: TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
           PaymentSummaryCard(patientId: user.uid, isAdmin: false),
           const SizedBox(height: 16),
           paymentAsync.when(
@@ -107,6 +116,11 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                       icon: const Icon(Icons.credit_card),
                       label: const Text('Pagar con PayU'),
                     ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Mantén tus pagos al día para evitar retrasos en tu plan.',
+                    style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                  ),
                 ],
               );
             },

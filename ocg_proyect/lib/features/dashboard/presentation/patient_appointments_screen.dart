@@ -884,6 +884,10 @@ class _PatientAppointmentsScreenState
                   if (nextUpcoming != null) const SizedBox(height: 10),
                   HighlightCard(
                     title: _filter == _PatientFilter.proximas ? 'Próximas citas' : 'Historial de citas',
+                    trailing: Text(
+                      '${filtered.length} registro(s)',
+                      style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                    ),
                     child: Column(
                       children: [
                         for (final appt in filtered) ...[
