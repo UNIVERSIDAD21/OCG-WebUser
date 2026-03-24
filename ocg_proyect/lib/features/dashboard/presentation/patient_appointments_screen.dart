@@ -153,9 +153,22 @@ class _PatientAppointmentsScreenState
     bool saving = false;
 
     DateTime dateFromLabel(DateTime baseDay, String label) {
-      final parts = label.split(':');
-      final hour = int.parse(parts[0]);
+      final normalized = label.trim().toUpperCase();
+      final hasAmPm = normalized.endsWith('AM') || normalized.endsWith('PM');
+
+      final timePart = hasAmPm
+          ? normalized.substring(0, normalized.length - 2).trim()
+          : normalized;
+      final parts = timePart.split(':');
+      var hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
+
+      if (hasAmPm) {
+        final isPm = normalized.endsWith('PM');
+        if (isPm && hour < 12) hour += 12;
+        if (!isPm && hour == 12) hour = 0;
+      }
+
       return DateTime(baseDay.year, baseDay.month, baseDay.day, hour, minute);
     }
 

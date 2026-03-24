@@ -608,8 +608,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 runSpacing: 6,
                 children: _slotsForCurrentDay(availability).map((slot) {
                   final isSelected = slot.start == _dateTime;
-                  final label =
-                      '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
+                  final label = slot.label;
                   return ChoiceChip(
                     label: Text(
                       label,
@@ -803,8 +802,7 @@ class _AdminAppointmentsScreenState
                         excludeAppointmentId: appt.id,
                         stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                       ).map((slot) {
-                        final label =
-                            '${slot.start.hour.toString().padLeft(2, '0')}:${slot.start.minute.toString().padLeft(2, '0')}';
+                        final label = slot.label;
                         return ChoiceChip(
                           label: Text(label),
                           selected: slot.start == newDateTime,

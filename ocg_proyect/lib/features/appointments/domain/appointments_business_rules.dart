@@ -6,8 +6,11 @@ class AppointmentTimeSlot {
   final DateTime start;
   final bool isAvailable;
 
-  String get label =>
-      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+  String get label {
+    final hour12 = start.hour % 12 == 0 ? 12 : start.hour % 12;
+    final suffix = start.hour >= 12 ? 'PM' : 'AM';
+    return '$hour12:${start.minute.toString().padLeft(2, '0')} $suffix';
+  }
 }
 
 /// Bloque horario: hora de inicio y hora de fin (exclusiva).
