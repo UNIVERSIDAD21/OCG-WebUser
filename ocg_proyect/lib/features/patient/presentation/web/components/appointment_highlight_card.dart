@@ -42,7 +42,7 @@ class AppointmentHighlightCard extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing case final t) trailing!,
+          if (trailing != null) trailing!,
         ],
       ),
     );
