@@ -52,9 +52,9 @@ class AdminSidebar extends StatelessWidget {
                     child: ListTile(
                       selected: active,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      selectedTileColor: OcgColors.bronze.withOpacity(0.2),
-                      iconColor: active ? OcgColors.bronze : OcgColors.ivory,
-                      textColor: active ? OcgColors.bronze : OcgColors.ivory,
+                      selectedTileColor: OcgColors.ivory,
+                      iconColor: active ? OcgColors.espresso : OcgColors.ivory,
+                      textColor: active ? OcgColors.espresso : OcgColors.ivory,
                       leading: Icon(item.icon),
                       title: Text(item.label),
                       onTap: () => context.go(item.route),
