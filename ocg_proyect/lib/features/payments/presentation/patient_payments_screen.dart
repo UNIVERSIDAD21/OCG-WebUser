@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../patient/presentation/web/components/payment_summary_panel.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
@@ -72,28 +73,41 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
               }
 
               final saldo = payment.saldoPendiente;
-              if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal) {
-                return OcgChip(
-                  label: 'Tratamiento pagado en su totalidad',
-                  backgroundColor: OcgColors.success.withValues(alpha: 0.14),
-                  textColor: OcgColors.success,
-                );
-              }
+              final total = payment.totalTratamiento;
+              final pagado = (total - saldo).clamp(0, total);
 
-              return ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: OcgColors.espresso,
-                  foregroundColor: OcgColors.ivory,
-                ),
-                onPressed: () => _confirmAndPayu(
-                  context,
-                  user.uid,
-                  saldo,
-                  user.email ?? '',
-                  user.displayName ?? 'Paciente',
-                ),
-                icon: const Icon(Icons.credit_card),
-                label: const Text('Pagar con PayU'),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PaymentSummaryPanel(
+                    total: total,
+                    pending: saldo,
+                    paid: pagado,
+                  ),
+                  const SizedBox(height: 12),
+                  if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal)
+                    OcgChip(
+                      label: 'Tratamiento pagado en su totalidad',
+                      backgroundColor: OcgColors.success.withValues(alpha: 0.14),
+                      textColor: OcgColors.success,
+                    )
+                  else
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: OcgColors.espresso,
+                        foregroundColor: OcgColors.ivory,
+                      ),
+                      onPressed: () => _confirmAndPayu(
+                        context,
+                        user.uid,
+                        saldo,
+                        user.email ?? '',
+                        user.displayName ?? 'Paciente',
+                      ),
+                      icon: const Icon(Icons.credit_card),
+                      label: const Text('Pagar con PayU'),
+                    ),
+                ],
               );
             },
           ),
