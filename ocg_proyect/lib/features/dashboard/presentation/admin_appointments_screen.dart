@@ -61,6 +61,25 @@ String _labelTipo(AppointmentType t) {
   }
 }
 
+String _labelTipoTratamiento(TreatmentType type) {
+  switch (type) {
+    case TreatmentType.convencional:
+      return 'Convencional';
+    case TreatmentType.estetico:
+      return 'Estético';
+    case TreatmentType.autoligado:
+      return 'Autoligado';
+    case TreatmentType.alineadores:
+      return 'Alineadores';
+    case TreatmentType.ortopedia:
+      return 'Ortopedia';
+    case TreatmentType.interceptivo:
+      return 'Interceptivo';
+    case TreatmentType.retenedores:
+      return 'Retenedores';
+  }
+}
+
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
