@@ -45,7 +45,22 @@ class PatientSimulationsScreen extends ConsumerWidget {
                 itemCount: items.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
-                  final s = items[i];
+                  if (i == 0) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 2),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFD9C7B3)),
+                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFFFF7EF),
+                      ),
+                      child: const Text(
+                        'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final.',
+                      ),
+                    );
+                  }
+
+                  final s = items[i - 1];
                   return Card(
                     child: Padding(
                       padding: const EdgeInsets.all(12),

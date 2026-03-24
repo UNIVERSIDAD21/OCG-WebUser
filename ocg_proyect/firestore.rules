@@ -42,6 +42,19 @@ service cloud.firestore {
         allow create: if isAdmin();
         allow update, delete: if false;
       }
+
+      // Subcolección simulations/ (Bloque 08)
+      match /simulations/{simulationId} {
+        // Admin ve todo. Paciente solo lo compartido explícitamente.
+        allow read: if isAdmin() ||
+                      (
+                        isOwnPatient(patientId) &&
+                        resource.data.compartidaConPaciente == true &&
+                        resource.data.status == 'shared'
+                      );
+        // Solo admin crea/edita/elimina simulaciones.
+        allow create, update, delete: if isAdmin();
+      }
     }
 
     // ─── appointments/ ────────────────────────────────────────────────────────

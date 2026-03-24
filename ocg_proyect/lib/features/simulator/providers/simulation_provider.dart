@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../services/firebase/face_detection_service.dart';
 import '../../../services/firebase/image_picker_service.dart';
 import '../../../services/simulator/mock_simulation_service.dart';
 import '../../patients/data/models/patient_model.dart';
@@ -17,6 +18,10 @@ final imagePickerServiceProvider = Provider<ImagePickerService>((ref) {
 
 final mockSimulationServiceProvider = Provider<MockSimulationService>((ref) {
   return MockSimulationService();
+});
+
+final faceDetectionServiceProvider = Provider<FaceDetectionService>((ref) {
+  return FaceDetectionService();
 });
 
 final patientSimulationsProvider = StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
@@ -48,6 +53,9 @@ class SimulatorFlowState {
     this.shareWithPatient = false,
     this.errorMessage,
     this.notes,
+    this.detectedRegion,
+    this.mlKitUsed = false,
+    this.faceDetectionSource,
   });
 
   final SimulatorUiState uiState;
@@ -59,6 +67,9 @@ class SimulatorFlowState {
   final bool shareWithPatient;
   final String? errorMessage;
   final String? notes;
+  final Map<String, dynamic>? detectedRegion;
+  final bool mlKitUsed;
+  final String? faceDetectionSource;
 
   bool get hasOriginal => (originalUrl ?? '').isNotEmpty;
   bool get hasResult => (resultUrl ?? '').isNotEmpty;
@@ -79,6 +90,11 @@ class SimulatorFlowState {
     bool clearError = false,
     String? notes,
     bool clearNotes = false,
+    Map<String, dynamic>? detectedRegion,
+    bool clearDetectedRegion = false,
+    bool? mlKitUsed,
+    String? faceDetectionSource,
+    bool clearFaceDetectionSource = false,
   }) {
     return SimulatorFlowState(
       uiState: uiState ?? this.uiState,
@@ -90,6 +106,9 @@ class SimulatorFlowState {
       shareWithPatient: shareWithPatient ?? this.shareWithPatient,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       notes: clearNotes ? null : (notes ?? this.notes),
+      detectedRegion: clearDetectedRegion ? null : (detectedRegion ?? this.detectedRegion),
+      mlKitUsed: mlKitUsed ?? this.mlKitUsed,
+      faceDetectionSource: clearFaceDetectionSource ? null : (faceDetectionSource ?? this.faceDetectionSource),
     );
   }
 }
@@ -103,6 +122,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
   SimulationRepository get _repo => ref.read(simulationRepositoryProvider);
   ImagePickerService get _picker => ref.read(imagePickerServiceProvider);
   MockSimulationService get _mock => ref.read(mockSimulationServiceProvider);
+  FaceDetectionService get _face => ref.read(faceDetectionServiceProvider);
 
   void setMode(SimulationMode mode) {
     final current = state.asData?.value ?? const SimulatorFlowState(uiState: SimulatorUiState.idle);
@@ -120,6 +140,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         resultUrl: simulation.resultUrl,
         shareWithPatient: simulation.compartidaConPaciente,
         notes: simulation.notes,
+        detectedRegion: simulation.detectedRegion,
+        mlKitUsed: simulation.mlKitUsed,
+        faceDetectionSource: simulation.promptMetadata?['faceDetectionSource']?.toString(),
       ),
     );
   }
@@ -177,6 +200,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         contentType: picked.mimeType,
       );
 
+      final detection = await _face.detectSmileRegion(imagePath: picked.filePath);
+
       await _repo.saveSimulation(
         SimulationModel(
           id: simulationId,
@@ -191,9 +216,11 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           treatmentType: treatmentType,
           status: SimulationStatus.draft,
           notes: null,
-          mlKitUsed: false,
-          detectedRegion: null,
-          promptMetadata: null,
+          mlKitUsed: detection.hasFace,
+          detectedRegion: detection.detectedRegion,
+          promptMetadata: {
+            'faceDetectionSource': detection.source,
+          },
         ),
       );
 
@@ -206,6 +233,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
             originalUrl: originalUrl,
             clearResultUrl: true,
             clearError: true,
+            detectedRegion: detection.detectedRegion,
+            mlKitUsed: detection.hasFace,
+            faceDetectionSource: detection.source,
           ),
         );
 
@@ -223,10 +253,13 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           mode: SimulationMode.mock,
           resultUrl: mockUrl,
           status: SimulationStatus.ready,
+          mlKitUsed: detection.hasFace,
+          detectedRegion: detection.detectedRegion,
           promptMetadata: {
             'source': 'internal_mock',
             'version': 'v1',
             'note': 'Ajuste visual orientativo sin IA externa',
+            'faceDetectionSource': detection.source,
           },
         );
 
@@ -239,6 +272,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
             originalUrl: originalUrl,
             resultUrl: mockUrl,
             shareWithPatient: false,
+            detectedRegion: detection.detectedRegion,
+            mlKitUsed: detection.hasFace,
+            faceDetectionSource: detection.source,
           ),
         );
       } else {
@@ -251,6 +287,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
             originalUrl: originalUrl,
             resultUrl: null,
             shareWithPatient: false,
+            detectedRegion: detection.detectedRegion,
+            mlKitUsed: detection.hasFace,
+            faceDetectionSource: detection.source,
           ),
         );
       }
@@ -293,6 +332,12 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         mode: SimulationMode.manualDoctora,
         resultUrl: resultUrl,
         status: current.shareWithPatient ? SimulationStatus.shared : SimulationStatus.ready,
+        mlKitUsed: current.mlKitUsed,
+        detectedRegion: current.detectedRegion,
+        promptMetadata: {
+          'faceDetectionSource': current.faceDetectionSource,
+          'source': 'manual_doctora',
+        },
       );
 
       state = AsyncData(
@@ -325,6 +370,39 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     state = AsyncData(current.copyWith(notes: value));
   }
 
+  Future<void> updateDetectedRegion({
+    required String patientId,
+    required double x,
+    required double y,
+    required double w,
+    required double h,
+  }) async {
+    final current = state.asData?.value;
+    if (current == null || (current.simulationId ?? '').isEmpty) return;
+
+    final region = {
+      'x': x,
+      'y': y,
+      'w': w,
+      'h': h,
+      'unit': 'pixels',
+      'kind': 'manual_adjusted_region',
+    };
+
+    await _repo.updateSimulation(
+      patientId: patientId,
+      simulationId: current.simulationId!,
+      detectedRegion: region,
+      mlKitUsed: current.mlKitUsed,
+      promptMetadata: {
+        'faceDetectionSource': current.faceDetectionSource,
+        'regionAdjusted': true,
+      },
+    );
+
+    state = AsyncData(current.copyWith(detectedRegion: region));
+  }
+
   Future<void> saveFinalSimulation({required String patientId}) async {
     final current = state.asData?.value;
     if (current == null || (current.simulationId ?? '').isEmpty || !current.hasResult) {
@@ -348,6 +426,12 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         mode: current.selectedMode,
         status: status,
         notes: current.notes,
+        mlKitUsed: current.mlKitUsed,
+        detectedRegion: current.detectedRegion,
+        promptMetadata: {
+          'faceDetectionSource': current.faceDetectionSource,
+          'source': current.selectedMode.name,
+        },
       );
 
       await _repo.toggleShare(

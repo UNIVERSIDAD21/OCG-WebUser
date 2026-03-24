@@ -30,6 +30,7 @@ class SimulationRepository {
   Stream<List<SimulationModel>> watchSharedSimulations(String patientId) {
     return _simulationsRef(patientId)
         .where('compartidaConPaciente', isEqualTo: true)
+        .where('status', isEqualTo: SimulationStatus.shared.name)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList());
