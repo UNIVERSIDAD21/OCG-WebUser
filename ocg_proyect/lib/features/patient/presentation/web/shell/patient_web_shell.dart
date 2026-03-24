@@ -32,7 +32,10 @@ class PatientWebShell extends StatelessWidget {
               if (!wide)
                 SizedBox(
                   height: 58,
-                  child: PatientNavigation(currentRoute: currentRoute),
+                  child: PatientNavigation(
+                    currentRoute: currentRoute,
+                    compact: true,
+                  ),
                 ),
               Expanded(
                 child: Row(

@@ -5,9 +5,14 @@ import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 
 class PatientNavigation extends StatelessWidget {
-  const PatientNavigation({super.key, required this.currentRoute});
+  const PatientNavigation({
+    super.key,
+    required this.currentRoute,
+    this.compact = false,
+  });
 
   final String currentRoute;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +27,9 @@ class PatientNavigation extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 260;
+        final compactMode = compact || constraints.maxWidth < 180;
 
-        if (compact) {
+        if (compactMode) {
           return Container(
             color: OcgColors.mist,
             child: ListView(
