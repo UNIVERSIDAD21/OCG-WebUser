@@ -7,6 +7,8 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
@@ -116,6 +118,22 @@ class AdminDashboardScreen extends ConsumerWidget {
     final appointmentsAsync = ref.watch(appointmentsProvider);
     final patientsAsync = ref.watch(patientsStreamProvider);
 
+    final dashboardBody = _DashboardBody(
+      ref: ref,
+      onSignOut: () => _handleSignOut(context, ref),
+      loading: loading,
+      appointmentsAsync: appointmentsAsync,
+      patientsAsync: patientsAsync,
+    );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return AdminWebShell(
+        currentRoute: RouteNames.adminDashboard,
+        title: 'Dashboard',
+        child: dashboardBody,
+      );
+    }
+
     return OcgAdaptiveScaffold(
       selectedIndex: 0,
       title: 'Dashboard',
@@ -150,13 +168,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           ),
         ),
       ),
-      body: _DashboardBody(
-        ref: ref,
-        onSignOut: () => _handleSignOut(context, ref),
-        loading: loading,
-        appointmentsAsync: appointmentsAsync,
-        patientsAsync: patientsAsync,
-      ),
+      body: dashboardBody,
     );
   }
 }

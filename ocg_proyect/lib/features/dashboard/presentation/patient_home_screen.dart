@@ -16,6 +16,8 @@ import '../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
 import '../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../treatment/providers/treatment_provider.dart';
+import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({super.key});
@@ -41,6 +43,28 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       const PatientProfileScreen(embedded: true),
     ];
 
+    final content = IndexedStack(
+      index: _selectedIndex,
+      children: sections,
+    );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      final routeByIndex = [
+        RouteNames.patientHome,
+        RouteNames.patientAppointments,
+        RouteNames.patientHome,
+        RouteNames.patientPayments,
+        RouteNames.patientSimulations,
+        RouteNames.patientProfile,
+      ];
+
+      return PatientWebShell(
+        currentRoute: routeByIndex[_selectedIndex],
+        title: 'Portal Paciente',
+        child: content,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('OCG Clínica'),
@@ -52,10 +76,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: sections,
-      ),
+      body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),

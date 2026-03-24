@@ -15,6 +15,8 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/shell/admin_web_shell.dart';
 
 String _appointmentFmtDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
@@ -1628,6 +1630,93 @@ class _AdminAppointmentsScreenState
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
+    final agendaBody = Column(
+      children: [
+        if (_filter == _AgendaFilter.hoy)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [OcgColors.bronze, OcgColors.sand],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: OcgColors.ivory),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    AdminAppointmentsScreen._fmtDate(selectedDate),
+                    style: const TextStyle(
+                      color: OcgColors.ivory,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: SegmentedButton<_AgendaFilter>(
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return switch (_filter) {
+                    _AgendaFilter.perdidas => OcgColors.error,
+                    _AgendaFilter.canceladas => const Color(0xFF6D4C41),
+                    _ => OcgColors.espresso,
+                  };
+                }
+                return OcgColors.ivory;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? OcgColors.ivory
+                    : OcgColors.ink,
+              ),
+              side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
+            ),
+            segments: const [
+              ButtonSegment(value: _AgendaFilter.hoy, label: Text('Por fecha')),
+              ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
+              ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
+              ButtonSegment(value: _AgendaFilter.perdidas, label: Text('Perdidas')),
+              ButtonSegment(value: _AgendaFilter.canceladas, label: Text('Canceladas')),
+            ],
+            selected: {_filter},
+            onSelectionChanged: (s) => setState(() => _filter = s.first),
+          ),
+        ),
+        Expanded(
+          child: appointmentsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+            data: (appointments) {
+              final filtered = _applyFilter(appointments, selectedDate);
+              return _buildList(filtered);
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return AdminWebShell(
+        currentRoute: '/admin/appointments',
+        title: 'Agenda',
+        child: agendaBody,
+      );
+    }
+
     return OcgAdaptiveScaffold(
       selectedIndex: 2,
       title: 'Agenda de citas',
@@ -1635,11 +1724,7 @@ class _AdminAppointmentsScreenState
         IconButton(
           tooltip: 'Crear cuenta de paciente',
           icon: const Icon(Icons.person_add_outlined),
-          onPressed: () =>
-              AdminAppointmentsScreen.showCreatePatientAccountDialog(
-                context,
-                ref,
-              ),
+          onPressed: () => AdminAppointmentsScreen.showCreatePatientAccountDialog(context, ref),
         ),
         IconButton(
           tooltip: 'Cerrar sesión',
@@ -1647,147 +1732,7 @@ class _AdminAppointmentsScreenState
           onPressed: _handleSignOut,
         ),
       ],
-      railTrailing: OutlinedButton.icon(
-        onPressed: _handleSignOut,
-        icon: const Icon(Icons.logout, size: 18),
-        label: const Text('Cerrar sesión'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFFFD9D9),
-          backgroundColor: OcgColors.error.withOpacity(0.14),
-          side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          // ── Selector de fecha ─────────────────────────────────────────
-          if (_filter == _AgendaFilter.hoy)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [OcgColors.bronze, OcgColors.sand],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: OcgColors.bronze.withOpacity(0.18),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: OcgColors.ivory),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      AdminAppointmentsScreen._fmtDate(selectedDate),
-                      style: const TextStyle(
-                        color: OcgColors.ivory,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      foregroundColor: OcgColors.ivory,
-                    ),
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2035),
-                      );
-                      if (picked == null) return;
-                      ref
-                          .read(selectedAppointmentsDateProvider.notifier)
-                          .setDate(picked);
-                    },
-                    icon: const Icon(Icons.edit_calendar),
-                    label: const Text('Cambiar'),
-                  ),
-                ],
-              ),
-            ),
-
-          // ── Filtros ───────────────────────────────────────────────────
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<_AgendaFilter>(
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return switch (_filter) {
-                      _AgendaFilter.perdidas => OcgColors.error,
-                      _AgendaFilter.canceladas => const Color(0xFF6D4C41),
-                      _ => OcgColors.espresso,
-                    };
-                  }
-                  return OcgColors.ivory;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith(
-                  (states) => states.contains(WidgetState.selected)
-                      ? OcgColors.ivory
-                      : OcgColors.ink,
-                ),
-                side: const WidgetStatePropertyAll(
-                  BorderSide(color: OcgColors.bronze),
-                ),
-              ),
-              segments: const [
-                ButtonSegment(
-                  value: _AgendaFilter.hoy,
-                  label: Text('Por fecha'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.activas,
-                  label: Text('Activas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.completadas,
-                  label: Text('Completadas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.perdidas,
-                  label: Text('Perdidas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.canceladas,
-                  label: Text('Canceladas'),
-                ),
-              ],
-              selected: {_filter},
-              onSelectionChanged: (s) => setState(() => _filter = s.first),
-            ),
-          ),
-
-          // ── Lista ─────────────────────────────────────────────────────
-          Expanded(
-            child: appointmentsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Center(child: Text('No se pudo cargar agenda: $e')),
-              data: (appointments) {
-                final filtered = _applyFilter(appointments, selectedDate);
-                return _buildList(filtered);
-              },
-            ),
-          ),
-        ],
-      ),
+      body: agendaBody,
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: OcgColors.espresso,
         foregroundColor: OcgColors.ivory,

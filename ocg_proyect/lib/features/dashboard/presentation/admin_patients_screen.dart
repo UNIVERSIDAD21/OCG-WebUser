@@ -11,6 +11,8 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -336,7 +338,14 @@ class AdminPatientsScreen extends ConsumerWidget {
       ],
     );
 
-    // ✅ OcgAdaptiveScaffold: NavigationRail en web > 800px, AppBar en móvil
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return AdminWebShell(
+        currentRoute: RouteNames.adminPatients,
+        title: 'Pacientes',
+        child: body,
+      );
+    }
+
     return OcgAdaptiveScaffold(
       selectedIndex: 1, // Pacientes = índice 1
       title: 'Pacientes',
