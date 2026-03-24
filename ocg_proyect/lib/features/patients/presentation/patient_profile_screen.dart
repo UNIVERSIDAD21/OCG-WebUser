@@ -104,24 +104,47 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: SummaryCard(
-                      title: 'Etapa actual',
-                      value: formatTreatmentStage(patient.etapaActual),
-                      icon: Icons.monitor_heart_outlined,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SummaryCard(
-                      title: 'Saldo pendiente',
-                      value: '${formatCop(patient.saldoPendiente)} COP',
-                      icon: Icons.account_balance_wallet_outlined,
-                    ),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, c) {
+                  final stacked = c.maxWidth < 760;
+                  if (stacked) {
+                    return Column(
+                      children: [
+                        SummaryCard(
+                          title: 'Etapa actual',
+                          value: formatTreatmentStage(patient.etapaActual),
+                          icon: Icons.monitor_heart_outlined,
+                        ),
+                        const SizedBox(height: 10),
+                        SummaryCard(
+                          title: 'Saldo pendiente',
+                          value: '${formatCop(patient.saldoPendiente)} COP',
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: SummaryCard(
+                          title: 'Etapa actual',
+                          value: formatTreatmentStage(patient.etapaActual),
+                          icon: Icons.monitor_heart_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: SummaryCard(
+                          title: 'Saldo pendiente',
+                          value: '${formatCop(patient.saldoPendiente)} COP',
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               HighlightCard(

@@ -48,7 +48,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                 itemCount: items.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {

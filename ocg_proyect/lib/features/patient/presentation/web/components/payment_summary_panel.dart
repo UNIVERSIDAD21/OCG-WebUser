@@ -22,14 +22,32 @@ class PaymentSummaryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: SummaryCard(title: 'Total', value: '\$${_fmt(total)} COP', icon: Icons.payments_outlined)),
-        const SizedBox(width: 10),
-        Expanded(child: SummaryCard(title: 'Pagado', value: '\$${_fmt(paid)} COP', icon: Icons.check_circle_outline)),
-        const SizedBox(width: 10),
-        Expanded(child: SummaryCard(title: 'Pendiente', value: '\$${_fmt(pending)} COP', icon: Icons.warning_amber_outlined)),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 860;
+
+        if (stacked) {
+          return Column(
+            children: [
+              SummaryCard(title: 'Total', value: '\$${_fmt(total)} COP', icon: Icons.payments_outlined),
+              const SizedBox(height: 10),
+              SummaryCard(title: 'Pagado', value: '\$${_fmt(paid)} COP', icon: Icons.check_circle_outline),
+              const SizedBox(height: 10),
+              SummaryCard(title: 'Pendiente', value: '\$${_fmt(pending)} COP', icon: Icons.warning_amber_outlined),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: SummaryCard(title: 'Total', value: '\$${_fmt(total)} COP', icon: Icons.payments_outlined)),
+            const SizedBox(width: 10),
+            Expanded(child: SummaryCard(title: 'Pagado', value: '\$${_fmt(paid)} COP', icon: Icons.check_circle_outline)),
+            const SizedBox(width: 10),
+            Expanded(child: SummaryCard(title: 'Pendiente', value: '\$${_fmt(pending)} COP', icon: Icons.warning_amber_outlined)),
+          ],
+        );
+      },
     );
   }
 }
