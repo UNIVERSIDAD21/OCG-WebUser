@@ -81,7 +81,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       });
     }
 
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
       ),
