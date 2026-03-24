@@ -378,22 +378,44 @@ class AdminPatientsScreen extends ConsumerWidget {
         return DataRow(
           cells: [
             DataCell(
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                    child: Text(
-                      _initialsFromName(patient.nombre),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: OcgColors.espresso,
-                      ),
-                    ),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => context.go(
+                  RouteNames.adminPatientDetail.replaceFirst(
+                    ':patientId',
+                    patient.id,
                   ),
-                  const SizedBox(width: 8),
-                  Text(patient.nombre, overflow: TextOverflow.ellipsis),
-                ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: OcgColors.bronze.withOpacity(0.16),
+                        child: Text(
+                          _initialsFromName(patient.nombre),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: OcgColors.espresso,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          patient.nombre,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.w600,
+                            color: OcgColors.espresso,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
@@ -412,32 +434,6 @@ class AdminPatientsScreen extends ConsumerWidget {
               ),
             ),
             DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
-            DataCell(
-              ActionToolbar(
-                actions: [
-                  IconButton(
-                    tooltip: 'Ver detalle',
-                    onPressed: () => context.go(
-                      RouteNames.adminPatientDetail.replaceFirst(
-                        ':patientId',
-                        patient.id,
-                      ),
-                    ),
-                    icon: const Icon(Icons.visibility_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Editar',
-                    onPressed: () => context.go(
-                      RouteNames.adminPatientEdit.replaceFirst(
-                        ':patientId',
-                        patient.id,
-                      ),
-                    ),
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
-                ],
-              ),
-            ),
           ],
         );
       }).toList();
@@ -474,7 +470,6 @@ class AdminPatientsScreen extends ConsumerWidget {
                 DataColumn(label: Text('Etapa')),
                 DataColumn(label: Text('Próxima cita')),
                 DataColumn(label: Text('Saldo')),
-                DataColumn(label: Text('Acciones')),
               ],
               rows: desktopRows,
             ),
