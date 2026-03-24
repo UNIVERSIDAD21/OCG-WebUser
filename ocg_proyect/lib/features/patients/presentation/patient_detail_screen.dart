@@ -8,6 +8,7 @@ import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/detail_header.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
@@ -326,20 +327,7 @@ class _PatientDetailView extends ConsumerWidget {
         ),
       );
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Detalle de paciente'),
-          leading: IconButton(
-            tooltip: 'Volver a pacientes',
-            onPressed: () => context.go(RouteNames.adminPatients),
-            icon: const Icon(Icons.arrow_back),
-          ),
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: desktopContent,
-        ),
-      );
+      return AdminWebShell(title: 'Detalle de paciente', child: desktopContent);
     }
 
     return content;
