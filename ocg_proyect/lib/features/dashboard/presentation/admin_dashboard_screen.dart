@@ -9,6 +9,9 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../admin/presentation/web/components/kpi_card.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
+import '../../admin/presentation/web/components/page_header.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
@@ -257,21 +260,9 @@ class _DashboardBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Panel de control',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              color: OcgColors.espresso,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Resumen operativo del día en OCG Clínica',
-            style: TextStyle(
-              fontSize: 14,
-              color: OcgColors.ink.withOpacity(0.55),
-            ),
+          const PageHeader(
+            title: 'Panel de control',
+            subtitle: 'Resumen operativo del día en OCG Clínica',
           ),
           const SizedBox(height: 20),
 
@@ -286,22 +277,22 @@ class _DashboardBody extends StatelessWidget {
                 mainAxisSpacing: 10,
                 childAspectRatio: isCompact ? 1.4 : 1.7,
                 children: [
-                  _KpiCard(
+                  KpiCard(
                     title: 'Citas hoy',
                     value: '${todaysAppointments.length}',
                     icon: Icons.today_outlined,
                   ),
-                  _KpiCard(
+                  KpiCard(
                     title: 'Citas Sin confirmar',
                     value: '$pendingConfirm',
                     icon: Icons.pending_actions_outlined,
                   ),
-                  _KpiCard(
+                  KpiCard(
                     title: 'Canceladas (7d)',
                     value: '$canceladasSemana',
                     icon: Icons.event_busy_outlined,
                   ),
-                  _KpiCard(
+                  KpiCard(
                     title: 'Pacientes nuevos(30d)',
                     value: '$nuevosPacientes30d',
                     icon: Icons.person_add_alt_1_outlined,

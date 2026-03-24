@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +12,10 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../admin/presentation/web/components/filter_bar.dart';
+import '../../admin/presentation/web/components/data_table_card.dart';
+import '../../admin/presentation/web/components/page_header.dart';
+import '../../admin/presentation/web/components/status_badge.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -265,19 +268,15 @@ class AdminPatientsScreen extends ConsumerWidget {
 
     final body = Column(
       children: [
-        if (kDebugMode)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              onChanged: (value) => ref
-                  .read(patientsSearchQueryProvider.notifier)
-                  .setQuery(value),
-              decoration: const InputDecoration(
-                hintText: 'Buscar por nombre o correo…',
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: FilterBar(
+            hintText: 'Buscar por nombre o correo…',
+            onSearch: (value) => ref
+                .read(patientsSearchQueryProvider.notifier)
+                .setQuery(value),
           ),
+        ),
         SizedBox(
           height: 46,
           child: ListView.separated(
@@ -339,10 +338,59 @@ class AdminPatientsScreen extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
+      final desktopRows = filteredPatients.map((patient) {
+        return DataRow(cells: [
+          DataCell(Text(patient.nombre)),
+          DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
+          DataCell(StatusBadge(
+            label: formatTreatmentStage(patient.etapaActual),
+            background: OcgColors.sand,
+            foreground: OcgColors.espresso,
+          )),
+          DataCell(Text(patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!))),
+          DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
+          DataCell(TextButton(
+            onPressed: () => context.go(
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
+            ),
+            child: const Text('Ver'),
+          )),
+        ]);
+      }).toList();
+
+      final desktopContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PageHeader(
+            title: 'Pacientes',
+            subtitle: 'Gestión clínica y financiera de pacientes',
+          ),
+          const SizedBox(height: 12),
+          FilterBar(
+            hintText: 'Buscar por nombre o correo…',
+            onSearch: (value) => ref
+                .read(patientsSearchQueryProvider.notifier)
+                .setQuery(value),
+          ),
+          const SizedBox(height: 12),
+          DataTableCard(
+            columns: const [
+              DataColumn(label: Text('Paciente')),
+              DataColumn(label: Text('Tratamiento')),
+              DataColumn(label: Text('Etapa')),
+              DataColumn(label: Text('Próxima cita')),
+              DataColumn(label: Text('Saldo')),
+              DataColumn(label: Text('Acciones')),
+            ],
+            rows: desktopRows,
+          ),
+        ],
+      );
+
       return AdminWebShell(
         currentRoute: RouteNames.adminPatients,
         title: 'Pacientes',
-        child: body,
+        child: desktopContent,
       );
     }
 
@@ -379,6 +427,12 @@ class AdminPatientsScreen extends ConsumerWidget {
 }
 
 // ─── _PatientCard ─────────────────────────────────────────────────────────────
+
+String _fmtDate(DateTime value) {
+  final d = value.day.toString().padLeft(2, '0');
+  final m = value.month.toString().padLeft(2, '0');
+  return '$d/$m/${value.year}';
+}
 
 String _initialsFromName(String name) {
   final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
