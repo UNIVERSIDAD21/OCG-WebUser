@@ -192,16 +192,26 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: totalTreatmentCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Monto total del tratamiento (COP)',
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                     validator: (v) {
-                      final raw = (v ?? '').replaceAll(RegExp(r'[^0-9.,]'), '').replaceAll(',', '.');
-                      final amount = double.tryParse(raw) ?? 0;
+                      final digits = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                      final amount = double.tryParse(digits) ?? 0;
                       if (amount <= 0) return 'Ingresa un monto válido mayor que 0';
                       return null;
+                    },
+                    onChanged: (value) {
+                      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+                      if (digits.isEmpty) return;
+                      final formatted = formatCop(double.parse(digits));
+                      if (formatted == totalTreatmentCtrl.text) return;
+                      totalTreatmentCtrl.value = TextEditingValue(
+                        text: formatted,
+                        selection: TextSelection.collapsed(offset: formatted.length),
+                      );
                     },
                   ),
                   if (errorMsg != null) ...[
@@ -246,9 +256,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         isSubmitting = true;
                         errorMsg = null;
                       });
-                      final totalRaw = totalTreatmentCtrl.text
-                          .replaceAll(RegExp(r'[^0-9.,]'), '')
-                          .replaceAll(',', '.');
+                      final totalRaw = totalTreatmentCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
                       final totalTreatment = double.tryParse(totalRaw) ?? 0;
 
                       try {
