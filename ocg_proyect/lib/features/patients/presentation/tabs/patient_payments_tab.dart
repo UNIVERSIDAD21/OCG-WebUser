@@ -41,9 +41,9 @@ class PatientPaymentsTab extends ConsumerWidget {
                 TextButton(
                   onPressed: () => _pickDate(context, ref),
                   child: Text(
-                    DateFormat('dd/MM/yyyy').format(
-                      payment?.fechaProximoPago ?? DateTime.now(),
-                    ),
+                    DateFormat(
+                      'dd/MM/yyyy',
+                    ).format(payment?.fechaProximoPago ?? DateTime.now()),
                   ),
                 ),
               ],
@@ -67,12 +67,12 @@ class PatientPaymentsTab extends ConsumerWidget {
                 onPressed: payment == null
                     ? null
                     : () => showDialog<void>(
-                          context: context,
-                          builder: (_) => RegisterPaymentDialog(
-                            patientId: patientId,
-                            saldoPendiente: saldoPendiente,
-                          ),
+                        context: context,
+                        builder: (_) => RegisterPaymentDialog(
+                          patientId: patientId,
+                          saldoPendiente: saldoPendiente,
                         ),
+                      ),
                 icon: const Icon(Icons.add),
                 label: const Text('Registrar pago'),
               );
@@ -104,6 +104,8 @@ class PatientPaymentsTab extends ConsumerWidget {
 
     if (picked == null) return;
 
-    await ref.read(paymentsRepositoryProvider).updateNextPaymentDate(patientId, picked);
+    await ref
+        .read(paymentsRepositoryProvider)
+        .updateNextPaymentDate(patientId, picked);
   }
 }
