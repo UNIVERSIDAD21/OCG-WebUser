@@ -9,10 +9,13 @@ import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../patient/presentation/web/components/appointment_highlight_card.dart';
+import '../../patient/presentation/web/components/highlight_card.dart';
 import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 
@@ -861,22 +864,42 @@ class _PatientAppointmentsScreenState
                 );
               }
 
-              return ListView.separated(
+              final nextUpcoming = _filter == _PatientFilter.proximas
+                  ? (filtered..sort((a, b) => a.fechaHora.compareTo(b.fechaHora))).first
+                  : null;
+
+              return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                itemCount: filtered.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final appt = filtered[i];
-                  final canCancel =
-                      appt.estado == AppointmentStatus.programada ||
-                      appt.estado == AppointmentStatus.confirmada;
-                  return _AppointmentTile(
-                    appointment: appt,
-                    onCancel: canCancel
-                        ? () => _handleCancelTap(context, ref, appt)
-                        : null,
-                  );
-                },
+                children: [
+                  if (nextUpcoming != null)
+                    AppointmentHighlightCard(
+                      title: 'Tu próxima cita',
+                      whenText: _fmtDateTime(nextUpcoming.fechaHora),
+                      trailing: OcgChip(
+                        label: _estadoLabel(nextUpcoming.estado),
+                        backgroundColor: _estadoColor(nextUpcoming.estado).withOpacity(0.14),
+                        textColor: _estadoColor(nextUpcoming.estado),
+                      ),
+                    ),
+                  if (nextUpcoming != null) const SizedBox(height: 10),
+                  HighlightCard(
+                    title: _filter == _PatientFilter.proximas ? 'Próximas citas' : 'Historial de citas',
+                    child: Column(
+                      children: [
+                        for (final appt in filtered) ...[
+                          _AppointmentTile(
+                            appointment: appt,
+                            onCancel: (appt.estado == AppointmentStatus.programada ||
+                                    appt.estado == AppointmentStatus.confirmada)
+                                ? () => _handleCancelTap(context, ref, appt)
+                                : null,
+                          ),
+                          if (appt != filtered.last) const SizedBox(height: 10),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               );
             },
           ),

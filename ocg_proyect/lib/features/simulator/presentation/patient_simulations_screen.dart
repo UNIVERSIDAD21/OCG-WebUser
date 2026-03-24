@@ -6,6 +6,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../patient/presentation/web/components/simulation_preview_card.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -66,43 +67,39 @@ class PatientSimulationsScreen extends ConsumerWidget {
                   }
 
                   final s = items[i - 1];
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Simulación ${_fmtDate(s.createdAt)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  return SimulationPreviewCard(
+                    title: 'Simulación ${_fmtDate(s.createdAt)}',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Origen: ${formatSimulationMode(s.mode)}'),
+                        if ((s.notes ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text('Origen: ${formatSimulationMode(s.mode)}'),
-                          if ((s.notes ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text('Notas: ${s.notes!.trim()}'),
-                          ],
-                          const SizedBox(height: 8),
-                          if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
-                            BeforeAfterSlider(
-                              before: Image.network(
-                                s.originalUrl,
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                              ),
-                              after: Image.network(
-                                s.resultUrl!,
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                              ),
-                            )
-                          else
-                            Row(
-                              children: [
-                                Expanded(child: _img(s.originalUrl, 'Original')),
-                                const SizedBox(width: 8),
-                                Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
-                              ],
-                            ),
+                          Text('Notas: ${s.notes!.trim()}'),
                         ],
-                      ),
+                        const SizedBox(height: 8),
+                        if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
+                          BeforeAfterSlider(
+                            before: Image.network(
+                              s.originalUrl,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                            ),
+                            after: Image.network(
+                              s.resultUrl!,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                            ),
+                          )
+                        else
+                          Row(
+                            children: [
+                              Expanded(child: _img(s.originalUrl, 'Original')),
+                              const SizedBox(width: 8),
+                              Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
+                            ],
+                          ),
+                      ],
                     ),
                   );
                 },

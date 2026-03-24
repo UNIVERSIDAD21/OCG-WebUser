@@ -20,6 +20,7 @@ import '../../treatment/providers/treatment_provider.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/summary_card.dart';
 import '../../patient/presentation/web/components/highlight_card.dart';
+import '../../patient/presentation/web/components/timeline_section.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
@@ -221,7 +222,7 @@ class _InicioSection extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  HighlightCard(
+                  TimelineSection(
                     title: 'Tu tratamiento',
                     child: TreatmentProgressBar(etapaActual: patient.etapaActual),
                   ),
