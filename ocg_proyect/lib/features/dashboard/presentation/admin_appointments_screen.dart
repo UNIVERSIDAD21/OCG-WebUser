@@ -183,7 +183,12 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                       prefixIcon: Icon(Icons.medical_services_outlined),
                     ),
                     items: TreatmentType.values
-                        .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(_labelTipoTratamiento(t)),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v == null) return;
@@ -199,9 +204,13 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                     validator: (v) {
-                      final digits = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                      final digits = (v ?? '').replaceAll(
+                        RegExp(r'[^0-9]'),
+                        '',
+                      );
                       final amount = double.tryParse(digits) ?? 0;
-                      if (amount <= 0) return 'Ingresa un monto válido mayor que 0';
+                      if (amount <= 0)
+                        return 'Ingresa un monto válido mayor que 0';
                       return null;
                     },
                     onChanged: (value) {
@@ -211,7 +220,9 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                       if (formatted == totalTreatmentCtrl.text) return;
                       totalTreatmentCtrl.value = TextEditingValue(
                         text: formatted,
-                        selection: TextSelection.collapsed(offset: formatted.length),
+                        selection: TextSelection.collapsed(
+                          offset: formatted.length,
+                        ),
                       );
                     },
                   ),
@@ -257,7 +268,10 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         isSubmitting = true;
                         errorMsg = null;
                       });
-                      final totalRaw = totalTreatmentCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                      final totalRaw = totalTreatmentCtrl.text.replaceAll(
+                        RegExp(r'[^0-9]'),
+                        '',
+                      );
                       final totalTreatment = double.tryParse(totalRaw) ?? 0;
 
                       try {
@@ -403,7 +417,8 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
         .map(
           (slot) => AppointmentTimeSlot(
             start: slot.start,
-            isAvailable: slot.isAvailable && availability.isSlotAvailable(slot.label),
+            isAvailable:
+                slot.isAvailable && availability.isSlotAvailable(slot.label),
           ),
         )
         .toList();
@@ -678,8 +693,12 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 builder: (_) {
                   final sortedSlots = _slotsForCurrentDay(availability).toList()
                     ..sort((a, b) => a.start.compareTo(b.start));
-                  final morningSlots = sortedSlots.where((s) => s.start.hour < 12).toList();
-                  final afternoonSlots = sortedSlots.where((s) => s.start.hour >= 12).toList();
+                  final morningSlots = sortedSlots
+                      .where((s) => s.start.hour < 12)
+                      .toList();
+                  final afternoonSlots = sortedSlots
+                      .where((s) => s.start.hour >= 12)
+                      .toList();
 
                   Widget slotChip(AppointmentTimeSlot slot) {
                     final isSelected = slot.start == _dateTime;
@@ -687,7 +706,9 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       label: Text(
                         slot.label,
                         style: TextStyle(
-                          color: slot.isAvailable ? OcgColors.espresso : Colors.grey.shade600,
+                          color: slot.isAvailable
+                              ? OcgColors.espresso
+                              : Colors.grey.shade600,
                         ),
                       ),
                       selected: isSelected && slot.isAvailable,
@@ -711,7 +732,9 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF7EF),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                        border: Border.all(
+                          color: OcgColors.bronze.withOpacity(0.22),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -729,7 +752,12 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                                     ),
                                   ),
                                 ),
-                                Icon(expanded ? Icons.expand_less : Icons.expand_more, color: OcgColors.bronze),
+                                Icon(
+                                  expanded
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
+                                  color: OcgColors.bronze,
+                                ),
                               ],
                             ),
                           ),
@@ -738,7 +766,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                             if (slots.isEmpty)
                               Text(
                                 'Sin horarios en esta jornada.',
-                                style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: OcgColors.ink.withOpacity(0.6),
+                                ),
                               )
                             else
                               Wrap(
@@ -758,13 +789,16 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       section(
                         title: 'Mañana (08:00 - 11:30)',
                         expanded: _expandMorning,
-                        onToggle: () => setState(() => _expandMorning = !_expandMorning),
+                        onToggle: () =>
+                            setState(() => _expandMorning = !_expandMorning),
                         slots: morningSlots,
                       ),
                       section(
                         title: 'Tarde (14:00 - cierre)',
                         expanded: _expandAfternoon,
-                        onToggle: () => setState(() => _expandAfternoon = !_expandAfternoon),
+                        onToggle: () => setState(
+                          () => _expandAfternoon = !_expandAfternoon,
+                        ),
                         slots: afternoonSlots,
                       ),
                     ],
@@ -945,11 +979,14 @@ class _AdminAppointmentsScreenState
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
                       stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                    ).toList()
-                      ..sort((a, b) => a.start.compareTo(b.start));
+                    ).toList()..sort((a, b) => a.start.compareTo(b.start));
 
-                    final morningSlots = slots.where((s) => s.start.hour < 12).toList();
-                    final afternoonSlots = slots.where((s) => s.start.hour >= 12).toList();
+                    final morningSlots = slots
+                        .where((s) => s.start.hour < 12)
+                        .toList();
+                    final afternoonSlots = slots
+                        .where((s) => s.start.hour >= 12)
+                        .toList();
 
                     Widget chip(AppointmentTimeSlot slot) {
                       return ChoiceChip(
@@ -973,7 +1010,9 @@ class _AdminAppointmentsScreenState
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF7EF),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                          border: Border.all(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -991,7 +1030,12 @@ class _AdminAppointmentsScreenState
                                       ),
                                     ),
                                   ),
-                                  Icon(expanded ? Icons.expand_less : Icons.expand_more, color: OcgColors.bronze),
+                                  Icon(
+                                    expanded
+                                        ? Icons.expand_less
+                                        : Icons.expand_more,
+                                    color: OcgColors.bronze,
+                                  ),
                                 ],
                               ),
                             ),
@@ -1000,7 +1044,10 @@ class _AdminAppointmentsScreenState
                               if (sectionSlots.isEmpty)
                                 Text(
                                   'Sin horarios en esta jornada.',
-                                  style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6)),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: OcgColors.ink.withOpacity(0.6),
+                                  ),
                                 )
                               else
                                 Wrap(
@@ -1020,13 +1067,15 @@ class _AdminAppointmentsScreenState
                         section(
                           title: 'Mañana (08:00 - 11:30)',
                           expanded: expandMorning,
-                          onToggle: () => setDs(() => expandMorning = !expandMorning),
+                          onToggle: () =>
+                              setDs(() => expandMorning = !expandMorning),
                           sectionSlots: morningSlots,
                         ),
                         section(
                           title: 'Tarde (14:00 - cierre)',
                           expanded: expandAfternoon,
-                          onToggle: () => setDs(() => expandAfternoon = !expandAfternoon),
+                          onToggle: () =>
+                              setDs(() => expandAfternoon = !expandAfternoon),
                           sectionSlots: afternoonSlots,
                         ),
                       ],
@@ -1092,14 +1141,15 @@ class _AdminAppointmentsScreenState
                 foregroundColor: OcgColors.ivory,
               ),
               onPressed: () async {
-                final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
-                  start: newDateTime,
-                );
+                final notPastError =
+                    AppointmentsBusinessRules.validateStartNotInPast(
+                      start: newDateTime,
+                    );
                 if (notPastError != null) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(notPastError)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(notPastError)));
                   return;
                 }
 
@@ -1274,14 +1324,20 @@ class _AdminAppointmentsScreenState
         return;
       }
 
-      final patient = await ref.read(patientByIdProvider(appt.patientId).future);
+      final patient = await ref.read(
+        patientByIdProvider(appt.patientId).future,
+      );
       final alreadyDefined = patient?.tipoTratamiento != null;
 
       if (!alreadyDefined) {
-        final decision = await _showValoracionDictamenDialog(patientName: appt.patientName);
+        final decision = await _showValoracionDictamenDialog(
+          patientName: appt.patientName,
+        );
         if (decision == null) return;
 
-        await ref.read(patientsRepositoryProvider).defineInitialTreatmentPlanAndFinance(
+        await ref
+            .read(patientsRepositoryProvider)
+            .defineInitialTreatmentPlanAndFinance(
               patientId: appt.patientId,
               tipoTratamiento: decision['tipoTratamiento'] as TreatmentType,
               totalTratamiento: decision['totalTratamiento'] as double,
@@ -1297,7 +1353,9 @@ class _AdminAppointmentsScreenState
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cita completada y dictamen inicial registrado.')),
+        const SnackBar(
+          content: Text('Cita completada y dictamen inicial registrado.'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1307,7 +1365,9 @@ class _AdminAppointmentsScreenState
     }
   }
 
-  Future<Map<String, dynamic>?> _showValoracionDictamenDialog({required String patientName}) async {
+  Future<Map<String, dynamic>?> _showValoracionDictamenDialog({
+    required String patientName,
+  }) async {
     TreatmentType? selected;
     DateTime? fechaProximoPago;
     final notaCtrl = TextEditingController();
@@ -1341,14 +1401,21 @@ class _AdminAppointmentsScreenState
                       prefixIcon: Icon(Icons.medical_services_outlined),
                     ),
                     items: TreatmentType.values
-                        .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(_labelTipoTratamiento(t)),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setSt(() => selected = v),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: montoCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     onChanged: (_) => setSt(() {}),
                     decoration: InputDecoration(
                       labelText: 'Valor total del tratamiento (obligatorio)',
@@ -1373,9 +1440,13 @@ class _AdminAppointmentsScreenState
                         onPressed: () async {
                           final picked = await showDatePicker(
                             context: ctx,
-                            initialDate: DateTime.now().add(const Duration(days: 30)),
+                            initialDate: DateTime.now().add(
+                              const Duration(days: 30),
+                            ),
                             firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 3650)),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 3650),
+                            ),
                           );
                           if (picked != null) {
                             setSt(() => fechaProximoPago = picked);
@@ -1407,11 +1478,13 @@ class _AdminAppointmentsScreenState
                 onPressed: (selected == null || !montoOk)
                     ? null
                     : () => popDialog(ctx, {
-                          'tipoTratamiento': selected,
-                          'totalTratamiento': double.parse(montoCtrl.text.replaceAll(',', '.').trim()),
-                          'fechaProximoPago': fechaProximoPago,
-                          'nota': notaCtrl.text,
-                        }),
+                        'tipoTratamiento': selected,
+                        'totalTratamiento': double.parse(
+                          montoCtrl.text.replaceAll(',', '.').trim(),
+                        ),
+                        'fechaProximoPago': fechaProximoPago,
+                        'nota': notaCtrl.text,
+                      }),
                 child: const Text('Guardar y completar'),
               ),
             ],
@@ -1914,10 +1987,18 @@ class AppointmentCard extends StatelessWidget {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('Cancelar cita'),
-                            content: const Text('¿Confirmas cancelar esta cita?'),
+                            content: const Text(
+                              '¿Confirmas cancelar esta cita?',
+                            ),
                             actions: [
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
-                              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sí, cancelar')),
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('No'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Sí, cancelar'),
+                              ),
                             ],
                           ),
                         );
@@ -1959,10 +2040,18 @@ class AppointmentCard extends StatelessWidget {
                           context: context,
                           builder: (ctx) => AlertDialog(
                             title: const Text('Marcar inasistencia'),
-                            content: const Text('¿Confirmas marcar esta cita como no asistida?'),
+                            content: const Text(
+                              '¿Confirmas marcar esta cita como no asistida?',
+                            ),
                             actions: [
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
-                              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Sí, marcar')),
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('No'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Sí, marcar'),
+                              ),
                             ],
                           ),
                         );
