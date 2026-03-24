@@ -8,6 +8,9 @@ import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../../app/router/route_names.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
@@ -902,6 +905,36 @@ class _PatientAppointmentsScreenState
             ),
           ),
         ],
+      );
+    }
+
+    final desktopBody = Stack(
+      children: [
+        content,
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton.extended(
+            backgroundColor: OcgColors.espresso,
+            foregroundColor: OcgColors.ivory,
+            icon: const Icon(Icons.add),
+            label: const Text('Agendar cita'),
+            onPressed: () => _showNewAppointmentDialog(
+              context,
+              ref,
+              user.uid,
+              appointmentsAsync.asData?.value ?? const [],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return PatientWebShell(
+        currentRoute: RouteNames.patientAppointments,
+        title: 'Mis citas',
+        child: desktopBody,
       );
     }
 

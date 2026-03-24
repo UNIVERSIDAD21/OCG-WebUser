@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
@@ -111,6 +113,14 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     );
 
     if (widget.embedded) return content;
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return PatientWebShell(
+        currentRoute: RouteNames.patientPayments,
+        title: 'Mis pagos',
+        child: content,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis pagos')),

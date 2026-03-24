@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../auth/providers/auth_providers.dart';
+import '../../../app/router/route_names.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -178,6 +181,14 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       );
 
     if (widget.embedded) return content;
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return PatientWebShell(
+        currentRoute: RouteNames.patientProfile,
+        title: 'Mi perfil',
+        child: content,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

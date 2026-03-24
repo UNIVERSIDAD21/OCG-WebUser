@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/router/route_names.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -109,6 +112,14 @@ class PatientSimulationsScreen extends ConsumerWidget {
     }
 
     if (embedded) return body;
+
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return PatientWebShell(
+        currentRoute: RouteNames.patientSimulations,
+        title: 'Mis simulaciones',
+        child: body,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis simulaciones')),
