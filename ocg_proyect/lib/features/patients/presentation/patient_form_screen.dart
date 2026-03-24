@@ -92,106 +92,106 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Nombre completo'),
-                    validator: Validators.fullName,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(labelText: 'Correo'),
-                    validator: Validators.email,
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Teléfono'),
-                    validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono'),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<TreatmentType>(
-                          initialValue: _tipo,
-                          items: TreatmentType.values
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _tipo = value);
-                          },
-                          decoration: const InputDecoration(labelText: 'Tipo tratamiento'),
-                        ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(labelText: 'Nombre completo'),
+                        validator: Validators.fullName,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: DropdownButtonFormField<TreatmentStage>(
-                          initialValue: _etapa,
-                          items: TreatmentStage.values
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _etapa = value);
-                          },
-                          decoration: const InputDecoration(labelText: 'Etapa actual'),
-                        ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _emailCtrl,
+                        decoration: const InputDecoration(labelText: 'Correo'),
+                        validator: Validators.email,
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _phoneCtrl,
+                        decoration: const InputDecoration(labelText: 'Teléfono'),
+                        validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono'),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<TreatmentType>(
+                              initialValue: _tipo,
+                              items: TreatmentType.values
+                                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() => _tipo = value);
+                              },
+                              decoration: const InputDecoration(labelText: 'Tipo tratamiento'),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DropdownButtonFormField<TreatmentStage>(
+                              initialValue: _etapa,
+                              items: TreatmentStage.values
+                                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value == null) return;
+                                setState(() => _etapa = value);
+                              },
+                              decoration: const InputDecoration(labelText: 'Etapa actual'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _totalCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
+                        onChanged: (value) => _applyCopMask(_totalCtrl, value),
+                        validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _saldoCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
+                        onChanged: (value) => _applyCopMask(_saldoCtrl, value),
+                        validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _notasCtrl,
+                        maxLines: 3,
+                        decoration: const InputDecoration(labelText: 'Notas clínicas'),
+                      ),
+                      const SizedBox(height: 10),
+                      _DatePickerRow(
+                        label: 'Fecha nacimiento',
+                        value: _fechaNacimiento,
+                        onPick: (date) => setState(() => _fechaNacimiento = date),
+                      ),
+                      _DatePickerRow(
+                        label: 'Fecha inicio',
+                        value: _fechaInicio,
+                        onPick: (date) => setState(() => _fechaInicio = date),
+                      ),
+                      _DatePickerRow(
+                        label: 'Fecha estimada fin',
+                        value: _fechaEstimadaFin,
+                        onPick: (date) => setState(() => _fechaEstimadaFin = date),
+                        nullable: true,
+                        onClear: () => setState(() => _fechaEstimadaFin = null),
+                      ),
+                      const SizedBox(height: 16),
+                      OcgButton(
+                        label: 'Guardar cambios',
+                        isLoading: _loading,
+                        onPressed: _loading ? null : _save,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _totalCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
-                    onChanged: (value) => _applyCopMask(_totalCtrl, value),
-                    validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _saldoCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
-                    onChanged: (value) => _applyCopMask(_saldoCtrl, value),
-                    validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _notasCtrl,
-                    maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'Notas clínicas'),
-                  ),
-                  const SizedBox(height: 10),
-                  _DatePickerRow(
-                    label: 'Fecha nacimiento',
-                    value: _fechaNacimiento,
-                    onPick: (date) => setState(() => _fechaNacimiento = date),
-                  ),
-                  _DatePickerRow(
-                    label: 'Fecha inicio',
-                    value: _fechaInicio,
-                    onPick: (date) => setState(() => _fechaInicio = date),
-                  ),
-                  _DatePickerRow(
-                    label: 'Fecha estimada fin',
-                    value: _fechaEstimadaFin,
-                    onPick: (date) => setState(() => _fechaEstimadaFin = date),
-                    nullable: true,
-                    onClear: () => setState(() => _fechaEstimadaFin = null),
-                  ),
-                  const SizedBox(height: 16),
-                  OcgButton(
-                    label: 'Guardar cambios',
-                    isLoading: _loading,
-                    onPressed: _loading ? null : _save,
-                  ),
-                ],
+                ),
               ),
-            ),
-          )
             )
           : Center(
               child: Padding(
