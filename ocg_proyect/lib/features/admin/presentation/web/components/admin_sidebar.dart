@@ -26,7 +26,6 @@ class AdminSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 250,
       color: OcgColors.espresso,
       child: SafeArea(
         child: Column(

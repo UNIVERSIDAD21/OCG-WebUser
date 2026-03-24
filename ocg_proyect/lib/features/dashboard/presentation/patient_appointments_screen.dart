@@ -868,19 +868,22 @@ class _PatientAppointmentsScreenState
                   ? (filtered..sort((a, b) => a.fechaHora.compareTo(b.fechaHora))).first
                   : null;
 
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                children: [
-                  if (nextUpcoming != null)
-                    AppointmentHighlightCard(
-                      title: 'Tu próxima cita',
-                      whenText: _fmtDateTime(nextUpcoming.fechaHora),
-                      trailing: OcgChip(
-                        label: _estadoLabel(nextUpcoming.estado),
-                        backgroundColor: _estadoColor(nextUpcoming.estado).withOpacity(0.14),
-                        textColor: _estadoColor(nextUpcoming.estado),
-                      ),
-                    ),
+              return LayoutBuilder(
+                builder: (context, c) {
+                  final compact = c.maxWidth < 760;
+                  return ListView(
+                    padding: EdgeInsets.fromLTRB(compact ? 12 : 16, 8, compact ? 12 : 16, 100),
+                    children: [
+                      if (nextUpcoming != null)
+                        AppointmentHighlightCard(
+                          title: 'Tu próxima cita',
+                          whenText: _fmtDateTime(nextUpcoming.fechaHora),
+                          trailing: OcgChip(
+                            label: _estadoLabel(nextUpcoming.estado),
+                            backgroundColor: _estadoColor(nextUpcoming.estado).withOpacity(0.14),
+                            textColor: _estadoColor(nextUpcoming.estado),
+                          ),
+                        ),
                   if (nextUpcoming != null) const SizedBox(height: 10),
                   HighlightCard(
                     title: _filter == _PatientFilter.proximas ? 'Próximas citas' : 'Historial de citas',

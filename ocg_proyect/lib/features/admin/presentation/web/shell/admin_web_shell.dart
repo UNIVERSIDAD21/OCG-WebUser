@@ -21,24 +21,37 @@ class AdminWebShell extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!WebLayoutContext.useDesktopShell(context)) return child;
 
-    return Scaffold(
-      body: Row(
-        children: [
-          AdminSidebar(currentRoute: currentRoute),
-          Expanded(
-            child: Column(
-              children: [
-                AdminTopbar(title: title),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: WebPageContainer(child: child),
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactDesktop = constraints.maxWidth < 1320;
+        final sidebarWidth = compactDesktop ? 220.0 : 250.0;
+
+        return Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: sidebarWidth,
+                child: AdminSidebar(currentRoute: currentRoute),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    AdminTopbar(title: title),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: WebPageContainer(
+                          maxWidth: compactDesktop ? 1180 : 1400,
+                          child: child,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

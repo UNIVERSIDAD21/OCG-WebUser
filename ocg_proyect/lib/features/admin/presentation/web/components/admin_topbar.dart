@@ -19,45 +19,48 @@ class AdminTopbar extends StatelessWidget {
         color: OcgColors.ivory,
         border: Border(bottom: BorderSide(color: Color(0x11000000))),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: OcgColors.espresso,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 280,
-            child: TextField(
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: 'Buscar...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: OcgColors.mist,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: compact ? 18 : 20,
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
                 ),
               ),
-            ),
+              if (!compact)
+                SizedBox(
+                  width: 280,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Buscar...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: OcgColors.mist,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+              if (!compact) const SizedBox(width: 10),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined)),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.flash_on_outlined)),
+              const SizedBox(width: 8),
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: OcgColors.bronze,
+                child: Icon(Icons.person, color: OcgColors.ivory, size: 16),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.flash_on_outlined)),
-          const SizedBox(width: 8),
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: OcgColors.bronze,
-            child: Icon(Icons.person, color: OcgColors.ivory, size: 16),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
