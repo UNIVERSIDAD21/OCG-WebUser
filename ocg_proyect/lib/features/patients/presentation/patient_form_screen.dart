@@ -192,6 +192,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               ),
             ),
           )
+            )
           : Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),
