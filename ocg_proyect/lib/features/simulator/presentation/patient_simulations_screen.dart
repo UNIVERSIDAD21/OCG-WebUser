@@ -9,7 +9,6 @@ import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/simulation_preview_card.dart';
 import '../../patient/presentation/web/components/highlight_card.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
-import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../providers/simulation_provider.dart';

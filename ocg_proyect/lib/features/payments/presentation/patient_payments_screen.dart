@@ -8,7 +8,6 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
 import '../../patient/presentation/web/components/payment_summary_panel.dart';
 import '../../../shared/widgets/ocg_chip.dart';
-import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
@@ -86,7 +85,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
 
               final saldo = payment.saldoPendiente;
               final total = payment.totalTratamiento;
-              final pagado = (total - saldo).clamp(0, total);
+              final pagado = (total - saldo).clamp(0, total).toDouble();
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
