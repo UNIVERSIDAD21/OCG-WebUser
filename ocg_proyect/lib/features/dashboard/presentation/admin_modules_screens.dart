@@ -19,6 +19,7 @@ class AdminTreatmentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientsAsync = ref.watch(patientsStreamProvider);
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = patientsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -32,44 +33,61 @@ class AdminTreatmentsScreen extends ConsumerWidget {
         final activePatients = patients.where((p) => p.etapaActual != TreatmentStage.alta).toList()
           ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const PageHeader(
-              title: 'Tratamientos',
-              subtitle: 'Seguimiento clínico por etapa y acceso rápido por paciente',
+        final content = [
+          const PageHeader(
+            title: 'Tratamientos',
+            subtitle: 'Seguimiento clínico por etapa y acceso rápido por paciente',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: TreatmentStage.values.map((stage) {
+              return _KpiPill(
+                title: stageNames[stage] ?? stage.name,
+                value: '${byStage[stage] ?? 0}',
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          SectionPanel(
+            title: 'Pacientes en tratamiento activo',
+            child: activePatients.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No hay pacientes activos en este momento.'),
+                  )
+                : Column(
+                    children: activePatients
+                        .map(
+                          (p) => _PatientActionTile(
+                            patient: p,
+                            subtitle:
+                                '${p.tipoTratamiento?.name ?? 'Tipo pendiente'} · ${stageNames[p.etapaActual] ?? p.etapaActual.name}',
+                            onOpen: () => context.go(
+                              RouteNames.adminPatientDetail.replaceFirst(
+                                ':patientId',
+                                p.id,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ];
+
+        if (isDesktop) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: content,
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: TreatmentStage.values.map((stage) {
-                return _KpiPill(
-                  title: stageNames[stage] ?? stage.name,
-                  value: '${byStage[stage] ?? 0}',
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            SectionPanel(
-              title: 'Pacientes en tratamiento activo',
-              child: activePatients.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No hay pacientes activos en este momento.'),
-                    )
-                  : Column(
-                      children: activePatients.map((p) => _PatientActionTile(
-                        patient: p,
-                        subtitle: '${p.tipoTratamiento?.name ?? 'Tipo pendiente'} · ${stageNames[p.etapaActual] ?? p.etapaActual.name}',
-                        onOpen: () => context.go(
-                          RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
-                        ),
-                      )).toList(),
-                    ),
-            ),
-          ],
-        );
+          );
+        }
+
+        return ListView(padding: const EdgeInsets.all(16), children: content);
       },
     );
 
@@ -87,6 +105,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientsAsync = ref.watch(patientsStreamProvider);
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = patientsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -104,50 +123,59 @@ class AdminPaymentsScreen extends ConsumerWidget {
 
         final totalDebt = withDebt.fold<double>(0, (acc, p) => acc + p.saldoPendiente);
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const PageHeader(
-              title: 'Pagos',
-              subtitle: 'Control financiero de saldos y vencimientos',
+        final content = [
+          const PageHeader(
+            title: 'Pagos',
+            subtitle: 'Control financiero de saldos y vencimientos',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _KpiPill(title: 'Pacientes con saldo', value: '${withDebt.length}'),
+              _KpiPill(title: 'Pagos vencidos', value: '${overdue.length}'),
+              _KpiPill(title: 'Saldo pendiente total', value: '\$${formatCop(totalDebt)}'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SectionPanel(
+            title: 'Cartera activa',
+            child: withDebt.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No hay saldos pendientes.'),
+                  )
+                : Column(
+                    children: withDebt.map((p) {
+                      final due = p.fechaProximoPago;
+                      final dueText = due == null
+                          ? 'Sin fecha de próximo pago'
+                          : 'Próximo pago: ${due.day.toString().padLeft(2, '0')}/${due.month.toString().padLeft(2, '0')}/${due.year}';
+                      return _PatientActionTile(
+                        patient: p,
+                        subtitle: 'Saldo: \$${formatCop(p.saldoPendiente)} · $dueText',
+                        critical: due != null && due.isBefore(today),
+                        onOpen: () => context.go(
+                          RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
+        ];
+
+        if (isDesktop) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: content,
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _KpiPill(title: 'Pacientes con saldo', value: '${withDebt.length}'),
-                _KpiPill(title: 'Pagos vencidos', value: '${overdue.length}'),
-                _KpiPill(title: 'Saldo pendiente total', value: '\$${formatCop(totalDebt)}'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SectionPanel(
-              title: 'Cartera activa',
-              child: withDebt.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No hay saldos pendientes.'),
-                    )
-                  : Column(
-                      children: withDebt.map((p) {
-                        final due = p.fechaProximoPago;
-                        final dueText = due == null
-                            ? 'Sin fecha de próximo pago'
-                            : 'Próximo pago: ${due.day.toString().padLeft(2, '0')}/${due.month.toString().padLeft(2, '0')}/${due.year}';
-                        return _PatientActionTile(
-                          patient: p,
-                          subtitle: 'Saldo: \$${formatCop(p.saldoPendiente)} · $dueText',
-                          critical: due != null && due.isBefore(today),
-                          onOpen: () => context.go(
-                            RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-            ),
-          ],
-        );
+          );
+        }
+
+        return ListView(padding: const EdgeInsets.all(16), children: content);
       },
     );
 
@@ -165,6 +193,7 @@ class AdminSimulatorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patientsAsync = ref.watch(patientsStreamProvider);
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = patientsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -172,43 +201,60 @@ class AdminSimulatorScreen extends ConsumerWidget {
       data: (patients) {
         final ordered = [...patients]..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const PageHeader(
-              title: 'Simulador',
-              subtitle: 'Acceso clínico al flujo de simulaciones por paciente',
-            ),
-            const SizedBox(height: 12),
-            const SectionPanel(
-              title: 'Flujo activo',
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Selecciona un paciente para entrar a su ficha clínica y gestionar la simulación antes/después desde el flujo principal.',
-                ),
+        final content = [
+          const PageHeader(
+            title: 'Simulador',
+            subtitle: 'Acceso clínico al flujo de simulaciones por paciente',
+          ),
+          const SizedBox(height: 12),
+          const SectionPanel(
+            title: 'Flujo activo',
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'Selecciona un paciente para entrar a su ficha clínica y gestionar la simulación antes/después desde el flujo principal.',
               ),
             ),
-            const SizedBox(height: 12),
-            SectionPanel(
-              title: 'Pacientes',
-              child: ordered.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No hay pacientes registrados.'),
-                    )
-                  : Column(
-                      children: ordered.map((p) => _PatientActionTile(
-                        patient: p,
-                        subtitle: 'Abrir detalle para gestionar simulación clínica',
-                        onOpen: () => context.go(
-                          RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
-                        ),
-                      )).toList(),
-                    ),
+          ),
+          const SizedBox(height: 12),
+          SectionPanel(
+            title: 'Pacientes',
+            child: ordered.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No hay pacientes registrados.'),
+                  )
+                : Column(
+                    children: ordered
+                        .map(
+                          (p) => _PatientActionTile(
+                            patient: p,
+                            subtitle:
+                                'Abrir detalle para gestionar simulación clínica',
+                            onOpen: () => context.go(
+                              RouteNames.adminPatientDetail.replaceFirst(
+                                ':patientId',
+                                p.id,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ];
+
+        if (isDesktop) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: content,
             ),
-          ],
-        );
+          );
+        }
+
+        return ListView(padding: const EdgeInsets.all(16), children: content);
       },
     );
 
