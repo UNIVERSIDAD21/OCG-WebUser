@@ -139,6 +139,8 @@ class _PatientAppointmentsScreenState
     final patientPhone = cachedPatient?.telefono ?? '';
 
     String notesText = '';
+    bool expandMorning = true;
+    bool expandAfternoon = true;
 
     AppointmentType selectedType = AppointmentType.valoracion;
     DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1));
@@ -239,7 +241,7 @@ class _PatientAppointmentsScreenState
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Horarios disponibles (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
+                      'Selecciona un horario por jornada. Mañana arriba y tarde abajo. Puedes desplegar o recoger cada bloque.',
                       style: TextStyle(
                         fontSize: 12,
                         color: OcgColors.ink.withOpacity(0.65),
@@ -311,6 +313,94 @@ class _PatientAppointmentsScreenState
                         );
                       }
 
+                      final morningLabels = availableLabels
+                          .where((label) {
+                            final d = dateFromLabel(selectedDateTime, label);
+                            return d.hour < 12;
+                          })
+                          .toList();
+                      final afternoonLabels = availableLabels
+                          .where((label) {
+                            final d = dateFromLabel(selectedDateTime, label);
+                            return d.hour >= 12;
+                          })
+                          .toList();
+
+                      Widget buildSlotChip(String label) {
+                        final slotDate = dateFromLabel(selectedDateTime, label);
+                        return ChoiceChip(
+                          label: Text(
+                            label,
+                            style: const TextStyle(color: OcgColors.espresso),
+                          ),
+                          selected: slotDate == selectedDateTime,
+                          selectedColor: OcgColors.sand,
+                          onSelected: (_) => setDs(() {
+                            selectedDateTime = slotDate;
+                            errorMsg = null;
+                          }),
+                        );
+                      }
+
+                      Widget buildPeriodSection({
+                        required String title,
+                        required bool expanded,
+                        required VoidCallback onToggle,
+                        required List<String> labels,
+                      }) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7EF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InkWell(
+                                onTap: onToggle,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: OcgColors.espresso,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      expanded ? Icons.expand_less : Icons.expand_more,
+                                      color: OcgColors.bronze,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (expanded) ...[
+                                const SizedBox(height: 8),
+                                if (labels.isEmpty)
+                                  Text(
+                                    'Sin horarios en esta jornada.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: OcgColors.ink.withOpacity(0.6),
+                                    ),
+                                  )
+                                else
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: labels.map(buildSlotChip).toList(),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -325,25 +415,17 @@ class _PatientAppointmentsScreenState
                                 ),
                               ),
                             ),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: availableLabels.map((label) {
-                              final slotDate = dateFromLabel(selectedDateTime, label);
-
-                              return ChoiceChip(
-                                label: Text(
-                                  label,
-                                  style: const TextStyle(color: OcgColors.espresso),
-                                ),
-                                selected: slotDate == selectedDateTime,
-                                selectedColor: OcgColors.sand,
-                                onSelected: (_) => setDs(() {
-                                  selectedDateTime = slotDate;
-                                  errorMsg = null;
-                                }),
-                              );
-                            }).toList(),
+                          buildPeriodSection(
+                            title: 'Mañana',
+                            expanded: expandMorning,
+                            onToggle: () => setDs(() => expandMorning = !expandMorning),
+                            labels: morningLabels,
+                          ),
+                          buildPeriodSection(
+                            title: 'Tarde',
+                            expanded: expandAfternoon,
+                            onToggle: () => setDs(() => expandAfternoon = !expandAfternoon),
+                            labels: afternoonLabels,
                           ),
                         ],
                       );
