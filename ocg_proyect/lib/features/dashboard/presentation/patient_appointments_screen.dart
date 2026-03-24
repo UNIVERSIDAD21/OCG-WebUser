@@ -262,11 +262,12 @@ class _PatientAppointmentsScreenState
                       }
 
                       final availability = snapshot.data;
-                      final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                      final orderedSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
                         day: selectedDateTime,
                         stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                      ).map((s) => s.label).toList()
-                        ..sort();
+                      ).toList()
+                        ..sort((a, b) => a.start.compareTo(b.start));
+                      final allLabels = orderedSlots.map((s) => s.label).toList();
 
                       const operationalMinutes =
                           30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
