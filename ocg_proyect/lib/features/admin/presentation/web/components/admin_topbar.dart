@@ -49,8 +49,14 @@ class AdminTopbar extends StatelessWidget {
                   ),
                 ),
               if (!compact) const SizedBox(width: 10),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined)),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.flash_on_outlined)),
+              Tooltip(
+                message: 'Notificaciones',
+                child: IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined)),
+              ),
+              Tooltip(
+                message: 'Acciones rápidas',
+                child: IconButton(onPressed: () {}, icon: const Icon(Icons.flash_on_outlined)),
+              ),
               const SizedBox(width: 8),
               const CircleAvatar(
                 radius: 16,

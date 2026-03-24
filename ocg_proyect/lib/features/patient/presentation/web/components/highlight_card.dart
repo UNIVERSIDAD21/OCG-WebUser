@@ -16,13 +16,22 @@ class HighlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 980;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(compact ? 12 : 14),
       decoration: BoxDecoration(
         color: OcgColors.mist,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.ink.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -16,33 +16,44 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final compact = MediaQuery.of(context).size.width < 980;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: OcgColors.espresso,
-                ),
-              ),
-              if (subtitle != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    subtitle!,
-                    style: TextStyle(color: OcgColors.ink.withOpacity(0.7)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: compact ? 22 : 24,
+                      fontWeight: FontWeight.w700,
+                      color: OcgColors.espresso,
+                    ),
                   ),
-                ),
-            ],
-          ),
+                  if (subtitle != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        subtitle!,
+                        style: TextStyle(color: OcgColors.ink.withOpacity(0.7)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (!compact && trailing != null) trailing!,
+          ],
         ),
-        if (trailing != null) trailing!,
+        if (compact && trailing != null) ...[
+          const SizedBox(height: 10),
+          trailing!,
+        ],
       ],
     );
   }

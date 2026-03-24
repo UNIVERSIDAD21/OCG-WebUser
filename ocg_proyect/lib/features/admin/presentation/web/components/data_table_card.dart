@@ -21,6 +21,13 @@ class DataTableCard extends StatelessWidget {
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.ink.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
