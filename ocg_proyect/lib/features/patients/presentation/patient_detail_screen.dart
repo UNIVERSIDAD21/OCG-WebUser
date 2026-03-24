@@ -226,41 +226,70 @@ class _PatientDetailView extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 10),
-            SectionPanel(
-              title: 'Estado actual',
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                  OcgChip(label: formatTreatmentStage(patient.etapaActual)),
-                  OcgChip(label: 'Saldo: ${formatCop(patient.saldoPendiente)} COP'),
+            Row(
+              children: [
+                Expanded(
+                  child: SectionPanel(
+                    title: 'Resumen clínico',
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                        OcgChip(label: formatTreatmentStage(patient.etapaActual)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SectionPanel(
+                    title: 'Resumen financiero',
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OcgChip(label: 'Saldo: ${formatCop(patient.saldoPendiente)} COP'),
+                        OcgChip(label: 'Total: ${formatCop(patient.totalTratamiento)} COP'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+              ),
+              child: const TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: [
+                  Tab(text: 'Perfil'),
+                  Tab(text: 'Tratamiento'),
+                  Tab(text: 'Citas'),
+                  Tab(text: 'Pagos'),
+                  Tab(text: 'Simulador'),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
-            const TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                Tab(text: 'Perfil'),
-                Tab(text: 'Tratamiento'),
-                Tab(text: 'Citas'),
-                Tab(text: 'Pagos'),
-                Tab(text: 'Simulador'),
-              ],
-            ),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 760,
-              child: TabBarView(
-                children: [
-                  PatientProfileTab(patient: patient),
-                  PatientTreatmentTab(patientId: patient.id, patient: patient),
-                  PatientAppointmentsTab(patient: patient),
-                  PatientPaymentsTab(patientId: patient.id),
-                  PatientSimulatorTab(patient: patient),
-                ],
+            SectionPanel(
+              title: 'Detalle',
+              child: SizedBox(
+                height: 760,
+                child: TabBarView(
+                  children: [
+                    PatientProfileTab(patient: patient),
+                    PatientTreatmentTab(patientId: patient.id, patient: patient),
+                    PatientAppointmentsTab(patient: patient),
+                    PatientPaymentsTab(patientId: patient.id),
+                    PatientSimulatorTab(patient: patient),
+                  ],
+                ),
               ),
             ),
           ],
