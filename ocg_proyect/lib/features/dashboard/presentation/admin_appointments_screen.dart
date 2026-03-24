@@ -1780,6 +1780,15 @@ class _AdminAppointmentsScreenState
             ),
             right: SectionPanel(
               title: 'Agenda por estado / fecha',
+              trailing: ActionToolbar(
+                actions: [
+                  OutlinedButton.icon(
+                    onPressed: () => ref.read(selectedAppointmentsDateProvider.notifier).setDate(selectedDate),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Actualizar vista'),
+                  ),
+                ],
+              ),
               child: SizedBox(height: 720, child: agendaBody),
             ),
           ),

@@ -369,7 +369,10 @@ class _DashboardBody extends StatelessWidget {
           ),
 
           const SizedBox(height: 24),
-          const _SignOutButton(),
+          SectionPanel(
+            title: 'Atajos administrativos',
+            child: const _SignOutButton(),
+          ),
         ],
       ),
     );

@@ -424,16 +424,19 @@ class AdminPatientsScreen extends ConsumerWidget {
                 .setQuery(value),
           ),
           const SizedBox(height: 12),
-          DataTableCard(
-            columns: const [
-              DataColumn(label: Text('Paciente')),
-              DataColumn(label: Text('Tratamiento')),
-              DataColumn(label: Text('Etapa')),
-              DataColumn(label: Text('Próxima cita')),
-              DataColumn(label: Text('Saldo')),
-              DataColumn(label: Text('Acciones')),
-            ],
-            rows: desktopRows,
+          SectionPanel(
+            title: 'Listado de pacientes',
+            child: DataTableCard(
+              columns: const [
+                DataColumn(label: Text('Paciente')),
+                DataColumn(label: Text('Tratamiento')),
+                DataColumn(label: Text('Etapa')),
+                DataColumn(label: Text('Próxima cita')),
+                DataColumn(label: Text('Saldo')),
+                DataColumn(label: Text('Acciones')),
+              ],
+              rows: desktopRows,
+            ),
           ),
         ],
       );

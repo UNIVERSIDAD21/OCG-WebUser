@@ -202,7 +202,7 @@ class _PatientDetailView extends ConsumerWidget {
           children: [
             DetailHeader(
               title: patient.nombre,
-              subtitle: 'Expediente clínico y financiero',
+              subtitle: 'Expediente clínico y financiero • ID ${patient.id.substring(0, patient.id.length > 8 ? 8 : patient.id.length)}',
               trailing: ActionToolbar(
                 actions: [
                   OutlinedButton.icon(
