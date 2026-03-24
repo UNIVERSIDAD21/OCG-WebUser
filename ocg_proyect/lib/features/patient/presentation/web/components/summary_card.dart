@@ -18,8 +18,10 @@ class SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 980;
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(compact ? 12 : 14),
       decoration: BoxDecoration(
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(14),
@@ -36,6 +38,13 @@ class SummaryCard extends StatelessWidget {
           if (subtitle != null) ...[
             const SizedBox(height: 4),
             Text(subtitle!, style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6))),
+          ],
+        ],
+      ),
+    );
+  }
+}
+e: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6))),
           ],
         ],
       ),

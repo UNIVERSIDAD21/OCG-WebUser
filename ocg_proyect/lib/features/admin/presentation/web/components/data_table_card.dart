@@ -31,7 +31,23 @@ class DataTableCard extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(columns: columns, rows: rows),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            dividerColor: OcgColors.bronze.withOpacity(0.18),
+            dataTableTheme: DataTableThemeData(
+              headingTextStyle: const TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              dataTextStyle: TextStyle(
+                color: OcgColors.ink.withOpacity(0.92),
+                fontSize: 13,
+              ),
+            ),
+          ),
+          child: DataTable(columns: columns, rows: rows),
+        ),
       ),
     );
   }
