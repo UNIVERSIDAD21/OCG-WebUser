@@ -340,22 +340,63 @@ class AdminPatientsScreen extends ConsumerWidget {
 
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopRows = filteredPatients.map((patient) {
+        final stage = formatTreatmentStage(patient.etapaActual);
+        final stageLower = stage.toLowerCase();
+        final stageBg = stageLower.contains('final') || stageLower.contains('reten')
+            ? const Color(0xFFE7F6EC)
+            : stageLower.contains('valor')
+                ? const Color(0xFFFFF3E5)
+                : OcgColors.sand;
+        final stageFg = stageLower.contains('final') || stageLower.contains('reten')
+            ? const Color(0xFF1B5E20)
+            : stageLower.contains('valor')
+                ? const Color(0xFF8A4B00)
+                : OcgColors.espresso;
+
         return DataRow(cells: [
-          DataCell(Text(patient.nombre)),
+          DataCell(
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: OcgColors.bronze.withOpacity(0.16),
+                  child: Text(
+                    _initialsFromName(patient.nombre),
+                    style: const TextStyle(fontSize: 11, color: OcgColors.espresso),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  patient.nombre,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
           DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
-          DataCell(StatusBadge(
-            label: formatTreatmentStage(patient.etapaActual),
-            background: OcgColors.sand,
-            foreground: OcgColors.espresso,
-          )),
+          DataCell(StatusBadge(label: stage, background: stageBg, foreground: stageFg)),
           DataCell(Text(patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!))),
           DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
-          DataCell(TextButton(
-            onPressed: () => context.go(
-              RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
+          DataCell(
+            ActionToolbar(
+              actions: [
+                IconButton(
+                  tooltip: 'Ver detalle',
+                  onPressed: () => context.go(
+                    RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
+                  ),
+                  icon: const Icon(Icons.visibility_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Editar',
+                  onPressed: () => context.go(
+                    RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+                  ),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
             ),
-            child: const Text('Ver'),
-          )),
+          ),
         ]);
       }).toList();
 
