@@ -9,6 +9,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../patient/presentation/web/shell/patient_web_shell.dart';
+import '../../patient/presentation/web/components/summary_card.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -103,6 +104,26 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: SummaryCard(
+                      title: 'Etapa actual',
+                      value: formatTreatmentStage(patient.etapaActual),
+                      icon: Icons.monitor_heart_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SummaryCard(
+                      title: 'Saldo pendiente',
+                      value: '${formatCop(patient.saldoPendiente)} COP',
+                      icon: Icons.account_balance_wallet_outlined,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               OcgCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
