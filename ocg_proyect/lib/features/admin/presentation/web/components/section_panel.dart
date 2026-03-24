@@ -47,7 +47,7 @@ class SectionPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing case final t) t,
+              if (trailing != null) trailing!,
             ],
           ),
           const SizedBox(height: 10),

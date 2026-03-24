@@ -31,12 +31,18 @@ class AppointmentHighlightCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
                 Text(whenText),
               ],
             ),
           ),
-          if (trailing case final t) t,
+          if (trailing case final t) trailing!,
         ],
       ),
     );

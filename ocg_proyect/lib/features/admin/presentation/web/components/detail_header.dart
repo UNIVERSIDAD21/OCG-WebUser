@@ -38,11 +38,14 @@ class DetailHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: OcgColors.ink.withOpacity(0.7))),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: OcgColors.ink.withOpacity(0.7)),
+                ),
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

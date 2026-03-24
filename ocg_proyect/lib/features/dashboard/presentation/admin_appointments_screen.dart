@@ -217,8 +217,9 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         '',
                       );
                       final amount = double.tryParse(digits) ?? 0;
-                      if (amount <= 0)
+                      if (amount <= 0) {
                         return 'Ingresa un monto válido mayor que 0';
+                      }
                       return null;
                     },
                     onChanged: (value) {
@@ -1638,7 +1639,8 @@ class _AdminAppointmentsScreenState
 
     final agendaBody = Column(
       children: [
-        if (!WebLayoutContext.useDesktopShell(context) && _filter == _AgendaFilter.hoy)
+        if (!WebLayoutContext.useDesktopShell(context) &&
+            _filter == _AgendaFilter.hoy)
           Container(
             width: double.infinity,
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -1673,40 +1675,58 @@ class _AdminAppointmentsScreenState
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: SegmentedButton<_AgendaFilter>(
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return switch (_filter) {
-                    _AgendaFilter.perdidas => OcgColors.error,
-                    _AgendaFilter.canceladas => const Color(0xFF6D4C41),
-                    _ => OcgColors.espresso,
-                  };
-                }
-                return OcgColors.ivory;
-              }),
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.selected)
-                    ? OcgColors.ivory
-                    : OcgColors.ink,
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return switch (_filter) {
+                      _AgendaFilter.perdidas => OcgColors.error,
+                      _AgendaFilter.canceladas => const Color(0xFF6D4C41),
+                      _ => OcgColors.espresso,
+                    };
+                  }
+                  return OcgColors.ivory;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? OcgColors.ivory
+                      : OcgColors.ink,
+                ),
+                side: const WidgetStatePropertyAll(
+                  BorderSide(color: OcgColors.bronze),
+                ),
               ),
-              side: const WidgetStatePropertyAll(BorderSide(color: OcgColors.bronze)),
+              segments: const [
+                ButtonSegment(
+                  value: _AgendaFilter.hoy,
+                  label: Text('Por fecha'),
+                ),
+                ButtonSegment(
+                  value: _AgendaFilter.activas,
+                  label: Text('Activas'),
+                ),
+                ButtonSegment(
+                  value: _AgendaFilter.completadas,
+                  label: Text('Completadas'),
+                ),
+                ButtonSegment(
+                  value: _AgendaFilter.perdidas,
+                  label: Text('Perdidas'),
+                ),
+                ButtonSegment(
+                  value: _AgendaFilter.canceladas,
+                  label: Text('Canceladas'),
+                ),
+              ],
+              selected: {_filter},
+              onSelectionChanged: (s) => setState(() => _filter = s.first),
             ),
-            segments: const [
-              ButtonSegment(value: _AgendaFilter.hoy, label: Text('Por fecha')),
-              ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
-              ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
-              ButtonSegment(value: _AgendaFilter.perdidas, label: Text('Perdidas')),
-              ButtonSegment(value: _AgendaFilter.canceladas, label: Text('Canceladas')),
-            ],
-            selected: {_filter},
-            onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
-        ),
         Expanded(
           child: appointmentsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+            error: (e, _) =>
+                Center(child: Text('No se pudo cargar agenda: $e')),
             data: (appointments) {
               final filtered = _applyFilter(appointments, selectedDate);
               return _buildList(filtered);
@@ -1726,7 +1746,11 @@ class _AdminAppointmentsScreenState
             trailing: ActionToolbar(
               actions: [
                 OutlinedButton.icon(
-                  onPressed: () => AdminAppointmentsScreen.showCreatePatientAccountDialog(context, ref),
+                  onPressed: () =>
+                      AdminAppointmentsScreen.showCreatePatientAccountDialog(
+                        context,
+                        ref,
+                      ),
                   icon: const Icon(Icons.person_add_outlined),
                   label: const Text('Crear cuenta paciente'),
                 ),
@@ -1735,7 +1759,8 @@ class _AdminAppointmentsScreenState
                     context,
                     ref,
                     baseDate: selectedDate,
-                    existingAppointments: appointmentsAsync.asData?.value ?? const [],
+                    existingAppointments:
+                        appointmentsAsync.asData?.value ?? const [],
                   ),
                   icon: const Icon(Icons.add),
                   label: const Text('Nueva cita'),
@@ -1758,7 +1783,9 @@ class _AdminAppointmentsScreenState
                   ActionToolbar(
                     actions: [
                       OutlinedButton.icon(
-                        onPressed: () => ref.read(selectedAppointmentsDateProvider.notifier).setDate(DateTime.now()),
+                        onPressed: () => ref
+                            .read(selectedAppointmentsDateProvider.notifier)
+                            .setDate(DateTime.now()),
                         icon: const Icon(Icons.today),
                         label: const Text('Hoy'),
                       ),
@@ -1768,14 +1795,30 @@ class _AdminAppointmentsScreenState
                   SegmentedButton<_AgendaFilter>(
                     showSelectedIcon: false,
                     segments: const [
-                      ButtonSegment(value: _AgendaFilter.hoy, label: Text('Por fecha')),
-                      ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
-                      ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
-                      ButtonSegment(value: _AgendaFilter.perdidas, label: Text('Perdidas')),
-                      ButtonSegment(value: _AgendaFilter.canceladas, label: Text('Canceladas')),
+                      ButtonSegment(
+                        value: _AgendaFilter.hoy,
+                        label: Text('Por fecha'),
+                      ),
+                      ButtonSegment(
+                        value: _AgendaFilter.activas,
+                        label: Text('Activas'),
+                      ),
+                      ButtonSegment(
+                        value: _AgendaFilter.completadas,
+                        label: Text('Completadas'),
+                      ),
+                      ButtonSegment(
+                        value: _AgendaFilter.perdidas,
+                        label: Text('Perdidas'),
+                      ),
+                      ButtonSegment(
+                        value: _AgendaFilter.canceladas,
+                        label: Text('Canceladas'),
+                      ),
                     ],
                     selected: {_filter},
-                    onSelectionChanged: (s) => setState(() => _filter = s.first),
+                    onSelectionChanged: (s) =>
+                        setState(() => _filter = s.first),
                   ),
                 ],
               ),
@@ -1785,7 +1828,9 @@ class _AdminAppointmentsScreenState
               trailing: ActionToolbar(
                 actions: [
                   OutlinedButton.icon(
-                    onPressed: () => ref.read(selectedAppointmentsDateProvider.notifier).setDate(selectedDate),
+                    onPressed: () => ref
+                        .read(selectedAppointmentsDateProvider.notifier)
+                        .setDate(selectedDate),
                     icon: const Icon(Icons.refresh),
                     label: const Text('Actualizar vista'),
                   ),
@@ -1811,7 +1856,11 @@ class _AdminAppointmentsScreenState
         IconButton(
           tooltip: 'Crear cuenta de paciente',
           icon: const Icon(Icons.person_add_outlined),
-          onPressed: () => AdminAppointmentsScreen.showCreatePatientAccountDialog(context, ref),
+          onPressed: () =>
+              AdminAppointmentsScreen.showCreatePatientAccountDialog(
+                context,
+                ref,
+              ),
         ),
         IconButton(
           tooltip: 'Cerrar sesión',
