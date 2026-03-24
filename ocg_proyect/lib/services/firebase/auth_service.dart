@@ -55,33 +55,44 @@ class AuthService {
 
     final docRef = _db.collection(FirestorePaths.patients).doc(user.uid);
     final snap = await docRef.get();
-    if (snap.exists) return;
+    final current = snap.data() ?? const <String, dynamic>{};
 
     final now = DateTime.now();
     final cleanEmail = (email ?? user.email ?? '').trim().toLowerCase();
     final cleanName = (displayName ?? user.displayName ?? '').trim();
 
-    await docRef.set({
-      'id': user.uid,
-      'uid': user.uid,
-      'nombre': cleanName,
-      'email': cleanEmail,
-      'telefono': '',
-      'fechaNacimiento': Timestamp.fromDate(now),
-      'fotoUrl': null,
-      'tipoTratamiento': null,
-      'etapaActual': 'valoracionInicial',
-      'fechaInicio': Timestamp.fromDate(now),
-      'fechaEstimadaFin': null,
-      'notasClinicas': '',
-      'totalTratamiento': 0,
-      'saldoPendiente': 0,
-      'fechaProximoPago': null,
-      'proximaCita': null,
-      'fcmToken': '',
-      'createdAt': FieldValue.serverTimestamp(),
+    bool missingOrEmpty(String key) {
+      final v = current[key];
+      if (v == null) return true;
+      if (v is String) return v.trim().isEmpty;
+      return false;
+    }
+
+    final patch = <String, dynamic>{
+      if (missingOrEmpty('id')) 'id': user.uid,
+      if (missingOrEmpty('uid')) 'uid': user.uid,
+      if (missingOrEmpty('nombre')) 'nombre': cleanName,
+      if (missingOrEmpty('email')) 'email': cleanEmail,
+      if (missingOrEmpty('telefono')) 'telefono': '',
+      if (!current.containsKey('fechaNacimiento')) 'fechaNacimiento': Timestamp.fromDate(now),
+      if (!current.containsKey('fotoUrl')) 'fotoUrl': null,
+      if (!current.containsKey('tipoTratamiento')) 'tipoTratamiento': null,
+      if (missingOrEmpty('etapaActual')) 'etapaActual': 'valoracionInicial',
+      if (!current.containsKey('fechaInicio')) 'fechaInicio': Timestamp.fromDate(now),
+      if (!current.containsKey('fechaEstimadaFin')) 'fechaEstimadaFin': null,
+      if (!current.containsKey('notasClinicas')) 'notasClinicas': '',
+      if (!current.containsKey('totalTratamiento')) 'totalTratamiento': 0,
+      if (!current.containsKey('saldoPendiente')) 'saldoPendiente': 0,
+      if (!current.containsKey('fechaProximoPago')) 'fechaProximoPago': null,
+      if (!current.containsKey('proximaCita')) 'proximaCita': null,
+      if (!current.containsKey('fcmToken')) 'fcmToken': '',
+      if (!current.containsKey('createdAt')) 'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+
+    if (patch.isNotEmpty) {
+      await docRef.set(patch, SetOptions(merge: true));
+    }
   }
 
   Future<void> registerPatientSelf({
