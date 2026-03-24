@@ -76,21 +76,7 @@
         { "fieldPath": "estado", "order": "ASCENDING" }
       ]
     },
-    {
-      "collectionGroup": "transactions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "fecha", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "transactions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "metodo", "order": "ASCENDING" },
-        { "fieldPath": "fecha", "order": "DESCENDING" }
-      ]
-    },
+
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
