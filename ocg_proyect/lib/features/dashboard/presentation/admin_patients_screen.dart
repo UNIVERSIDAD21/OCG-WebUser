@@ -16,6 +16,7 @@ import '../../admin/presentation/web/components/filter_bar.dart';
 import '../../admin/presentation/web/components/data_table_card.dart';
 import '../../admin/presentation/web/components/page_header.dart';
 import '../../admin/presentation/web/components/status_badge.dart';
+import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -361,9 +362,18 @@ class AdminPatientsScreen extends ConsumerWidget {
       final desktopContent = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(
+          PageHeader(
             title: 'Pacientes',
             subtitle: 'Gestión clínica y financiera de pacientes',
+            trailing: ActionToolbar(
+              actions: [
+                FilledButton.icon(
+                  onPressed: () => _showAddPatientDialog(context, ref),
+                  icon: const Icon(Icons.person_add_outlined),
+                  label: const Text('Nuevo paciente'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           FilterBar(

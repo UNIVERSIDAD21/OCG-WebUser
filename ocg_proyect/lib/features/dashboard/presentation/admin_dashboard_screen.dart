@@ -11,6 +11,8 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/kpi_card.dart';
 import '../../admin/presentation/web/components/page_header.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
+import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
@@ -302,59 +304,68 @@ class _DashboardBody extends StatelessWidget {
           ),
 
           const SizedBox(height: 24),
-          const Text(
-            'Acceso rápido',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: OcgColors.espresso,
+          SectionPanel(
+            title: 'Acceso rápido',
+            trailing: ActionToolbar(
+              actions: [
+                OutlinedButton.icon(
+                  onPressed: () => context.go(RouteNames.adminPatients),
+                  icon: const Icon(Icons.person_add_outlined),
+                  label: const Text('Nuevo paciente'),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 500 ? 3 : 2;
-              return GridView.count(
-                crossAxisCount: crossAxisCount,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
-                children: [
-                  _QuickCard(
-                    icon: Icons.people_outline,
-                    label: 'Pacientes',
-                    onTap: () => context.go(RouteNames.adminPatients),
-                  ),
-                  _QuickCard(
-                    icon: Icons.calendar_month_outlined,
-                    label: 'Agenda',
-                    onTap: () => context.go(RouteNames.adminAppointments),
-                  ),
-                  _QuickCard(
-                    icon: Icons.person_add_outlined,
-                    label: 'Nuevo paciente',
-                    onTap: () => context.go(RouteNames.adminPatients),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-          _AlertsCard(
-            citasSinConfirmar2h: citasSinConfirmar2h,
-            perfilesPendientes: perfilesPendientes,
-            pagosVencidos: pagosVencidos,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = constraints.maxWidth > 500 ? 3 : 2;
+                return GridView.count(
+                  crossAxisCount: crossAxisCount,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.4,
+                  children: [
+                    _QuickCard(
+                      icon: Icons.people_outline,
+                      label: 'Pacientes',
+                      onTap: () => context.go(RouteNames.adminPatients),
+                    ),
+                    _QuickCard(
+                      icon: Icons.calendar_month_outlined,
+                      label: 'Agenda',
+                      onTap: () => context.go(RouteNames.adminAppointments),
+                    ),
+                    _QuickCard(
+                      icon: Icons.person_add_outlined,
+                      label: 'Nuevo paciente',
+                      onTap: () => context.go(RouteNames.adminPatients),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
 
           const SizedBox(height: 16),
-          _TodayAgendaCard(
-            ref: ref,
-            loading: appointmentsAsync.isLoading,
-            hasError: appointmentsAsync.hasError,
-            appointments: todaysAppointments.take(8).toList(),
+          SectionPanel(
+            title: 'Alertas operativas',
+            child: _AlertsCard(
+              citasSinConfirmar2h: citasSinConfirmar2h,
+              perfilesPendientes: perfilesPendientes,
+              pagosVencidos: pagosVencidos,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          SectionPanel(
+            title: 'Agenda de hoy',
+            child: _TodayAgendaCard(
+              ref: ref,
+              loading: appointmentsAsync.isLoading,
+              hasError: appointmentsAsync.hasError,
+              appointments: todaysAppointments.take(8).toList(),
+            ),
           ),
 
           const SizedBox(height: 24),
