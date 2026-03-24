@@ -104,6 +104,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     String name = '';
     String email = '';
     String pass = '';
+    TreatmentType treatmentType = TreatmentType.convencional;
+    final totalTreatmentCtrl = TextEditingController();
 
     await showDialog<void>(
       context: context,
@@ -153,6 +155,36 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                     onChanged: (v) => pass = v,
                     validator: Validators.passwordForRegister,
                   ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<TreatmentType>(
+                    initialValue: treatmentType,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de tratamiento',
+                      prefixIcon: Icon(Icons.medical_services_outlined),
+                    ),
+                    items: TreatmentType.values
+                        .map((t) => DropdownMenuItem(value: t, child: Text(_labelTipoTratamiento(t))))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setDs(() => treatmentType = v);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: totalTreatmentCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Monto total del tratamiento (COP)',
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    validator: (v) {
+                      final raw = (v ?? '').replaceAll(RegExp(r'[^0-9.,]'), '').replaceAll(',', '.');
+                      final amount = double.tryParse(raw) ?? 0;
+                      if (amount <= 0) return 'Ingresa un monto válido mayor que 0';
+                      return null;
+                    },
+                  ),
                   if (errorMsg != null) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -195,6 +227,11 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         isSubmitting = true;
                         errorMsg = null;
                       });
+                      final totalRaw = totalTreatmentCtrl.text
+                          .replaceAll(RegExp(r'[^0-9.,]'), '')
+                          .replaceAll(',', '.');
+                      final totalTreatment = double.tryParse(totalRaw) ?? 0;
+
                       try {
                         await ref
                             .read(authNotifierProvider.notifier)
@@ -202,6 +239,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                               email: email.trim(),
                               password: pass,
                               displayName: name.trim(),
+                              treatmentType: treatmentType.name,
+                              totalTreatment: totalTreatment,
                             );
                         final nombre = name.trim();
                         popDialog(dialogCtx);
@@ -246,6 +285,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
         ),
       ),
     );
+
+    totalTreatmentCtrl.dispose();
   }
 
   static String _fmtDate(DateTime d) =>
