@@ -14,11 +14,21 @@ class WebPageContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final horizontal = width >= 1500
+        ? 24.0
+        : width >= 1200
+            ? 20.0
+            : 14.0;
+    final vertical = width >= 1200 ? 20.0 : 14.0;
+
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: Padding(
-          padding: padding,
+          padding: padding == const EdgeInsets.all(20)
+              ? EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical)
+              : padding,
           child: child,
         ),
       ),

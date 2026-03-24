@@ -20,28 +20,56 @@ class PatientNavigation extends StatelessWidget {
       (label: 'Perfil', icon: Icons.person_outline, route: RouteNames.patientProfile),
     ];
 
-    return Container(
-      width: 220,
-      color: OcgColors.mist,
-      child: ListView(
-        padding: const EdgeInsets.all(10),
-        children: items.map((item) {
-          final active = currentRoute == item.route;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: ListTile(
-              selected: active,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              selectedTileColor: OcgColors.sand,
-              iconColor: OcgColors.espresso,
-              textColor: OcgColors.espresso,
-              leading: Icon(item.icon),
-              title: Text(item.label),
-              onTap: () => context.go(item.route),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 260;
+
+        if (compact) {
+          return Container(
+            color: OcgColors.mist,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              children: items.map((item) {
+                final active = currentRoute == item.route;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    selected: active,
+                    selectedColor: OcgColors.sand,
+                    label: Text(item.label),
+                    onSelected: (_) => context.go(item.route),
+                  ),
+                );
+              }).toList(),
             ),
           );
-        }).toList(),
-      ),
+        }
+
+        return Container(
+          width: 220,
+          color: OcgColors.mist,
+          child: ListView(
+            padding: const EdgeInsets.all(10),
+            children: items.map((item) {
+              final active = currentRoute == item.route;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: ListTile(
+                  selected: active,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  selectedTileColor: OcgColors.sand,
+                  iconColor: OcgColors.espresso,
+                  textColor: OcgColors.espresso,
+                  leading: Icon(item.icon),
+                  title: Text(item.label),
+                  onTap: () => context.go(item.route),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }
