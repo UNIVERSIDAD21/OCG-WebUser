@@ -1636,7 +1636,7 @@ class _AdminAppointmentsScreenState
 
     final agendaBody = Column(
       children: [
-        if (_filter == _AgendaFilter.hoy)
+        if (!WebLayoutContext.useDesktopShell(context) && _filter == _AgendaFilter.hoy)
           Container(
             width: double.infinity,
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -1666,10 +1666,11 @@ class _AdminAppointmentsScreenState
               ],
             ),
           ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: SegmentedButton<_AgendaFilter>(
+        if (!WebLayoutContext.useDesktopShell(context))
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: SegmentedButton<_AgendaFilter>(
             showSelectedIcon: false,
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -1717,9 +1718,28 @@ class _AdminAppointmentsScreenState
       final desktopContent = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(
+          PageHeader(
             title: 'Agenda clínica',
             subtitle: 'Gestión operativa diaria de citas',
+            trailing: ActionToolbar(
+              actions: [
+                OutlinedButton.icon(
+                  onPressed: () => AdminAppointmentsScreen.showCreatePatientAccountDialog(context, ref),
+                  icon: const Icon(Icons.person_add_outlined),
+                  label: const Text('Crear cuenta paciente'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => AdminAppointmentsScreen.showCreateDialog(
+                    context,
+                    ref,
+                    baseDate: selectedDate,
+                    existingAppointments: appointmentsAsync.asData?.value ?? const [],
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nueva cita'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           SplitViewLayout(
@@ -1740,17 +1760,20 @@ class _AdminAppointmentsScreenState
                         icon: const Icon(Icons.today),
                         label: const Text('Hoy'),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => AdminAppointmentsScreen.showCreateDialog(
-                          context,
-                          ref,
-                          baseDate: selectedDate,
-                          existingAppointments: appointmentsAsync.asData?.value ?? const [],
-                        ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Nueva cita'),
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<_AgendaFilter>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: _AgendaFilter.hoy, label: Text('Por fecha')),
+                      ButtonSegment(value: _AgendaFilter.activas, label: Text('Activas')),
+                      ButtonSegment(value: _AgendaFilter.completadas, label: Text('Completadas')),
+                      ButtonSegment(value: _AgendaFilter.perdidas, label: Text('Perdidas')),
+                      ButtonSegment(value: _AgendaFilter.canceladas, label: Text('Canceladas')),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (s) => setState(() => _filter = s.first),
                   ),
                 ],
               ),
