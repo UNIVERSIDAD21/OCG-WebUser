@@ -110,14 +110,26 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
 
                       if (confirmar != true) return;
 
-                      await ref.read(simulationRepositoryProvider).deleteSimulation(
-                            patientId: widget.patient.id,
-                            simulationId: s.id,
-                          );
+                      try {
+                        await ref.read(simulationRepositoryProvider).deleteSimulation(
+                              patientId: widget.patient.id,
+                              simulationId: s.id,
+                            );
 
-                      if (_openedSimulation?.id == s.id) {
-                        setState(() => _openedSimulation = null);
-                        ref.read(simulatorFlowProvider.notifier).resetFlow();
+                        if (_openedSimulation?.id == s.id) {
+                          setState(() => _openedSimulation = null);
+                          ref.read(simulatorFlowProvider.notifier).resetFlow();
+                        }
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Simulación eliminada correctamente.')),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('No se pudo eliminar la simulación: $e')),
+                        );
                       }
                     },
                   )),
@@ -169,7 +181,7 @@ class _AdminSimulationCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text('Origen: ${simulation.mode.name}'),
+            Text('Origen: ${_modeLabel(simulation.mode)}'),
             if ((simulation.notes ?? '').trim().isNotEmpty) Text('Notas: ${simulation.notes!.trim()}'),
             const SizedBox(height: 8),
             Row(
@@ -212,13 +224,22 @@ class _AdminSimulationCard extends StatelessWidget {
   String _statusLabel(SimulationStatus s) {
     switch (s) {
       case SimulationStatus.draft:
-        return 'Draft';
+        return 'Borrador';
       case SimulationStatus.ready:
-        return 'Ready';
+        return 'Lista';
       case SimulationStatus.shared:
-        return 'Shared';
+        return 'Compartida';
       case SimulationStatus.archived:
-        return 'Archived';
+        return 'Archivada';
+    }
+  }
+
+  String _modeLabel(SimulationMode m) {
+    switch (m) {
+      case SimulationMode.mock:
+        return 'Mock interno';
+      case SimulationMode.manualDoctora:
+        return 'Manual doctora';
     }
   }
 }

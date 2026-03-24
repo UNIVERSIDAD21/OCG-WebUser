@@ -385,7 +385,7 @@ class _PatientCard extends StatelessWidget {
                       OcgChip(
                         label: patient.tipoTratamiento?.name ?? 'Pendiente',
                       ),
-                      OcgChip(label: patient.etapaActual.name),
+                      OcgChip(label: stageNames[patient.etapaActual] ?? patient.etapaActual.name),
                     ],
                   ),
                 ],

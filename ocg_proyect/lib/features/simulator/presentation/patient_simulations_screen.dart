@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../data/models/simulation_model.dart';
 import '../providers/simulation_provider.dart';
 
 class PatientSimulationsScreen extends ConsumerWidget {
@@ -69,7 +70,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                         children: [
                           Text('Simulación ${_fmtDate(s.createdAt)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('Origen: ${s.mode.name}'),
+                          Text('Origen: ${_modeLabel(s.mode)}'),
                           if ((s.notes ?? '').trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text('Notas: ${s.notes!.trim()}'),
@@ -112,6 +113,15 @@ class PatientSimulationsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Mis simulaciones')),
       body: body,
     );
+  }
+
+  String _modeLabel(SimulationMode mode) {
+    switch (mode) {
+      case SimulationMode.mock:
+        return 'Mock interno';
+      case SimulationMode.manualDoctora:
+        return 'Manual doctora';
+    }
   }
 
   Widget _img(String url, String label) {

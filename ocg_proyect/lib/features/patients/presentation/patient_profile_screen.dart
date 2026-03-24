@@ -142,7 +142,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                     const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                    _LockedField(label: 'Etapa actual', value: patient.etapaActual.name),
+                    _LockedField(label: 'Etapa actual', value: stageNames[patient.etapaActual] ?? patient.etapaActual.name),
                     _LockedField(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
                     _LockedField(
                       label: 'Fecha estimada fin',
