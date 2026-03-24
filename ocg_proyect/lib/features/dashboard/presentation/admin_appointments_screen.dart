@@ -12,6 +12,7 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 
