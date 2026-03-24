@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../shared/widgets/ocg_card.dart';
 import '../../../../shared/utils/ui_formatters.dart';
+import '../../../patient/presentation/web/components/summary_card.dart';
+import '../../../patient/presentation/web/components/highlight_card.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientProfileTab extends StatelessWidget {
@@ -14,12 +15,31 @@ class PatientProfileTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        OcgCard(
+        Row(
+          children: [
+            Expanded(
+              child: SummaryCard(
+                title: 'Etapa actual',
+                value: formatTreatmentStage(patient.etapaActual),
+                icon: Icons.monitor_heart_outlined,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SummaryCard(
+                title: 'Saldo pendiente',
+                value: '${formatCop(patient.saldoPendiente)} COP',
+                icon: Icons.account_balance_wallet_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        HighlightCard(
+          title: 'Datos personales',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Datos personales', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
               _Field(label: 'Nombre', value: patient.nombre),
               _Field(label: 'Correo', value: patient.email),
               _Field(label: 'Teléfono', value: patient.telefono),
@@ -28,12 +48,11 @@ class PatientProfileTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        OcgCard(
+        HighlightCard(
+          title: 'Datos clínicos (solo admin)',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Datos clínicos (solo admin)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
               _Field(label: 'Tipo de tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
               _Field(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
               _Field(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
