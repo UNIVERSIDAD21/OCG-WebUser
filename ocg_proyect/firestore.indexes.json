@@ -52,6 +52,15 @@
       ]
     },
     {
+      "collectionGroup": "simulations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "compartidaConPaciente", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "photos",
       "queryScope": "COLLECTION",
       "fields": [
