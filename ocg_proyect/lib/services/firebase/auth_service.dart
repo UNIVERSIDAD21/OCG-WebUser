@@ -152,10 +152,14 @@ class AuthService {
     required String email,
     required String password,
     String? displayName,
+    String? treatmentType,
+    double? totalTreatment,
   }) async {
     final callable = _functions.httpsCallable('createPatientAccount');
     final cleanEmail = email.trim().toLowerCase();
     final cleanName = displayName?.trim() ?? '';
+    final cleanTreatment = treatmentType?.trim();
+    final cleanTotal = totalTreatment ?? 0;
 
     final result = await callable.call({
       'email': cleanEmail,
@@ -185,13 +189,13 @@ class AuthService {
       'telefono': '',
       'fechaNacimiento': Timestamp.fromDate(now),
       'fotoUrl': null,
-      'tipoTratamiento': null,
+      'tipoTratamiento': cleanTreatment,
       'etapaActual': 'valoracionInicial',
       'fechaInicio': Timestamp.fromDate(now),
       'fechaEstimadaFin': null,
       'notasClinicas': '',
-      'totalTratamiento': 0,
-      'saldoPendiente': 0,
+      'totalTratamiento': cleanTotal,
+      'saldoPendiente': cleanTotal,
       'fechaProximoPago': null,
       'proximaCita': null,
       'fcmToken': '',

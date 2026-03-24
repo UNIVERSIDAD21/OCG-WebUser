@@ -101,6 +101,8 @@ class AuthNotifier extends AsyncNotifier<void> {
     required String email,
     required String password,
     String? displayName,
+    String? treatmentType,
+    double? totalTreatment,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -109,6 +111,8 @@ class AuthNotifier extends AsyncNotifier<void> {
         email: email,
         password: password,
         displayName: displayName,
+        treatmentType: treatmentType,
+        totalTreatment: totalTreatment,
       );
     });
   }
