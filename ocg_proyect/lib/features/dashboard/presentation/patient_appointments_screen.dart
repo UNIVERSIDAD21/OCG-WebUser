@@ -17,6 +17,7 @@ import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 

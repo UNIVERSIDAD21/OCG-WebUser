@@ -197,7 +197,9 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         )
                         .toList(),
                     onChanged: (v) {
-                      if (v == null) return;
+                      if (v == null) {
+                        return;
+                      }
                       setDs(() => treatmentType = v);
                     },
                   ),

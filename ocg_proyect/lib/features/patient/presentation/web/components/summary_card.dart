@@ -26,25 +26,41 @@ class SummaryCard extends StatelessWidget {
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.ink.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) Icon(icon, color: OcgColors.bronze),
           if (icon != null) const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(title, style: TextStyle(color: OcgColors.ink.withOpacity(0.72))),
+          Text(
+            title,
+            style: TextStyle(color: OcgColors.ink.withOpacity(0.72)),
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6))),
-          ],
-        ],
-      ),
-    );
-  }
-}
-e: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.6))),
+            Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 12,
+                color: OcgColors.ink.withOpacity(0.6),
+              ),
+            ),
           ],
         ],
       ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../shared/theme/ocg_colors.dart';
 import 'summary_card.dart';
 
 class PaymentSummaryPanel extends StatelessWidget {

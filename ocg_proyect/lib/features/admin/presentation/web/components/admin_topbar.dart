@@ -12,13 +12,17 @@ class AdminTopbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 68,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: OcgColors.ivory,
-        border: Border(bottom: BorderSide(color: Color(0x11000000))),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+
+        return Container(
+          height: compact ? 62 : 68,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
+          decoration: const BoxDecoration(
+            color: OcgColors.ivory,
+            border: Border(bottom: BorderSide(color: Color(0x11000000))),
+          ),
           child: Row(
             children: [
               Expanded(
@@ -51,11 +55,17 @@ class AdminTopbar extends StatelessWidget {
               if (!compact) const SizedBox(width: 10),
               Tooltip(
                 message: 'Notificaciones',
-                child: IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined)),
+                child: IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.notifications_outlined),
+                ),
               ),
               Tooltip(
                 message: 'Acciones rápidas',
-                child: IconButton(onPressed: () {}, icon: const Icon(Icons.flash_on_outlined)),
+                child: IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.flash_on_outlined),
+                ),
               ),
               const SizedBox(width: 8),
               const CircleAvatar(
