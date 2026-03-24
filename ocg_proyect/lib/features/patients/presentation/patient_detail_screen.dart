@@ -7,6 +7,8 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
+import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
