@@ -151,8 +151,16 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       ),
                       const SizedBox(height: 8),
                       BeforeAfterSlider(
-                        before: Image.network(flow.originalUrl!, fit: BoxFit.cover),
-                        after: Image.network(flow.resultUrl!, fit: BoxFit.cover),
+                        before: Image.network(
+                          flow.originalUrl!,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                        ),
+                        after: Image.network(
+                          flow.resultUrl!,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                        ),
                       ),
                     ],
                   )
@@ -402,14 +410,18 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           else
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                imageUrl!,
+              child: Container(
                 height: 220,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox(
-                  height: 120,
-                  child: Center(child: Text('No se pudo cargar la imagen.')),
+                color: const Color(0xFFF7F3EE),
+                child: Image.network(
+                  imageUrl!,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  errorBuilder: (_, __, ___) => const SizedBox(
+                    height: 120,
+                    child: Center(child: Text('No se pudo cargar la imagen.')),
+                  ),
                 ),
               ),
             ),

@@ -77,8 +77,16 @@ class PatientSimulationsScreen extends ConsumerWidget {
                           const SizedBox(height: 8),
                           if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
                             BeforeAfterSlider(
-                              before: Image.network(s.originalUrl, fit: BoxFit.cover),
-                              after: Image.network(s.resultUrl!, fit: BoxFit.cover),
+                              before: Image.network(
+                                s.originalUrl,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                              ),
+                              after: Image.network(
+                                s.resultUrl!,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                              ),
                             )
                           else
                             Row(
@@ -117,15 +125,19 @@ class PatientSimulationsScreen extends ConsumerWidget {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
+      child: Container(
         height: 120,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          height: 120,
+        color: const Color(0xFFF7F3EE),
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
           alignment: Alignment.center,
-          decoration: BoxDecoration(border: Border.all(color: const Color(0xFFD9C7B3))),
-          child: Text('No se pudo cargar $label'),
+          errorBuilder: (_, __, ___) => Container(
+            height: 120,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(border: Border.all(color: const Color(0xFFD9C7B3))),
+            child: Text('No se pudo cargar $label'),
+          ),
         ),
       ),
     );
