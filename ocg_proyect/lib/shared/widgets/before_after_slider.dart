@@ -45,11 +45,13 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
               width: double.infinity,
               child: Stack(
                 children: [
-                  Positioned.fill(child: widget.before),
+                  // Base: "después" (lado derecho)
+                  Positioned.fill(child: widget.after),
+                  // Recorte izquierdo: "antes" (lado izquierdo)
                   Positioned.fill(
                     child: ClipPath(
                       clipper: _LeftClipper(_position),
-                      child: widget.after,
+                      child: widget.before,
                     ),
                   ),
                   Positioned(
