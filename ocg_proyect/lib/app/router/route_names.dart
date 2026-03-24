@@ -12,6 +12,13 @@ class RouteNames {
   static const String adminPatientNew = '/admin/patients/new';
   static const String adminPatientEdit = '/admin/patients/:patientId/edit';
 
+  // En route_names.dart — agrega las que faltan
+  static const String adminTreatments = '/admin/treatments';
+  static const String adminPayments = '/admin/payments';
+  static const String adminSimulator = '/admin/simulator';
+  static const String adminNotifications = '/admin/notifications';
+  static const String adminSettings = '/admin/settings';
+
   static const String patientHome = '/patient/home';
   static const String patientAppointments = '/patient/appointments';
   static const String patientProfile = '/patient/profile';

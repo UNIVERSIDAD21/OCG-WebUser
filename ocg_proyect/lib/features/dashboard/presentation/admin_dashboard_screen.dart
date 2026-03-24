@@ -131,11 +131,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
-      return AdminWebShell(
-        currentRoute: RouteNames.adminDashboard,
-        title: 'Dashboard',
-        child: dashboardBody,
-      );
+      return AdminWebShell(title: 'Dashboard', child: dashboardBody);
     }
 
     return OcgAdaptiveScaffold(

@@ -8,12 +8,11 @@ import '../components/admin_topbar.dart';
 class AdminWebShell extends StatelessWidget {
   const AdminWebShell({
     super.key,
-    required this.currentRoute,
-    required this.title,
+    required this.title, // ✅ Se elimina currentRoute
     required this.child,
   });
 
-  final String currentRoute;
+  // ✅ Ya no existe currentRoute aquí
   final String title;
   final Widget child;
 
@@ -31,7 +30,7 @@ class AdminWebShell extends StatelessWidget {
             children: [
               SizedBox(
                 width: sidebarWidth,
-                child: AdminSidebar(currentRoute: currentRoute),
+                child: const AdminSidebar(), // ✅ Sin parámetros
               ),
               Expanded(
                 child: Column(

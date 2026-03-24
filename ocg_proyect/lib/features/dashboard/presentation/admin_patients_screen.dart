@@ -150,7 +150,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                       prefixIcon: Icon(Icons.medical_services_outlined),
                     ),
                     items: TreatmentType.values
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                        .map(
+                          (e) =>
+                              DropdownMenuItem(value: e, child: Text(e.name)),
+                        )
                         .toList(),
                     onChanged: (value) {
                       if (value == null) return;
@@ -167,7 +170,8 @@ class AdminPatientsScreen extends ConsumerWidget {
                     ),
                     validator: (v) {
                       final raw = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (raw.isEmpty) return 'Ingresa el monto del tratamiento';
+                      if (raw.isEmpty)
+                        return 'Ingresa el monto del tratamiento';
                       final amount = double.tryParse(raw) ?? 0;
                       if (amount <= 0) return 'El monto debe ser mayor que 0';
                       return null;
@@ -179,7 +183,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                       if (formatted == totalTreatmentCtrl.text) return;
                       totalTreatmentCtrl.value = TextEditingValue(
                         text: formatted,
-                        selection: TextSelection.collapsed(offset: formatted.length),
+                        selection: TextSelection.collapsed(
+                          offset: formatted.length,
+                        ),
                       );
                     },
                   ),
@@ -187,7 +193,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     Text(
                       formError!,
-                      style: const TextStyle(color: OcgColors.error, fontSize: 12),
+                      style: const TextStyle(
+                        color: OcgColors.error,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ],
@@ -196,7 +205,9 @@ class AdminPatientsScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: submitting ? null : () => Navigator.of(dialogContext).pop(),
+              onPressed: submitting
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancelar'),
             ),
             FilledButton(
@@ -211,7 +222,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                         return;
                       }
 
-                      final amountRaw = totalTreatmentCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+                      final amountRaw = totalTreatmentCtrl.text.replaceAll(
+                        RegExp(r'[^0-9]'),
+                        '',
+                      );
                       final totalTreatment = double.tryParse(amountRaw) ?? 0;
 
                       setDs(() {
@@ -220,7 +234,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                       });
 
                       try {
-                        await ref.read(authNotifierProvider.notifier).createPatientByAdmin(
+                        await ref
+                            .read(authNotifierProvider.notifier)
+                            .createPatientByAdmin(
                               email: email,
                               password: password,
                               displayName: fullName,
@@ -229,10 +245,13 @@ class AdminPatientsScreen extends ConsumerWidget {
                             );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Paciente creado correctamente.')),
+                            const SnackBar(
+                              content: Text('Paciente creado correctamente.'),
+                            ),
                           );
                         }
-                        if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                        if (dialogContext.mounted)
+                          Navigator.of(dialogContext).pop();
                       } on FirebaseAuthException catch (e) {
                         setDs(() {
                           submitting = false;
@@ -243,7 +262,8 @@ class AdminPatientsScreen extends ConsumerWidget {
                       } catch (_) {
                         setDs(() {
                           submitting = false;
-                          formError = 'No se pudo crear la cuenta. Intenta de nuevo.';
+                          formError =
+                              'No se pudo crear la cuenta. Intenta de nuevo.';
                         });
                       }
                     },
@@ -274,9 +294,8 @@ class AdminPatientsScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: FilterBar(
             hintText: 'Buscar por nombre o correo…',
-            onSearch: (value) => ref
-                .read(patientsSearchQueryProvider.notifier)
-                .setQuery(value),
+            onSearch: (value) =>
+                ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
           ),
         ),
         SizedBox(
@@ -343,62 +362,84 @@ class AdminPatientsScreen extends ConsumerWidget {
       final desktopRows = filteredPatients.map((patient) {
         final stage = formatTreatmentStage(patient.etapaActual);
         final stageLower = stage.toLowerCase();
-        final stageBg = stageLower.contains('final') || stageLower.contains('reten')
+        final stageBg =
+            stageLower.contains('final') || stageLower.contains('reten')
             ? const Color(0xFFE7F6EC)
             : stageLower.contains('valor')
-                ? const Color(0xFFFFF3E5)
-                : OcgColors.sand;
-        final stageFg = stageLower.contains('final') || stageLower.contains('reten')
+            ? const Color(0xFFFFF3E5)
+            : OcgColors.sand;
+        final stageFg =
+            stageLower.contains('final') || stageLower.contains('reten')
             ? const Color(0xFF1B5E20)
             : stageLower.contains('valor')
-                ? const Color(0xFF8A4B00)
-                : OcgColors.espresso;
+            ? const Color(0xFF8A4B00)
+            : OcgColors.espresso;
 
-        return DataRow(cells: [
-          DataCell(
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                  child: Text(
-                    _initialsFromName(patient.nombre),
-                    style: const TextStyle(fontSize: 11, color: OcgColors.espresso),
+        return DataRow(
+          cells: [
+            DataCell(
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: OcgColors.bronze.withOpacity(0.16),
+                    child: Text(
+                      _initialsFromName(patient.nombre),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  patient.nombre,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(patient.nombre, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
-          ),
-          DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
-          DataCell(StatusBadge(label: stage, background: stageBg, foreground: stageFg)),
-          DataCell(Text(patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!))),
-          DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
-          DataCell(
-            ActionToolbar(
-              actions: [
-                IconButton(
-                  tooltip: 'Ver detalle',
-                  onPressed: () => context.go(
-                    RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
-                  ),
-                  icon: const Icon(Icons.visibility_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Editar',
-                  onPressed: () => context.go(
-                    RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
-                  ),
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-              ],
+            DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
+            DataCell(
+              StatusBadge(
+                label: stage,
+                background: stageBg,
+                foreground: stageFg,
+              ),
             ),
-          ),
-        ]);
+            DataCell(
+              Text(
+                patient.proximaCita == null
+                    ? 'Sin cita'
+                    : _fmtDate(patient.proximaCita!),
+              ),
+            ),
+            DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
+            DataCell(
+              ActionToolbar(
+                actions: [
+                  IconButton(
+                    tooltip: 'Ver detalle',
+                    onPressed: () => context.go(
+                      RouteNames.adminPatientDetail.replaceFirst(
+                        ':patientId',
+                        patient.id,
+                      ),
+                    ),
+                    icon: const Icon(Icons.visibility_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Editar',
+                    onPressed: () => context.go(
+                      RouteNames.adminPatientEdit.replaceFirst(
+                        ':patientId',
+                        patient.id,
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
       }).toList();
 
       final desktopContent = Column(
@@ -420,9 +461,8 @@ class AdminPatientsScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           FilterBar(
             hintText: 'Buscar por nombre o correo…',
-            onSearch: (value) => ref
-                .read(patientsSearchQueryProvider.notifier)
-                .setQuery(value),
+            onSearch: (value) =>
+                ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
           ),
           const SizedBox(height: 12),
           SectionPanel(
@@ -442,11 +482,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         ],
       );
 
-      return AdminWebShell(
-        currentRoute: RouteNames.adminPatients,
-        title: 'Pacientes',
-        child: desktopContent,
-      );
+      return AdminWebShell(title: 'Pacientes', child: desktopContent);
     }
 
     return OcgAdaptiveScaffold(
@@ -468,7 +504,9 @@ class AdminPatientsScreen extends ConsumerWidget {
           backgroundColor: OcgColors.error.withOpacity(0.14),
           side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

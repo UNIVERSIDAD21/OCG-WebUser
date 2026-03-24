@@ -30,9 +30,8 @@ class PatientDetailScreen extends ConsumerWidget {
     final patientAsync = ref.watch(patientByIdProvider(patientId));
 
     return patientAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Detalle de paciente')),
         body: Center(
@@ -66,7 +65,9 @@ class _PatientDetailView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar paciente'),
-        content: Text('¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.'),
+        content: Text(
+          '¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -91,9 +92,9 @@ class _PatientDetailView extends ConsumerWidget {
       context.go(RouteNames.adminPatients);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
     }
   }
 
@@ -117,8 +118,12 @@ class _PatientDetailView extends ConsumerWidget {
                         children: [
                           IconButton(
                             tooltip: 'Volver',
-                            onPressed: () => context.go(RouteNames.adminPatients),
-                            icon: const Icon(Icons.arrow_back, color: OcgColors.ivory),
+                            onPressed: () =>
+                                context.go(RouteNames.adminPatients),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: OcgColors.ivory,
+                            ),
                           ),
                           Expanded(
                             child: Text(
@@ -134,14 +139,23 @@ class _PatientDetailView extends ConsumerWidget {
                           IconButton(
                             tooltip: 'Eliminar paciente',
                             onPressed: () => _deletePatient(context, ref),
-                            icon: const Icon(Icons.delete_outline, color: OcgColors.ivory),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: OcgColors.ivory,
+                            ),
                           ),
                           IconButton(
                             tooltip: 'Editar paciente',
                             onPressed: () => context.go(
-                              RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+                              RouteNames.adminPatientEdit.replaceFirst(
+                                ':patientId',
+                                patient.id,
+                              ),
                             ),
-                            icon: const Icon(Icons.edit, color: OcgColors.ivory),
+                            icon: const Icon(
+                              Icons.edit,
+                              color: OcgColors.ivory,
+                            ),
                           ),
                         ],
                       ),
@@ -202,7 +216,8 @@ class _PatientDetailView extends ConsumerWidget {
           children: [
             DetailHeader(
               title: patient.nombre,
-              subtitle: 'Expediente clínico y financiero • ID ${patient.id.substring(0, patient.id.length > 8 ? 8 : patient.id.length)}',
+              subtitle:
+                  'Expediente clínico y financiero • ID ${patient.id.substring(0, patient.id.length > 8 ? 8 : patient.id.length)}',
               trailing: ActionToolbar(
                 actions: [
                   OutlinedButton.icon(
@@ -212,7 +227,10 @@ class _PatientDetailView extends ConsumerWidget {
                   ),
                   FilledButton.icon(
                     onPressed: () => context.go(
-                      RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+                      RouteNames.adminPatientEdit.replaceFirst(
+                        ':patientId',
+                        patient.id,
+                      ),
                     ),
                     icon: const Icon(Icons.edit),
                     label: const Text('Editar'),
@@ -235,8 +253,12 @@ class _PatientDetailView extends ConsumerWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                        OcgChip(label: formatTreatmentStage(patient.etapaActual)),
+                        OcgChip(
+                          label: patient.tipoTratamiento?.name ?? 'Pendiente',
+                        ),
+                        OcgChip(
+                          label: formatTreatmentStage(patient.etapaActual),
+                        ),
                       ],
                     ),
                   ),
@@ -249,8 +271,14 @@ class _PatientDetailView extends ConsumerWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        OcgChip(label: 'Saldo: ${formatCop(patient.saldoPendiente)} COP'),
-                        OcgChip(label: 'Total: ${formatCop(patient.totalTratamiento)} COP'),
+                        OcgChip(
+                          label:
+                              'Saldo: ${formatCop(patient.saldoPendiente)} COP',
+                        ),
+                        OcgChip(
+                          label:
+                              'Total: ${formatCop(patient.totalTratamiento)} COP',
+                        ),
                       ],
                     ),
                   ),
@@ -284,7 +312,10 @@ class _PatientDetailView extends ConsumerWidget {
                 child: TabBarView(
                   children: [
                     PatientProfileTab(patient: patient),
-                    PatientTreatmentTab(patientId: patient.id, patient: patient),
+                    PatientTreatmentTab(
+                      patientId: patient.id,
+                      patient: patient,
+                    ),
                     PatientAppointmentsTab(patient: patient),
                     PatientPaymentsTab(patientId: patient.id),
                     PatientSimulatorTab(patient: patient),
@@ -296,11 +327,7 @@ class _PatientDetailView extends ConsumerWidget {
         ),
       );
 
-      return AdminWebShell(
-        currentRoute: RouteNames.adminPatients,
-        title: 'Detalle de paciente',
-        child: desktopContent,
-      );
+      return AdminWebShell(title: 'Detalle de paciente', child: desktopContent);
     }
 
     return content;

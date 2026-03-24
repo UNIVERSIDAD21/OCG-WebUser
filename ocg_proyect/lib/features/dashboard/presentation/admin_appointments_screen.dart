@@ -1842,11 +1842,7 @@ class _AdminAppointmentsScreenState
         ],
       );
 
-      return AdminWebShell(
-        currentRoute: '/admin/appointments',
-        title: 'Agenda',
-        child: desktopContent,
-      );
+      return AdminWebShell(title: 'Agenda', child: desktopContent);
     }
 
     return OcgAdaptiveScaffold(

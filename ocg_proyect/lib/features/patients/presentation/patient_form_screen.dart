@@ -97,7 +97,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _nameCtrl,
-                        decoration: const InputDecoration(labelText: 'Nombre completo'),
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre completo',
+                        ),
                         validator: Validators.fullName,
                       ),
                       const SizedBox(height: 10),
@@ -109,8 +111,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _phoneCtrl,
-                        decoration: const InputDecoration(labelText: 'Teléfono'),
-                        validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono'),
+                        decoration: const InputDecoration(
+                          labelText: 'Teléfono',
+                        ),
+                        validator: (v) => Validators.requiredField(
+                          v,
+                          message: 'Ingresa teléfono',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -119,13 +126,20 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                             child: DropdownButtonFormField<TreatmentType>(
                               initialValue: _tipo,
                               items: TreatmentType.values
-                                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(e.name),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (value) {
                                 if (value == null) return;
                                 setState(() => _tipo = value);
                               },
-                              decoration: const InputDecoration(labelText: 'Tipo tratamiento'),
+                              decoration: const InputDecoration(
+                                labelText: 'Tipo tratamiento',
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -133,13 +147,20 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                             child: DropdownButtonFormField<TreatmentStage>(
                               initialValue: _etapa,
                               items: TreatmentStage.values
-                                  .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(e.name),
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (value) {
                                 if (value == null) return;
                                 setState(() => _etapa = value);
                               },
-                              decoration: const InputDecoration(labelText: 'Etapa actual'),
+                              decoration: const InputDecoration(
+                                labelText: 'Etapa actual',
+                              ),
                             ),
                           ),
                         ],
@@ -148,29 +169,42 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       TextFormField(
                         controller: _totalCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Total tratamiento (COP)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Total tratamiento (COP)',
+                        ),
                         onChanged: (value) => _applyCopMask(_totalCtrl, value),
-                        validator: (v) => Validators.requiredField(v, message: 'Ingresa total tratamiento'),
+                        validator: (v) => Validators.requiredField(
+                          v,
+                          message: 'Ingresa total tratamiento',
+                        ),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _saldoCtrl,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Saldo pendiente (COP)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Saldo pendiente (COP)',
+                        ),
                         onChanged: (value) => _applyCopMask(_saldoCtrl, value),
-                        validator: (v) => Validators.requiredField(v, message: 'Ingresa saldo pendiente'),
+                        validator: (v) => Validators.requiredField(
+                          v,
+                          message: 'Ingresa saldo pendiente',
+                        ),
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _notasCtrl,
                         maxLines: 3,
-                        decoration: const InputDecoration(labelText: 'Notas clínicas'),
+                        decoration: const InputDecoration(
+                          labelText: 'Notas clínicas',
+                        ),
                       ),
                       const SizedBox(height: 10),
                       _DatePickerRow(
                         label: 'Fecha nacimiento',
                         value: _fechaNacimiento,
-                        onPick: (date) => setState(() => _fechaNacimiento = date),
+                        onPick: (date) =>
+                            setState(() => _fechaNacimiento = date),
                       ),
                       _DatePickerRow(
                         label: 'Fecha inicio',
@@ -180,7 +214,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       _DatePickerRow(
                         label: 'Fecha estimada fin',
                         value: _fechaEstimadaFin,
-                        onPick: (date) => setState(() => _fechaEstimadaFin = date),
+                        onPick: (date) =>
+                            setState(() => _fechaEstimadaFin = date),
                         nullable: true,
                         onClear: () => setState(() => _fechaEstimadaFin = null),
                       ),
@@ -202,7 +237,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: OcgColors.bronze.withValues(alpha: 0.22)),
+                    side: BorderSide(
+                      color: OcgColors.bronze.withValues(alpha: 0.22),
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -212,7 +249,10 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       children: [
                         const Text(
                           'Flujo de creación actualizado',
-                          style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: OcgColors.espresso,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         const Text(
@@ -223,7 +263,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: FilledButton(
-                            onPressed: () => context.go(RouteNames.adminPatients),
+                            onPressed: () =>
+                                context.go(RouteNames.adminPatients),
                             child: const Text('Entendido'),
                           ),
                         ),
@@ -237,7 +278,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
     if (WebLayoutContext.useDesktopShell(context)) {
       return AdminWebShell(
-        currentRoute: RouteNames.adminPatients,
         title: isEdit ? 'Editar paciente' : 'Nuevo paciente',
         child: page,
       );
@@ -299,15 +339,17 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       await repo.updatePatientBasicData(patient.id, patient.toJson());
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Paciente actualizado')),
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Paciente actualizado')));
+      context.go(
+        RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
       );
-      context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo guardar: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
