@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 
@@ -343,14 +344,6 @@ class _DatePickerRow extends StatelessWidget {
             IconButton(
               onPressed: onClear,
               icon: const Icon(Icons.clear),
-              tooltip: 'Limpiar',
-            ),
-        ],
-      ),
-    );
-  }
-}
-const Icon(Icons.clear),
               tooltip: 'Limpiar',
             ),
         ],

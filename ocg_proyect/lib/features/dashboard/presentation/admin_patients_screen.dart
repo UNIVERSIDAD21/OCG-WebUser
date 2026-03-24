@@ -13,6 +13,7 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 
 class AdminPatientsScreen extends ConsumerWidget {
@@ -392,13 +393,6 @@ class _PatientCard extends StatelessWidget {
               ),
             ),
             const Icon(Icons.chevron_right, color: OcgColors.bronze),
-          ],
-        ),
-      ),
-    );
-  }
-}
-or: OcgColors.bronze),
           ],
         ),
       ),

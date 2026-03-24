@@ -143,7 +143,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                     const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                    _LockedField(label: 'Etapa actual', value: stageNames[patient.etapaActual] ?? patient.etapaActual.name),
+                    _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
                     _LockedField(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
                     _LockedField(
                       label: 'Fecha estimada fin',
@@ -163,8 +163,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                   children: [
                     const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
-                    _Field(label: 'Total tratamiento', value: '${_fmtCop(patient.totalTratamiento)} COP'),
-                    _Field(label: 'Saldo pendiente', value: '${_fmtCop(patient.saldoPendiente)} COP'),
+                    _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
+                    _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),
                     _Field(
                       label: 'Próximo pago',
                       value: patient.fechaProximoPago == null ? 'No definido' : _fmt(patient.fechaProximoPago!),
