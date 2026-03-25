@@ -378,47 +378,42 @@ class AdminPatientsScreen extends ConsumerWidget {
         return DataRow(
           cells: [
             DataCell(
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => context.go(
-                    RouteNames.adminPatientDetail.replaceFirst(
-                      ':patientId',
-                      patient.id,
-                    ),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => context.go(
+                  RouteNames.adminPatientDetail.replaceFirst(
+                    ':patientId',
+                    patient.id,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                          child: Text(
-                            _initialsFromName(patient.nombre),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: OcgColors.espresso,
-                            ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: OcgColors.bronze.withOpacity(0.16),
+                        child: Text(
+                          _initialsFromName(patient.nombre),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: OcgColors.espresso,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            patient.nombre,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              decoration: TextDecoration.underline,
-                              fontWeight: FontWeight.w600,
-                              color: OcgColors.espresso,
-                            ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          patient.nombre,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.w600,
+                            color: OcgColors.espresso,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
