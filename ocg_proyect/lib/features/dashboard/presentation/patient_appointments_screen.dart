@@ -796,6 +796,110 @@ class _PatientAppointmentsScreenState
 
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
 
+    final appointmentsBody = appointmentsAsync.when(
+      loading: () => ocgLoading(label: 'Cargando tus citas...'),
+      error: (e, _) => Center(
+        child: Text(
+          'Error al cargar citas: $e',
+          textAlign: TextAlign.center,
+        ),
+      ),
+      data: (all) {
+        final now = DateTime.now();
+        final filtered = _filter == _PatientFilter.proximas
+            ? all
+                  .where(
+                    (a) =>
+                        a.fechaHora.isAfter(now) &&
+                        a.estado != AppointmentStatus.cancelada &&
+                        a.estado != AppointmentStatus.noAsistio &&
+                        a.estado != AppointmentStatus.completada,
+                  )
+                  .toList()
+            : all
+                  .where(
+                    (a) =>
+                        a.fechaHora.isBefore(now) ||
+                        a.estado == AppointmentStatus.cancelada ||
+                        a.estado == AppointmentStatus.completada ||
+                        a.estado == AppointmentStatus.noAsistio,
+                  )
+                  .toList();
+
+        if (filtered.isEmpty) {
+          return OcgEmptyState(
+            icon: Icons.event_busy_outlined,
+            title: _filter == _PatientFilter.proximas
+                ? 'No tienes citas próximas'
+                : 'Sin historial de citas',
+            subtitle: _filter == _PatientFilter.proximas
+                ? 'Toca + para agendar tu próxima cita.'
+                : 'Aún no hay citas registradas en este estado.',
+          );
+        }
+
+        final nextUpcoming = _filter == _PatientFilter.proximas
+            ? (filtered..sort((a, b) => a.fechaHora.compareTo(b.fechaHora))).first
+            : null;
+
+        return LayoutBuilder(
+          builder: (context, c) {
+            final compact = c.maxWidth < 760;
+            return ListView(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 12 : 16,
+                8,
+                compact ? 12 : 16,
+                100,
+              ),
+              children: [
+                if (nextUpcoming != null)
+                  AppointmentHighlightCard(
+                    title: 'Tu próxima cita',
+                    whenText: _fmtDateTime(nextUpcoming.fechaHora),
+                    trailing: OcgChip(
+                      label: _estadoLabel(nextUpcoming.estado),
+                      backgroundColor: _estadoColor(
+                        nextUpcoming.estado,
+                      ).withOpacity(0.14),
+                      textColor: _estadoColor(nextUpcoming.estado),
+                    ),
+                  ),
+                if (nextUpcoming != null) const SizedBox(height: 10),
+                HighlightCard(
+                  title: _filter == _PatientFilter.proximas
+                      ? 'Próximas citas'
+                      : 'Historial de citas',
+                  trailing: Text(
+                    '${filtered.length} registro(s)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: OcgColors.ink.withOpacity(0.6),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final appt in filtered) ...[
+                        _AppointmentTile(
+                          appointment: appt,
+                          onCancel:
+                              (appt.estado == AppointmentStatus.programada ||
+                                  appt.estado == AppointmentStatus.confirmada)
+                              ? () => _handleCancelTap(context, ref, appt)
+                              : null,
+                        ),
+                        if (appt != filtered.last) const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
     final content = Column(
       children: [
         Container(
@@ -862,116 +966,10 @@ class _PatientAppointmentsScreenState
             onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
         ),
-        Expanded(
-          child: appointmentsAsync.when(
-            loading: () => ocgLoading(label: 'Cargando tus citas...'),
-            error: (e, _) => Center(
-              child: Text(
-                'Error al cargar citas: $e',
-                textAlign: TextAlign.center,
-              ),
-            ),
-            data: (all) {
-              final now = DateTime.now();
-              final filtered = _filter == _PatientFilter.proximas
-                  ? all
-                        .where(
-                          (a) =>
-                              a.fechaHora.isAfter(now) &&
-                              a.estado != AppointmentStatus.cancelada &&
-                              a.estado != AppointmentStatus.noAsistio &&
-                              a.estado != AppointmentStatus.completada,
-                        )
-                        .toList()
-                  : all
-                        .where(
-                          (a) =>
-                              a.fechaHora.isBefore(now) ||
-                              a.estado == AppointmentStatus.cancelada ||
-                              a.estado == AppointmentStatus.completada ||
-                              a.estado == AppointmentStatus.noAsistio,
-                        )
-                        .toList();
-
-              if (filtered.isEmpty) {
-                return OcgEmptyState(
-                  icon: Icons.event_busy_outlined,
-                  title: _filter == _PatientFilter.proximas
-                      ? 'No tienes citas próximas'
-                      : 'Sin historial de citas',
-                  subtitle: _filter == _PatientFilter.proximas
-                      ? 'Toca + para agendar tu próxima cita.'
-                      : 'Aún no hay citas registradas en este estado.',
-                );
-              }
-
-              final nextUpcoming = _filter == _PatientFilter.proximas
-                  ? (filtered
-                          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora)))
-                        .first
-                  : null;
-
-              return LayoutBuilder(
-                builder: (context, c) {
-                  final compact = c.maxWidth < 760;
-                  return ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      compact ? 12 : 16,
-                      8,
-                      compact ? 12 : 16,
-                      100,
-                    ),
-                    children: [
-                      if (nextUpcoming != null)
-                        AppointmentHighlightCard(
-                          title: 'Tu próxima cita',
-                          whenText: _fmtDateTime(nextUpcoming.fechaHora),
-                          trailing: OcgChip(
-                            label: _estadoLabel(nextUpcoming.estado),
-                            backgroundColor: _estadoColor(
-                              nextUpcoming.estado,
-                            ).withOpacity(0.14),
-                            textColor: _estadoColor(nextUpcoming.estado),
-                          ),
-                        ),
-                      if (nextUpcoming != null) const SizedBox(height: 10),
-                      HighlightCard(
-                        title: _filter == _PatientFilter.proximas
-                            ? 'Próximas citas'
-                            : 'Historial de citas',
-                        trailing: Text(
-                          '${filtered.length} registro(s)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: OcgColors.ink.withOpacity(0.6),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            for (final appt in filtered) ...[
-                              _AppointmentTile(
-                                appointment: appt,
-                                onCancel:
-                                    (appt.estado ==
-                                            AppointmentStatus.programada ||
-                                        appt.estado ==
-                                            AppointmentStatus.confirmada)
-                                    ? () => _handleCancelTap(context, ref, appt)
-                                    : null,
-                              ),
-                              if (appt != filtered.last)
-                                const SizedBox(height: 10),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-        ),
+        if (widget.embedded)
+          SizedBox(height: 560, child: appointmentsBody)
+        else
+          Expanded(child: appointmentsBody),
       ],
     );
 
