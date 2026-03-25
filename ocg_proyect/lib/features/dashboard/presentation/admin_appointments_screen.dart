@@ -877,6 +877,8 @@ class _AdminAppointmentsScreenState
   _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
   DateTime _monthCursor = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime? _selectedMonthDay;
+  _AgendaFilter _historyFilter = _AgendaFilter.activas;
+  int _historyPage = 1;
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
@@ -2240,6 +2242,241 @@ class _AdminAppointmentsScreenState
     );
   }
 
+  String _historyMonthLabel(DateTime d) {
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    return '${months[d.month - 1]} ${d.year}';
+  }
+
+  List<AppointmentModel> _historyItems(List<AppointmentModel> all) {
+    final now = DateTime.now();
+    final past = all
+        .where((a) => a.fechaHora.isBefore(now))
+        .where((a) => a.estado != AppointmentStatus.reprogramada)
+        .toList()
+      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+
+    final filtered = switch (_historyFilter) {
+      _AgendaFilter.completadas =>
+        past.where((a) => a.estado == AppointmentStatus.completada).toList(),
+      _AgendaFilter.perdidas => past.where(_esPerdida).toList(),
+      _AgendaFilter.canceladas =>
+        past.where((a) => a.estado == AppointmentStatus.cancelada).toList(),
+      _ => past,
+    };
+
+    final pageSize = 12;
+    final max = _historyPage * pageSize;
+    return filtered.take(max).toList();
+  }
+
+  int _historyCountByFilter(List<AppointmentModel> all, _AgendaFilter filter) {
+    final now = DateTime.now();
+    final past = all
+        .where((a) => a.fechaHora.isBefore(now))
+        .where((a) => a.estado != AppointmentStatus.reprogramada)
+        .toList();
+
+    return switch (filter) {
+      _AgendaFilter.completadas =>
+        past.where((a) => a.estado == AppointmentStatus.completada).length,
+      _AgendaFilter.perdidas => past.where(_esPerdida).length,
+      _AgendaFilter.canceladas =>
+        past.where((a) => a.estado == AppointmentStatus.cancelada).length,
+      _ => past.length,
+    };
+  }
+
+  Widget _historyFilterItem(String label, _AgendaFilter filter, int count) {
+    final active = _historyFilter == filter;
+    return InkWell(
+      onTap: () => setState(() {
+        _historyFilter = filter;
+        _historyPage = 1;
+      }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: active ? OcgColors.espresso : OcgColors.ink,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: active ? OcgColors.espresso : OcgColors.mist,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: active ? OcgColors.ivory : OcgColors.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryAgenda(
+    BuildContext context,
+    List<AppointmentModel> appointments,
+  ) {
+    final items = _historyItems(appointments);
+    final totalFiltered = _historyCountByFilter(appointments, _historyFilter);
+    final hasMore = items.length < totalFiltered;
+
+    final groups = <String, List<AppointmentModel>>{};
+    for (final item in items) {
+      final key = '${item.fechaHora.year}-${item.fechaHora.month.toString().padLeft(2, '0')}';
+      groups.putIfAbsent(key, () => []).add(item);
+    }
+
+    final sortedKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    Widget list = sortedKeys.isEmpty
+        ? Center(
+            child: Text(
+              'Sin citas en historial para este filtro',
+              style: TextStyle(color: OcgColors.ink.withOpacity(0.55)),
+            ),
+          )
+        : ListView(
+            padding: const EdgeInsets.only(right: 6),
+            children: [
+              for (final key in sortedKeys) ...[
+                Builder(
+                  builder: (_) {
+                    final sample = groups[key]!.first.fechaHora;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 6),
+                      child: Text(
+                        _historyMonthLabel(DateTime(sample.year, sample.month, 1)).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: OcgColors.ink.withOpacity(0.6),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ...groups[key]!.map((a) {
+                  final ui = _statusUi(a);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border(
+                        left: BorderSide(color: ui.line, width: 3),
+                        top: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+                        right: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+                        bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+                      ),
+                    ),
+                    child: Text(
+                      '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
+                      style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                    ),
+                  );
+                }),
+              ],
+              if (hasMore)
+                OutlinedButton(
+                  onPressed: () => setState(() => _historyPage += 1),
+                  child: const Text('Cargar más...'),
+                ),
+            ],
+          );
+
+    final filtersPanel = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE9E4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Filtrar por estado',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          _historyFilterItem(
+            'Todas',
+            _AgendaFilter.activas,
+            _historyCountByFilter(appointments, _AgendaFilter.activas),
+          ),
+          _historyFilterItem(
+            'Completadas',
+            _AgendaFilter.completadas,
+            _historyCountByFilter(appointments, _AgendaFilter.completadas),
+          ),
+          _historyFilterItem(
+            'Perdidas',
+            _AgendaFilter.perdidas,
+            _historyCountByFilter(appointments, _AgendaFilter.perdidas),
+          ),
+          _historyFilterItem(
+            'Canceladas',
+            _AgendaFilter.canceladas,
+            _historyCountByFilter(appointments, _AgendaFilter.canceladas),
+          ),
+        ],
+      ),
+    );
+
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
+    if (isDesktop) {
+      return Row(
+        children: [
+          Expanded(child: list),
+          const SizedBox(width: 12),
+          SizedBox(width: 220, child: filtersPanel),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: filtersPanel,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: list,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
@@ -2257,13 +2494,16 @@ class _AdminAppointmentsScreenState
       data: (appointments) => _buildMonthAgenda(context, appointments),
     );
 
+    final historialAgendaBody = appointmentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+      data: (appointments) => _buildHistoryAgenda(context, appointments),
+    );
+
     final agendaBody = switch (_innerTab) {
       _AgendaInnerTab.hoy => hoyAgendaBody,
       _AgendaInnerTab.mes => mesAgendaBody,
-      _AgendaInnerTab.historial => _buildInnerPlaceholder(
-        'Historial en construcción',
-        'Siguiente paso: filtros, agrupación y carga progresiva.',
-      ),
+      _AgendaInnerTab.historial => historialAgendaBody,
     };
 
     if (WebLayoutContext.useDesktopShell(context)) {
