@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
+import '../../../../auth/providers/auth_providers.dart';
 
-class AdminSidebar extends StatelessWidget {
+class AdminSidebar extends ConsumerWidget {
   const AdminSidebar({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
 
     final items = <({String label, IconData icon, String route})>[
@@ -81,7 +83,6 @@ class AdminSidebar extends StatelessWidget {
                 children: items.map((item) {
                   final active = currentRoute == item.route;
 
-                  // ✅ Colores explícitos — no dependemos de selected/selectedTileColor
                   final bgColor = active ? OcgColors.ivory : Colors.transparent;
                   final fgColor = active ? OcgColors.espresso : OcgColors.ivory;
 
@@ -119,6 +120,40 @@ class AdminSidebar extends StatelessWidget {
                     ),
                   );
                 }).toList(),
+              ),
+            ),
+            const Divider(color: Color(0x33FFFFFF), height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    await ref.read(authServiceProvider).signOut();
+                    if (context.mounted) {
+                      context.go(RouteNames.login);
+                    }
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: OcgColors.ivory, size: 22),
+                        SizedBox(width: 14),
+                        Text(
+                          'Cerrar sesión',
+                          style: TextStyle(
+                            color: OcgColors.ivory,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
