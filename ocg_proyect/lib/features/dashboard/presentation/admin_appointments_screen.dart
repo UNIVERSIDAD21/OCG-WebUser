@@ -1859,35 +1859,42 @@ class _AdminAppointmentsScreenState
                       decoration: BoxDecoration(
                         color: OcgColors.ivory,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border(
-                          left: BorderSide(color: ui.line, width: 3),
-                          top: BorderSide(
-                            color: OcgColors.bronze.withOpacity(0.22),
-                          ),
-                          right: BorderSide(
-                            color: OcgColors.bronze.withOpacity(0.22),
-                          ),
-                          bottom: BorderSide(
-                            color: OcgColors.bronze.withOpacity(0.22),
-                          ),
+                        border: Border.all(
+                          color: OcgColors.bronze.withOpacity(0.22),
                         ),
                       ),
-                      child: Column(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            a.patientName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: OcgColors.espresso,
+                          Container(
+                            width: 3,
+                            height: 44,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: ui.line,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: OcgColors.ink.withOpacity(0.72),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  a.patientName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: OcgColors.espresso,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: OcgColors.ink.withOpacity(0.72),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -2198,22 +2205,28 @@ class _AdminAppointmentsScreenState
                         decoration: BoxDecoration(
                           color: OcgColors.ivory,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border(
-                            left: BorderSide(color: ui.line, width: 3),
-                            top: BorderSide(
-                              color: OcgColors.bronze.withOpacity(0.22),
-                            ),
-                            right: BorderSide(
-                              color: OcgColors.bronze.withOpacity(0.22),
-                            ),
-                            bottom: BorderSide(
-                              color: OcgColors.bronze.withOpacity(0.22),
-                            ),
+                          border: Border.all(
+                            color: OcgColors.bronze.withOpacity(0.22),
                           ),
                         ),
-                        child: Text(
-                          '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                          style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 36,
+                              margin: const EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: ui.line,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
+                                style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -2438,16 +2451,28 @@ class _AdminAppointmentsScreenState
                     decoration: BoxDecoration(
                       color: OcgColors.ivory,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border(
-                        left: BorderSide(color: ui.line, width: 3),
-                        top: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
-                        right: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
-                        bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.22)),
+                      border: Border.all(
+                        color: OcgColors.bronze.withOpacity(0.22),
                       ),
                     ),
-                    child: Text(
-                      '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                      style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 36,
+                          margin: const EdgeInsets.only(right: 10),
+                          decoration: BoxDecoration(
+                            color: ui.line,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
+                            style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }),
