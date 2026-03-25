@@ -1673,13 +1673,281 @@ class _AdminAppointmentsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.construction_outlined, size: 38, color: OcgColors.bronze),
+            const Icon(
+              Icons.construction_outlined,
+              size: 38,
+              color: OcgColors.bronze,
+            ),
             const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: OcgColors.espresso,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: OcgColors.ink.withOpacity(0.7))),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: OcgColors.ink.withOpacity(0.7)),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  List<AppointmentModel> _appointmentsForDay(
+    List<AppointmentModel> all,
+    DateTime day,
+  ) {
+    final list = all
+        .where(
+          (a) =>
+              a.fechaHora.year == day.year &&
+              a.fechaHora.month == day.month &&
+              a.fechaHora.day == day.day &&
+              a.estado != AppointmentStatus.reprogramada,
+        )
+        .toList()
+      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    return list;
+  }
+
+  ({Color dot, Color line, String label}) _statusUi(AppointmentModel a) {
+    if (_esPerdida(a)) {
+      return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
+    }
+
+    return switch (a.estado) {
+      AppointmentStatus.programada => (
+        dot: OcgColors.bronze,
+        line: OcgColors.bronze,
+        label: 'Confirmada',
+      ),
+      AppointmentStatus.confirmada => (
+        dot: const Color(0xFF639922),
+        line: const Color(0xFF639922),
+        label: 'Confirmada',
+      ),
+      AppointmentStatus.completada => (
+        dot: const Color(0xFF1B45A0),
+        line: const Color(0xFF1B45A0),
+        label: 'Completada',
+      ),
+      AppointmentStatus.cancelada => (
+        dot: const Color(0xFF888780),
+        line: const Color(0xFF888780),
+        label: 'Cancelada',
+      ),
+      AppointmentStatus.noAsistio => (
+        dot: OcgColors.error,
+        line: OcgColors.error,
+        label: 'Perdida',
+      ),
+      AppointmentStatus.reprogramada => (
+        dot: Colors.purple,
+        line: Colors.purple,
+        label: 'Reprogramada',
+      ),
+    };
+  }
+
+  Widget _buildTodayAgenda(
+    BuildContext context,
+    List<AppointmentModel> appointments,
+    DateTime selectedDate,
+  ) {
+    final dayItems = _appointmentsForDay(appointments, selectedDate);
+    final total = dayItems.length;
+    final confirmadas = dayItems
+        .where(
+          (a) =>
+              (a.estado == AppointmentStatus.programada ||
+                  a.estado == AppointmentStatus.confirmada) &&
+              !_esPerdida(a),
+        )
+        .length;
+    final activas = dayItems
+        .where((a) => a.estado == AppointmentStatus.confirmada)
+        .length;
+    final completadas = dayItems
+        .where((a) => a.estado == AppointmentStatus.completada)
+        .length;
+    final perdidas = dayItems.where(_esPerdida).length;
+    final canceladas = dayItems
+        .where((a) => a.estado == AppointmentStatus.cancelada)
+        .length;
+
+    Widget timeline = dayItems.isEmpty
+        ? Center(
+            child: Text(
+              'Sin citas para este día',
+              style: TextStyle(color: OcgColors.ink.withOpacity(0.55)),
+            ),
+          )
+        : ListView.separated(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+            itemCount: dayItems.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final a = dayItems[index];
+              final ui = _statusUi(a);
+              final isLast = index == dayItems.length - 1;
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: OcgColors.ink.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        margin: const EdgeInsets.only(top: 14),
+                        decoration: BoxDecoration(
+                          color: ui.dot,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      if (!isLast)
+                        Container(
+                          width: 2,
+                          height: 44,
+                          color: OcgColors.bronze.withOpacity(0.25),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border(
+                          left: BorderSide(color: ui.line, width: 3),
+                          top: BorderSide(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
+                          right: BorderSide(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
+                          bottom: BorderSide(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            a.patientName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: OcgColors.espresso,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: OcgColors.ink.withOpacity(0.72),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+
+    Widget summary = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE9E4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resumen del día',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          _summaryRow('Total', total),
+          _summaryRow('Confirmadas', confirmadas),
+          _summaryRow('Activas', activas),
+          _summaryRow('Completadas', completadas),
+          _summaryRow('Perdidas', perdidas),
+          _summaryRow('Canceladas', canceladas),
+        ],
+      ),
+    );
+
+    final desktop = WebLayoutContext.useDesktopShell(context);
+    if (desktop) {
+      return Row(
+        children: [
+          Expanded(child: timeline),
+          const SizedBox(width: 12),
+          SizedBox(width: 220, child: summary),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: summary,
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: timeline,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryRow(String label, int value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: OcgColors.ink.withOpacity(0.86)),
+            ),
+          ),
+          Text(
+            '$value',
+            style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+          ),
+        ],
       ),
     );
   }
@@ -1689,103 +1957,10 @@ class _AdminAppointmentsScreenState
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
-    final hoyAgendaBody = Column(
-      children: [
-        if (!WebLayoutContext.useDesktopShell(context) &&
-            _filter == _AgendaFilter.hoy)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [OcgColors.bronze, OcgColors.sand],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, color: OcgColors.ivory),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    AdminAppointmentsScreen._fmtDate(selectedDate),
-                    style: const TextStyle(
-                      color: OcgColors.ivory,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (!WebLayoutContext.useDesktopShell(context))
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SegmentedButton<_AgendaFilter>(
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return switch (_filter) {
-                      _AgendaFilter.perdidas => OcgColors.error,
-                      _AgendaFilter.canceladas => const Color(0xFF6D4C41),
-                      _ => OcgColors.espresso,
-                    };
-                  }
-                  return OcgColors.ivory;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith(
-                  (states) => states.contains(WidgetState.selected)
-                      ? OcgColors.ivory
-                      : OcgColors.ink,
-                ),
-                side: const WidgetStatePropertyAll(
-                  BorderSide(color: OcgColors.bronze),
-                ),
-              ),
-              segments: const [
-                ButtonSegment(
-                  value: _AgendaFilter.hoy,
-                  label: Text('Por fecha'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.activas,
-                  label: Text('Activas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.completadas,
-                  label: Text('Completadas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.perdidas,
-                  label: Text('Perdidas'),
-                ),
-                ButtonSegment(
-                  value: _AgendaFilter.canceladas,
-                  label: Text('Canceladas'),
-                ),
-              ],
-              selected: {_filter},
-              onSelectionChanged: (s) => setState(() => _filter = s.first),
-            ),
-          ),
-        Expanded(
-          child: appointmentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) =>
-                Center(child: Text('No se pudo cargar agenda: $e')),
-            data: (appointments) {
-              final filtered = _applyFilter(appointments, selectedDate);
-              return _buildList(filtered);
-            },
-          ),
-        ),
-      ],
+    final hoyAgendaBody = appointmentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+      data: (appointments) => _buildTodayAgenda(context, appointments, selectedDate),
     );
 
     final agendaBody = switch (_innerTab) {
