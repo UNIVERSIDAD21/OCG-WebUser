@@ -1650,9 +1650,24 @@ class _AdminAppointmentsScreenState
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
           ),
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         ),
-        child: Text(label),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            const SizedBox(height: 6),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              height: 2,
+              width: 36,
+              decoration: BoxDecoration(
+                color: active ? OcgColors.espresso : Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -1913,7 +1928,17 @@ class _AdminAppointmentsScreenState
     if (desktop) {
       return Row(
         children: [
-          Expanded(child: timeline),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: timeline,
+            ),
+          ),
           const SizedBox(width: 12),
           SizedBox(width: 220, child: summary),
         ],
@@ -2130,12 +2155,36 @@ class _AdminAppointmentsScreenState
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year} · ${selectedItems.length} cita(s)',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: OcgColors.espresso,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: OcgColors.espresso,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0EDE8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${selectedItems.length} cita(s)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: OcgColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Expanded(
@@ -2405,9 +2454,25 @@ class _AdminAppointmentsScreenState
                 }),
               ],
               if (hasMore)
-                OutlinedButton(
-                  onPressed: () => setState(() => _historyPage += 1),
-                  child: const Text('Cargar más...'),
+                InkWell(
+                  onTap: () => setState(() => _historyPage += 1),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: OcgColors.bronze.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Text(
+                      'Cargar más...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: OcgColors.ink.withOpacity(0.8)),
+                    ),
+                  ),
                 ),
             ],
           );
@@ -2506,13 +2571,25 @@ class _AdminAppointmentsScreenState
       _AgendaInnerTab.historial => historialAgendaBody,
     };
 
+    final subtitleByTab = switch (_innerTab) {
+      _AgendaInnerTab.hoy => 'Seguimiento diario con timeline y resumen',
+      _AgendaInnerTab.mes => 'Vista mensual con detalle por día',
+      _AgendaInnerTab.historial => 'Historial por estado y mes',
+    };
+
+    final panelTitleByTab = switch (_innerTab) {
+      _AgendaInnerTab.hoy => 'Hoy',
+      _AgendaInnerTab.mes => 'Mes',
+      _AgendaInnerTab.historial => 'Historial',
+    };
+
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(
             title: 'Agenda clínica',
-            subtitle: 'Gestión operativa diaria de citas',
+            subtitle: subtitleByTab,
             trailing: ActionToolbar(
               actions: [
                 OutlinedButton.icon(
@@ -2594,7 +2671,7 @@ class _AdminAppointmentsScreenState
               ),
             ),
             right: SectionPanel(
-              title: 'Agenda por estado / fecha',
+              title: panelTitleByTab,
               trailing: ActionToolbar(
                 actions: [
                   OutlinedButton.icon(
