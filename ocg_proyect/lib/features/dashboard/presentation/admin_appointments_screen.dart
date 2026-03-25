@@ -17,7 +17,6 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
-import '../../admin/presentation/web/components/split_view_layout.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/page_header.dart';
@@ -2616,82 +2615,27 @@ class _AdminAppointmentsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          SplitViewLayout(
-            left: SectionPanel(
-              title: 'Filtros y fecha',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AdminAppointmentsScreen._fmtDate(selectedDate),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  ActionToolbar(
-                    actions: [
-                      OutlinedButton.icon(
-                        onPressed: () => ref
-                            .read(selectedAppointmentsDateProvider.notifier)
-                            .setDate(DateTime.now()),
-                        icon: const Icon(Icons.today),
-                        label: const Text('Hoy'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SegmentedButton<_AgendaFilter>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: _AgendaFilter.hoy,
-                        label: Text('Por fecha'),
-                      ),
-                      ButtonSegment(
-                        value: _AgendaFilter.activas,
-                        label: Text('Activas'),
-                      ),
-                      ButtonSegment(
-                        value: _AgendaFilter.completadas,
-                        label: Text('Completadas'),
-                      ),
-                      ButtonSegment(
-                        value: _AgendaFilter.perdidas,
-                        label: Text('Perdidas'),
-                      ),
-                      ButtonSegment(
-                        value: _AgendaFilter.canceladas,
-                        label: Text('Canceladas'),
-                      ),
-                    ],
-                    selected: {_filter},
-                    onSelectionChanged: (s) =>
-                        setState(() => _filter = s.first),
-                  ),
-                ],
-              ),
-            ),
-            right: SectionPanel(
-              title: panelTitleByTab,
-              trailing: ActionToolbar(
-                actions: [
-                  OutlinedButton.icon(
-                    onPressed: () => ref
-                        .read(selectedAppointmentsDateProvider.notifier)
-                        .setDate(selectedDate),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Actualizar vista'),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                height: 720,
-                child: Column(
-                  children: [
-                    _buildInnerTabs(),
-                    const SizedBox(height: 8),
-                    Expanded(child: agendaBody),
-                  ],
+          SectionPanel(
+            title: panelTitleByTab,
+            trailing: ActionToolbar(
+              actions: [
+                OutlinedButton.icon(
+                  onPressed: () => ref
+                      .read(selectedAppointmentsDateProvider.notifier)
+                      .setDate(selectedDate),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar vista'),
                 ),
+              ],
+            ),
+            child: SizedBox(
+              height: 720,
+              child: Column(
+                children: [
+                  _buildInnerTabs(),
+                  const SizedBox(height: 8),
+                  Expanded(child: agendaBody),
+                ],
               ),
             ),
           ),
