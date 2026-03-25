@@ -1552,9 +1552,7 @@ class _AdminAppointmentsScreenState
         return all
             .where(
               (a) =>
-                  (a.estado == AppointmentStatus.programada ||
-                      a.estado == AppointmentStatus.confirmada) &&
-                  !_esPerdida(a),
+                  a.estado == AppointmentStatus.programada && !_esPerdida(a),
             )
             .toList()
           ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
@@ -1740,9 +1738,9 @@ class _AdminAppointmentsScreenState
 
     return switch (a.estado) {
       AppointmentStatus.programada => (
-        dot: OcgColors.bronze,
-        line: OcgColors.bronze,
-        label: 'Confirmada',
+        dot: const Color(0xFFBA7517),
+        line: const Color(0xFFBA7517),
+        label: 'Activa',
       ),
       AppointmentStatus.confirmada => (
         dot: const Color(0xFF639922),
@@ -1780,15 +1778,13 @@ class _AdminAppointmentsScreenState
     final dayItems = _appointmentsForDay(appointments, selectedDate);
     final total = dayItems.length;
     final confirmadas = dayItems
-        .where(
-          (a) =>
-              (a.estado == AppointmentStatus.programada ||
-                  a.estado == AppointmentStatus.confirmada) &&
-              !_esPerdida(a),
-        )
+        .where((a) => a.estado == AppointmentStatus.confirmada)
         .length;
     final activas = dayItems
-        .where((a) => a.estado == AppointmentStatus.confirmada)
+        .where(
+          (a) =>
+              a.estado == AppointmentStatus.programada && !_esPerdida(a),
+        )
         .length;
     final completadas = dayItems
         .where((a) => a.estado == AppointmentStatus.completada)
@@ -2736,7 +2732,7 @@ class AppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color statusColor = switch (appointment.estado) {
-      AppointmentStatus.programada => OcgColors.bronze,
+      AppointmentStatus.programada => const Color(0xFFBA7517),
       AppointmentStatus.confirmada => const Color(0xFF1565C0),
       AppointmentStatus.completada => const Color(0xFF2E7D32),
       AppointmentStatus.cancelada => OcgColors.error,
@@ -2745,7 +2741,7 @@ class AppointmentCard extends StatelessWidget {
     };
 
     final String statusLabel = switch (appointment.estado) {
-      AppointmentStatus.programada => 'Programada',
+      AppointmentStatus.programada => 'Activa',
       AppointmentStatus.confirmada => 'Confirmada',
       AppointmentStatus.completada => 'Completada',
       AppointmentStatus.cancelada => 'Cancelada',
