@@ -978,7 +978,8 @@ class _PatientAppointmentsScreenState
             ),
           )
         else
-          Expanded(
+          Flexible(
+            fit: FlexFit.loose,
             child: appointmentsAsync.when(
               loading: () => ocgLoading(label: 'Cargando tus citas...'),
               error: (e, _) => Center(
