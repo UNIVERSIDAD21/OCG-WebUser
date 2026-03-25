@@ -1770,6 +1770,53 @@ class _AdminAppointmentsScreenState
     };
   }
 
+  List<PopupMenuEntry<String>> _statusMenuItems(AppointmentModel a) {
+    switch (a.estado) {
+      case AppointmentStatus.programada:
+        return const [
+          PopupMenuItem(value: 'confirmar', child: Text('Confirmar')),
+          PopupMenuItem(value: 'reprogramar', child: Text('Reprogramar')),
+          PopupMenuItem(value: 'cancelar', child: Text('Cancelar')),
+        ];
+      case AppointmentStatus.confirmada:
+        return const [
+          PopupMenuItem(value: 'completar', child: Text('Completar')),
+          PopupMenuItem(value: 'reprogramar', child: Text('Reprogramar')),
+          PopupMenuItem(value: 'cancelar', child: Text('Cancelar')),
+        ];
+      case AppointmentStatus.completada:
+        return const [
+          PopupMenuItem(value: 'reabrir', child: Text('Reabrir cita')),
+        ];
+      case AppointmentStatus.cancelada:
+      case AppointmentStatus.noAsistio:
+      case AppointmentStatus.reprogramada:
+        return const [];
+    }
+  }
+
+  Future<void> _handleStatusAction(AppointmentModel a, String action) async {
+    switch (action) {
+      case 'confirmar':
+        await ref
+            .read(appointmentsRepositoryProvider)
+            .updateAppointmentStatus(a.id, AppointmentStatus.confirmada);
+        break;
+      case 'completar':
+        await _onCompletarCitaConDictamen(a);
+        break;
+      case 'reprogramar':
+        await _showRescheduleDialog(a);
+        break;
+      case 'cancelar':
+        await _showCancelDialog(a);
+        break;
+      case 'reabrir':
+        await _onReabrirCompletada(a);
+        break;
+    }
+  }
+
   Widget _buildTodayAgenda(
     BuildContext context,
     List<AppointmentModel> appointments,
@@ -1875,12 +1922,26 @@ class _AdminAppointmentsScreenState
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  a.patientName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: OcgColors.espresso,
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        a.patientName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: OcgColors.espresso,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_statusMenuItems(a).isNotEmpty)
+                                      PopupMenuButton<String>(
+                                        tooltip: 'Cambiar estado',
+                                        icon: const Icon(Icons.more_vert, size: 18),
+                                        itemBuilder: (_) => _statusMenuItems(a),
+                                        onSelected: (value) =>
+                                            _handleStatusAction(a, value),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -2206,6 +2267,7 @@ class _AdminAppointmentsScreenState
                           ),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
                               width: 3,
@@ -2217,9 +2279,37 @@ class _AdminAppointmentsScreenState
                               ),
                             ),
                             Expanded(
-                              child: Text(
-                                '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                                style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
+                                          style: TextStyle(
+                                            color: OcgColors.ink.withOpacity(0.9),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (_statusMenuItems(a).isNotEmpty)
+                                        PopupMenuButton<String>(
+                                          tooltip: 'Cambiar estado',
+                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          itemBuilder: (_) => _statusMenuItems(a),
+                                          onSelected: (value) =>
+                                              _handleStatusAction(a, value),
+                                        ),
+                                    ],
+                                  ),
+                                  Text(
+                                    '${_labelTipo(a.tipo)} · ${ui.label}',
+                                    style: TextStyle(
+                                      color: OcgColors.ink.withOpacity(0.72),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
