@@ -900,6 +900,9 @@ class _PatientAppointmentsScreenState
       },
     );
 
+    final useFixedBodyHeight =
+        widget.embedded || WebLayoutContext.useDesktopShell(context);
+
     final content = Column(
       children: [
         Container(
@@ -966,7 +969,7 @@ class _PatientAppointmentsScreenState
             onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
         ),
-        if (widget.embedded)
+        if (useFixedBodyHeight)
           SizedBox(height: 560, child: appointmentsBody)
         else
           Expanded(child: appointmentsBody),
@@ -974,56 +977,14 @@ class _PatientAppointmentsScreenState
     );
 
     if (widget.embedded) {
-      return Stack(
-        children: [
-          content,
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: FloatingActionButton.extended(
-              backgroundColor: OcgColors.espresso,
-              foregroundColor: OcgColors.ivory,
-              icon: const Icon(Icons.add),
-              label: const Text('Agendar cita'),
-              onPressed: () => _showNewAppointmentDialog(
-                context,
-                ref,
-                user.uid,
-                appointmentsAsync.asData?.value ?? const [],
-              ),
-            ),
-          ),
-        ],
-      );
+      return content;
     }
-
-    final desktopBody = Stack(
-      children: [
-        content,
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton.extended(
-            backgroundColor: OcgColors.espresso,
-            foregroundColor: OcgColors.ivory,
-            icon: const Icon(Icons.add),
-            label: const Text('Agendar cita'),
-            onPressed: () => _showNewAppointmentDialog(
-              context,
-              ref,
-              user.uid,
-              appointmentsAsync.asData?.value ?? const [],
-            ),
-          ),
-        ),
-      ],
-    );
 
     if (WebLayoutContext.useDesktopShell(context)) {
       return PatientWebShell(
         currentRoute: RouteNames.patientAppointments,
         title: 'Mis citas',
-        child: desktopBody,
+        child: content,
       );
     }
 
