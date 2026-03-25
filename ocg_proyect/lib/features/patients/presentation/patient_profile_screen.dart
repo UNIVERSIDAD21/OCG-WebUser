@@ -107,6 +107,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 
         return ListView(
           padding: const EdgeInsets.all(16),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           children: [
             LayoutBuilder(
               builder: (context, c) {
