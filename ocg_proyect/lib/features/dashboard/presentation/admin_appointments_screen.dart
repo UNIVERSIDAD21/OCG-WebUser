@@ -875,6 +875,8 @@ class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   _AgendaFilter _filter = _AgendaFilter.hoy;
   _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
+  DateTime _monthCursor = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime? _selectedMonthDay;
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
@@ -1940,15 +1942,301 @@ class _AdminAppointmentsScreenState
           Expanded(
             child: Text(
               label,
-              style: TextStyle(fontSize: 13, color: OcgColors.ink.withOpacity(0.86)),
+              style: TextStyle(
+                fontSize: 13,
+                color: OcgColors.ink.withOpacity(0.86),
+              ),
             ),
           ),
           Text(
             '$value',
-            style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  void _changeMonth(int delta) {
+    final next = DateTime(_monthCursor.year, _monthCursor.month + delta, 1);
+    setState(() {
+      _monthCursor = next;
+      _selectedMonthDay = null;
+    });
+  }
+
+  String _monthLabel(DateTime d) {
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    return '${months[d.month - 1]} ${d.year}';
+  }
+
+  Widget _buildMonthAgenda(
+    BuildContext context,
+    List<AppointmentModel> appointments,
+  ) {
+    final firstWeekday = DateTime(_monthCursor.year, _monthCursor.month, 1)
+        .weekday %
+        7;
+    final daysInMonth = DateTime(
+      _monthCursor.year,
+      _monthCursor.month + 1,
+      0,
+    ).day;
+    final today = DateTime.now();
+    final selected = _selectedMonthDay;
+    final selectedItems = selected == null
+        ? const <AppointmentModel>[]
+        : _appointmentsForDay(appointments, selected);
+
+    final calendarCells = <Widget>[];
+    const dow = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    calendarCells.addAll(
+      dow.map(
+        (d) => Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              d,
+              style: TextStyle(
+                fontSize: 11,
+                color: OcgColors.ink.withOpacity(0.56),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    for (int i = 0; i < firstWeekday; i++) {
+      calendarCells.add(const SizedBox.shrink());
+    }
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(_monthCursor.year, _monthCursor.month, day);
+      final isToday =
+          date.year == today.year &&
+          date.month == today.month &&
+          date.day == today.day;
+      final isSelected =
+          selected != null &&
+          date.year == selected.year &&
+          date.month == selected.month &&
+          date.day == selected.day;
+      final dayItems = _appointmentsForDay(appointments, date);
+
+      calendarCells.add(
+        InkWell(
+          onTap: () => setState(() => _selectedMonthDay = date),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: isSelected ? OcgColors.espresso : null,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isToday
+                    ? OcgColors.espresso
+                    : OcgColors.bronze.withOpacity(0.15),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$day',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? OcgColors.ivory : OcgColors.ink,
+                  ),
+                ),
+                if (dayItems.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 2,
+                    children: dayItems.take(3).map((a) {
+                      final ui = _statusUi(a);
+                      return Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? OcgColors.ivory.withOpacity(0.8)
+                              : ui.dot,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget detailPanel = Container(
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.25)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: selected == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.calendar_month,
+                    size: 32,
+                    color: OcgColors.ink.withOpacity(0.4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Selecciona un día para ver sus citas',
+                    style: TextStyle(color: OcgColors.ink.withOpacity(0.6)),
+                  ),
+                ],
+              ),
+            )
+          : selectedItems.isEmpty
+          ? Center(
+              child: Text(
+                'Sin citas este día',
+                style: TextStyle(color: OcgColors.ink.withOpacity(0.6)),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year} · ${selectedItems.length} cita(s)',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: selectedItems.length,
+                    itemBuilder: (context, index) {
+                      final a = selectedItems[index];
+                      final ui = _statusUi(a);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: OcgColors.ivory,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border(
+                            left: BorderSide(color: ui.line, width: 3),
+                            top: BorderSide(
+                              color: OcgColors.bronze.withOpacity(0.22),
+                            ),
+                            right: BorderSide(
+                              color: OcgColors.bronze.withOpacity(0.22),
+                            ),
+                            bottom: BorderSide(
+                              color: OcgColors.bronze.withOpacity(0.22),
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
+                          style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 900;
+        final calendarCard = Container(
+          decoration: BoxDecoration(
+            color: OcgColors.ivory,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: OcgColors.bronze.withOpacity(0.25)),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => _changeMonth(-1),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _monthLabel(_monthCursor),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _changeMonth(1),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              GridView.count(
+                crossAxisCount: 7,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: 1.05,
+                children: calendarCells,
+              ),
+            ],
+          ),
+        );
+
+        if (isDesktop) {
+          return Row(
+            children: [
+              SizedBox(width: 340, child: calendarCard),
+              const SizedBox(width: 12),
+              Expanded(child: detailPanel),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            calendarCard,
+            const SizedBox(height: 10),
+            SizedBox(height: 380, child: detailPanel),
+          ],
+        );
+      },
     );
   }
 
@@ -1963,15 +2251,18 @@ class _AdminAppointmentsScreenState
       data: (appointments) => _buildTodayAgenda(context, appointments, selectedDate),
     );
 
+    final mesAgendaBody = appointmentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+      data: (appointments) => _buildMonthAgenda(context, appointments),
+    );
+
     final agendaBody = switch (_innerTab) {
       _AgendaInnerTab.hoy => hoyAgendaBody,
-      _AgendaInnerTab.mes => _buildInnerPlaceholder(
-        'Vista mensual en construcción',
-        'Paso 1 completado: estructura de pestañas internas lista. En el siguiente paso implemento calendario + detalle del día.',
-      ),
+      _AgendaInnerTab.mes => mesAgendaBody,
       _AgendaInnerTab.historial => _buildInnerPlaceholder(
         'Historial en construcción',
-        'Paso 1 completado: estructura de pestañas internas lista. En el siguiente paso implemento filtros, agrupación y carga progresiva.',
+        'Siguiente paso: filtros, agrupación y carga progresiva.',
       ),
     };
 
