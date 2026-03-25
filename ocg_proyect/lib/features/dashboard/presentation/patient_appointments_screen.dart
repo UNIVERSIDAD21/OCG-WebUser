@@ -1094,14 +1094,14 @@ class _PatientAppointmentsScreenState
     );
 
     if (widget.embedded) {
-      return content;
+      return SizedBox(height: 900, child: content);
     }
 
     if (WebLayoutContext.useDesktopShell(context)) {
       return PatientWebShell(
         currentRoute: RouteNames.patientAppointments,
         title: 'Mis citas',
-        child: content,
+        child: SizedBox(height: 900, child: content),
       );
     }
 
