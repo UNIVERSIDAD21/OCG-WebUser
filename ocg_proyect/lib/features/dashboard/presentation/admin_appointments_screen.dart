@@ -43,6 +43,7 @@ String _appointmentDayKey(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}';
 
 enum _AgendaFilter { hoy, activas, completadas, perdidas, canceladas }
+enum _AgendaInnerTab { hoy, mes, historial }
 
 bool _esPerdida(AppointmentModel a) {
   if (a.estado == AppointmentStatus.noAsistio) return true;
@@ -873,6 +874,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   _AgendaFilter _filter = _AgendaFilter.hoy;
+  _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
 
   Future<void> _handleSignOut() async {
     final confirm = await showDialog<bool>(
@@ -1632,12 +1634,62 @@ class _AdminAppointmentsScreenState
     );
   }
 
+  Widget _buildInnerTabs() {
+    Widget item(_AgendaInnerTab tab, String label) {
+      final active = _innerTab == tab;
+      return TextButton(
+        onPressed: () => setState(() => _innerTab = tab),
+        style: TextButton.styleFrom(
+          foregroundColor: active ? OcgColors.espresso : OcgColors.ink,
+          textStyle: TextStyle(
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          ),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        ),
+        child: Text(label),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.3))),
+      ),
+      child: Row(
+        children: [
+          item(_AgendaInnerTab.hoy, 'Hoy'),
+          item(_AgendaInnerTab.mes, 'Mes'),
+          item(_AgendaInnerTab.historial, 'Historial'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInnerPlaceholder(String title, String subtitle) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.construction_outlined, size: 38, color: OcgColors.bronze),
+            const SizedBox(height: 10),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: OcgColors.ink.withOpacity(0.7))),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
 
-    final agendaBody = Column(
+    final hoyAgendaBody = Column(
       children: [
         if (!WebLayoutContext.useDesktopShell(context) &&
             _filter == _AgendaFilter.hoy)
@@ -1735,6 +1787,18 @@ class _AdminAppointmentsScreenState
         ),
       ],
     );
+
+    final agendaBody = switch (_innerTab) {
+      _AgendaInnerTab.hoy => hoyAgendaBody,
+      _AgendaInnerTab.mes => _buildInnerPlaceholder(
+        'Vista mensual en construcción',
+        'Paso 1 completado: estructura de pestañas internas lista. En el siguiente paso implemento calendario + detalle del día.',
+      ),
+      _AgendaInnerTab.historial => _buildInnerPlaceholder(
+        'Historial en construcción',
+        'Paso 1 completado: estructura de pestañas internas lista. En el siguiente paso implemento filtros, agrupación y carga progresiva.',
+      ),
+    };
 
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = Column(
@@ -1836,7 +1900,16 @@ class _AdminAppointmentsScreenState
                   ),
                 ],
               ),
-              child: SizedBox(height: 720, child: agendaBody),
+              child: SizedBox(
+                height: 720,
+                child: Column(
+                  children: [
+                    _buildInnerTabs(),
+                    const SizedBox(height: 8),
+                    Expanded(child: agendaBody),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1864,7 +1937,12 @@ class _AdminAppointmentsScreenState
           onPressed: _handleSignOut,
         ),
       ],
-      body: agendaBody,
+      body: Column(
+        children: [
+          _buildInnerTabs(),
+          Expanded(child: agendaBody),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: OcgColors.espresso,
         foregroundColor: OcgColors.ivory,
