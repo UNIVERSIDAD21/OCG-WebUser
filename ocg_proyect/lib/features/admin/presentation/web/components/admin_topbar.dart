@@ -58,25 +58,43 @@ class _AdminTopbarState extends State<AdminTopbar> {
     final results = <_GlobalSearchItem>[];
     final area = _areaFromTitle();
 
-    Future<void> searchPatients() async {
-      final patientsSnap = await db.collection(FirestorePaths.patients).limit(250).get();
-      for (final doc in patientsSnap.docs) {
-        final data = doc.data();
+    Future<Map<String, Map<String, dynamic>>> loadPatientsIndex() async {
+      final patientsSnap = await db.collection(FirestorePaths.patients).limit(300).get();
+      return {
+        for (final d in patientsSnap.docs) d.id: d.data(),
+      };
+    }
+
+    Future<void> searchPatients({bool includeClinical = false}) async {
+      final patientsMap = await loadPatientsIndex();
+      for (final entry in patientsMap.entries) {
+        final patientId = entry.key;
+        final data = entry.value;
         final nombre = (data['nombre'] ?? '').toString();
         final correo = (data['email'] ?? '').toString();
         final telefono = (data['telefono'] ?? '').toString();
-        final hayMatch = nombre.toLowerCase().contains(q) ||
+        final tipo = (data['tipoTratamiento'] ?? '').toString();
+        final etapa = (data['etapaActual'] ?? '').toString();
+        final notas = (data['notasClinicas'] ?? '').toString();
+
+        final hayMatchBase = nombre.toLowerCase().contains(q) ||
             correo.toLowerCase().contains(q) ||
             telefono.toLowerCase().contains(q);
-        if (!hayMatch) continue;
+        final hayMatchClinical = tipo.toLowerCase().contains(q) ||
+            etapa.toLowerCase().contains(q) ||
+            notas.toLowerCase().contains(q);
+
+        if (!(hayMatchBase || (includeClinical && hayMatchClinical))) continue;
 
         results.add(
           _GlobalSearchItem(
-            icon: Icons.person_outline,
+            icon: includeClinical ? Icons.medical_services_outlined : Icons.person_outline,
             title: nombre.isEmpty ? 'Paciente sin nombre' : nombre,
-            subtitle: 'Paciente · ${correo.isNotEmpty ? correo : telefono}',
+            subtitle: includeClinical
+                ? 'Tratamiento · ${tipo.isEmpty ? 'N/D' : tipo} · ${etapa.isEmpty ? 'N/D' : etapa}'
+                : 'Paciente · ${correo.isNotEmpty ? correo : telefono}',
             onTap: (context) => context.go(
-              RouteNames.adminPatientDetail.replaceFirst(':patientId', doc.id),
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
             ),
           ),
         );
@@ -116,6 +134,34 @@ class _AdminTopbarState extends State<AdminTopbar> {
     }
 
     Future<void> searchPayments() async {
+      final patientsMap = await loadPatientsIndex();
+
+      final paymentsSnap = await db.collection(FirestorePaths.payments).limit(300).get();
+      for (final doc in paymentsSnap.docs) {
+        final data = doc.data();
+        final patientId = (data['patientId'] ?? doc.id).toString();
+        final estado = (data['estado'] ?? '').toString();
+        final saldo = (data['saldoPendiente'] ?? '').toString();
+        final patientData = patientsMap[patientId] ?? const <String, dynamic>{};
+        final patientName = (patientData['nombre'] ?? '').toString();
+
+        final hayMatch = patientName.toLowerCase().contains(q) ||
+            estado.toLowerCase().contains(q) ||
+            saldo.toLowerCase().contains(q);
+        if (!hayMatch || patientId.isEmpty) continue;
+
+        results.add(
+          _GlobalSearchItem(
+            icon: Icons.account_balance_wallet_outlined,
+            title: patientName.isEmpty ? 'Pago de paciente' : 'Pago · $patientName',
+            subtitle: 'Estado: ${estado.isEmpty ? 'N/D' : estado} · Saldo: $saldo',
+            onTap: (context) => context.go(
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+            ),
+          ),
+        );
+      }
+
       final txSnap = await db.collectionGroup('transactions').limit(300).get();
       for (final doc in txSnap.docs) {
         final data = doc.data();
@@ -123,16 +169,20 @@ class _AdminTopbarState extends State<AdminTopbar> {
         final notas = (data['notas'] ?? '').toString();
         final registradoPor = (data['registradoPor'] ?? '').toString();
         final patientId = doc.reference.parent.parent?.id ?? '';
+        final patientName = (patientsMap[patientId]?['nombre'] ?? '').toString();
 
         final hayMatch = ref.toLowerCase().contains(q) ||
             notas.toLowerCase().contains(q) ||
-            registradoPor.toLowerCase().contains(q);
+            registradoPor.toLowerCase().contains(q) ||
+            patientName.toLowerCase().contains(q);
         if (!hayMatch || patientId.isEmpty) continue;
 
         results.add(
           _GlobalSearchItem(
             icon: Icons.payments_outlined,
-            title: 'Pago ${ref.isEmpty ? '' : '· Ref $ref'}'.trim(),
+            title: patientName.isEmpty
+                ? 'Pago ${ref.isEmpty ? '' : '· Ref $ref'}'.trim()
+                : '$patientName ${ref.isEmpty ? '' : '· Ref $ref'}'.trim(),
             subtitle:
                 'Transacción · Registrado por: ${registradoPor.isEmpty ? 'N/D' : registradoPor}',
             onTap: (context) => context.go(
@@ -146,9 +196,13 @@ class _AdminTopbarState extends State<AdminTopbar> {
     try {
       switch (area) {
         case _SearchArea.pacientes:
-        case _SearchArea.tratamientos:
-        case _SearchArea.simulador:
           await searchPatients();
+          break;
+        case _SearchArea.tratamientos:
+          await searchPatients(includeClinical: true);
+          break;
+        case _SearchArea.simulador:
+          await searchPatients(includeClinical: true);
           break;
         case _SearchArea.agenda:
           await searchAgenda();
@@ -157,7 +211,7 @@ class _AdminTopbarState extends State<AdminTopbar> {
           await searchPayments();
           break;
         case _SearchArea.global:
-          await searchPatients();
+          await searchPatients(includeClinical: true);
           await searchAgenda();
           await searchPayments();
           break;
