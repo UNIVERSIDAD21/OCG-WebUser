@@ -18,6 +18,8 @@ class AdminTopbar extends StatefulWidget {
   State<AdminTopbar> createState() => _AdminTopbarState();
 }
 
+enum _SearchArea { pacientes, agenda, pagos, tratamientos, simulador, global }
+
 class _AdminTopbarState extends State<AdminTopbar> {
   final _searchCtrl = TextEditingController();
 
@@ -27,98 +29,144 @@ class _AdminTopbarState extends State<AdminTopbar> {
     super.dispose();
   }
 
+  _SearchArea _areaFromTitle() {
+    final t = widget.title.toLowerCase();
+    if (t.contains('agenda')) return _SearchArea.agenda;
+    if (t.contains('paciente')) return _SearchArea.pacientes;
+    if (t.contains('pago')) return _SearchArea.pagos;
+    if (t.contains('tratamiento')) return _SearchArea.tratamientos;
+    if (t.contains('simulador')) return _SearchArea.simulador;
+    return _SearchArea.global;
+  }
+
+  String _areaLabel(_SearchArea area) {
+    return switch (area) {
+      _SearchArea.agenda => 'agenda',
+      _SearchArea.pacientes => 'pacientes',
+      _SearchArea.pagos => 'pagos',
+      _SearchArea.tratamientos => 'tratamientos',
+      _SearchArea.simulador => 'simulador',
+      _SearchArea.global => 'todo el sistema',
+    };
+  }
+
   Future<List<_GlobalSearchItem>> _searchGlobal(String query) async {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return const [];
 
     final db = FirebaseFirestore.instance;
     final results = <_GlobalSearchItem>[];
+    final area = _areaFromTitle();
 
-    final patientsSnap = await db
-        .collection(FirestorePaths.patients)
-        .limit(200)
-        .get();
+    Future<void> searchPatients() async {
+      final patientsSnap = await db.collection(FirestorePaths.patients).limit(250).get();
+      for (final doc in patientsSnap.docs) {
+        final data = doc.data();
+        final nombre = (data['nombre'] ?? '').toString();
+        final correo = (data['email'] ?? '').toString();
+        final telefono = (data['telefono'] ?? '').toString();
+        final hayMatch = nombre.toLowerCase().contains(q) ||
+            correo.toLowerCase().contains(q) ||
+            telefono.toLowerCase().contains(q);
+        if (!hayMatch) continue;
 
-    for (final doc in patientsSnap.docs) {
-      final data = doc.data();
-      final nombre = (data['nombre'] ?? '').toString();
-      final correo = (data['email'] ?? '').toString();
-      final telefono = (data['telefono'] ?? '').toString();
-      final hayMatch = nombre.toLowerCase().contains(q) ||
-          correo.toLowerCase().contains(q) ||
-          telefono.toLowerCase().contains(q);
-      if (!hayMatch) continue;
-
-      results.add(
-        _GlobalSearchItem(
-          icon: Icons.person_outline,
-          title: nombre.isEmpty ? 'Paciente sin nombre' : nombre,
-          subtitle: 'Paciente · ${correo.isNotEmpty ? correo : telefono}',
-          onTap: (context) => context.go(
-            RouteNames.adminPatientDetail.replaceFirst(':patientId', doc.id),
+        results.add(
+          _GlobalSearchItem(
+            icon: Icons.person_outline,
+            title: nombre.isEmpty ? 'Paciente sin nombre' : nombre,
+            subtitle: 'Paciente · ${correo.isNotEmpty ? correo : telefono}',
+            onTap: (context) => context.go(
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', doc.id),
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
-    final appointmentsSnap = await db
-        .collection(FirestorePaths.appointments)
-        .orderBy('fechaHora', descending: true)
-        .limit(250)
-        .get();
+    Future<void> searchAgenda() async {
+      final appointmentsSnap = await db
+          .collection(FirestorePaths.appointments)
+          .limit(300)
+          .get();
+      for (final doc in appointmentsSnap.docs) {
+        final data = doc.data();
+        final patientName = (data['patientName'] ?? '').toString();
+        final notas = (data['notas'] ?? '').toString();
+        final estado = (data['estado'] ?? '').toString();
+        final patientId = (data['patientId'] ?? '').toString();
+        final tipo = (data['tipo'] ?? '').toString();
 
-    for (final doc in appointmentsSnap.docs) {
-      final data = doc.data();
-      final patientName = (data['patientName'] ?? '').toString();
-      final notas = (data['notas'] ?? '').toString();
-      final estado = (data['estado'] ?? '').toString();
-      final patientId = (data['patientId'] ?? '').toString();
-      final tipo = (data['tipo'] ?? '').toString();
+        final hayMatch = patientName.toLowerCase().contains(q) ||
+            notas.toLowerCase().contains(q) ||
+            estado.toLowerCase().contains(q) ||
+            tipo.toLowerCase().contains(q);
+        if (!hayMatch || patientId.isEmpty) continue;
 
-      final hayMatch = patientName.toLowerCase().contains(q) ||
-          notas.toLowerCase().contains(q) ||
-          estado.toLowerCase().contains(q) ||
-          tipo.toLowerCase().contains(q);
-      if (!hayMatch || patientId.isEmpty) continue;
-
-      results.add(
-        _GlobalSearchItem(
-          icon: Icons.event_note_outlined,
-          title: patientName.isEmpty ? 'Cita' : 'Cita · $patientName',
-          subtitle: 'Agenda · Estado: ${estado.isEmpty ? 'N/D' : estado}',
-          onTap: (context) => context.go(
-            RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+        results.add(
+          _GlobalSearchItem(
+            icon: Icons.event_note_outlined,
+            title: patientName.isEmpty ? 'Cita' : 'Cita · $patientName',
+            subtitle: 'Agenda · Estado: ${estado.isEmpty ? 'N/D' : estado}',
+            onTap: (context) => context.go(
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
-    final txSnap = await db.collectionGroup('transactions').limit(250).get();
-    for (final doc in txSnap.docs) {
-      final data = doc.data();
-      final ref = (data['referencia'] ?? '').toString();
-      final notas = (data['notas'] ?? '').toString();
-      final registradoPor = (data['registradoPor'] ?? '').toString();
-      final patientId = doc.reference.parent.parent?.id ?? '';
+    Future<void> searchPayments() async {
+      final txSnap = await db.collectionGroup('transactions').limit(300).get();
+      for (final doc in txSnap.docs) {
+        final data = doc.data();
+        final ref = (data['referencia'] ?? '').toString();
+        final notas = (data['notas'] ?? '').toString();
+        final registradoPor = (data['registradoPor'] ?? '').toString();
+        final patientId = doc.reference.parent.parent?.id ?? '';
 
-      final hayMatch = ref.toLowerCase().contains(q) ||
-          notas.toLowerCase().contains(q) ||
-          registradoPor.toLowerCase().contains(q);
-      if (!hayMatch || patientId.isEmpty) continue;
+        final hayMatch = ref.toLowerCase().contains(q) ||
+            notas.toLowerCase().contains(q) ||
+            registradoPor.toLowerCase().contains(q);
+        if (!hayMatch || patientId.isEmpty) continue;
 
-      results.add(
-        _GlobalSearchItem(
-          icon: Icons.payments_outlined,
-          title: 'Pago ${ref.isEmpty ? '' : '· Ref $ref'}'.trim(),
-          subtitle: 'Transacción · Registrado por: ${registradoPor.isEmpty ? 'N/D' : registradoPor}',
-          onTap: (context) => context.go(
-            RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+        results.add(
+          _GlobalSearchItem(
+            icon: Icons.payments_outlined,
+            title: 'Pago ${ref.isEmpty ? '' : '· Ref $ref'}'.trim(),
+            subtitle:
+                'Transacción · Registrado por: ${registradoPor.isEmpty ? 'N/D' : registradoPor}',
+            onTap: (context) => context.go(
+              RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
-    return results.take(40).toList();
+    try {
+      switch (area) {
+        case _SearchArea.pacientes:
+        case _SearchArea.tratamientos:
+        case _SearchArea.simulador:
+          await searchPatients();
+          break;
+        case _SearchArea.agenda:
+          await searchAgenda();
+          break;
+        case _SearchArea.pagos:
+          await searchPayments();
+          break;
+        case _SearchArea.global:
+          await searchPatients();
+          await searchAgenda();
+          await searchPayments();
+          break;
+      }
+    } catch (_) {
+      // Si un área falla por reglas/índices, devolvemos lo que sí alcanzó a encontrar.
+    }
+
+    return results.take(50).toList();
   }
 
   Future<void> _runSearch() async {
@@ -126,9 +174,10 @@ class _AdminTopbarState extends State<AdminTopbar> {
     if (query.isEmpty) return;
 
     final messenger = ScaffoldMessenger.of(context);
+    final area = _areaFromTitle();
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(content: Text('Buscando en pacientes, citas y pagos...')),
+      SnackBar(content: Text('Buscando en ${_areaLabel(area)}...')),
     );
 
     try {
@@ -207,31 +256,30 @@ class _AdminTopbarState extends State<AdminTopbar> {
                   ),
                 ),
               ),
-              if (!compact)
-                SizedBox(
-                  width: 360,
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onSubmitted: (_) => _runSearch(),
-                    textInputAction: TextInputAction.search,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Buscar en todo el sistema...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: IconButton(
-                        tooltip: 'Buscar',
-                        onPressed: _runSearch,
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                      ),
-                      filled: true,
-                      fillColor: OcgColors.mist,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+              SizedBox(
+                width: compact ? 220 : 360,
+                child: TextField(
+                  controller: _searchCtrl,
+                  onSubmitted: (_) => _runSearch(),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Buscar en ${_areaLabel(_areaFromTitle())}...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      tooltip: 'Buscar',
+                      onPressed: _runSearch,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                    ),
+                    filled: true,
+                    fillColor: OcgColors.mist,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         );
