@@ -171,8 +171,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                     ),
                     validator: (v) {
                       final raw = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (raw.isEmpty)
+                      if (raw.isEmpty) {
                         return 'Ingresa el monto del tratamiento';
+                      }
                       final amount = double.tryParse(raw) ?? 0;
                       if (amount <= 0) return 'El monto debe ser mayor que 0';
                       return null;
@@ -251,8 +252,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                             ),
                           );
                         }
-                        if (dialogContext.mounted)
+                        if (dialogContext.mounted) {
                           Navigator.of(dialogContext).pop();
+                        }
                       } on FirebaseAuthException catch (e) {
                         setDs(() {
                           submitting = false;

@@ -48,7 +48,7 @@ class HighlightCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) trailing!,
+              if (trailing case final trailing?) trailing,
             ],
           ),
           const SizedBox(height: 8),

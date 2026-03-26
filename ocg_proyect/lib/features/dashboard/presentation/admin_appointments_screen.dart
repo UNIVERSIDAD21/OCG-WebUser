@@ -342,10 +342,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     totalTreatmentCtrl.dispose();
   }
 
-  static String _fmtDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/${d.year}';
-
   @override
   ConsumerState<AdminAppointmentsScreen> createState() =>
       _AdminAppointmentsScreenState();
@@ -874,7 +870,6 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
-  _AgendaFilter _filter = _AgendaFilter.hoy;
   _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
   DateTime _monthCursor = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime? _selectedMonthDay;
@@ -1543,110 +1538,6 @@ class _AdminAppointmentsScreenState
     }
   }
 
-  List<AppointmentModel> _applyFilter(
-    List<AppointmentModel> all,
-    DateTime selectedDate,
-  ) {
-    switch (_filter) {
-      case _AgendaFilter.hoy:
-        return all
-            .where(
-              (a) =>
-                  a.fechaHora.year == selectedDate.year &&
-                  a.fechaHora.month == selectedDate.month &&
-                  a.fechaHora.day == selectedDate.day &&
-                  a.estado != AppointmentStatus.cancelada &&
-                  a.estado != AppointmentStatus.reprogramada &&
-                  a.estado != AppointmentStatus.completada,
-            )
-            .toList();
-      case _AgendaFilter.activas:
-        return all
-            .where(
-              (a) =>
-                  a.estado == AppointmentStatus.programada && !_esPerdida(a),
-            )
-            .toList()
-          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
-      case _AgendaFilter.completadas:
-        return all
-            .where((a) => a.estado == AppointmentStatus.completada)
-            .toList()
-          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
-      case _AgendaFilter.perdidas:
-        return all
-            .where(
-              (a) => _esPerdida(a) && a.estado != AppointmentStatus.completada,
-            )
-            .toList()
-          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
-      case _AgendaFilter.canceladas:
-        return all
-            .where((a) => a.estado == AppointmentStatus.cancelada)
-            .toList()
-          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
-    }
-  }
-
-  Widget _buildList(List<AppointmentModel> items) {
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              switch (_filter) {
-                _AgendaFilter.perdidas => Icons.event_busy_outlined,
-                _AgendaFilter.canceladas => Icons.cancel_outlined,
-                _ => Icons.event_note_outlined,
-              },
-              size: 48,
-              color: OcgColors.bronze.withOpacity(0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No hay citas para este filtro.',
-              style: TextStyle(color: OcgColors.ink.withOpacity(0.5)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final appt = items[index];
-        final repo = ref.read(appointmentsRepositoryProvider);
-
-        return switch (_filter) {
-          _AgendaFilter.hoy || _AgendaFilter.activas => AppointmentCard(
-            appointment: appt,
-            onConfirmar: appt.estado == AppointmentStatus.programada
-                ? () async => repo.updateAppointmentStatus(
-                    appt.id,
-                    AppointmentStatus.confirmada,
-                  )
-                : null,
-            onCompletar: appt.estado == AppointmentStatus.confirmada
-                ? () async => _onCompletarCitaConDictamen(appt)
-                : null,
-            onReprogramar: () => _showRescheduleDialog(appt),
-            onCancelar: () => _showCancelDialog(appt),
-          ),
-          _AgendaFilter.completadas => AppointmentCard(
-            appointment: appt,
-            onReabrirCompletada: () => _onReabrirCompletada(appt),
-            onNoCompletada: () => _onNoCompletada(appt),
-          ),
-          _ => AppointmentCard(appointment: appt),
-        };
-      },
-    );
-  }
-
   Widget _buildInnerTabs() {
     Widget item(_AgendaInnerTab tab, String label) {
       final active = _innerTab == tab;
@@ -1690,38 +1581,6 @@ class _AdminAppointmentsScreenState
           item(_AgendaInnerTab.mes, 'Mes'),
           item(_AgendaInnerTab.historial, 'Historial'),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInnerPlaceholder(String title, String subtitle) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.construction_outlined,
-              size: 38,
-              color: OcgColors.bronze,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: OcgColors.espresso,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: OcgColors.ink.withOpacity(0.7)),
-            ),
-          ],
-        ),
       ),
     );
   }
