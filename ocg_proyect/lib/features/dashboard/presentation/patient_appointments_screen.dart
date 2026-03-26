@@ -8,16 +8,8 @@ import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
-import '../../patient/presentation/web/shell/patient_web_shell.dart';
-import '../../patient/presentation/web/components/appointment_highlight_card.dart';
-import '../../patient/presentation/web/components/highlight_card.dart';
-import '../../../app/router/route_names.dart';
-import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
-import '../../../shared/widgets/ocg_chip.dart';
-import '../../../shared/widgets/ocg_loading_state.dart';
-import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 
@@ -270,34 +262,26 @@ class _PatientAppointmentsScreenState
                       }
 
                       final availability = snapshot.data;
-                      final orderedSlots =
-                          AppointmentsBusinessRules.buildAllWorkdaySlots(
-                              day: selectedDateTime,
-                              stepMinutes:
-                                  AppointmentsBusinessRules.slotStepMinutes,
-                            ).toList()
-                            ..sort((a, b) => a.start.compareTo(b.start));
-                      final allLabels = orderedSlots
-                          .map((s) => s.label)
-                          .toList();
+                      final orderedSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                        day: selectedDateTime,
+                        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      ).toList()
+                        ..sort((a, b) => a.start.compareTo(b.start));
+                      final allLabels = orderedSlots.map((s) => s.label).toList();
 
                       const operationalMinutes =
-                          30 +
-                          AppointmentsBusinessRules
-                              .bufferMinutesBetweenAppointments;
+                          30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
 
                       bool isStartAvailable(String label) {
                         if (snapshot.hasError) return false;
 
                         final start = dateFromLabel(selectedDateTime, label);
-                        final notPastError =
-                            AppointmentsBusinessRules.validateStartNotInPast(
-                              start: start,
-                            );
+                        final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+                          start: start,
+                        );
                         if (notPastError != null) return false;
 
-                        final fitsWorkingHours =
-                            AppointmentsBusinessRules.validateWithinWorkingHours(
+                        final fitsWorkingHours = AppointmentsBusinessRules.validateWithinWorkingHours(
                               start: start,
                               durationMinutes: operationalMinutes,
                             ) ==
@@ -306,25 +290,14 @@ class _PatientAppointmentsScreenState
 
                         if (availability == null) return true;
 
-                        final end = start.add(
-                          const Duration(minutes: operationalMinutes),
-                        );
+                        final end = start.add(const Duration(minutes: operationalMinutes));
                         for (final slotLabel in allLabels) {
-                          final slotStart = dateFromLabel(
-                            selectedDateTime,
-                            slotLabel,
-                          );
+                          final slotStart = dateFromLabel(selectedDateTime, slotLabel);
                           final slotEnd = slotStart.add(
-                            Duration(
-                              minutes:
-                                  AppointmentsBusinessRules.slotStepMinutes,
-                            ),
+                            Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
                           );
-                          final overlaps =
-                              slotStart.isBefore(end) &&
-                              start.isBefore(slotEnd);
-                          if (overlaps &&
-                              availability.slots[slotLabel] == false) {
+                          final overlaps = slotStart.isBefore(end) && start.isBefore(slotEnd);
+                          if (overlaps && availability.slots[slotLabel] == false) {
                             return false;
                           }
                         }
@@ -332,9 +305,7 @@ class _PatientAppointmentsScreenState
                         return true;
                       }
 
-                      final availableLabels = allLabels
-                          .where(isStartAvailable)
-                          .toList();
+                      final availableLabels = allLabels.where(isStartAvailable).toList();
 
                       if (availableLabels.isEmpty) {
                         return const Text(
@@ -343,14 +314,18 @@ class _PatientAppointmentsScreenState
                         );
                       }
 
-                      final morningLabels = availableLabels.where((label) {
-                        final d = dateFromLabel(selectedDateTime, label);
-                        return d.hour < 12;
-                      }).toList();
-                      final afternoonLabels = availableLabels.where((label) {
-                        final d = dateFromLabel(selectedDateTime, label);
-                        return d.hour >= 12;
-                      }).toList();
+                      final morningLabels = availableLabels
+                          .where((label) {
+                            final d = dateFromLabel(selectedDateTime, label);
+                            return d.hour < 12;
+                          })
+                          .toList();
+                      final afternoonLabels = availableLabels
+                          .where((label) {
+                            final d = dateFromLabel(selectedDateTime, label);
+                            return d.hour >= 12;
+                          })
+                          .toList();
 
                       Widget buildSlotChip(String label) {
                         final slotDate = dateFromLabel(selectedDateTime, label);
@@ -380,9 +355,7 @@ class _PatientAppointmentsScreenState
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF7EF),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: OcgColors.bronze.withOpacity(0.22),
-                            ),
+                            border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,9 +374,7 @@ class _PatientAppointmentsScreenState
                                       ),
                                     ),
                                     Icon(
-                                      expanded
-                                          ? Icons.expand_less
-                                          : Icons.expand_more,
+                                      expanded ? Icons.expand_less : Icons.expand_more,
                                       color: OcgColors.bronze,
                                     ),
                                   ],
@@ -423,9 +394,7 @@ class _PatientAppointmentsScreenState
                                   Wrap(
                                     spacing: 6,
                                     runSpacing: 6,
-                                    children: labels
-                                        .map(buildSlotChip)
-                                        .toList(),
+                                    children: labels.map(buildSlotChip).toList(),
                                   ),
                               ],
                             ],
@@ -450,15 +419,13 @@ class _PatientAppointmentsScreenState
                           buildPeriodSection(
                             title: 'Mañana',
                             expanded: expandMorning,
-                            onToggle: () =>
-                                setDs(() => expandMorning = !expandMorning),
+                            onToggle: () => setDs(() => expandMorning = !expandMorning),
                             labels: morningLabels,
                           ),
                           buildPeriodSection(
                             title: 'Tarde',
                             expanded: expandAfternoon,
-                            onToggle: () =>
-                                setDs(() => expandAfternoon = !expandAfternoon),
+                            onToggle: () => setDs(() => expandAfternoon = !expandAfternoon),
                             labels: afternoonLabels,
                           ),
                         ],
@@ -514,10 +481,9 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
-                      final notPastError =
-                          AppointmentsBusinessRules.validateStartNotInPast(
-                            start: selectedDateTime,
-                          );
+                      final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+                        start: selectedDateTime,
+                      );
                       if (notPastError != null) {
                         setDs(() => errorMsg = notPastError);
                         return;
@@ -540,37 +506,24 @@ class _PatientAppointmentsScreenState
 
                         if (availability != null) {
                           const operationalMinutes =
-                              30 +
-                              AppointmentsBusinessRules
-                                  .bufferMinutesBetweenAppointments;
+                              30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
                           final end = selectedDateTime.add(
                             const Duration(minutes: operationalMinutes),
                           );
 
-                          final allLabels =
-                              AppointmentsBusinessRules.buildAllWorkdaySlots(
-                                day: selectedDateTime,
-                                stepMinutes:
-                                    AppointmentsBusinessRules.slotStepMinutes,
-                              ).map((s) => s.label);
+                          final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
+                            day: selectedDateTime,
+                            stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                          ).map((s) => s.label);
 
                           bool stillAvailable = true;
                           for (final label in allLabels) {
-                            final slotStart = dateFromLabel(
-                              selectedDateTime,
-                              label,
-                            );
+                            final slotStart = dateFromLabel(selectedDateTime, label);
                             final slotEnd = slotStart.add(
-                              Duration(
-                                minutes:
-                                    AppointmentsBusinessRules.slotStepMinutes,
-                              ),
+                              Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
                             );
-                            final overlaps =
-                                slotStart.isBefore(end) &&
-                                selectedDateTime.isBefore(slotEnd);
-                            if (overlaps &&
-                                availability.slots[label] == false) {
+                            final overlaps = slotStart.isBefore(end) && selectedDateTime.isBefore(slotEnd);
+                            if (overlaps && availability.slots[label] == false) {
                               stillAvailable = false;
                               break;
                             }
@@ -795,8 +748,6 @@ class _PatientAppointmentsScreenState
     }
 
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
-    final useFixedBodyHeight =
-        widget.embedded || WebLayoutContext.useDesktopShell(context);
 
     final content = Column(
       children: [
@@ -864,244 +815,93 @@ class _PatientAppointmentsScreenState
             onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
         ),
-        if (useFixedBodyHeight)
-          SizedBox(
-            height: 560,
-            child: appointmentsAsync.when(
-              loading: () => ocgLoading(label: 'Cargando tus citas...'),
-              error: (e, _) => Center(
-                child: Text(
-                  'Error al cargar citas: $e',
-                  textAlign: TextAlign.center,
-                ),
+        Expanded(
+          child: appointmentsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text(
+                'Error al cargar citas: $e',
+                textAlign: TextAlign.center,
               ),
-              data: (all) {
-                final now = DateTime.now();
-                final filtered = _filter == _PatientFilter.proximas
-                    ? all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isAfter(now) &&
-                                a.estado != AppointmentStatus.cancelada &&
-                                a.estado != AppointmentStatus.noAsistio &&
-                                a.estado != AppointmentStatus.completada,
-                          )
-                          .toList()
-                    : all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isBefore(now) ||
-                                a.estado == AppointmentStatus.cancelada ||
-                                a.estado == AppointmentStatus.completada ||
-                                a.estado == AppointmentStatus.noAsistio,
-                          )
-                          .toList();
-
-                if (filtered.isEmpty) {
-                  return OcgEmptyState(
-                    icon: Icons.event_busy_outlined,
-                    title: _filter == _PatientFilter.proximas
-                        ? 'No tienes citas próximas'
-                        : 'Sin historial de citas',
-                    subtitle: _filter == _PatientFilter.proximas
-                        ? 'Toca + para agendar tu próxima cita.'
-                        : 'Aún no hay citas registradas en este estado.',
-                  );
-                }
-
-                final nextUpcoming = _filter == _PatientFilter.proximas
-                    ? (filtered
-                            ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora)))
-                          .first
-                    : null;
-
-                return LayoutBuilder(
-                  builder: (context, c) {
-                    final compact = c.maxWidth < 760;
-                    return ListView(
-                      padding: EdgeInsets.fromLTRB(
-                        compact ? 12 : 16,
-                        8,
-                        compact ? 12 : 16,
-                        100,
-                      ),
-                      children: [
-                        if (nextUpcoming != null)
-                          AppointmentHighlightCard(
-                            title: 'Tu próxima cita',
-                            whenText: _fmtDateTime(nextUpcoming.fechaHora),
-                            trailing: OcgChip(
-                              label: _estadoLabel(nextUpcoming.estado),
-                              backgroundColor: _estadoColor(
-                                nextUpcoming.estado,
-                              ).withOpacity(0.14),
-                              textColor: _estadoColor(nextUpcoming.estado),
-                            ),
-                          ),
-                        if (nextUpcoming != null) const SizedBox(height: 10),
-                        HighlightCard(
-                          title: _filter == _PatientFilter.proximas
-                              ? 'Próximas citas'
-                              : 'Historial de citas',
-                          trailing: Text(
-                            '${filtered.length} registro(s)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: OcgColors.ink.withOpacity(0.6),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              for (final appt in filtered) ...[
-                                _AppointmentTile(
-                                  appointment: appt,
-                                  onCancel:
-                                      (appt.estado ==
-                                              AppointmentStatus.programada ||
-                                          appt.estado ==
-                                              AppointmentStatus.confirmada)
-                                      ? () =>
-                                            _handleCancelTap(context, ref, appt)
-                                      : null,
-                                ),
-                                if (appt != filtered.last)
-                                  const SizedBox(height: 10),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
             ),
-          )
-        else
-          Flexible(
-            fit: FlexFit.loose,
-            child: appointmentsAsync.when(
-              loading: () => ocgLoading(label: 'Cargando tus citas...'),
-              error: (e, _) => Center(
-                child: Text(
-                  'Error al cargar citas: $e',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              data: (all) {
-                final now = DateTime.now();
-                final filtered = _filter == _PatientFilter.proximas
-                    ? all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isAfter(now) &&
-                                a.estado != AppointmentStatus.cancelada &&
-                                a.estado != AppointmentStatus.noAsistio &&
-                                a.estado != AppointmentStatus.completada,
-                          )
-                          .toList()
-                    : all
-                          .where(
-                            (a) =>
-                                a.fechaHora.isBefore(now) ||
-                                a.estado == AppointmentStatus.cancelada ||
-                                a.estado == AppointmentStatus.completada ||
-                                a.estado == AppointmentStatus.noAsistio,
-                          )
-                          .toList();
+            data: (all) {
+              final now = DateTime.now();
+              final filtered = _filter == _PatientFilter.proximas
+                  ? all
+                      .where(
+                        (a) =>
+                            a.fechaHora.isAfter(now) &&
+                            a.estado != AppointmentStatus.cancelada &&
+                            a.estado != AppointmentStatus.noAsistio &&
+                            a.estado != AppointmentStatus.completada,
+                      )
+                      .toList()
+                  : all
+                      .where(
+                        (a) =>
+                            a.fechaHora.isBefore(now) ||
+                            a.estado == AppointmentStatus.cancelada ||
+                            a.estado == AppointmentStatus.completada ||
+                            a.estado == AppointmentStatus.noAsistio,
+                      )
+                      .toList();
 
-                if (filtered.isEmpty) {
-                  return OcgEmptyState(
-                    icon: Icons.event_busy_outlined,
-                    title: _filter == _PatientFilter.proximas
-                        ? 'No tienes citas próximas'
-                        : 'Sin historial de citas',
-                    subtitle: _filter == _PatientFilter.proximas
-                        ? 'Toca + para agendar tu próxima cita.'
-                        : 'Aún no hay citas registradas en este estado.',
-                  );
-                }
-
-                final nextUpcoming = _filter == _PatientFilter.proximas
-                    ? (filtered
-                            ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora)))
-                          .first
-                    : null;
-
-                return LayoutBuilder(
-                  builder: (context, c) {
-                    final compact = c.maxWidth < 760;
-                    return ListView(
-                      padding: EdgeInsets.fromLTRB(
-                        compact ? 12 : 16,
-                        8,
-                        compact ? 12 : 16,
-                        100,
-                      ),
-                      children: [
-                        if (nextUpcoming != null)
-                          AppointmentHighlightCard(
-                            title: 'Tu próxima cita',
-                            whenText: _fmtDateTime(nextUpcoming.fechaHora),
-                            trailing: OcgChip(
-                              label: _estadoLabel(nextUpcoming.estado),
-                              backgroundColor: _estadoColor(
-                                nextUpcoming.estado,
-                              ).withOpacity(0.14),
-                              textColor: _estadoColor(nextUpcoming.estado),
-                            ),
-                          ),
-                        if (nextUpcoming != null) const SizedBox(height: 10),
-                        HighlightCard(
-                          title: _filter == _PatientFilter.proximas
-                              ? 'Próximas citas'
-                              : 'Historial de citas',
-                          trailing: Text(
-                            '${filtered.length} registro(s)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: OcgColors.ink.withOpacity(0.6),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              for (final appt in filtered) ...[
-                                _AppointmentTile(
-                                  appointment: appt,
-                                  onCancel:
-                                      (appt.estado ==
-                                              AppointmentStatus.programada ||
-                                          appt.estado ==
-                                              AppointmentStatus.confirmada)
-                                      ? () =>
-                                            _handleCancelTap(context, ref, appt)
-                                      : null,
-                                ),
-                                if (appt != filtered.last)
-                                  const SizedBox(height: 10),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Text(
+                    _filter == _PatientFilter.proximas
+                        ? 'No tienes citas próximas.\nToca + para agendar.'
+                        : 'Sin historial de citas aún.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
                 );
-              },
-            ),
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                itemCount: filtered.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  final appt = filtered[i];
+                  final canCancel =
+                      appt.estado == AppointmentStatus.programada ||
+                      appt.estado == AppointmentStatus.confirmada;
+                  return _AppointmentTile(
+                    appointment: appt,
+                    onCancel: canCancel
+                        ? () => _handleCancelTap(context, ref, appt)
+                        : null,
+                  );
+                },
+              );
+            },
           ),
+        ),
       ],
     );
 
     if (widget.embedded) {
-      return SizedBox(height: 900, child: content);
-    }
-
-    if (WebLayoutContext.useDesktopShell(context)) {
-      return PatientWebShell(
-        currentRoute: RouteNames.patientAppointments,
-        title: 'Mis citas',
-        child: SizedBox(height: 900, child: content),
+      return Stack(
+        children: [
+          content,
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton.extended(
+              backgroundColor: OcgColors.espresso,
+              foregroundColor: OcgColors.ivory,
+              icon: const Icon(Icons.add),
+              label: const Text('Agendar cita'),
+              onPressed: () => _showNewAppointmentDialog(
+                context,
+                ref,
+                user.uid,
+                appointmentsAsync.asData?.value ?? const [],
+              ),
+            ),
+          ),
+        ],
       );
     }
 

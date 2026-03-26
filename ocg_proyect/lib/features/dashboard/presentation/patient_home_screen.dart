@@ -6,7 +6,6 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
-import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
@@ -17,11 +16,6 @@ import '../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
 import '../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../treatment/providers/treatment_provider.dart';
-import '../../patient/presentation/web/shell/patient_web_shell.dart';
-import '../../patient/presentation/web/components/summary_card.dart';
-import '../../patient/presentation/web/components/highlight_card.dart';
-import '../../patient/presentation/web/components/timeline_section.dart';
-import '../../../presentation/web/common/web_layout_context.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({super.key});
@@ -47,28 +41,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       const PatientProfileScreen(embedded: true),
     ];
 
-    final content = IndexedStack(
-      index: _selectedIndex,
-      children: sections,
-    );
-
-    if (WebLayoutContext.useDesktopShell(context)) {
-      final routeByIndex = [
-        RouteNames.patientHome,
-        RouteNames.patientAppointments,
-        RouteNames.patientHome,
-        RouteNames.patientPayments,
-        RouteNames.patientSimulations,
-        RouteNames.patientProfile,
-      ];
-
-      return PatientWebShell(
-        currentRoute: routeByIndex[_selectedIndex],
-        title: 'Portal Paciente',
-        child: content,
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('OCG Clínica'),
@@ -80,7 +52,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           ),
         ],
       ),
-      body: content,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: sections,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
@@ -202,79 +177,46 @@ class _InicioSection extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      final stacked = c.maxWidth < 760;
-                      if (stacked) {
-                        return Column(
-                          children: [
-                            SummaryCard(
-                              title: 'Etapa actual',
-                              value: formatTreatmentStage(patient.etapaActual),
-                              icon: Icons.monitor_heart_outlined,
-                            ),
-                            const SizedBox(height: 10),
-                            SummaryCard(
-                              title: 'Saldo pendiente',
-                              value: '\$${_formatCop(patient.saldoPendiente)} COP',
-                              icon: Icons.account_balance_wallet_outlined,
-                            ),
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: SummaryCard(
-                              title: 'Etapa actual',
-                              value: formatTreatmentStage(patient.etapaActual),
-                              icon: Icons.monitor_heart_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: SummaryCard(
-                              title: 'Saldo pendiente',
-                              value: '\$${_formatCop(patient.saldoPendiente)} COP',
-                              icon: Icons.account_balance_wallet_outlined,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                  Text(
+                    'Tu tratamiento',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 14),
-                  TimelineSection(
-                    title: 'Tu tratamiento',
-                    child: TreatmentProgressBar(etapaActual: patient.etapaActual),
-                  ),
+                  const SizedBox(height: 12),
+                  TreatmentProgressBar(etapaActual: patient.etapaActual),
+                  const SizedBox(height: 16),
                   if (patient.proximaCita != null) ...[
-                    const SizedBox(height: 12),
-                    HighlightCard(
-                      title: 'Próxima cita',
-                      trailing: TextButton(
-                        onPressed: () => context.go(RouteNames.patientAppointments),
-                        child: const Text('Ver citas'),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.event, color: OcgColors.bronze),
-                          const SizedBox(width: 8),
-                          Text(_formatDate(patient.proximaCita!)),
-                        ],
+                    Text(
+                      'Próxima cita',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.event, color: OcgColors.bronze),
+                        title: Text(_formatDate(patient.proximaCita!)),
+                        subtitle: const Text('Toca "Citas" para ver el detalle'),
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
                   if (patient.saldoPendiente > 0) ...[
-                    const SizedBox(height: 12),
-                    HighlightCard(
-                      title: 'Estado de cuenta',
-                      trailing: TextButton(
-                        onPressed: () => context.go(RouteNames.patientPayments),
-                        child: const Text('Ir a pagos'),
+                    Text(
+                      'Estado de cuenta',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.account_balance_wallet_outlined, color: OcgColors.bronze),
+                        title: Text(
+                          'Saldo pendiente: \$${_formatCop(patient.saldoPendiente)} COP',
+                        ),
+                        subtitle: const Text('Toca "Pagos" para ver y pagar tu saldo'),
+                        trailing: TextButton(
+                          onPressed: () => context.go(RouteNames.patientPayments),
+                          child: const Text('Ir a pagos'),
+                        ),
                       ),
-                      child: Text('Saldo pendiente: \$${_formatCop(patient.saldoPendiente)} COP'),
                     ),
                   ],
                 ],

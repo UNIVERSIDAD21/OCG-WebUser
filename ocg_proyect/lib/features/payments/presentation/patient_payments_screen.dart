@@ -3,12 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
-import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
-import '../../patient/presentation/web/shell/patient_web_shell.dart';
-import '../../patient/presentation/web/components/payment_summary_panel.dart';
 import '../../../shared/widgets/ocg_chip.dart';
-import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
@@ -57,15 +53,6 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Resumen de tu cuenta',
-            style: TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
           PaymentSummaryCard(patientId: user.uid, isAdmin: false),
           const SizedBox(height: 16),
           paymentAsync.when(
@@ -76,62 +63,35 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
             ),
             data: (payment) {
               if (payment == null) {
-                return const OcgEmptyState(
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: 'Sin resumen financiero',
-                  subtitle: 'Aún no hay datos de pagos para este paciente.',
+                return const Text(
+                  'No existe resumen financiero para este paciente.',
+                  style: TextStyle(color: OcgColors.error),
                 );
               }
 
               final saldo = payment.saldoPendiente;
-              final total = payment.totalTratamiento;
-              final pagado = (total - saldo).clamp(0, total).toDouble();
+              if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal) {
+                return OcgChip(
+                  label: 'Tratamiento pagado en su totalidad',
+                  backgroundColor: OcgColors.success.withValues(alpha: 0.14),
+                  textColor: OcgColors.success,
+                );
+              }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PaymentSummaryPanel(
-                    total: total,
-                    pending: saldo,
-                    paid: pagado,
-                  ),
-                  const SizedBox(height: 12),
-                  if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal)
-                    OcgChip(
-                      label: 'Tratamiento pagado en su totalidad',
-                      backgroundColor: OcgColors.success.withValues(alpha: 0.14),
-                      textColor: OcgColors.success,
-                    )
-                  else
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: OcgColors.espresso,
-                        foregroundColor: OcgColors.ivory,
-                      ),
-                      onPressed: () => _confirmAndPayu(
-                        context,
-                        user.uid,
-                        saldo,
-                        user.email ?? '',
-                        user.displayName ?? 'Paciente',
-                      ),
-                      icon: const Icon(Icons.credit_card),
-                      label: const Text('Pagar con PayU'),
-                    ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: OcgColors.sand.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'Mantén tus pagos al día para evitar retrasos en tu plan.',
-                      style: TextStyle(fontSize: 12, color: OcgColors.ink.withOpacity(0.75)),
-                    ),
-                  ),
-                ],
+              return ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: OcgColors.espresso,
+                  foregroundColor: OcgColors.ivory,
+                ),
+                onPressed: () => _confirmAndPayu(
+                  context,
+                  user.uid,
+                  saldo,
+                  user.email ?? '',
+                  user.displayName ?? 'Paciente',
+                ),
+                icon: const Icon(Icons.credit_card),
+                label: const Text('Pagar con PayU'),
               );
             },
           ),
@@ -151,14 +111,6 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     );
 
     if (widget.embedded) return content;
-
-    if (WebLayoutContext.useDesktopShell(context)) {
-      return PatientWebShell(
-        currentRoute: RouteNames.patientPayments,
-        title: 'Mis pagos',
-        child: content,
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis pagos')),

@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/router/route_names.dart';
-import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
-import '../../patient/presentation/web/shell/patient_web_shell.dart';
-import '../../patient/presentation/web/components/simulation_preview_card.dart';
-import '../../patient/presentation/web/components/highlight_card.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -48,53 +43,63 @@ class PatientSimulationsScreen extends ConsumerWidget {
               }
 
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                padding: const EdgeInsets.all(16),
                 itemCount: items.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
                   if (i == 0) {
-                    return const HighlightCard(
-                      title: 'Aviso importante',
-                      child: Text(
-                        'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final. Usa esta vista como referencia visual y consulta siempre con tu especialista.',
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 2),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFD9C7B3)),
+                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFFFF7EF),
+                      ),
+                      child: const Text(
+                        'Las simulaciones son orientativas y no representan una promesa clínica exacta del resultado final.',
                       ),
                     );
                   }
 
                   final s = items[i - 1];
-                  return SimulationPreviewCard(
-                    title: 'Simulación ${_fmtDate(s.createdAt)}',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Origen: ${formatSimulationMode(s.mode)}'),
-                        if ((s.notes ?? '').trim().isNotEmpty) ...[
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Simulación ${_fmtDate(s.createdAt)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('Notas: ${s.notes!.trim()}'),
+                          Text('Origen: ${formatSimulationMode(s.mode)}'),
+                          if ((s.notes ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text('Notas: ${s.notes!.trim()}'),
+                          ],
+                          const SizedBox(height: 8),
+                          if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
+                            BeforeAfterSlider(
+                              before: Image.network(
+                                s.originalUrl,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                              ),
+                              after: Image.network(
+                                s.resultUrl!,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                              ),
+                            )
+                          else
+                            Row(
+                              children: [
+                                Expanded(child: _img(s.originalUrl, 'Original')),
+                                const SizedBox(width: 8),
+                                Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
+                              ],
+                            ),
                         ],
-                        const SizedBox(height: 8),
-                        if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
-                          BeforeAfterSlider(
-                            before: Image.network(
-                              s.originalUrl,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.center,
-                            ),
-                            after: Image.network(
-                              s.resultUrl!,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.center,
-                            ),
-                          )
-                        else
-                          Row(
-                            children: [
-                              Expanded(child: _img(s.originalUrl, 'Original')),
-                              const SizedBox(width: 8),
-                              Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
-                            ],
-                          ),
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -104,14 +109,6 @@ class PatientSimulationsScreen extends ConsumerWidget {
     }
 
     if (embedded) return body;
-
-    if (WebLayoutContext.useDesktopShell(context)) {
-      return PatientWebShell(
-        currentRoute: RouteNames.patientSimulations,
-        title: 'Mis simulaciones',
-        child: body,
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis simulaciones')),

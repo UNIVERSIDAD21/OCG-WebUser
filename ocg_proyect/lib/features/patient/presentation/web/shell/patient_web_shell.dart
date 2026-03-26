@@ -21,41 +21,27 @@ class PatientWebShell extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!WebLayoutContext.useDesktopShell(context)) return child;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 1300;
-
-        return Scaffold(
-          body: Column(
-            children: [
-              PatientHeader(title: title),
-              if (!wide)
-                SizedBox(
-                  height: 58,
-                  child: PatientNavigation(
-                    currentRoute: currentRoute,
-                    compact: true,
+    return Scaffold(
+      body: Column(
+        children: [
+          PatientHeader(title: title),
+          Expanded(
+            child: Row(
+              children: [
+                PatientNavigation(currentRoute: currentRoute),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: WebPageContainer(
+                      maxWidth: 1100,
+                      child: child,
+                    ),
                   ),
                 ),
-              Expanded(
-                child: Row(
-                  children: [
-                    if (wide) PatientNavigation(currentRoute: currentRoute),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: WebPageContainer(
-                          maxWidth: 1100,
-                          child: child,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
