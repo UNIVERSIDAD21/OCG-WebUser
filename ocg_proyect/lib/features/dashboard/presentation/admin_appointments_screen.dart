@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/data/models/availability_day_model.dart';
@@ -10,6 +11,7 @@ import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -924,6 +926,13 @@ class _AdminAppointmentsScreenState
         const <AppointmentModel>[];
     final notesCtrl = TextEditingController(text: appt.notas ?? '');
 
+    AvailabilityDayModel? availabilityForCurrentDay() {
+      return ref
+          .read(availabilityByDayProvider(_appointmentDayKey(newDateTime)))
+          .asData
+          ?.value;
+    }
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -949,12 +958,15 @@ class _AdminAppointmentsScreenState
                     );
                     if (d == null) return;
 
-                    final slots = AppointmentsBusinessRules.buildDailySlots(
+                    final slots = _visibleSlotsForDay(
                       day: d,
                       existingAppointments: existingAppointments,
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
-                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      availability: ref
+                          .read(availabilityByDayProvider(_appointmentDayKey(d)))
+                          .asData
+                          ?.value,
                     );
                     final firstAvailable = slots
                         .where((s) => s.isAvailable)
@@ -987,12 +999,12 @@ class _AdminAppointmentsScreenState
                 const SizedBox(height: 6),
                 Builder(
                   builder: (_) {
-                    final slots = AppointmentsBusinessRules.buildDailySlots(
+                    final slots = _visibleSlotsForDay(
                       day: newDateTime,
                       existingAppointments: existingAppointments,
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
-                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      availability: availabilityForCurrentDay(),
                     ).toList()..sort((a, b) => a.start.compareTo(b.start));
 
                     final morningSlots = slots
@@ -1110,12 +1122,12 @@ class _AdminAppointmentsScreenState
                       .toList(),
                   onChanged: (v) {
                     final nextDuration = v ?? 30;
-                    final slots = AppointmentsBusinessRules.buildDailySlots(
+                    final slots = _visibleSlotsForDay(
                       day: newDateTime,
                       existingAppointments: existingAppointments,
                       durationMinutes: nextDuration,
                       excludeAppointmentId: appt.id,
-                      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+                      availability: availabilityForCurrentDay(),
                     );
                     final currentAvailable = slots.any(
                       (s) => s.start == newDateTime && s.isAvailable,
@@ -1770,31 +1782,6 @@ class _AdminAppointmentsScreenState
     };
   }
 
-  List<PopupMenuEntry<String>> _statusMenuItems(AppointmentModel a) {
-    switch (a.estado) {
-      case AppointmentStatus.programada:
-        return const [
-          PopupMenuItem(value: 'confirmar', child: Text('Confirmar')),
-          PopupMenuItem(value: 'reprogramar', child: Text('Reprogramar')),
-          PopupMenuItem(value: 'cancelar', child: Text('Cancelar')),
-        ];
-      case AppointmentStatus.confirmada:
-        return const [
-          PopupMenuItem(value: 'completar', child: Text('Completar')),
-          PopupMenuItem(value: 'reprogramar', child: Text('Reprogramar')),
-          PopupMenuItem(value: 'cancelar', child: Text('Cancelar')),
-        ];
-      case AppointmentStatus.completada:
-        return const [
-          PopupMenuItem(value: 'reabrir', child: Text('Reabrir cita')),
-        ];
-      case AppointmentStatus.cancelada:
-      case AppointmentStatus.noAsistio:
-      case AppointmentStatus.reprogramada:
-        return const [];
-    }
-  }
-
   Future<void> _handleStatusAction(AppointmentModel a, String action) async {
     switch (action) {
       case 'confirmar':
@@ -1815,6 +1802,148 @@ class _AdminAppointmentsScreenState
         await _onReabrirCompletada(a);
         break;
     }
+  }
+
+  void _openPatientProfile(String patientId) {
+    if (patientId.trim().isEmpty) return;
+    context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId));
+  }
+
+  List<AppointmentTimeSlot> _visibleSlotsForDay({
+    required DateTime day,
+    required int durationMinutes,
+    required List<AppointmentModel> existingAppointments,
+    String? excludeAppointmentId,
+    AvailabilityDayModel? availability,
+  }) {
+    final slots = AppointmentsBusinessRules.buildDailySlots(
+      day: day,
+      existingAppointments: existingAppointments,
+      durationMinutes: durationMinutes,
+      excludeAppointmentId: excludeAppointmentId,
+      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+    );
+
+    final now = DateTime.now();
+    final normalizedDay = DateTime(day.year, day.month, day.day);
+    final today = DateTime(now.year, now.month, now.day);
+
+    return slots.where((slot) {
+      if (normalizedDay == today && !slot.start.isAfter(now)) return false;
+      if (availability != null && !availability.isSlotAvailable(slot.label)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Widget _buildAppointmentActionsInline(AppointmentModel a) {
+    final actions = <Widget>[
+      OutlinedButton.icon(
+        onPressed: () => _openPatientProfile(a.patientId),
+        icon: const Icon(Icons.person_outline, size: 14),
+        label: const Text('Perfil'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OcgColors.espresso,
+          side: BorderSide(color: OcgColors.espresso.withOpacity(0.5)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    ];
+
+    if (a.estado == AppointmentStatus.programada) {
+      actions.addAll([
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'confirmar'),
+          icon: const Icon(Icons.check_circle_outline, size: 14),
+          label: const Text('Confirmar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF1565C0),
+            side: const BorderSide(color: Color(0xFF1565C0)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'reprogramar'),
+          icon: const Icon(Icons.edit_calendar_outlined, size: 14),
+          label: const Text('Reprogramar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: OcgColors.bronze,
+            side: const BorderSide(color: OcgColors.bronze),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ]);
+    } else if (a.estado == AppointmentStatus.confirmada) {
+      actions.addAll([
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'completar'),
+          icon: const Icon(Icons.done_all, size: 14),
+          label: const Text('Completar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF2E7D32),
+            side: const BorderSide(color: Color(0xFF2E7D32)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'reprogramar'),
+          icon: const Icon(Icons.edit_calendar_outlined, size: 14),
+          label: const Text('Reprogramar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: OcgColors.bronze,
+            side: const BorderSide(color: OcgColors.bronze),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ]);
+    }
+
+    if (a.estado == AppointmentStatus.completada) {
+      actions.add(
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'reabrir'),
+          icon: const Icon(Icons.lock_open_outlined, size: 14),
+          label: const Text('Reabrir'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF1565C0),
+            side: const BorderSide(color: Color(0xFF1565C0)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    }
+
+    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada) {
+      actions.add(
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'cancelar'),
+          icon: const Icon(Icons.cancel_outlined, size: 14),
+          label: const Text('Cancelar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: OcgColors.error,
+            side: const BorderSide(color: OcgColors.error),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      );
+    }
+
+    return Wrap(spacing: 6, runSpacing: 6, children: actions);
   }
 
   Widget _buildTodayAgenda(
@@ -1922,26 +2051,12 @@ class _AdminAppointmentsScreenState
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        a.patientName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: OcgColors.espresso,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_statusMenuItems(a).isNotEmpty)
-                                      PopupMenuButton<String>(
-                                        tooltip: 'Cambiar estado',
-                                        icon: const Icon(Icons.more_vert, size: 18),
-                                        itemBuilder: (_) => _statusMenuItems(a),
-                                        onSelected: (value) =>
-                                            _handleStatusAction(a, value),
-                                      ),
-                                  ],
+                                Text(
+                                  a.patientName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: OcgColors.espresso,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -1951,6 +2066,19 @@ class _AdminAppointmentsScreenState
                                     color: OcgColors.ink.withOpacity(0.72),
                                   ),
                                 ),
+                                if ((a.notas ?? '').trim().isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Notas clínicas: ${a.notas!.trim()}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: OcgColors.ink.withOpacity(0.78),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                _buildAppointmentActionsInline(a),
                               ],
                             ),
                           ),
@@ -2282,26 +2410,12 @@ class _AdminAppointmentsScreenState
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
-                                          style: TextStyle(
-                                            color: OcgColors.ink.withOpacity(0.9),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      if (_statusMenuItems(a).isNotEmpty)
-                                        PopupMenuButton<String>(
-                                          tooltip: 'Cambiar estado',
-                                          icon: const Icon(Icons.more_vert, size: 18),
-                                          itemBuilder: (_) => _statusMenuItems(a),
-                                          onSelected: (value) =>
-                                              _handleStatusAction(a, value),
-                                        ),
-                                    ],
+                                  Text(
+                                    '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
+                                    style: TextStyle(
+                                      color: OcgColors.ink.withOpacity(0.9),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   Text(
                                     '${_labelTipo(a.tipo)} · ${ui.label}',
@@ -2309,6 +2423,19 @@ class _AdminAppointmentsScreenState
                                       color: OcgColors.ink.withOpacity(0.72),
                                     ),
                                   ),
+                                  if ((a.notas ?? '').trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Notas clínicas: ${a.notas!.trim()}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: OcgColors.ink.withOpacity(0.78),
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  _buildAppointmentActionsInline(a),
                                 ],
                               ),
                             ),
@@ -2553,9 +2680,44 @@ class _AdminAppointmentsScreenState
                           ),
                         ),
                         Expanded(
-                          child: Text(
-                            '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                            style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
+                                style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                              ),
+                              if ((a.notas ?? '').trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Notas clínicas: ${a.notas!.trim()}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: OcgColors.ink.withOpacity(0.78),
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 6),
+                              OutlinedButton.icon(
+                                onPressed: () => _openPatientProfile(a.patientId),
+                                icon: const Icon(Icons.person_outline, size: 14),
+                                label: const Text('Ver perfil'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: OcgColors.espresso,
+                                  side: BorderSide(
+                                    color: OcgColors.espresso.withOpacity(0.5),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

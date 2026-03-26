@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../shared/constants/firestore_paths.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../../shared/widgets/ocg_loading_screen.dart';
@@ -56,7 +58,7 @@ class TransactionList extends ConsumerWidget {
                   ),
                   if ((tx.referencia ?? '').isNotEmpty)
                     Text('Ref: ${tx.referencia}', style: const TextStyle(color: OcgColors.ink)),
-                  Text('Registrado por: ${tx.registradoPor}', style: const TextStyle(color: OcgColors.ink)),
+                  _RegisteredByText(registradoPor: tx.registradoPor),
                   if ((tx.notas ?? '').trim().isNotEmpty)
                     Text(
                       'Notas: ${tx.notas!.trim()}',
@@ -107,5 +109,41 @@ class TransactionList extends ConsumerWidget {
         const SnackBar(content: Text('No se pudo abrir el recibo.')),
       );
     }
+  }
+}
+
+class _RegisteredByText extends StatelessWidget {
+  const _RegisteredByText({required this.registradoPor});
+
+  final String registradoPor;
+
+  bool get _isLikelyUid {
+    final v = registradoPor.trim();
+    return v.isNotEmpty && v != 'admin' && v != 'payu_webhook' && v.length >= 20;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isLikelyUid) {
+      return Text(
+        'Registrado por: ${registradoPor.trim().isEmpty ? 'Administrador' : registradoPor}',
+        style: const TextStyle(color: OcgColors.ink),
+      );
+    }
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance
+          .collection(FirestorePaths.admins)
+          .doc(registradoPor)
+          .get(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final adminName = (data?['nombre'] ?? data?['displayName'] ?? '').toString().trim();
+        return Text(
+          'Registrado por: ${adminName.isEmpty ? 'Administrador' : adminName}',
+          style: const TextStyle(color: OcgColors.ink),
+        );
+      },
+    );
   }
 }

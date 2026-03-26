@@ -17,6 +17,7 @@ class PatientAppointmentsTab extends ConsumerWidget {
     final appointmentsAsync = ref.watch(
       patientAppointmentsProvider(patient.id),
     );
+    final allAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
 
     return Stack(
       children: [
@@ -58,6 +59,7 @@ class PatientAppointmentsTab extends ConsumerWidget {
               context,
               ref,
               preselectedPatient: patient,
+              existingAppointments: allAppointments,
             ),
             child: const Icon(Icons.add),
           ),
