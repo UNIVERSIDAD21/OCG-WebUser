@@ -49,26 +49,25 @@ class AuthNotifier extends AsyncNotifier<void> {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
 
-      ref.invalidate(userRoleProvider);
-
       final uid = credential.user?.uid;
       if (uid != null) {
         final role = await authService.getUserRole();
         final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
         // Regla de seguridad: si el usuario es paciente y su documento
-        // ya no existe (o está inactivo), se bloquea el acceso.
+        // ya no existe (o está inactivo), bloquear sin revelar detalle.
         if (effectiveRole == 'patient') {
           final exists = await authService.currentPatientProfileExists();
           if (!exists) {
             await authService.signOut();
             throw FirebaseAuthException(
-              code: 'user-disabled',
-              message:
-                  'Tu cuenta de paciente está inactiva o fue eliminada. Contacta a la clínica.',
+              code: 'invalid-credential',
+              message: 'Correo o contraseña incorrectos',
             );
           }
         }
+
+        ref.invalidate(userRoleProvider);
 
         unawaited(() async {
           try {

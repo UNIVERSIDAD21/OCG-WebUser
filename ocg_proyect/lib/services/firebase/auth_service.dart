@@ -66,6 +66,39 @@ class AuthService {
     final cleanEmail = email.trim().toLowerCase();
     final cleanName = displayName?.trim() ?? '';
 
+    try {
+      final callable = _functions.httpsCallable('registerPatientSelf');
+      await callable.call({
+        'email': cleanEmail,
+        'password': password,
+        'displayName': cleanName,
+      });
+      return;
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'already-exists') {
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'Este correo ya está en uso.',
+        );
+      }
+      // Si la función aún no está desplegada, usar fallback legacy.
+      if (e.code != 'not-found' && e.code != 'unimplemented') {
+        rethrow;
+      }
+    }
+
+    await _registerPatientSelfLegacy(
+      cleanEmail: cleanEmail,
+      password: password,
+      cleanName: cleanName,
+    );
+  }
+
+  Future<void> _registerPatientSelfLegacy({
+    required String cleanEmail,
+    required String password,
+    required String cleanName,
+  }) async {
     FirebaseApp? secondaryApp;
     try {
       secondaryApp = await Firebase.initializeApp(
@@ -90,8 +123,6 @@ class AuthService {
         await user.updateDisplayName(cleanName);
       }
 
-      // Importante: escribir con la misma app secundaria (sesión del usuario recién creado)
-      // para cumplir reglas de seguridad en /patients/{uid}.
       await secondaryDb.collection(FirestorePaths.patients).doc(user.uid).set({
         'id': user.uid,
         'uid': user.uid,
@@ -104,6 +135,14 @@ class AuthService {
       }, SetOptions(merge: true));
 
       await secondaryAuth.signOut();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'Este correo ya está en uso.',
+        );
+      }
+      rethrow;
     } finally {
       if (secondaryApp != null) {
         await secondaryApp.delete();
@@ -124,13 +163,24 @@ class AuthService {
     final cleanTreatment = treatmentType?.trim();
     final cleanTotal = totalTreatment ?? 0;
 
-    final result = await callable.call({
-      'email': cleanEmail,
-      'password': password,
-      'displayName': cleanName,
-      'treatmentType': cleanTreatment,
-      'totalTreatment': cleanTotal,
-    });
+    final HttpsCallableResult<dynamic> result;
+    try {
+      result = await callable.call({
+        'email': cleanEmail,
+        'password': password,
+        'displayName': cleanName,
+        'treatmentType': cleanTreatment,
+        'totalTreatment': cleanTotal,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'already-exists') {
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'Este correo ya está en uso.',
+        );
+      }
+      rethrow;
+    }
 
     final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
     final uid = (data['uid'] ?? '').toString();

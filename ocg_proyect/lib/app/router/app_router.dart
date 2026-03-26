@@ -47,6 +47,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       final role = userRole.asData?.value;
+      if (role == null) {
+        return _isPublicRoute(location) ? null : RouteNames.login;
+      }
       final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
       if (_isPublicRoute(location)) {

@@ -54,8 +54,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             e.code == 'user-not-found') {
           _error = 'Correo o contraseña incorrectos';
         } else if (e.code == 'user-disabled') {
-          _error = e.message ??
-              'Tu cuenta de paciente está inactiva o fue eliminada. Contacta a la clínica.';
+          _error = 'Correo o contraseña incorrectos';
         } else if (e.code == 'network-request-failed') {
           _error = 'Sin conexión a internet. Verifica tu red.';
         } else {
@@ -338,7 +337,7 @@ class _RegisterPatientDialogState
       setState(() {
         _isSubmitting = false;
         _registerError = e.code == 'email-already-in-use'
-            ? 'Este correo ya está registrado.'
+            ? 'Este correo ya está en uso.'
             : 'No se pudo crear la cuenta [${e.code}].';
       });
     } on FirebaseFunctionsException catch (e) {
@@ -348,7 +347,7 @@ class _RegisterPatientDialogState
         _registerError =
             e.message ??
             (e.code == 'already-exists'
-                ? 'Este correo ya está registrado.'
+                ? 'Este correo ya está en uso.'
                 : 'No se pudo crear la cuenta.');
       });
     } catch (e) {
