@@ -88,6 +88,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   children: [
                     const SizedBox(height: 10),
