@@ -12,7 +12,9 @@ import '../../admin/presentation/web/components/detail_header.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../data/models/patient_model.dart';
+import '../../appointments/providers/appointments_provider.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
 import 'tabs/patient_payments_tab.dart';
@@ -100,6 +102,8 @@ class _PatientDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final existingAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
+
     final content = DefaultTabController(
       length: 5,
       child: OcgAdaptiveScaffold(
@@ -306,6 +310,16 @@ class _PatientDetailView extends ConsumerWidget {
             const SizedBox(height: 8),
             SectionPanel(
               title: 'Detalle',
+              trailing: FilledButton.icon(
+                onPressed: () => AdminAppointmentsScreen.showCreateDialog(
+                  context,
+                  ref,
+                  preselectedPatient: patient,
+                  existingAppointments: existingAppointments,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Agendar cita'),
+              ),
               child: SizedBox(
                 height: 760,
                 child: TabBarView(
