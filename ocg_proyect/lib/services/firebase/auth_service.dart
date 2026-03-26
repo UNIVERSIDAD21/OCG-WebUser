@@ -46,53 +46,16 @@ class AuthService {
     );
   }
 
-  Future<void> ensureCurrentPatientProfileExists({
-    String? email,
-    String? displayName,
-  }) async {
+  Future<bool> currentPatientProfileExists() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) return false;
 
-    final docRef = _db.collection(FirestorePaths.patients).doc(user.uid);
-    final snap = await docRef.get();
-    final current = snap.data() ?? const <String, dynamic>{};
+    final snap = await _db.collection(FirestorePaths.patients).doc(user.uid).get();
+    if (!snap.exists) return false;
 
-    final now = DateTime.now();
-    final cleanEmail = (email ?? user.email ?? '').trim().toLowerCase();
-    final cleanName = (displayName ?? user.displayName ?? '').trim();
-
-    bool missingOrEmpty(String key) {
-      final v = current[key];
-      if (v == null) return true;
-      if (v is String) return v.trim().isEmpty;
-      return false;
-    }
-
-    final patch = <String, dynamic>{
-      if (missingOrEmpty('id')) 'id': user.uid,
-      if (missingOrEmpty('uid')) 'uid': user.uid,
-      if (missingOrEmpty('nombre')) 'nombre': cleanName,
-      if (missingOrEmpty('email')) 'email': cleanEmail,
-      if (missingOrEmpty('telefono')) 'telefono': '',
-      if (!current.containsKey('fechaNacimiento')) 'fechaNacimiento': Timestamp.fromDate(now),
-      if (!current.containsKey('fotoUrl')) 'fotoUrl': null,
-      if (!current.containsKey('tipoTratamiento')) 'tipoTratamiento': null,
-      if (missingOrEmpty('etapaActual')) 'etapaActual': 'valoracionInicial',
-      if (!current.containsKey('fechaInicio')) 'fechaInicio': Timestamp.fromDate(now),
-      if (!current.containsKey('fechaEstimadaFin')) 'fechaEstimadaFin': null,
-      if (!current.containsKey('notasClinicas')) 'notasClinicas': '',
-      if (!current.containsKey('totalTratamiento')) 'totalTratamiento': 0,
-      if (!current.containsKey('saldoPendiente')) 'saldoPendiente': 0,
-      if (!current.containsKey('fechaProximoPago')) 'fechaProximoPago': null,
-      if (!current.containsKey('proximaCita')) 'proximaCita': null,
-      if (!current.containsKey('fcmToken')) 'fcmToken': '',
-      if (!current.containsKey('createdAt')) 'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (patch.isNotEmpty) {
-      await docRef.set(patch, SetOptions(merge: true));
-    }
+    final data = snap.data() ?? const <String, dynamic>{};
+    final isDeleted = data['deletedAt'] != null || data['activo'] == false;
+    return !isDeleted;
   }
 
   Future<void> registerPatientSelf({

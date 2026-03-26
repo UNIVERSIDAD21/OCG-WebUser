@@ -56,13 +56,18 @@ class AuthNotifier extends AsyncNotifier<void> {
         final role = await authService.getUserRole();
         final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
-        // Auto-reparación: si el paciente existe en Auth pero no en Firestore,
-        // recrear perfil base para evitar "Perfil no encontrado".
+        // Regla de seguridad: si el usuario es paciente y su documento
+        // ya no existe (o está inactivo), se bloquea el acceso.
         if (effectiveRole == 'patient') {
-          await authService.ensureCurrentPatientProfileExists(
-            email: credential.user?.email,
-            displayName: credential.user?.displayName,
-          );
+          final exists = await authService.currentPatientProfileExists();
+          if (!exists) {
+            await authService.signOut();
+            throw FirebaseAuthException(
+              code: 'user-disabled',
+              message:
+                  'Tu cuenta de paciente está inactiva o fue eliminada. Contacta a la clínica.',
+            );
+          }
         }
 
         unawaited(() async {

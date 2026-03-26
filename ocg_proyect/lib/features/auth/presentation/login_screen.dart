@@ -53,6 +53,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             e.code == 'invalid-credential' ||
             e.code == 'user-not-found') {
           _error = 'Correo o contraseña incorrectos';
+        } else if (e.code == 'user-disabled') {
+          _error = e.message ??
+              'Tu cuenta de paciente está inactiva o fue eliminada. Contacta a la clínica.';
         } else if (e.code == 'network-request-failed') {
           _error = 'Sin conexión a internet. Verifica tu red.';
         } else {
