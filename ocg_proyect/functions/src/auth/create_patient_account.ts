@@ -30,6 +30,32 @@ export const createPatientAccount = onCall<CreatePatientAccountData>(
       throw new HttpsError('invalid-argument', 'Contraseña mínima de 6 caracteres.');
     }
 
+    const db = admin.firestore();
+
+    const patientByEmail = await db.collection('patients').where('email', '==', email).limit(1).get();
+    if (!patientByEmail.empty) {
+      throw new HttpsError('already-exists', 'Este correo ya está en uso.');
+    }
+
+    const adminByEmail = await db.collection('admins').where('email', '==', email).limit(1).get();
+    if (!adminByEmail.empty) {
+      throw new HttpsError('already-exists', 'Este correo ya está en uso.');
+    }
+
+    // Si el correo quedó huérfano en Auth (sin doc en BD), se limpia para reutilizar.
+    try {
+      const existing = await admin.auth().getUserByEmail(email);
+      const patientDoc = await db.collection('patients').doc(existing.uid).get();
+      const adminDoc = await db.collection('admins').doc(existing.uid).get();
+      if (patientDoc.exists || adminDoc.exists) {
+        throw new HttpsError('already-exists', 'Este correo ya está en uso.');
+      }
+      await admin.auth().deleteUser(existing.uid);
+    } catch (e: any) {
+      if (e instanceof HttpsError) throw e;
+      if (e?.code !== 'auth/user-not-found') throw e;
+    }
+
     let user: admin.auth.UserRecord;
     try {
       user = await admin.auth().createUser({
@@ -39,7 +65,7 @@ export const createPatientAccount = onCall<CreatePatientAccountData>(
       });
     } catch (e: any) {
       if (e?.code === 'auth/email-already-exists') {
-        throw new HttpsError('already-exists', 'Este correo ya tiene una cuenta registrada.');
+        throw new HttpsError('already-exists', 'Este correo ya está en uso.');
       }
       throw e;
     }

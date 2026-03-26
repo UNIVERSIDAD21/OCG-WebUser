@@ -58,6 +58,22 @@ class AuthService {
     return !isDeleted;
   }
 
+  Future<bool> _emailExistsInFirestore(String cleanEmail) async {
+    final patientSnap = await _db
+        .collection(FirestorePaths.patients)
+        .where('email', isEqualTo: cleanEmail)
+        .limit(1)
+        .get();
+    if (patientSnap.docs.isNotEmpty) return true;
+
+    final adminSnap = await _db
+        .collection(FirestorePaths.admins)
+        .where('email', isEqualTo: cleanEmail)
+        .limit(1)
+        .get();
+    return adminSnap.docs.isNotEmpty;
+  }
+
   Future<void> registerPatientSelf({
     required String email,
     required String password,
@@ -65,6 +81,13 @@ class AuthService {
   }) async {
     final cleanEmail = email.trim().toLowerCase();
     final cleanName = displayName?.trim() ?? '';
+
+    if (await _emailExistsInFirestore(cleanEmail)) {
+      throw FirebaseAuthException(
+        code: 'email-already-in-use',
+        message: 'Este correo ya está en uso.',
+      );
+    }
 
     try {
       final callable = _functions.httpsCallable('registerPatientSelf');
@@ -159,6 +182,12 @@ class AuthService {
   }) async {
     final callable = _functions.httpsCallable('createPatientAccount');
     final cleanEmail = email.trim().toLowerCase();
+    if (await _emailExistsInFirestore(cleanEmail)) {
+      throw FirebaseAuthException(
+        code: 'email-already-in-use',
+        message: 'Este correo ya está en uso.',
+      );
+    }
     final cleanName = displayName?.trim() ?? '';
     final cleanTreatment = treatmentType?.trim();
     final cleanTotal = totalTreatment ?? 0;
