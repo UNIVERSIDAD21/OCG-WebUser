@@ -40,7 +40,17 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   @override
   void didUpdateWidget(covariant SimulatorScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialSimulation?.id != oldWidget.initialSimulation?.id && widget.initialSimulation != null) {
+
+    if (widget.patientId != oldWidget.patientId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(simulatorFlowProvider.notifier).resetFlow();
+      });
+      return;
+    }
+
+    if (widget.initialSimulation?.id != oldWidget.initialSimulation?.id &&
+        widget.initialSimulation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(widget.initialSimulation!);

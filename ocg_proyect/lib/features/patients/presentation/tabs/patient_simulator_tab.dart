@@ -24,6 +24,18 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
   SimulationModel? _openedSimulation;
 
   @override
+  void didUpdateWidget(covariant PatientSimulatorTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patient.id != widget.patient.id) {
+      _openedSimulation = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(simulatorFlowProvider.notifier).resetFlow();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
 
