@@ -272,7 +272,7 @@ class _DashboardBody extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: isCompact ? 1.4 : 1.7,
+                childAspectRatio: isCompact ? 1.08 : 1.35,
                 children: [
                   KpiCard(
                     title: 'Citas hoy',
@@ -280,7 +280,7 @@ class _DashboardBody extends StatelessWidget {
                     icon: Icons.today_outlined,
                   ),
                   KpiCard(
-                    title: 'Citas Sin confirmar',
+                    title: 'Citas sin confirmar',
                     value: '$pendingConfirm',
                     icon: Icons.pending_actions_outlined,
                   ),
@@ -290,8 +290,9 @@ class _DashboardBody extends StatelessWidget {
                     icon: Icons.event_busy_outlined,
                   ),
                   KpiCard(
-                    title: 'Pacientes nuevos(30d)',
+                    title: 'Pacientes nuevos (30d)',
                     value: '$nuevosPacientes30d',
+                    footnote: '+$nuevosPacientes30d en ventana',
                     icon: Icons.person_add_alt_1_outlined,
                   ),
                 ],
