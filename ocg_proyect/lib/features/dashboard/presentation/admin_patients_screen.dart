@@ -273,7 +273,8 @@ class AdminPatientsScreen extends ConsumerWidget {
                           submitting = false;
                           final code = e.code.toLowerCase();
                           formError =
-                              code.contains('already') || code.contains('in-use')
+                              code.contains('already') ||
+                                  code.contains('in-use')
                               ? 'Este correo ya está en uso.'
                               : (e.message ??
                                     'No se pudo crear la cuenta. Intenta de nuevo.');
@@ -386,7 +387,9 @@ class AdminPatientsScreen extends ConsumerWidget {
       final citasHoy = filteredPatients.where((p) {
         final cita = p.proximaCita;
         if (cita == null) return false;
-        return cita.year == now.year && cita.month == now.month && cita.day == now.day;
+        return cita.year == now.year &&
+            cita.month == now.month &&
+            cita.day == now.day;
       }).length;
       final saldoPendienteTotal = filteredPatients.fold<double>(
         0,
@@ -543,11 +546,24 @@ class _KpiRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final small = constraints.maxWidth < 980;
+        final width = constraints.maxWidth;
+
+        final crossAxisCount = width < 760
+            ? 1
+            : width < 1180
+            ? 2
+            : 4;
+
+        final childAspectRatio = width < 760
+            ? 3.6
+            : width < 1180
+            ? 2.35
+            : 2.15;
+
         return GridView.count(
-          crossAxisCount: small ? 2 : 4,
+          crossAxisCount: crossAxisCount,
           shrinkWrap: true,
-          childAspectRatio: small ? 2.5 : 2.9,
+          childAspectRatio: childAspectRatio,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
@@ -572,7 +588,7 @@ class _KpiRow extends StatelessWidget {
             ),
             _KpiCard(
               icon: Icons.attach_money,
-              value: '\$${formatCop(saldoPendienteTotal)}',
+              value: '\$${formatCop(saldoPendienteTotal)}',
               label: 'Saldo pendiente',
             ),
           ],
@@ -601,61 +617,94 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: OcgColors.sand, width: .7),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: OcgColors.bronze.withOpacity(.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, size: 16, color: OcgColors.bronze),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 220;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: OcgColors.ivory,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: OcgColors.sand, width: .7),
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w600,
-              color: OcgColors.espresso,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: OcgColors.ink.withOpacity(.58),
-            ),
-          ),
-          if (footer != null) ...[
-            const SizedBox(height: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: footerBg,
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Text(
-                footer!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: footerColor,
-                  fontWeight: FontWeight.w500,
+          padding: EdgeInsets.all(compact ? 10 : 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: compact ? 26 : 28,
+                height: compact ? 26 : 28,
+                decoration: BoxDecoration(
+                  color: OcgColors.bronze.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  icon,
+                  size: compact ? 15 : 16,
+                  color: OcgColors.bronze,
                 ),
               ),
-            ),
-          ],
-        ],
-      ),
+              SizedBox(height: compact ? 6 : 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: compact ? 18 : 21,
+                          fontWeight: FontWeight.w600,
+                          color: OcgColors.espresso,
+                          height: 1.05,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 10 : 11,
+                        color: OcgColors.ink.withOpacity(.58),
+                        height: 1.15,
+                      ),
+                    ),
+                    if (footer != null && footer!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: footerBg,
+                          borderRadius: BorderRadius.circular(40),
+                        ),
+                        child: Text(
+                          footer!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compact ? 9 : 10,
+                            color: footerColor,
+                            fontWeight: FontWeight.w500,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -747,7 +796,9 @@ class _DesktopPatientRow extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                      OcgChip(
+                        label: patient.tipoTratamiento?.name ?? 'Pendiente',
+                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 7,
@@ -776,14 +827,16 @@ class _DesktopPatientRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$${formatCop(patient.saldoPendiente)}',
+                  '\$${formatCop(patient.saldoPendiente)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: OcgColors.espresso,
                   ),
                 ),
                 Text(
-                  patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!),
+                  patient.proximaCita == null
+                      ? 'Sin cita'
+                      : _fmtDate(patient.proximaCita!),
                   style: TextStyle(
                     fontSize: 11,
                     color: OcgColors.ink.withOpacity(.5),

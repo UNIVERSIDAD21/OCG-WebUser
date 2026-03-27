@@ -14,7 +14,9 @@ class FaceDetectionResult {
 }
 
 class FaceDetectionService {
-  Future<FaceDetectionResult> detectSmileRegion({required String imagePath}) async {
+  Future<FaceDetectionResult> detectSmileRegion({
+    required String imagePath,
+  }) async {
     if (kIsWeb) {
       return const FaceDetectionResult(
         hasFace: false,
@@ -35,11 +37,18 @@ class FaceDetectionService {
       final inputImage = InputImage.fromFilePath(imagePath);
       final faces = await detector.processImage(inputImage);
       if (faces.isEmpty) {
-        return const FaceDetectionResult(hasFace: false, detectedRegion: null, source: 'no_face');
+        return const FaceDetectionResult(
+          hasFace: false,
+          detectedRegion: null,
+          source: 'no_face',
+        );
       }
 
-      faces.sort((a, b) => (b.boundingBox.width * b.boundingBox.height)
-          .compareTo(a.boundingBox.width * a.boundingBox.height));
+      faces.sort(
+        (a, b) => (b.boundingBox.width * b.boundingBox.height).compareTo(
+          a.boundingBox.width * a.boundingBox.height,
+        ),
+      );
       final face = faces.first;
       final box = face.boundingBox;
 
@@ -59,7 +68,11 @@ class FaceDetectionService {
         source: 'mlkit_face_detector',
       );
     } catch (_) {
-      return const FaceDetectionResult(hasFace: false, detectedRegion: null, source: 'mlkit_error');
+      return const FaceDetectionResult(
+        hasFace: false,
+        detectedRegion: null,
+        source: 'mlkit_error',
+      );
     } finally {
       await detector.close();
     }
