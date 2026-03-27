@@ -91,14 +91,18 @@ class AuthNotifier extends AsyncNotifier<void> {
     String? displayName,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authService = ref.read(authServiceProvider);
       await authService.registerPatientSelf(
         email: email,
         password: password,
         displayName: displayName,
       );
-    });
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> createPatientByAdmin({
@@ -109,7 +113,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     double? totalTreatment,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authService = ref.read(authServiceProvider);
       await authService.createPatientByAdmin(
         email: email,
@@ -118,14 +122,22 @@ class AuthNotifier extends AsyncNotifier<void> {
         treatmentType: treatmentType,
         totalTreatment: totalTreatment,
       );
-    });
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> resetPassword(String email) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       await ref.read(authServiceProvider).resetPassword(email);
-    });
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
