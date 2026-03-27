@@ -15,9 +15,7 @@ import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/filter_bar.dart';
-import '../../admin/presentation/web/components/data_table_card.dart';
 import '../../admin/presentation/web/components/page_header.dart';
-import '../../admin/presentation/web/components/status_badge.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../../shared/widgets/ocg_card.dart';
@@ -380,91 +378,32 @@ class AdminPatientsScreen extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
-      final desktopRows = filteredPatients.map((patient) {
-        final stage = formatTreatmentStage(patient.etapaActual);
-        final stageLower = stage.toLowerCase();
-        final stageBg =
-            stageLower.contains('final') || stageLower.contains('reten')
-            ? const Color(0xFFE7F6EC)
-            : stageLower.contains('valor')
-            ? const Color(0xFFFFF3E5)
-            : OcgColors.sand;
-        final stageFg =
-            stageLower.contains('final') || stageLower.contains('reten')
-            ? const Color(0xFF1B5E20)
-            : stageLower.contains('valor')
-            ? const Color(0xFF8A4B00)
-            : OcgColors.espresso;
-
-        return DataRow(
-          cells: [
-            DataCell(
-              InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => context.go(
-                  RouteNames.adminPatientDetail.replaceFirst(
-                    ':patientId',
-                    patient.id,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                        child: Text(
-                          _initialsFromName(patient.nombre),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: OcgColors.espresso,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          patient.nombre,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            decoration: TextDecoration.underline,
-                            fontWeight: FontWeight.w600,
-                            color: OcgColors.espresso,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            DataCell(Text(patient.tipoTratamiento?.name ?? 'Pendiente')),
-            DataCell(
-              StatusBadge(
-                label: stage,
-                background: stageBg,
-                foreground: stageFg,
-              ),
-            ),
-            DataCell(
-              Text(
-                patient.proximaCita == null
-                    ? 'Sin cita'
-                    : _fmtDate(patient.proximaCita!),
-              ),
-            ),
-            DataCell(Text('\$${formatCop(patient.saldoPendiente)}')),
-          ],
-        );
-      }).toList();
+      final now = DateTime.now();
+      final totalPacientes = filteredPatients.length;
+      final pacientesActivos = filteredPatients
+          .where((p) => p.etapaActual != TreatmentStage.alta)
+          .length;
+      final citasHoy = filteredPatients.where((p) {
+        final cita = p.proximaCita;
+        if (cita == null) return false;
+        return cita.year == now.year && cita.month == now.month && cita.day == now.day;
+      }).length;
+      final saldoPendienteTotal = filteredPatients.fold<double>(
+        0,
+        (acc, p) => acc + p.saldoPendiente,
+      );
+      final nuevosMes = filteredPatients.where((p) {
+        final created = p.createdAt;
+        if (created == null) return false;
+        return created.year == now.year && created.month == now.month;
+      }).length;
 
       final desktopContent = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PageHeader(
             title: 'Pacientes',
-            subtitle: 'Gestión clínica y financiera de pacientes',
+            subtitle: 'Gestión clínica y financiera',
             trailing: ActionToolbar(
               actions: [
                 FilledButton.icon(
@@ -475,25 +414,60 @@ class AdminPatientsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+          _KpiRow(
+            totalPacientes: totalPacientes,
+            pacientesActivos: pacientesActivos,
+            citasHoy: citasHoy,
+            saldoPendienteTotal: saldoPendienteTotal,
+            nuevosMes: nuevosMes,
+          ),
           const SizedBox(height: 12),
           FilterBar(
-            hintText: 'Buscar por nombre o correo…',
+            hintText: 'Buscar en pacientes…',
             onSearch: (value) =>
                 ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _filters.map((filter) {
+              final selected = filter == selectedFilter;
+              return ChoiceChip(
+                label: Text(filter),
+                selected: selected,
+                onSelected: (_) =>
+                    ref.read(patientsFilterProvider.notifier).setFilter(filter),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
           SectionPanel(
             title: 'Listado de pacientes',
-            child: DataTableCard(
-              columns: const [
-                DataColumn(label: Text('Paciente')),
-                DataColumn(label: Text('Tratamiento')),
-                DataColumn(label: Text('Etapa')),
-                DataColumn(label: Text('Próxima cita')),
-                DataColumn(label: Text('Saldo')),
-              ],
-              rows: desktopRows,
-            ),
+            child: filteredPatients.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Text('No hay pacientes para los filtros actuales.'),
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < filteredPatients.length; i++) ...[
+                        _DesktopPatientRow(
+                          patient: filteredPatients[i],
+                          selected: i == 0,
+                          onTap: () => context.go(
+                            RouteNames.adminPatientDetail.replaceFirst(
+                              ':patientId',
+                              filteredPatients[i].id,
+                            ),
+                          ),
+                        ),
+                        if (i != filteredPatients.length - 1)
+                          const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
           ),
         ],
       );
@@ -548,6 +522,282 @@ String _initialsFromName(String name) {
   if (parts.isEmpty) return '?';
   if (parts.length == 1) return parts[0][0].toUpperCase();
   return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+}
+
+class _KpiRow extends StatelessWidget {
+  const _KpiRow({
+    required this.totalPacientes,
+    required this.pacientesActivos,
+    required this.citasHoy,
+    required this.saldoPendienteTotal,
+    required this.nuevosMes,
+  });
+
+  final int totalPacientes;
+  final int pacientesActivos;
+  final int citasHoy;
+  final double saldoPendienteTotal;
+  final int nuevosMes;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final small = constraints.maxWidth < 980;
+        return GridView.count(
+          crossAxisCount: small ? 2 : 4,
+          shrinkWrap: true,
+          childAspectRatio: small ? 2.5 : 2.9,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          children: [
+            _KpiCard(
+              icon: Icons.people_outline,
+              value: '$totalPacientes',
+              label: 'Total pacientes',
+              footer: '+$nuevosMes este mes',
+              footerColor: const Color(0xFF2E7D32),
+              footerBg: const Color(0xFFE8F5E9),
+            ),
+            _KpiCard(
+              icon: Icons.timelapse_outlined,
+              value: '$pacientesActivos',
+              label: 'Activos',
+            ),
+            _KpiCard(
+              icon: Icons.calendar_month_outlined,
+              value: '$citasHoy',
+              label: 'Citas hoy',
+            ),
+            _KpiCard(
+              icon: Icons.attach_money,
+              value: '\$${formatCop(saldoPendienteTotal)}',
+              label: 'Saldo pendiente',
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  const _KpiCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.footer,
+    this.footerColor,
+    this.footerBg,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final String? footer;
+  final Color? footerColor;
+  final Color? footerBg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: OcgColors.sand, width: .7),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: OcgColors.bronze.withOpacity(.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 16, color: OcgColors.bronze),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w600,
+              color: OcgColors.espresso,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: OcgColors.ink.withOpacity(.58),
+            ),
+          ),
+          if (footer != null) ...[
+            const SizedBox(height: 3),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: footerBg,
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: Text(
+                footer!,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: footerColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopPatientRow extends StatelessWidget {
+  const _DesktopPatientRow({
+    required this.patient,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final PatientModel patient;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = formatTreatmentStage(patient.etapaActual);
+    final stageLower = stage.toLowerCase();
+    final stageBg = stageLower.contains('valor')
+        ? const Color(0xFFFFF3E0)
+        : stageLower.contains('alta') || stageLower.contains('reten')
+        ? const Color(0xFFE8F5E9)
+        : OcgColors.mist;
+    final stageFg = stageLower.contains('valor')
+        ? const Color(0xFFE65100)
+        : stageLower.contains('alta') || stageLower.contains('reten')
+        ? const Color(0xFF2E7D32)
+        : OcgColors.ink;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: OcgColors.ivory,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? OcgColors.bronze : OcgColors.sand,
+            width: selected ? 1.3 : .7,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: OcgColors.bronze.withOpacity(.15),
+                    blurRadius: 2,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: OcgColors.bronze.withOpacity(0.16),
+              child: Text(
+                _initialsFromName(patient.nombre),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: OcgColors.espresso,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.nombre,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                  Text(
+                    patient.email,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: OcgColors.ink.withOpacity(.55),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: stageBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          stage,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: stageFg,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${formatCop(patient.saldoPendiente)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                Text(
+                  patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: OcgColors.ink.withOpacity(.5),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, color: OcgColors.bronze, size: 17),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PatientCard extends StatelessWidget {
