@@ -82,13 +82,6 @@ class AuthService {
     final cleanEmail = email.trim().toLowerCase();
     final cleanName = displayName?.trim() ?? '';
 
-    if (await _emailExistsInFirestore(cleanEmail)) {
-      throw FirebaseAuthException(
-        code: 'email-already-in-use',
-        message: 'Este correo ya está en uso.',
-      );
-    }
-
     try {
       final callable = _functions.httpsCallable('registerPatientSelf');
       await callable.call({
@@ -104,8 +97,17 @@ class AuthService {
           message: 'Este correo ya está en uso.',
         );
       }
-      // Si la función aún no está desplegada, usar fallback legacy.
-      if (e.code != 'not-found' && e.code != 'unimplemented') {
+      // Si la función no está disponible o falla por entorno, usar fallback legacy.
+      const fallbackCodes = {
+        'not-found',
+        'unimplemented',
+        'unauthenticated',
+        'permission-denied',
+        'internal',
+        'unavailable',
+        'deadline-exceeded',
+      };
+      if (!fallbackCodes.contains(e.code)) {
         rethrow;
       }
     }

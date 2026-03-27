@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -268,6 +269,16 @@ class AdminPatientsScreen extends ConsumerWidget {
                           formError = e.code == 'already-exists'
                               ? 'Este correo ya está en uso.'
                               : (e.message ?? 'No se pudo crear la cuenta.');
+                        });
+                      } on FirebaseException catch (e) {
+                        setDs(() {
+                          submitting = false;
+                          final code = e.code.toLowerCase();
+                          formError =
+                              code.contains('already') || code.contains('in-use')
+                              ? 'Este correo ya está en uso.'
+                              : (e.message ??
+                                    'No se pudo crear la cuenta. Intenta de nuevo.');
                         });
                       } catch (_) {
                         setDs(() {
