@@ -133,14 +133,12 @@ class _InicioSection extends ConsumerWidget {
         final pagado = (total > 0) ? (total - saldo).clamp(0, total) : 0.0;
         final pagoPercent = (total > 0) ? ((pagado / total) * 100).round().clamp(0, 100) : null;
 
-        final nextAppointment = appointmentsAsync.asData?.value
-            ?.where((a) => a.fechaHora.isAfter(DateTime.now()))
+        final nextAppointment = (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
+            .where((a) => a.fechaHora.isAfter(DateTime.now()))
             .toList()
           ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
-        final cita = (nextAppointment != null && nextAppointment.isNotEmpty)
-            ? nextAppointment.first
-            : null;
+        final cita = nextAppointment.isNotEmpty ? nextAppointment.first : null;
 
         final historial = historyAsync.asData?.value ?? const [];
         final historialFechas = <TreatmentStage, DateTime>{};
@@ -305,7 +303,7 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.title);
   final String title;
 
-  final static _style = TextStyle(
+  static final _style = TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w600,
     color: Color(0xFF8A6F59),
