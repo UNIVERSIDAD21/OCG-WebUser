@@ -15,8 +15,6 @@ import '../../payments/presentation/patient_payments_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
 import 'patient_appointments_screen.dart';
 import '../../treatment/presentation/widgets/stage_history_list.dart';
-import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
-import '../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../treatment/providers/treatment_provider.dart';
 import 'widgets/patient_bottom_nav.dart';
 
@@ -729,6 +727,7 @@ class _TratamientoSection extends ConsumerWidget {
 
     final patientAsync = ref.watch(patientByIdProvider(userId));
     final historyAsync = ref.watch(stageHistoryProvider(userId));
+    final appointmentsAsync = ref.watch(patientAppointmentsProvider(userId));
 
     return patientAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -744,73 +743,513 @@ class _TratamientoSection extends ConsumerWidget {
             subtitle: 'Contacta a la clínica para información.',
           );
         }
+
         return historyAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, __) => const OcgEmptyState(
             icon: Icons.error_outline,
             title: 'No se pudo cargar el historial',
           ),
-          data: (historial) => SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [OcgColors.espresso, OcgColors.bronze],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+          data: (historial) {
+            final stageIndex = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
+            final phase = _phaseForStage(patient.etapaActual);
+            final progress = ((phase / 5) * 100).round().clamp(0, 100);
+
+            final citasRealizadas = appointmentsAsync.asData?.value
+                ?.where((a) => a.estado == AppointmentStatus.completada)
+                .length;
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [OcgColors.espresso, OcgColors.bronze],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Mi tratamiento',
+                          style: TextStyle(
+                            color: OcgColors.ivory,
+                            fontSize: 27,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          patient.tipoTratamiento == null
+                              ? 'Seguimiento clínico de ortodoncia'
+                              : 'Tratamiento ${patient.tipoTratamiento!.name}',
+                          style: TextStyle(
+                            color: OcgColors.ivory.withOpacity(0.78),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _TreatmentSummaryTopCard(
+                          progress: progress,
+                          fechaInicio: patient.fechaInicio,
+                          fechaEstimadaFin: patient.fechaEstimadaFin,
+                          citasRealizadas: citasRealizadas,
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Mi tratamiento',
-                        style: TextStyle(
-                          color: OcgColors.ivory,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _PhaseBar(phase: phase),
+                        const SizedBox(height: 14),
+                        _CurrentStageCard(
+                          stageName: stageNames[patient.etapaActual] ?? patient.etapaActual.name,
+                          description: stageDescriptions[patient.etapaActual] ?? 'Avance clínico en curso.',
+                          progress: progress,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Progreso, etapas e historial clínico',
-                        style: TextStyle(
-                          color: OcgColors.ivory.withOpacity(0.75),
-                          fontSize: 13,
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Etapas del tratamiento',
+                          style: TextStyle(
+                            color: Color(0xFF1A1410),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        ...TreatmentStage.values.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final stage = entry.value;
+                          final completed = idx < stageIndex;
+                          final current = idx == stageIndex;
+                          final pending = idx > stageIndex;
+
+                          final historyMatch = historial
+                              .where((h) => h.etapaNueva == stage)
+                              .toList();
+
+                          final stageDate = historyMatch.isNotEmpty
+                              ? (historyMatch.first.fechaEfectiva ?? historyMatch.first.fechaCambio)
+                              : (idx == 0 ? patient.fechaInicio : null);
+
+                          return _StageTimelineTile(
+                            stageIndex: idx + 1,
+                            stageName: stageNames[stage] ?? stage.name,
+                            description: stageDescriptions[stage] ?? 'Sin descripción clínica disponible.',
+                            completed: completed,
+                            current: current,
+                            pending: pending,
+                            date: stageDate,
+                            notes: historyMatch.firstOrNull?.notas,
+                          );
+                        }),
+                        const SizedBox(height: 8),
+                        if (historial.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text('Historial clínico', style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 8),
+                          StageHistoryList(historial: historial, isAdmin: false),
+                        ],
+                      ],
+                    ),
                   ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  int _phaseForStage(TreatmentStage stage) {
+    switch (stage) {
+      case TreatmentStage.valoracionInicial:
+      case TreatmentStage.estudioPlaneacion:
+        return 1;
+      case TreatmentStage.instalacion:
+        return 2;
+      case TreatmentStage.controles:
+        return 3;
+      case TreatmentStage.retencion:
+        return 4;
+      case TreatmentStage.alta:
+        return 5;
+    }
+  }
+}
+
+class _TreatmentSummaryTopCard extends StatelessWidget {
+  const _TreatmentSummaryTopCard({
+    required this.progress,
+    required this.fechaInicio,
+    required this.fechaEstimadaFin,
+    required this.citasRealizadas,
+  });
+
+  final int progress;
+  final DateTime fechaInicio;
+  final DateTime? fechaEstimadaFin;
+  final int? citasRealizadas;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 94,
+            height: 94,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: progress / 100,
+                  strokeWidth: 8,
+                  backgroundColor: const Color(0x55ECD9C6),
+                  valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TreatmentProgressBar(etapaActual: patient.etapaActual),
-                      const SizedBox(height: 24),
-                      TreatmentTimeline(
-                        etapaActual: patient.etapaActual,
-                        historial: historial,
-                        isAdmin: false,
-                        onAdvanceStage: null,
-                      ),
-                      const SizedBox(height: 20),
-                      Text('Historial', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 10),
-                      StageHistoryList(historial: historial, isAdmin: false),
-                    ],
+                Text(
+                  '$progress%',
+                  style: const TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SummaryTile(title: 'Inicio', value: _fmtDate(fechaInicio)),
+                _SummaryTile(
+                  title: 'Estimado fin',
+                  value: fechaEstimadaFin == null ? 'Sin fecha' : _fmtDate(fechaEstimadaFin!),
+                ),
+                _SummaryTile(
+                  title: 'Citas realizadas',
+                  value: citasRealizadas == null ? '--' : '$citasRealizadas',
+                ),
+                const _SummaryTile(
+                  title: 'Doctor principal',
+                  value: 'Sin registro',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 112,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: OcgColors.ivory.withOpacity(0.78),
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.ivory,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhaseBar extends StatelessWidget {
+  const _PhaseBar({required this.phase});
+  final int phase;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(5, (i) {
+        final current = i + 1 == phase;
+        final done = i + 1 < phase;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: i == 4 ? 0 : 6),
+            height: 10,
+            decoration: BoxDecoration(
+              color: done
+                  ? OcgColors.espresso
+                  : (current ? const Color(0xFF8A6F59) : const Color(0xFFEADBCB)),
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
         );
-      },
+      }),
+    );
+  }
+}
+
+class _CurrentStageCard extends StatelessWidget {
+  const _CurrentStageCard({
+    required this.stageName,
+    required this.description,
+    required this.progress,
+  });
+
+  final String stageName;
+  final String description;
+  final int progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF8F3),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 18, color: OcgColors.bronze),
+              const SizedBox(width: 6),
+              const Text(
+                '¡Vas muy bien!',
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$progress%',
+                style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            stageName,
+            style: const TextStyle(
+              color: Color(0xFF1A1410),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Color(0xFF6E5644),
+              height: 1.45,
+              fontSize: 12.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StageTimelineTile extends StatelessWidget {
+  const _StageTimelineTile({
+    required this.stageIndex,
+    required this.stageName,
+    required this.description,
+    required this.completed,
+    required this.current,
+    required this.pending,
+    required this.date,
+    required this.notes,
+  });
+
+  final int stageIndex;
+  final String stageName;
+  final String description;
+  final bool completed;
+  final bool current;
+  final bool pending;
+  final DateTime? date;
+  final String? notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final badgeText = completed ? 'Completada' : (current ? 'Actual' : 'Pendiente');
+    final badgeColor = completed
+        ? const Color(0xFF166534)
+        : (current ? OcgColors.espresso : const Color(0xFF8A6F59));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: completed
+                      ? const Color(0xFF166534)
+                      : (current ? OcgColors.espresso : const Color(0xFFEADBCB)),
+                ),
+              ),
+              Container(
+                width: 2,
+                height: 78,
+                color: const Color(0xFFE5D5C6),
+              ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: current ? const Color(0xFFFFF8F2) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: current ? const Color(0xFFE0C9B3) : const Color(0xFFECD9C6),
+                  width: current ? 1.4 : 1,
+                ),
+              ),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                initiallyExpanded: current,
+                collapsedIconColor: const Color(0xFF8A6F59),
+                iconColor: OcgColors.espresso,
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Fase $stageIndex',
+                          style: const TextStyle(
+                            color: Color(0xFF8A6F59),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              color: badgeColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      stageName,
+                      style: TextStyle(
+                        color: const Color(0xFF1A1410),
+                        fontSize: 14,
+                        fontWeight: current ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: date == null
+                    ? const Text('Sin fecha registrada', style: TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)))
+                    : Text(
+                        '${date!.day.toString().padLeft(2, '0')}/${date!.month.toString().padLeft(2, '0')}/${date!.year}',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)),
+                      ),
+                children: [
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Color(0xFF6E5644),
+                      fontSize: 12.5,
+                      height: 1.45,
+                    ),
+                  ),
+                  if (notes != null && notes!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2EDE8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        notes!.trim(),
+                        style: const TextStyle(
+                          color: Color(0xFF6E5644),
+                          fontSize: 11.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
