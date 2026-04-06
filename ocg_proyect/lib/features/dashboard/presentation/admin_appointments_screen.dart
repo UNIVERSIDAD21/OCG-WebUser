@@ -2796,6 +2796,20 @@ class _AdminAppointmentsScreenState
           onPressed: _handleSignOut,
         ),
       ],
+      railTrailing: OutlinedButton.icon(
+        onPressed: _handleSignOut,
+        icon: const Icon(Icons.logout, size: 18),
+        label: const Text('Cerrar sesión'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFFFD9D9),
+          backgroundColor: OcgColors.error.withOpacity(0.14),
+          side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
       body: Column(
         children: [
           _buildInnerTabs(),

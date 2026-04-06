@@ -22,7 +22,8 @@ class OcgAdaptiveScaffold extends StatelessWidget {
   final Widget body;
 
   /// Índice del destino activo en el NavigationRail.
-  /// 0 = Dashboard, 1 = Pacientes, 2 = Agenda
+  /// 0 = Dashboard, 1 = Pacientes, 2 = Agenda,
+  /// 3 = Tratamientos, 4 = Pagos, 5 = Simulador
   final int selectedIndex;
 
   /// Título que aparece en el AppBar (pantallas pequeñas).
@@ -55,12 +56,30 @@ class OcgAdaptiveScaffold extends StatelessWidget {
       selectedIcon: Icon(Icons.calendar_month),
       label: Text('Agenda'),
     ),
+    NavigationRailDestination(
+      icon: Icon(Icons.monitor_heart_outlined),
+      selectedIcon: Icon(Icons.monitor_heart),
+      label: Text('Tratamientos'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.payments_outlined),
+      selectedIcon: Icon(Icons.payments),
+      label: Text('Pagos'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.auto_awesome_outlined),
+      selectedIcon: Icon(Icons.auto_awesome),
+      label: Text('Simulador'),
+    ),
   ];
 
   static const _routes = [
     RouteNames.adminDashboard,
     RouteNames.adminPatients,
     RouteNames.adminAppointments,
+    RouteNames.adminTreatments,
+    RouteNames.adminPayments,
+    RouteNames.adminSimulator,
   ];
 
   void _onDestinationSelected(BuildContext context, int index) {

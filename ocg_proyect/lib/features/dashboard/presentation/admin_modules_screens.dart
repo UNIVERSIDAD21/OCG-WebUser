@@ -8,10 +8,33 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../admin/presentation/web/components/page_header.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+
+Future<void> _signOutAdminModules(BuildContext context, WidgetRef ref) async {
+  await ref.read(authServiceProvider).signOut();
+  if (context.mounted) context.go(RouteNames.login);
+}
+
+OutlinedButton _buildRailSignOutButton(BuildContext context, WidgetRef ref) {
+  return OutlinedButton.icon(
+    onPressed: () => _signOutAdminModules(context, ref),
+    icon: const Icon(Icons.logout, size: 18),
+    label: const Text('Cerrar sesión'),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: const Color(0xFFFFD9D9),
+      backgroundColor: OcgColors.error.withOpacity(0.14),
+      side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  );
+}
 
 class AdminTreatmentsScreen extends ConsumerWidget {
   const AdminTreatmentsScreen({super.key});
@@ -93,7 +116,19 @@ class AdminTreatmentsScreen extends ConsumerWidget {
       return AdminWebShell(title: 'Tratamientos', child: body);
     }
 
-    return OcgAdaptiveScaffold(selectedIndex: 0, title: 'Tratamientos', body: body);
+    return OcgAdaptiveScaffold(
+      selectedIndex: 3,
+      title: 'Tratamientos',
+      appBarActions: [
+        IconButton(
+          tooltip: 'Cerrar sesión',
+          onPressed: () => _signOutAdminModules(context, ref),
+          icon: const Icon(Icons.logout, color: OcgColors.error),
+        ),
+      ],
+      railTrailing: _buildRailSignOutButton(context, ref),
+      body: body,
+    );
   }
 }
 
@@ -179,7 +214,19 @@ class AdminPaymentsScreen extends ConsumerWidget {
       return AdminWebShell(title: 'Pagos', child: body);
     }
 
-    return OcgAdaptiveScaffold(selectedIndex: 0, title: 'Pagos', body: body);
+    return OcgAdaptiveScaffold(
+      selectedIndex: 4,
+      title: 'Pagos',
+      appBarActions: [
+        IconButton(
+          tooltip: 'Cerrar sesión',
+          onPressed: () => _signOutAdminModules(context, ref),
+          icon: const Icon(Icons.logout, color: OcgColors.error),
+        ),
+      ],
+      railTrailing: _buildRailSignOutButton(context, ref),
+      body: body,
+    );
   }
 }
 
@@ -256,7 +303,19 @@ class AdminSimulatorScreen extends ConsumerWidget {
       return AdminWebShell(title: 'Simulador', child: body);
     }
 
-    return OcgAdaptiveScaffold(selectedIndex: 0, title: 'Simulador', body: body);
+    return OcgAdaptiveScaffold(
+      selectedIndex: 5,
+      title: 'Simulador',
+      appBarActions: [
+        IconButton(
+          tooltip: 'Cerrar sesión',
+          onPressed: () => _signOutAdminModules(context, ref),
+          icon: const Icon(Icons.logout, color: OcgColors.error),
+        ),
+      ],
+      railTrailing: _buildRailSignOutButton(context, ref),
+      body: body,
+    );
   }
 }
 
