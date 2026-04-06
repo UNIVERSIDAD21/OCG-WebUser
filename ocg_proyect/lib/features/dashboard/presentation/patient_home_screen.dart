@@ -42,11 +42,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F5F0),
-        elevation: 0,
-        title: const Text('OCG Clínica'),
-      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: sections,
