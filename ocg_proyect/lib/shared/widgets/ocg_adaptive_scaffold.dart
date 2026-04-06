@@ -17,6 +17,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     this.appBarActions,
     this.floatingActionButton,
     this.railTrailing,
+    this.onSignOut,
   });
 
   final Widget body;
@@ -38,7 +39,10 @@ class OcgAdaptiveScaffold extends StatelessWidget {
   /// Widget opcional al final del NavigationRail (pantallas anchas).
   final Widget? railTrailing;
 
-  // ─── Destinos del NavigationRail ──────────────────────────────────────────
+  /// Acción de cerrar sesión usada por el Drawer móvil admin.
+  final VoidCallback? onSignOut;
+
+  // ─── Destinos admin (fuente única de verdad para rail + drawer) ─────────
 
   static const _destinations = [
     NavigationRailDestination(
@@ -86,6 +90,96 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     if (index < _routes.length) {
       context.go(_routes[index]);
     }
+  }
+
+  Widget _buildAdminDrawer(BuildContext context) {
+    return Drawer(
+      child: Container(
+        color: OcgColors.espresso,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'OCG',
+                      style: TextStyle(
+                        color: OcgColors.bronze,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Panel Clínico',
+                      style: TextStyle(color: OcgColors.ivory),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Color(0x33FFFFFF), height: 1),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _destinations.length,
+                  itemBuilder: (context, index) {
+                    final item = _destinations[index];
+                    final active = selectedIndex == index;
+                    return ListTile(
+                      selected: active,
+                      selectedTileColor: OcgColors.bronze.withOpacity(0.18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      leading: Icon(
+                        active
+                            ? (item.selectedIcon as Icon).icon
+                            : (item.icon as Icon).icon,
+                        color: active ? OcgColors.bronze : OcgColors.ivory,
+                      ),
+                      title: DefaultTextStyle(
+                        style: TextStyle(
+                          color: active ? OcgColors.bronze : OcgColors.ivory,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                        child: item.label,
+                      ),
+                      onTap: () {
+                        Navigator.of(context).maybePop();
+                        _onDestinationSelected(context, index);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const Divider(color: Color(0x33FFFFFF), height: 1),
+              ListTile(
+                enabled: onSignOut != null,
+                leading: const Icon(Icons.logout, color: Color(0xFFFFD9D9)),
+                title: const Text(
+                  'Cerrar sesión',
+                  style: TextStyle(
+                    color: Color(0xFFFFD9D9),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onTap: onSignOut == null
+                    ? null
+                    : () {
+                        Navigator.of(context).maybePop();
+                        onSignOut!();
+                      },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── Build ───────────────────────────────────────────────────────────────
@@ -166,6 +260,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
 
     // ── Layout compacto (≤ 800px) ──────────────────────────────────────────
     return Scaffold(
+      drawer: _buildAdminDrawer(context),
       appBar: AppBar(
         title: title != null ? Text(title!) : null,
         actions: appBarActions,

@@ -15,6 +15,7 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
 import 'tabs/patient_payments_tab.dart';
@@ -62,6 +63,11 @@ class _PatientDetailView extends ConsumerWidget {
 
   final PatientModel patient;
 
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    await ref.read(authServiceProvider).signOut();
+    if (context.mounted) context.go(RouteNames.login);
+  }
+
   Future<void> _deletePatient(BuildContext context, WidgetRef ref) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -108,6 +114,21 @@ class _PatientDetailView extends ConsumerWidget {
       length: 5,
       child: OcgAdaptiveScaffold(
         selectedIndex: 1,
+        onSignOut: () => _signOut(context, ref),
+        railTrailing: OutlinedButton.icon(
+          onPressed: () => _signOut(context, ref),
+          icon: const Icon(Icons.logout, size: 18),
+          label: const Text('Cerrar sesión'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFFFD9D9),
+            backgroundColor: OcgColors.error.withOpacity(0.14),
+            side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
         body: Column(
           children: [
             Material(

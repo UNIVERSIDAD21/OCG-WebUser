@@ -2796,6 +2796,7 @@ class _AdminAppointmentsScreenState
           onPressed: _handleSignOut,
         ),
       ],
+      onSignOut: _handleSignOut,
       railTrailing: OutlinedButton.icon(
         onPressed: _handleSignOut,
         icon: const Icon(Icons.logout, size: 18),

@@ -119,6 +119,7 @@ class AdminTreatmentsScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 3,
       title: 'Tratamientos',
+      onSignOut: () => _signOutAdminModules(context, ref),
       appBarActions: [
         IconButton(
           tooltip: 'Cerrar sesión',
@@ -217,6 +218,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 4,
       title: 'Pagos',
+      onSignOut: () => _signOutAdminModules(context, ref),
       appBarActions: [
         IconButton(
           tooltip: 'Cerrar sesión',
@@ -306,6 +308,7 @@ class AdminSimulatorScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 5,
       title: 'Simulador',
+      onSignOut: () => _signOutAdminModules(context, ref),
       appBarActions: [
         IconButton(
           tooltip: 'Cerrar sesión',

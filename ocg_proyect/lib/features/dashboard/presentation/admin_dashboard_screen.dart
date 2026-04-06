@@ -154,6 +154,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           icon: const Icon(Icons.logout, color: OcgColors.error),
         ),
       ],
+      onSignOut: () => _handleSignOut(context, ref),
       railTrailing: OutlinedButton.icon(
         onPressed: loading ? null : () => _handleSignOut(context, ref),
         icon: const Icon(Icons.logout, size: 18),
