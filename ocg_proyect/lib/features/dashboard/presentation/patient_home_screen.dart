@@ -43,9 +43,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: sections,
+      body: SafeArea(
+        top: true,
+        left: false,
+        right: false,
+        bottom: false,
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: sections,
+        ),
       ),
       bottomNavigationBar: PatientBottomNav(
         selectedIndex: _selectedIndex,
@@ -199,7 +205,7 @@ class _InicioSection extends ConsumerWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Hola, ${_firstName(nombre)} 👋',
+                                'Hola, ${_firstTwoNames(nombre)} 👋',
                                 style: const TextStyle(
                                   color: OcgColors.ivory,
                                   fontSize: 27,
@@ -218,21 +224,7 @@ class _InicioSection extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Column(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: OcgColors.ivory.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.notifications_none, color: OcgColors.ivory, size: 18),
-                            ),
-                            const SizedBox(height: 10),
-                            _PatientAvatar(name: nombre, photoUrl: patient.fotoUrl),
-                          ],
-                        ),
+                        _PatientAvatar(name: nombre, photoUrl: patient.fotoUrl),
                       ],
                     ),
                     const SizedBox(height: 18),
@@ -292,7 +284,16 @@ class _InicioSection extends ConsumerWidget {
     );
   }
 
-  String _firstName(String fullName) => fullName.split(' ').where((e) => e.trim().isNotEmpty).firstOrNull ?? fullName;
+  String _firstTwoNames(String fullName) {
+    final parts = fullName
+        .split(' ')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return fullName;
+    if (parts.length == 1) return parts.first;
+    return '${parts[0]} ${parts[1]}';
+  }
 
   int _monthsBetween(DateTime from, DateTime to) {
     final a = DateTime(from.year, from.month);
