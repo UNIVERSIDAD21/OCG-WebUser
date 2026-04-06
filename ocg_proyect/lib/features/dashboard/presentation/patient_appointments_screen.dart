@@ -749,79 +749,90 @@ class _PatientAppointmentsScreenState
 
     final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
 
+    final proximasCount = appointmentsAsync.asData?.value
+            ?.where(
+              (a) =>
+                  a.fechaHora.isAfter(DateTime.now()) &&
+                  a.estado != AppointmentStatus.cancelada &&
+                  a.estado != AppointmentStatus.noAsistio &&
+                  a.estado != AppointmentStatus.completada,
+            )
+            .length ??
+        0;
+
     final content = Column(
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [OcgColors.espresso, OcgColors.bronze],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          color: const Color(0xFFF8F5F0),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Mis citas',
                 style: TextStyle(
-                  color: OcgColors.ivory,
-                  fontSize: 20,
+                  color: Color(0xFF1A1410),
+                  fontSize: 28,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
-                'Próximas citas e historial',
-                style: TextStyle(
-                  color: OcgColors.ivory.withOpacity(0.7),
+                proximasCount > 0
+                    ? '$proximasCount cita${proximasCount == 1 ? '' : 's'} próxima${proximasCount == 1 ? '' : 's'}'
+                    : 'Sin citas próximas por ahora',
+                style: const TextStyle(
+                  color: Color(0xFF8A6F59),
                   fontSize: 13,
                 ),
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2EDE8),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE8D8C8)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _FilterPill(
+                        label: 'Próximas',
+                        active: _filter == _PatientFilter.proximas,
+                        icon: Icons.upcoming_outlined,
+                        onTap: () => setState(() => _filter = _PatientFilter.proximas),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _FilterPill(
+                        label: 'Historial',
+                        active: _filter == _PatientFilter.historial,
+                        icon: Icons.history,
+                        onTap: () => setState(() => _filter = _PatientFilter.historial),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-          child: SegmentedButton<_PatientFilter>(
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (s) => s.contains(WidgetState.selected)
-                    ? OcgColors.espresso
-                    : OcgColors.ivory,
-              ),
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (s) => s.contains(WidgetState.selected)
-                    ? OcgColors.ivory
-                    : OcgColors.espresso,
-              ),
-            ),
-            segments: const [
-              ButtonSegment(
-                value: _PatientFilter.proximas,
-                label: Text('Próximas'),
-                icon: Icon(Icons.upcoming_outlined, size: 16),
-              ),
-              ButtonSegment(
-                value: _PatientFilter.historial,
-                label: Text('Historial'),
-                icon: Icon(Icons.history, size: 16),
-              ),
-            ],
-            selected: {_filter},
-            onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
         ),
         Expanded(
           child: appointmentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: OcgColors.espresso),
+            ),
             error: (e, _) => Center(
-              child: Text(
-                'Error al cargar citas: $e',
-                textAlign: TextAlign.center,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'No se pudieron cargar tus citas.\n$e',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFF8A6F59)),
+                ),
               ),
             ),
             data: (all) {
@@ -848,12 +859,24 @@ class _PatientAppointmentsScreenState
 
               if (filtered.isEmpty) {
                 return Center(
-                  child: Text(
-                    _filter == _PatientFilter.proximas
-                        ? 'No tienes citas próximas.\nToca + para agendar.'
-                        : 'Sin historial de citas aún.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 22),
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFECD9C6)),
+                    ),
+                    child: Text(
+                      _filter == _PatientFilter.proximas
+                          ? 'No tienes citas próximas.\nPulsa + para agendar una nueva cita.'
+                          : 'Aún no hay citas en tu historial.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF8A6F59),
+                        height: 1.45,
+                      ),
+                    ),
                   ),
                 );
               }
@@ -886,13 +909,9 @@ class _PatientAppointmentsScreenState
         children: [
           content,
           Positioned(
-            bottom: 16,
+            bottom: 18,
             right: 16,
-            child: FloatingActionButton.extended(
-              backgroundColor: OcgColors.espresso,
-              foregroundColor: OcgColors.ivory,
-              icon: const Icon(Icons.add),
-              label: const Text('Agendar cita'),
+            child: _AddAppointmentFab(
               onPressed: () => _showNewAppointmentDialog(
                 context,
                 ref,
@@ -916,11 +935,7 @@ class _PatientAppointmentsScreenState
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: OcgColors.espresso,
-        foregroundColor: OcgColors.ivory,
-        icon: const Icon(Icons.add),
-        label: const Text('Agendar cita'),
+      floatingActionButton: _AddAppointmentFab(
         onPressed: () => _showNewAppointmentDialog(
           context,
           ref,
@@ -929,6 +944,81 @@ class _PatientAppointmentsScreenState
         ),
       ),
       body: content,
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.active,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
+        decoration: BoxDecoration(
+          color: active ? OcgColors.espresso : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddAppointmentFab extends StatelessWidget {
+  const _AddAppointmentFab({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: OcgColors.espresso,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 10,
+      shadowColor: const Color(0x552C2016),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onPressed,
+        child: const SizedBox(
+          width: 58,
+          height: 58,
+          child: Icon(Icons.add, color: OcgColors.ivory, size: 28),
+        ),
+      ),
     );
   }
 }
@@ -944,101 +1034,151 @@ class _AppointmentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _estadoColor(appointment.estado);
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
+    final day = appointment.fechaHora.day.toString().padLeft(2, '0');
+    final month = months[appointment.fechaHora.month - 1];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: statusColor.withOpacity(0.25)),
+        border: Border.all(color: const Color(0xFFECD9C6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Tipo + Estado ─────────────────────────────────────────────
-            Row(
-              children: [
-                const Icon(Icons.event, color: OcgColors.bronze, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _tipoLabel(appointment.tipo),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: OcgColors.espresso,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      month,
+                      style: const TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 10,
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _estadoLabel(appointment.estado),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      day,
+                      style: const TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // ── Fecha ─────────────────────────────────────────────────────
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 14, color: OcgColors.bronze),
-                const SizedBox(width: 4),
-                Text(
-                  _fmtDateTime(appointment.fechaHora),
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-
-            // ── Notas ─────────────────────────────────────────────────────
-            if (appointment.notas != null && appointment.notas!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                appointment.notas!,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _tipoLabel(appointment.tipo),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: Color(0xFF1A1410),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _estadoLabel(appointment.estado),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule, size: 13, color: Color(0xFF8A6F59)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _fmtDateTime(appointment.fechaHora),
+                          style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A6F59)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2EDE8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        (appointment.notas != null && appointment.notas!.trim().isNotEmpty)
+                            ? appointment.notas!.trim()
+                            : 'Detalle disponible en la cita',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF8A6F59),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-
-            // ── Botón cancelar ────────────────────────────────────────────
-            if (onCancel != null) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.cancel_outlined, size: 16),
-                  label: const Text('Cancelar cita'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: OcgColors.error,
-                    side: const BorderSide(color: OcgColors.error),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+          ),
+          if (onCancel != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: const Text('Cancelar cita'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: OcgColors.error,
+                  side: const BorderSide(color: OcgColors.error),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  onPressed: onCancel,
                 ),
+                onPressed: onCancel,
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
