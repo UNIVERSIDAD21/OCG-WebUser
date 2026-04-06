@@ -98,6 +98,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           }
 
           return ListView(
+            padding: EdgeInsets.zero,
             children: [
               Container(
                 width: double.infinity,
