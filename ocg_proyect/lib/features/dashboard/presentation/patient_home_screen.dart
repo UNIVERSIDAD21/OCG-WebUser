@@ -16,6 +16,7 @@ import '../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../treatment/presentation/widgets/treatment_progress_bar.dart';
 import '../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../treatment/providers/treatment_provider.dart';
+import 'widgets/patient_bottom_nav.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({super.key});
@@ -56,41 +57,39 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         index: _selectedIndex,
         children: sections,
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PatientBottomNav(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        backgroundColor: OcgColors.ivory,
-        indicatorColor: OcgColors.sand,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+        onSelected: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          PatientNavItem(
             label: 'Inicio',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
+          PatientNavItem(
             label: 'Citas',
+            icon: Icons.calendar_month_outlined,
+            selectedIcon: Icons.calendar_month,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.medical_services_outlined),
-            selectedIcon: Icon(Icons.medical_services),
+          PatientNavItem(
             label: 'Tratamiento',
+            icon: Icons.format_align_left_outlined,
+            selectedIcon: Icons.format_align_left,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
+          PatientNavItem(
             label: 'Pagos',
+            icon: Icons.credit_card_outlined,
+            selectedIcon: Icons.credit_card,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: Icon(Icons.auto_awesome),
-            label: 'Simulaciones',
+          PatientNavItem(
+            label: 'Simulación',
+            icon: Icons.auto_awesome_outlined,
+            selectedIcon: Icons.auto_awesome,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
+          PatientNavItem(
             label: 'Perfil',
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
           ),
         ],
       ),
