@@ -88,6 +88,18 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
 }
 
+int _progressByStage(TreatmentStage stage) {
+  final idx = TreatmentStage.values.indexOf(stage).clamp(0, TreatmentStage.values.length - 1);
+  final totalSteps = TreatmentStage.values.length - 1;
+  if (totalSteps <= 0) return 0;
+  return ((idx / totalSteps) * 100).round().clamp(0, 100);
+}
+
+int _phaseFromProgress(int progress) {
+  if (progress <= 0) return 1;
+  return ((progress / 20).ceil()).clamp(1, 5);
+}
+
 class _InicioSection extends ConsumerWidget {
   const _InicioSection({required this.userId});
   final String userId;
@@ -124,7 +136,7 @@ class _InicioSection extends ConsumerWidget {
 
         final stageIndex = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
         final stageTotal = TreatmentStage.values.length;
-        final progress = (((stageIndex + 1) / stageTotal) * 100).round().clamp(0, 100);
+        final progress = _progressByStage(patient.etapaActual);
 
         final total = patient.totalTratamiento;
         final saldo = patient.saldoPendiente;
@@ -752,8 +764,8 @@ class _TratamientoSection extends ConsumerWidget {
           ),
           data: (historial) {
             final stageIndex = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
-            final phase = _phaseForStage(patient.etapaActual);
-            final progress = ((phase / 5) * 100).round().clamp(0, 100);
+            final progress = _progressByStage(patient.etapaActual);
+            final phase = _phaseFromProgress(progress);
 
             final citasRealizadas = appointmentsAsync.asData?.value
                 ?.where((a) => a.estado == AppointmentStatus.completada)
@@ -871,21 +883,6 @@ class _TratamientoSection extends ConsumerWidget {
     );
   }
 
-  int _phaseForStage(TreatmentStage stage) {
-    switch (stage) {
-      case TreatmentStage.valoracionInicial:
-      case TreatmentStage.estudioPlaneacion:
-        return 1;
-      case TreatmentStage.instalacion:
-        return 2;
-      case TreatmentStage.controles:
-        return 3;
-      case TreatmentStage.retencion:
-        return 4;
-      case TreatmentStage.alta:
-        return 5;
-    }
-  }
 }
 
 class _TreatmentSummaryTopCard extends StatelessWidget {
