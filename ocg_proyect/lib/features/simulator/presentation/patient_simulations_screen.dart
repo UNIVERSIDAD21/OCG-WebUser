@@ -113,7 +113,12 @@ class PatientSimulationsScreen extends ConsumerWidget {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.paddingOf(context).top + 16,
+            20,
+            14,
+          ),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFF2C2016), Color(0xFF8A6F59)],

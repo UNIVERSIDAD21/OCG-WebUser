@@ -101,7 +101,12 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  MediaQuery.paddingOf(context).top + 26,
+                  20,
+                  20,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [OcgColors.espresso, Color(0xFF4A3628)],

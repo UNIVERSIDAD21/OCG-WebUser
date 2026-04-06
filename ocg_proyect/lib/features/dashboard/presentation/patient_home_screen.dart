@@ -43,15 +43,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      body: SafeArea(
-        top: true,
-        left: false,
-        right: false,
-        bottom: false,
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: sections,
-        ),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: sections,
       ),
       bottomNavigationBar: PatientBottomNav(
         selectedIndex: _selectedIndex,
@@ -176,7 +170,12 @@ class _InicioSection extends ConsumerWidget {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 54, 20, 20),
+                padding: EdgeInsets.fromLTRB(
+              20,
+              MediaQuery.paddingOf(context).top + 20,
+              20,
+              20,
+            ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [OcgColors.espresso, Color(0xFF4A3628)],
@@ -778,7 +777,12 @@ class _TratamientoSection extends ConsumerWidget {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      MediaQuery.paddingOf(context).top + 20,
+                      20,
+                      18,
+                    ),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [OcgColors.espresso, OcgColors.bronze],

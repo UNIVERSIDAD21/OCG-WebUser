@@ -765,7 +765,12 @@ class _PatientAppointmentsScreenState
         Container(
           width: double.infinity,
           color: const Color(0xFFF8F5F0),
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.paddingOf(context).top + 22,
+            20,
+            8,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

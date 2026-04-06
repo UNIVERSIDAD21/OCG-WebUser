@@ -55,7 +55,12 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              MediaQuery.paddingOf(context).top + 18,
+              20,
+              14,
+            ),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [OcgColors.espresso, OcgColors.bronze],
