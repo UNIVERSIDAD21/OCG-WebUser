@@ -396,14 +396,14 @@ class _TreatmentHeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
-            height: 100,
+            width: 132,
+            height: 132,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 CircularProgressIndicator(
                   value: progress / 100,
-                  strokeWidth: 8,
+                  strokeWidth: 10,
                   backgroundColor: const Color(0x55ECD9C6),
                   valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
                 ),
@@ -411,8 +411,8 @@ class _TreatmentHeroCard extends StatelessWidget {
                   '$progress%',
                   style: const TextStyle(
                     color: OcgColors.ivory,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
