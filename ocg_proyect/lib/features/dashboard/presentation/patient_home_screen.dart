@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
-import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/providers/patients_provider.dart';
@@ -30,7 +29,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final loading = ref.watch(authNotifierProvider).isLoading;
     final user = ref.watch(authStateProvider).asData?.value;
 
     final sections = [
@@ -48,13 +46,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         backgroundColor: const Color(0xFFF8F5F0),
         elevation: 0,
         title: const Text('OCG Clínica'),
-        actions: [
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: loading ? null : () => _handleSignOut(context),
-            icon: const Icon(Icons.logout, color: OcgColors.error),
-          ),
-        ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
@@ -99,38 +90,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     );
   }
 
-  Future<void> _handleSignOut(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Deseas cerrar tu sesión?'),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.error,
-              foregroundColor: OcgColors.ivory,
-            ),
-            onPressed: () => popDialog(ctx, true),
-            child: const Text('Cerrar sesión'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await ref.read(authNotifierProvider.notifier).signOut();
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cerrar sesión.')),
-      );
-    }
-  }
 }
 
 class _InicioSection extends ConsumerWidget {

@@ -226,6 +226,31 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _signingOut ? null : _handleSignOut,
+                        icon: _signingOut
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.logout),
+                        label: Text(_signingOut ? 'Cerrando sesión...' : 'Cerrar sesión'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFEE2E2),
+                          foregroundColor: const Color(0xFF991B1B),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: const BorderSide(color: Color(0x33B91C1C)),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -239,13 +264,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi perfil'),
-        actions: [
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: _signingOut ? null : _handleSignOut,
-            icon: const Icon(Icons.logout, color: OcgColors.error),
-          ),
-        ],
       ),
       body: content,
     );
