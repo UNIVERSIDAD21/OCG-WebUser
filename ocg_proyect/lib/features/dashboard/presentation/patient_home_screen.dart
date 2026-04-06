@@ -43,7 +43,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F5F0),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF8F5F0),
+        elevation: 0,
         title: const Text('OCG Clínica'),
         actions: [
           IconButton(
@@ -143,85 +146,117 @@ class _InicioSection extends ConsumerWidget {
     final nombre = user?.displayName ?? 'Paciente';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Hola, $nombre 👋',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Bienvenido a tu panel de seguimiento',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: OcgColors.ink.withValues(alpha: 0.6),
-                ),
-          ),
-          const SizedBox(height: 24),
-          patientAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const OcgEmptyState(
-              icon: Icons.error_outline,
-              title: 'No se pudo cargar tu información',
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [OcgColors.espresso, Color(0xFF4A3628)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-            data: (patient) {
-              if (patient == null) {
-                return const OcgEmptyState(
-                  icon: Icons.person_off_outlined,
-                  title: 'Perfil no encontrado',
-                  subtitle: 'Contacta a la clínica para activar tu perfil.',
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tu tratamiento',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  TreatmentProgressBar(etapaActual: patient.etapaActual),
-                  const SizedBox(height: 16),
-                  if (patient.proximaCita != null) ...[
-                    Text(
-                      'Próxima cita',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.event, color: OcgColors.bronze),
-                        title: Text(_formatDate(patient.proximaCita!)),
-                        subtitle: const Text('Toca "Citas" para ver el detalle'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hola, $nombre 👋',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: OcgColors.ivory,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (patient.saldoPendiente > 0) ...[
-                    Text(
-                      'Estado de cuenta',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.account_balance_wallet_outlined, color: OcgColors.bronze),
-                        title: Text(
-                          'Saldo pendiente: \$${_formatCop(patient.saldoPendiente)} COP',
-                        ),
-                        subtitle: const Text('Toca "Pagos" para ver y pagar tu saldo'),
-                        trailing: TextButton(
-                          onPressed: () => context.go(RouteNames.patientPayments),
-                          child: const Text('Ir a pagos'),
-                        ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Bienvenido a tu panel de seguimiento',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: OcgColors.ivory.withOpacity(0.78),
                       ),
-                    ),
-                  ],
-                ],
-              );
-            },
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: patientAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const OcgEmptyState(
+                icon: Icons.error_outline,
+                title: 'No se pudo cargar tu información',
+              ),
+              data: (patient) {
+                if (patient == null) {
+                  return const OcgEmptyState(
+                    icon: Icons.person_off_outlined,
+                    title: 'Perfil no encontrado',
+                    subtitle: 'Contacta a la clínica para activar tu perfil.',
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tu tratamiento',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    TreatmentProgressBar(etapaActual: patient.etapaActual),
+                    const SizedBox(height: 16),
+                    if (patient.proximaCita != null) ...[
+                      Text(
+                        'Próxima cita',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.event, color: OcgColors.bronze),
+                          title: Text(_formatDate(patient.proximaCita!)),
+                          subtitle: const Text('Toca "Citas" para ver el detalle'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (patient.saldoPendiente > 0) ...[
+                      Text(
+                        'Estado de cuenta',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            color: OcgColors.bronze,
+                          ),
+                          title: Text(
+                            'Saldo pendiente: \$${_formatCop(patient.saldoPendiente)} COP',
+                          ),
+                          subtitle: const Text('Toca "Pagos" para ver y pagar tu saldo'),
+                          trailing: TextButton(
+                            onPressed: () => context.go(RouteNames.patientPayments),
+                            child: const Text('Ir a pagos'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -283,24 +318,61 @@ class _TratamientoSection extends ConsumerWidget {
             title: 'No se pudo cargar el historial',
           ),
           data: (historial) => SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Mi tratamiento', style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 16),
-                TreatmentProgressBar(etapaActual: patient.etapaActual),
-                const SizedBox(height: 24),
-                TreatmentTimeline(
-                  etapaActual: patient.etapaActual,
-                  historial: historial,
-                  isAdmin: false,
-                  onAdvanceStage: null,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [OcgColors.espresso, OcgColors.bronze],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Mi tratamiento',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Progreso, etapas e historial clínico',
+                        style: TextStyle(
+                          color: OcgColors.ivory.withOpacity(0.75),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
-                Text('Historial', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 10),
-                StageHistoryList(historial: historial, isAdmin: false),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TreatmentProgressBar(etapaActual: patient.etapaActual),
+                      const SizedBox(height: 24),
+                      TreatmentTimeline(
+                        etapaActual: patient.etapaActual,
+                        historial: historial,
+                        isAdmin: false,
+                        onAdvanceStage: null,
+                      ),
+                      const SizedBox(height: 20),
+                      Text('Historial', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 10),
+                      StageHistoryList(historial: historial, isAdmin: false),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

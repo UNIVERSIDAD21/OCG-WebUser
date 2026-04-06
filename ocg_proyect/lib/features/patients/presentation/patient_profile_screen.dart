@@ -98,76 +98,133 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
             children: [
-              OcgCard(
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [OcgColors.espresso, Color(0xFF4A3628)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text('Datos personales', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
-                    const SizedBox(height: 12),
-                    _Field(label: 'Nombre', value: patient.nombre),
-                    _Field(label: 'Correo', value: patient.email),
-                    _EditableField(
-                      label: 'Teléfono',
-                      value: patient.telefono,
-                      loading: _savingPhone,
-                      onEdit: () => _editPhone(patient),
+                    Text(
+                      patient.nombre,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    _Field(label: 'Fecha nacimiento', value: _fmt(patient.fechaNacimiento)),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Contraseña'),
-                      subtitle: const Text('••••••••'),
-                      trailing: TextButton(
-                        onPressed: _sendingReset ? null : () => _sendPasswordReset(patient.email),
-                        child: _sendingReset
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Cambiar'),
+                    const SizedBox(height: 4),
+                    Text(
+                      patient.email,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: OcgColors.ivory.withOpacity(0.75),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: OcgColors.ivory.withOpacity(0.25)),
+                      ),
+                      child: const Text(
+                        'Perfil de paciente',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              OcgCard(
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                    _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
-                    _LockedField(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
-                    _LockedField(
-                      label: 'Fecha estimada fin',
-                      value: patient.fechaEstimadaFin == null ? 'No definida' : _fmt(patient.fechaEstimadaFin!),
+                    OcgCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Datos personales', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 12),
+                          Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
+                          const SizedBox(height: 12),
+                          _Field(label: 'Nombre', value: patient.nombre),
+                          _Field(label: 'Correo', value: patient.email),
+                          _EditableField(
+                            label: 'Teléfono',
+                            value: patient.telefono,
+                            loading: _savingPhone,
+                            onEdit: () => _editPhone(patient),
+                          ),
+                          _Field(label: 'Fecha nacimiento', value: _fmt(patient.fechaNacimiento)),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Contraseña'),
+                            subtitle: const Text('••••••••'),
+                            trailing: TextButton(
+                              onPressed: _sendingReset ? null : () => _sendPasswordReset(patient.email),
+                              child: _sendingReset
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Cambiar'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    _LockedField(
-                      label: 'Notas clínicas',
-                      value: patient.notasClinicas.isEmpty ? 'Sin notas' : patient.notasClinicas,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              OcgCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
-                    _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
-                    _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),
-                    _Field(
-                      label: 'Próximo pago',
-                      value: patient.fechaProximoPago == null ? 'No definido' : _fmt(patient.fechaProximoPago!),
+                    OcgCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 12),
+                          _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                          _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
+                          _LockedField(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
+                          _LockedField(
+                            label: 'Fecha estimada fin',
+                            value: patient.fechaEstimadaFin == null ? 'No definida' : _fmt(patient.fechaEstimadaFin!),
+                          ),
+                          _LockedField(
+                            label: 'Notas clínicas',
+                            value: patient.notasClinicas.isEmpty ? 'Sin notas' : patient.notasClinicas,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OcgCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 12),
+                          _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
+                          _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),
+                          _Field(
+                            label: 'Próximo pago',
+                            value: patient.fechaProximoPago == null ? 'No definido' : _fmt(patient.fechaProximoPago!),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

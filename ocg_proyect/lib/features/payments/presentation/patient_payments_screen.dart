@@ -49,63 +49,102 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     final paymentAsync = ref.watch(patientPaymentProvider(user.uid));
 
     final content = SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PaymentSummaryCard(patientId: user.uid, isAdmin: false),
-          const SizedBox(height: 16),
-          paymentAsync.when(
-            loading: () => const SizedBox.shrink(),
-            error: (error, _) => Text(
-              'No se pudo cargar pagos: $error',
-              style: const TextStyle(color: OcgColors.error),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [OcgColors.espresso, OcgColors.bronze],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-            data: (payment) {
-              if (payment == null) {
-                return const Text(
-                  'No existe resumen financiero para este paciente.',
-                  style: TextStyle(color: OcgColors.error),
-                );
-              }
-
-              final saldo = payment.saldoPendiente;
-              if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal) {
-                return OcgChip(
-                  label: 'Tratamiento pagado en su totalidad',
-                  backgroundColor: OcgColors.success.withValues(alpha: 0.14),
-                  textColor: OcgColors.success,
-                );
-              }
-
-              return ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: OcgColors.espresso,
-                  foregroundColor: OcgColors.ivory,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mis pagos',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                onPressed: () => _confirmAndPayu(
-                  context,
-                  user.uid,
-                  saldo,
-                  user.email ?? '',
-                  user.displayName ?? 'Paciente',
+                const SizedBox(height: 2),
+                Text(
+                  'Estado de cuenta y pagos pendientes',
+                  style: TextStyle(
+                    color: OcgColors.ivory.withOpacity(0.72),
+                    fontSize: 13,
+                  ),
                 ),
-                icon: const Icon(Icons.credit_card),
-                label: const Text('Pagar con PayU'),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Historial de pagos',
-            style: TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          TransactionList(patientId: user.uid),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PaymentSummaryCard(patientId: user.uid, isAdmin: false),
+                const SizedBox(height: 16),
+                paymentAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (error, _) => Text(
+                    'No se pudo cargar pagos: $error',
+                    style: const TextStyle(color: OcgColors.error),
+                  ),
+                  data: (payment) {
+                    if (payment == null) {
+                      return const Text(
+                        'No existe resumen financiero para este paciente.',
+                        style: TextStyle(color: OcgColors.error),
+                      );
+                    }
+
+                    final saldo = payment.saldoPendiente;
+                    if (saldo <= 0 && payment.estado == PaymentStatus.pagadoTotal) {
+                      return OcgChip(
+                        label: 'Tratamiento pagado en su totalidad',
+                        backgroundColor: OcgColors.success.withValues(alpha: 0.14),
+                        textColor: OcgColors.success,
+                      );
+                    }
+
+                    return ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: OcgColors.espresso,
+                        foregroundColor: OcgColors.ivory,
+                      ),
+                      onPressed: () => _confirmAndPayu(
+                        context,
+                        user.uid,
+                        saldo,
+                        user.email ?? '',
+                        user.displayName ?? 'Paciente',
+                      ),
+                      icon: const Icon(Icons.credit_card),
+                      label: const Text('Pagar con PayU'),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Historial de pagos',
+                  style: TextStyle(
+                    color: OcgColors.espresso,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TransactionList(patientId: user.uid),
+              ],
+            ),
+          ),
         ],
       ),
     );

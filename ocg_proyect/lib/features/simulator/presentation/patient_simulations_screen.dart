@@ -108,11 +108,50 @@ class PatientSimulationsScreen extends ConsumerWidget {
           );
     }
 
-    if (embedded) return body;
+    final decoratedBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF2C2016), Color(0xFF8A6F59)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mis simulaciones',
+                style: TextStyle(
+                  color: Color(0xFFF8F5F0),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Compara evolución y resultados compartidos',
+                style: TextStyle(
+                  color: Color(0xCCF8F5F0),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
+
+    if (embedded) return decoratedBody;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mis simulaciones')),
-      body: body,
+      body: decoratedBody,
     );
   }
 
