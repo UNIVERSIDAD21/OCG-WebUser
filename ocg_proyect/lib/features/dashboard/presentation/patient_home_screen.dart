@@ -19,26 +19,44 @@ import '../../treatment/providers/treatment_provider.dart';
 import 'widgets/patient_bottom_nav.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
-  const PatientHomeScreen({super.key});
+  const PatientHomeScreen({
+    super.key,
+    this.patientIdOverride,
+    this.isAdminView = false,
+    this.initialSection = 0,
+  });
+
+  final String? patientIdOverride;
+  final bool isAdminView;
+  final int initialSection;
 
   @override
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
 class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialSection.clamp(0, 5);
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+    final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
+        ? widget.patientIdOverride!
+        : (user?.uid ?? '');
 
     final sections = [
-      _InicioSection(userId: user?.uid ?? ''),
-      const PatientAppointmentsScreen(embedded: true),
-      _TratamientoSection(userId: user?.uid ?? ''),
-      const PatientPaymentsScreen(embedded: true),
-      const PatientSimulationsScreen(embedded: true),
-      const PatientProfileScreen(embedded: true),
+      _InicioSection(userId: effectivePatientId),
+      PatientAppointmentsScreen(embedded: true, patientIdOverride: effectivePatientId),
+      _TratamientoSection(userId: effectivePatientId),
+      PatientPaymentsScreen(embedded: true, patientIdOverride: effectivePatientId),
+      PatientSimulationsScreen(embedded: true, patientIdOverride: effectivePatientId),
+      PatientProfileScreen(embedded: true, patientIdOverride: effectivePatientId),
     ];
 
     return Scaffold(

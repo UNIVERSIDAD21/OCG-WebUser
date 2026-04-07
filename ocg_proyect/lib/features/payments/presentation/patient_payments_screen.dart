@@ -10,9 +10,14 @@ import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
 
 class PatientPaymentsScreen extends ConsumerStatefulWidget {
-  const PatientPaymentsScreen({super.key, this.embedded = false});
+  const PatientPaymentsScreen({
+    super.key,
+    this.embedded = false,
+    this.patientIdOverride,
+  });
 
   final bool embedded;
+  final String? patientIdOverride;
 
   @override
   ConsumerState<PatientPaymentsScreen> createState() => _PatientPaymentsScreenState();
@@ -39,14 +44,17 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     });
 
     final user = ref.watch(authStateProvider).asData?.value;
-    if (user == null) {
+    final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
+        ? widget.patientIdOverride!
+        : (user?.uid ?? '');
+    if (effectivePatientId.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Debes iniciar sesión para ver tus pagos.')),
       );
     }
 
-    final paymentAsync = ref.watch(patientPaymentProvider(user.uid));
-    final txAsync = ref.watch(patientTransactionsProvider(user.uid));
+    final paymentAsync = ref.watch(patientPaymentProvider(effectivePatientId));
+    final txAsync = ref.watch(patientTransactionsProvider(effectivePatientId));
     final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
 
     final content = SingleChildScrollView(
@@ -134,7 +142,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                             onPressed: saldo > 0
                                 ? () => _confirmAndPayu(
                                       context,
-                                      user.uid,
+                                      effectivePatientId,
                                       saldo,
                                       user.email ?? '',
                                       user.displayName ?? 'Paciente',
@@ -152,7 +160,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                           onGoToPay: saldo > 0
                               ? () => _confirmAndPayu(
                                     context,
-                                    user.uid,
+                                    effectivePatientId,
                                     saldo,
                                     user.email ?? '',
                                     user.displayName ?? 'Paciente',

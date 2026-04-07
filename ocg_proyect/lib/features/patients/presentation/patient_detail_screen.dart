@@ -13,6 +13,7 @@ import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
+import '../../dashboard/presentation/patient_home_screen.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';

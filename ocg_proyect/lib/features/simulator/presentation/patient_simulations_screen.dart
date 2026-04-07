@@ -9,13 +9,19 @@ import '../../auth/providers/auth_providers.dart';
 import '../providers/simulation_provider.dart';
 
 class PatientSimulationsScreen extends ConsumerWidget {
-  const PatientSimulationsScreen({super.key, this.embedded = false});
+  const PatientSimulationsScreen({
+    super.key,
+    this.embedded = false,
+    this.patientIdOverride,
+  });
 
   final bool embedded;
+  final String? patientIdOverride;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    final authUid = ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    final userId = (patientIdOverride?.isNotEmpty == true) ? patientIdOverride! : authUid;
 
     Widget body;
     if (userId.isEmpty) {

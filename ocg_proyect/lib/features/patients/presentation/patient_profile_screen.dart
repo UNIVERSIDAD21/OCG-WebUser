@@ -13,9 +13,14 @@ import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
 
 class PatientProfileScreen extends ConsumerStatefulWidget {
-  const PatientProfileScreen({super.key, this.embedded = false});
+  const PatientProfileScreen({
+    super.key,
+    this.embedded = false,
+    this.patientIdOverride,
+  });
 
   final bool embedded;
+  final String? patientIdOverride;
 
   @override
   ConsumerState<PatientProfileScreen> createState() => _PatientProfileScreenState();
@@ -72,12 +77,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+    final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
+        ? widget.patientIdOverride!
+        : (user?.uid ?? '');
 
-    if (user == null) {
+    if (effectivePatientId.isEmpty) {
       return const Center(child: Text('Debes iniciar sesión para ver tu perfil.'));
     }
 
-    final patientAsync = ref.watch(patientByIdProvider(user.uid));
+    final patientAsync = ref.watch(patientByIdProvider(effectivePatientId));
 
     final content = patientAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -232,31 +240,33 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _signingOut ? null : _handleSignOut,
-                        icon: _signingOut
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.logout),
-                        label: Text(_signingOut ? 'Cerrando sesión...' : 'Cerrar sesión'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFEE2E2),
-                          foregroundColor: const Color(0xFF991B1B),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: const BorderSide(color: Color(0x33B91C1C)),
+                    if (widget.patientIdOverride == null) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _signingOut ? null : _handleSignOut,
+                          icon: _signingOut
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.logout),
+                          label: Text(_signingOut ? 'Cerrando sesión...' : 'Cerrar sesión'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEE2E2),
+                            foregroundColor: const Color(0xFF991B1B),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: const BorderSide(color: Color(0x33B91C1C)),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

@@ -63,9 +63,14 @@ enum _PatientFilter { proximas, historial }
 // ─── PatientAppointmentsScreen ────────────────────────────────────────────────
 
 class PatientAppointmentsScreen extends ConsumerStatefulWidget {
-  const PatientAppointmentsScreen({super.key, this.embedded = false});
+  const PatientAppointmentsScreen({
+    super.key,
+    this.embedded = false,
+    this.patientIdOverride,
+  });
 
   final bool embedded;
+  final String? patientIdOverride;
 
   @override
   ConsumerState<PatientAppointmentsScreen> createState() =>
@@ -742,12 +747,15 @@ class _PatientAppointmentsScreenState
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+    final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
+        ? widget.patientIdOverride!
+        : (user?.uid ?? '');
 
-    if (user == null) {
+    if (effectivePatientId.isEmpty) {
       return const Center(child: Text('Debes iniciar sesión.'));
     }
 
-    final appointmentsAsync = ref.watch(patientAppointmentsProvider(user.uid));
+    final appointmentsAsync = ref.watch(patientAppointmentsProvider(effectivePatientId));
 
     final proximasCount = appointmentsAsync.asData?.value
             ?.where(
@@ -920,7 +928,7 @@ class _PatientAppointmentsScreenState
               onPressed: () => _showNewAppointmentDialog(
                 context,
                 ref,
-                user.uid,
+                effectivePatientId,
                 appointmentsAsync.asData?.value ?? const [],
               ),
             ),
@@ -944,7 +952,7 @@ class _PatientAppointmentsScreenState
         onPressed: () => _showNewAppointmentDialog(
           context,
           ref,
-          user.uid,
+          effectivePatientId,
           appointmentsAsync.asData?.value ?? const [],
         ),
       ),
