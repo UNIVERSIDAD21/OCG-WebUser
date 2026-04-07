@@ -2240,76 +2240,72 @@ class _AdminAppointmentsScreenState
                 ),
                 const SizedBox(height: 10),
                 if (isMobileMonthView)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: ListView.builder(
-                        itemCount: selectedItems.length,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemBuilder: (context, index) {
-                          final a = selectedItems[index];
-                          final ui = _statusUi(a);
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: OcgColors.ivory,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: OcgColors.bronze.withOpacity(0.22),
+                  ListView.builder(
+                    itemCount: selectedItems.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final a = selectedItems[index];
+                      final ui = _statusUi(a);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: OcgColors.ivory,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 36,
+                              margin: const EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: ui.line,
+                                borderRadius: BorderRadius.circular(2),
                               ),
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 3,
-                                  height: 36,
-                                  margin: const EdgeInsets.only(right: 10),
-                                  decoration: BoxDecoration(
-                                    color: ui.line,
-                                    borderRadius: BorderRadius.circular(2),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
+                                    style: TextStyle(
+                                      color: OcgColors.ink.withOpacity(0.9),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
-                                        style: TextStyle(
-                                          color: OcgColors.ink.withOpacity(0.9),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${_labelTipo(a.tipo)} · ${ui.label}',
-                                        style: TextStyle(
-                                          color: OcgColors.ink.withOpacity(0.72),
-                                        ),
-                                      ),
-                                      if ((a.notas ?? '').trim().isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Notas clínicas: ${a.notas!.trim()}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: OcgColors.ink.withOpacity(0.78),
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 8),
-                                      _buildAppointmentActionsInline(a),
-                                    ],
+                                  Text(
+                                    '${_labelTipo(a.tipo)} · ${ui.label}',
+                                    style: TextStyle(
+                                      color: OcgColors.ink.withOpacity(0.72),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  if ((a.notas ?? '').trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Notas clínicas: ${a.notas!.trim()}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: OcgColors.ink.withOpacity(0.78),
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  _buildAppointmentActionsInline(a),
+                                ],
+                              ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    },
                   )
                 else
                   Expanded(
@@ -2439,12 +2435,14 @@ class _AdminAppointmentsScreenState
           );
         }
 
-        return Column(
-          children: [
-            calendarCard,
-            const SizedBox(height: 10),
-            Expanded(child: detailPanel),
-          ],
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              calendarCard,
+              const SizedBox(height: 10),
+              detailPanel,
+            ],
+          ),
         );
       },
     );
