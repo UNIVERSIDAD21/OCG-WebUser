@@ -2368,7 +2368,7 @@ class _AdminAppointmentsScreenState
           children: [
             calendarCard,
             const SizedBox(height: 10),
-            SizedBox(height: 380, child: detailPanel),
+            Expanded(child: detailPanel),
           ],
         );
       },
