@@ -17,7 +17,8 @@ class PatientSimulatorTab extends ConsumerStatefulWidget {
   final PatientModel patient;
 
   @override
-  ConsumerState<PatientSimulatorTab> createState() => _PatientSimulatorTabState();
+  ConsumerState<PatientSimulatorTab> createState() =>
+      _PatientSimulatorTabState();
 }
 
 class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
@@ -53,7 +54,8 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
 
     return simsAsync.when(
       loading: () => const OcgSkeletonList(items: 4),
-      error: (e, _) => Center(child: Text('No se pudieron cargar simulaciones: $e')),
+      error: (e, _) =>
+          Center(child: Text('No se pudieron cargar simulaciones: $e')),
       data: (items) {
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -63,7 +65,11 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                 const Expanded(
                   child: Text(
                     'Simulador de sonrisa',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: OcgColors.espresso,
+                    ),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -89,81 +95,97 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                 subtitle: 'Crea la primera simulación para este paciente.',
               )
             else
-              ...items.map((s) => _AdminSimulationCard(
-                    simulation: s,
-                    onOpen: () {
-                      setState(() => _openedSimulation = s);
-                    },
-                    onToggleShare: (value) async {
-                      try {
-                        await ref.read(simulationRepositoryProvider).toggleShare(
-                              patientId: widget.patient.id,
-                              simulationId: s.id,
-                              compartida: value,
-                            );
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              value
-                                  ? 'Simulación compartida con paciente.'
-                                  : 'Simulación descompartida correctamente.',
-                            ),
+              ...items.map(
+                (s) => _AdminSimulationCard(
+                  simulation: s,
+                  onOpen: () {
+                    setState(() => _openedSimulation = s);
+                  },
+                  onToggleShare: (value) async {
+                    try {
+                      await ref
+                          .read(simulationRepositoryProvider)
+                          .toggleShare(
+                            patientId: widget.patient.id,
+                            simulationId: s.id,
+                            compartida: value,
+                          );
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            value
+                                ? 'Simulación compartida con paciente.'
+                                : 'Simulación descompartida correctamente.',
                           ),
-                        );
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('No se pudo actualizar el estado de compartir: $e')),
-                        );
-                      }
-                    },
-                    onDelete: () async {
-                      final confirmar = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Eliminar simulación'),
-                          content: const Text(
-                            '¿Seguro que deseas eliminar esta simulación? Esta acción no se puede deshacer.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('Cancelar'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Eliminar'),
-                            ),
-                          ],
                         ),
                       );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'No se pudo actualizar el estado de compartir: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  onDelete: () async {
+                    final confirmar = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Eliminar simulación'),
+                        content: const Text(
+                          '¿Seguro que deseas eliminar esta simulación? Esta acción no se puede deshacer.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Eliminar'),
+                          ),
+                        ],
+                      ),
+                    );
 
-                      if (confirmar != true) return;
+                    if (confirmar != true) return;
 
-                      try {
-                        await ref.read(simulationRepositoryProvider).deleteSimulation(
-                              patientId: widget.patient.id,
-                              simulationId: s.id,
-                            );
+                    try {
+                      await ref
+                          .read(simulationRepositoryProvider)
+                          .deleteSimulation(
+                            patientId: widget.patient.id,
+                            simulationId: s.id,
+                          );
 
-                        if (_openedSimulation?.id == s.id) {
-                          setState(() => _openedSimulation = null);
-                          ref.read(simulatorFlowProvider.notifier).resetFlow();
-                        }
-
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Simulación eliminada correctamente.')),
-                        );
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('No se pudo eliminar la simulación: $e')),
-                        );
+                      if (_openedSimulation?.id == s.id) {
+                        setState(() => _openedSimulation = null);
+                        ref.read(simulatorFlowProvider.notifier).resetFlow();
                       }
-                    },
-                  )),
+
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Simulación eliminada correctamente.'),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'No se pudo eliminar la simulación: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
             const SizedBox(height: 16),
             SimulatorScreen(
               patientId: widget.patient.id,
@@ -213,7 +235,8 @@ class _AdminSimulationCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text('Origen: ${formatSimulationMode(simulation.mode)}'),
-            if ((simulation.notes ?? '').trim().isNotEmpty) Text('Notas: ${simulation.notes!.trim()}'),
+            if ((simulation.notes ?? '').trim().isNotEmpty)
+              Text('Notas: ${simulation.notes!.trim()}'),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -228,7 +251,10 @@ class _AdminSimulationCard extends StatelessWidget {
                 IconButton(
                   tooltip: 'Eliminar simulación',
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, color: OcgColors.error),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: OcgColors.error,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -237,7 +263,9 @@ class _AdminSimulationCard extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Compartir'),
                     value: simulation.compartidaConPaciente,
-                    onChanged: (simulation.status == SimulationStatus.draft || simulation.status == SimulationStatus.archived)
+                    onChanged:
+                        (simulation.status == SimulationStatus.draft ||
+                            simulation.status == SimulationStatus.archived)
                         ? null
                         : onToggleShare,
                   ),
@@ -250,5 +278,6 @@ class _AdminSimulationCard extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmtDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }

@@ -90,10 +90,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       backgroundColor: const Color(0xFFF8F5F0),
       body: Stack(
         children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: sections,
-          ),
+          IndexedStack(index: _selectedIndex, children: sections),
           if (widget.isAdminView)
             Positioned(
               left: 12,
@@ -110,7 +107,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                       color: OcgColors.espresso.withOpacity(0.78),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.arrow_back, color: OcgColors.ivory, size: 20),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: OcgColors.ivory,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -155,11 +156,12 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       ),
     );
   }
-
 }
 
 int _progressByStage(TreatmentStage stage) {
-  final idx = TreatmentStage.values.indexOf(stage).clamp(0, TreatmentStage.values.length - 1);
+  final idx = TreatmentStage.values
+      .indexOf(stage)
+      .clamp(0, TreatmentStage.values.length - 1);
   final totalSteps = TreatmentStage.values.length - 1;
   if (totalSteps <= 0) return 0;
   return ((idx / totalSteps) * 100).round().clamp(0, 100);
@@ -201,22 +203,27 @@ class _InicioSection extends ConsumerWidget {
         final nombre = (patient.nombre.trim().isNotEmpty)
             ? patient.nombre.trim()
             : (user?.displayName?.trim().isNotEmpty == true
-                ? user!.displayName!.trim()
-                : 'Paciente');
+                  ? user!.displayName!.trim()
+                  : 'Paciente');
 
-        final stageIndex = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
+        final stageIndex = TreatmentStage.values
+            .indexOf(patient.etapaActual)
+            .clamp(0, TreatmentStage.values.length - 1);
         final stageTotal = TreatmentStage.values.length;
         final progress = _progressByStage(patient.etapaActual);
 
         final total = patient.totalTratamiento;
         final saldo = patient.saldoPendiente;
         final pagado = (total > 0) ? (total - saldo).clamp(0, total) : 0.0;
-        final pagoPercent = (total > 0) ? ((pagado / total) * 100).round().clamp(0, 100) : null;
+        final pagoPercent = (total > 0)
+            ? ((pagado / total) * 100).round().clamp(0, 100)
+            : null;
 
-        final nextAppointment = (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
-            .where((a) => a.fechaHora.isAfter(DateTime.now()))
-            .toList()
-          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+        final nextAppointment =
+            (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
+                .where((a) => a.fechaHora.isAfter(DateTime.now()))
+                .toList()
+              ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
         final cita = nextAppointment.isNotEmpty ? nextAppointment.first : null;
 
@@ -225,7 +232,10 @@ class _InicioSection extends ConsumerWidget {
         for (final h in historial) {
           historialFechas[h.etapaNueva] = h.fechaEfectiva ?? h.fechaCambio;
         }
-        historialFechas.putIfAbsent(TreatmentStage.values.first, () => patient.fechaInicio);
+        historialFechas.putIfAbsent(
+          TreatmentStage.values.first,
+          () => patient.fechaInicio,
+        );
 
         final mesesTotal = patient.fechaEstimadaFin == null
             ? null
@@ -241,11 +251,11 @@ class _InicioSection extends ConsumerWidget {
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.fromLTRB(
-              20,
-              MediaQuery.paddingOf(context).top + 20,
-              20,
-              20,
-            ),
+                  20,
+                  MediaQuery.paddingOf(context).top + 20,
+                  20,
+                  20,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [OcgColors.espresso, Color(0xFF4A3628)],
@@ -300,7 +310,9 @@ class _InicioSection extends ConsumerWidget {
                     _TreatmentHeroCard(
                       progress: progress,
                       stageLabel: 'Fase ${stageIndex + 1} de $stageTotal',
-                      stageName: stageNames[patient.etapaActual] ?? patient.etapaActual.name,
+                      stageName:
+                          stageNames[patient.etapaActual] ??
+                          patient.etapaActual.name,
                       mesesTotal: mesesTotal,
                       mesesRestantes: mesesRestantes,
                       citasRegistradas: appointmentsAsync.asData?.value?.length,
@@ -315,7 +327,10 @@ class _InicioSection extends ConsumerWidget {
                   children: [
                     const _SectionTitle('Próxima cita'),
                     const SizedBox(height: 10),
-                    _NextAppointmentCard(cita: cita, fallback: patient.proximaCita),
+                    _NextAppointmentCard(
+                      cita: cita,
+                      fallback: patient.proximaCita,
+                    ),
                     const SizedBox(height: 18),
                     const _SectionTitle('Estado de cuenta'),
                     const SizedBox(height: 10),
@@ -323,10 +338,11 @@ class _InicioSection extends ConsumerWidget {
                       total: total,
                       saldo: saldo,
                       pagoPercent: pagoPercent,
-                      onGoToPayments: () => context.go(RouteNames.patientPayments),
+                      onGoToPayments: () =>
+                          context.go(RouteNames.patientPayments),
                     ),
                     const SizedBox(height: 18),
-                    const _SectionTitle('Hitos de tu tratamiento'),
+                    const _SectionTitle('Etapas del tratamiento'),
                     const SizedBox(height: 10),
                     ...TreatmentStage.values.map((stage) {
                       final idx = TreatmentStage.values.indexOf(stage);
@@ -337,7 +353,9 @@ class _InicioSection extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _MilestoneTile(
                           title: stageNames[stage] ?? stage.name,
-                          dateLabel: fecha == null ? 'Sin fecha registrada' : _shortDate(fecha),
+                          dateLabel: fecha == null
+                              ? 'Sin fecha registrada'
+                              : _shortDate(fecha),
                           done: isDone,
                           current: isCurrent,
                         ),
@@ -371,12 +389,34 @@ class _InicioSection extends ConsumerWidget {
   }
 
   String _headerDate(DateTime d) {
-    const wd = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const wd = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ];
+    const months = [
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
+    ];
     return '${wd[d.weekday - 1]}, ${d.day} de ${months[d.month - 1]}';
   }
 
-  String _shortDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _shortDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -391,7 +431,8 @@ class _SectionTitle extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => Text(title.toUpperCase(), style: _style);
+  Widget build(BuildContext context) =>
+      Text(title.toUpperCase(), style: _style);
 }
 
 class _PatientAvatar extends StatelessWidget {
@@ -431,7 +472,13 @@ class _PatientAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0x66ECD9C6)),
       ),
-      child: Text(initials, style: const TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700)),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: OcgColors.ivory,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -478,7 +525,9 @@ class _TreatmentHeroCard extends StatelessWidget {
                     value: progress / 100,
                     strokeWidth: 14,
                     backgroundColor: const Color(0x55ECD9C6),
-                    valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      OcgColors.ivory,
+                    ),
                   ),
                 ),
 
@@ -501,28 +550,61 @@ class _TreatmentHeroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: OcgColors.ivory.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: const Text(
                     'En tratamiento',
-                    style: TextStyle(color: OcgColors.ivory, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: OcgColors.ivory,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(stageLabel, style: const TextStyle(color: OcgColors.ivory, fontSize: 17, fontWeight: FontWeight.w700)),
+                Text(
+                  stageLabel,
+                  style: const TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(stageName, style: TextStyle(color: OcgColors.ivory.withOpacity(0.85), fontSize: 12.5)),
+                Text(
+                  stageName,
+                  style: TextStyle(
+                    color: OcgColors.ivory.withOpacity(0.85),
+                    fontSize: 12.5,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _MiniMetric(title: 'Meses', value: mesesTotal == null ? '--' : '${mesesTotal! < 0 ? 0 : mesesTotal}'),
+                    _MiniMetric(
+                      title: 'Meses',
+                      value: mesesTotal == null
+                          ? '--'
+                          : '${mesesTotal! < 0 ? 0 : mesesTotal}',
+                    ),
                     _metricDivider(),
-                    _MiniMetric(title: 'Restantes', value: mesesRestantes == null ? '--' : '${mesesRestantes! < 0 ? 0 : mesesRestantes}'),
+                    _MiniMetric(
+                      title: 'Restantes',
+                      value: mesesRestantes == null
+                          ? '--'
+                          : '${mesesRestantes! < 0 ? 0 : mesesRestantes}',
+                    ),
                     _metricDivider(),
-                    _MiniMetric(title: 'Visitas', value: '${citasRegistradas ?? 0}'),
+                    _MiniMetric(
+                      title: 'Visitas',
+                      value: '${citasRegistradas ?? 0}',
+                    ),
                   ],
                 ),
               ],
@@ -533,7 +615,12 @@ class _TreatmentHeroCard extends StatelessWidget {
     );
   }
 
-  Widget _metricDivider() => Container(width: 1, height: 28, color: OcgColors.ivory.withOpacity(0.25), margin: const EdgeInsets.symmetric(horizontal: 10));
+  Widget _metricDivider() => Container(
+    width: 1,
+    height: 28,
+    color: OcgColors.ivory.withOpacity(0.25),
+    margin: const EdgeInsets.symmetric(horizontal: 10),
+  );
 }
 
 class _MiniMetric extends StatelessWidget {
@@ -547,8 +634,21 @@ class _MiniMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(value, style: const TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 14)),
-          Text(title, style: TextStyle(color: OcgColors.ivory.withOpacity(0.72), fontSize: 10)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.ivory,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              color: OcgColors.ivory.withOpacity(0.72),
+              fontSize: 10,
+            ),
+          ),
         ],
       ),
     );
@@ -573,12 +673,28 @@ class _NextAppointmentCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFECD9C6)),
         ),
-        child: const Text('No tienes una próxima cita registrada.', style: TextStyle(color: Color(0xFF8A6F59))),
+        child: const Text(
+          'No tienes una próxima cita registrada.',
+          style: TextStyle(color: Color(0xFF8A6F59)),
+        ),
       );
     }
 
     final day = fecha.day.toString().padLeft(2, '0');
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
 
     return Container(
       width: double.infinity,
@@ -587,7 +703,13 @@ class _NextAppointmentCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFECD9C6)),
-        boxShadow: const [BoxShadow(color: Color(0x122C2016), blurRadius: 12, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -601,8 +723,18 @@ class _NextAppointmentCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(months[fecha.month - 1], style: const TextStyle(color: OcgColors.ivory, fontSize: 10)),
-                Text(day, style: const TextStyle(color: OcgColors.ivory, fontSize: 22, fontWeight: FontWeight.w700)),
+                Text(
+                  months[fecha.month - 1],
+                  style: const TextStyle(color: OcgColors.ivory, fontSize: 10),
+                ),
+                Text(
+                  day,
+                  style: const TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -611,14 +743,38 @@ class _NextAppointmentCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Próxima cita', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A1410))),
+                const Text(
+                  'Próxima cita',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1410),
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(_hourLabel(fecha), style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5)),
+                Text(
+                  _hourLabel(fecha),
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontSize: 12.5,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: const Color(0xFFF2EDE8), borderRadius: BorderRadius.circular(8)),
-                  child: Text('Detalle disponible en Citas', style: TextStyle(color: const Color(0xFF8A6F59), fontSize: 11.5)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2EDE8),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Detalle disponible en Citas',
+                    style: TextStyle(
+                      color: const Color(0xFF8A6F59),
+                      fontSize: 11.5,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -636,7 +792,12 @@ class _NextAppointmentCard extends StatelessWidget {
 }
 
 class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.total, required this.saldo, required this.pagoPercent, required this.onGoToPayments});
+  const _BalanceCard({
+    required this.total,
+    required this.saldo,
+    required this.pagoPercent,
+    required this.onGoToPayments,
+  });
 
   final double total;
   final double saldo;
@@ -655,16 +816,30 @@ class _BalanceCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFECD9C6)),
-        boxShadow: const [BoxShadow(color: Color(0x122C2016), blurRadius: 12, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: _moneyBlock('Total tratamiento', _formatCop(total))),
+              Expanded(
+                child: _moneyBlock('Total tratamiento', _formatCop(total)),
+              ),
               Container(width: 1, height: 40, color: const Color(0xFFECD9C6)),
-              Expanded(child: _moneyBlock('Saldo pendiente', _formatCop(saldo), valueColor: const Color(0xFF92400E))),
+              Expanded(
+                child: _moneyBlock(
+                  'Saldo pendiente',
+                  _formatCop(saldo),
+                  valueColor: const Color(0xFF92400E),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -672,8 +847,18 @@ class _BalanceCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Pagado', style: TextStyle(fontSize: 11, color: Color(0xFF8A6F59))),
-                Text('$percent%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF166534))),
+                const Text(
+                  'Pagado',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8A6F59)),
+                ),
+                Text(
+                  '$percent%',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF166534),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -683,11 +868,16 @@ class _BalanceCard extends StatelessWidget {
                 minHeight: 6,
                 value: percent / 100,
                 backgroundColor: const Color(0xFFF2EDE8),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF166534)),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  Color(0xFF166534),
+                ),
               ),
             ),
           ] else ...[
-            const Text('Aún no hay base suficiente para calcular porcentaje de pago.', style: TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59))),
+            const Text(
+              'Aún no hay base suficiente para calcular porcentaje de pago.',
+              style: TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)),
+            ),
           ],
           const SizedBox(height: 14),
           SizedBox(
@@ -700,7 +890,9 @@ class _BalanceCard extends StatelessWidget {
                 backgroundColor: OcgColors.espresso,
                 foregroundColor: OcgColors.ivory,
                 padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -709,15 +901,34 @@ class _BalanceCard extends StatelessWidget {
     );
   }
 
-  Widget _moneyBlock(String label, String value, {Color valueColor = const Color(0xFF1A1410)}) {
+  Widget _moneyBlock(
+    String label,
+    String value, {
+    Color valueColor = const Color(0xFF1A1410),
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF8A6F59), fontWeight: FontWeight.w600, letterSpacing: 0.4)),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFF8A6F59),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 19, color: valueColor, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 19,
+              color: valueColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -725,7 +936,10 @@ class _BalanceCard extends StatelessWidget {
 
   String _formatCop(num value) {
     final digits = value.round().toString();
-    final withDots = digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.');
+    final withDots = digits.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (m) => '.',
+    );
     return '\$$withDots';
   }
 }
@@ -768,7 +982,9 @@ class _MilestoneTile extends StatelessWidget {
                   : (current ? OcgColors.espresso : const Color(0xFFECD9C6)),
             ),
             child: Icon(
-              done ? Icons.check : (current ? Icons.star : Icons.circle_outlined),
+              done
+                  ? Icons.check
+                  : (current ? Icons.star : Icons.circle_outlined),
               size: 14,
               color: done || current ? Colors.white : const Color(0xFF8A6F59),
             ),
@@ -787,7 +1003,13 @@ class _MilestoneTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(dateLabel, style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 11.5)),
+                Text(
+                  dateLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontSize: 11.5,
+                  ),
+                ),
               ],
             ),
           ),
@@ -798,7 +1020,14 @@ class _MilestoneTile extends StatelessWidget {
                 color: const Color(0xFFE8DED3),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('Actual', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+              child: const Text(
+                'Actual',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: OcgColors.espresso,
+                ),
+              ),
             ),
         ],
       ),
@@ -840,7 +1069,9 @@ class _TratamientoSection extends ConsumerWidget {
             title: 'No se pudo cargar el historial',
           ),
           data: (historial) {
-            final stageIndex = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
+            final stageIndex = TreatmentStage.values
+                .indexOf(patient.etapaActual)
+                .clamp(0, TreatmentStage.values.length - 1);
             final progress = _progressByStage(patient.etapaActual);
             final phase = _phaseFromProgress(progress);
 
@@ -906,8 +1137,12 @@ class _TratamientoSection extends ConsumerWidget {
                         _PhaseBar(phase: phase),
                         const SizedBox(height: 14),
                         _CurrentStageCard(
-                          stageName: stageNames[patient.etapaActual] ?? patient.etapaActual.name,
-                          description: stageDescriptions[patient.etapaActual] ?? 'Avance clínico en curso.',
+                          stageName:
+                              stageNames[patient.etapaActual] ??
+                              patient.etapaActual.name,
+                          description:
+                              stageDescriptions[patient.etapaActual] ??
+                              'Avance clínico en curso.',
                           progress: progress,
                         ),
                         const SizedBox(height: 18),
@@ -932,13 +1167,16 @@ class _TratamientoSection extends ConsumerWidget {
                               .toList();
 
                           final stageDate = historyMatch.isNotEmpty
-                              ? (historyMatch.first.fechaEfectiva ?? historyMatch.first.fechaCambio)
+                              ? (historyMatch.first.fechaEfectiva ??
+                                    historyMatch.first.fechaCambio)
                               : (idx == 0 ? patient.fechaInicio : null);
 
                           return _StageTimelineTile(
                             stageIndex: idx + 1,
                             stageName: stageNames[stage] ?? stage.name,
-                            description: stageDescriptions[stage] ?? 'Sin descripción clínica disponible.',
+                            description:
+                                stageDescriptions[stage] ??
+                                'Sin descripción clínica disponible.',
                             completed: completed,
                             current: current,
                             pending: pending,
@@ -949,9 +1187,15 @@ class _TratamientoSection extends ConsumerWidget {
                         const SizedBox(height: 8),
                         if (historial.isNotEmpty) ...[
                           const SizedBox(height: 10),
-                          Text('Historial clínico', style: Theme.of(context).textTheme.titleMedium),
+                          Text(
+                            'Historial clínico',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                           const SizedBox(height: 8),
-                          StageHistoryList(historial: historial, isAdmin: false),
+                          StageHistoryList(
+                            historial: historial,
+                            isAdmin: false,
+                          ),
                         ],
                       ],
                     ),
@@ -964,7 +1208,6 @@ class _TratamientoSection extends ConsumerWidget {
       },
     );
   }
-
 }
 
 class _TreatmentSummaryTopCard extends StatelessWidget {
@@ -1004,7 +1247,9 @@ class _TreatmentSummaryTopCard extends StatelessWidget {
                     value: progress / 100,
                     strokeWidth: 13,
                     backgroundColor: const Color(0x55ECD9C6),
-                    valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      OcgColors.ivory,
+                    ),
                   ),
                 ),
                 Text(
@@ -1029,7 +1274,9 @@ class _TreatmentSummaryTopCard extends StatelessWidget {
                 _SummaryTile(title: 'Inicio', value: _fmtDate(fechaInicio)),
                 _SummaryTile(
                   title: 'Estimado fin',
-                  value: fechaEstimadaFin == null ? 'Sin fecha' : _fmtDate(fechaEstimadaFin!),
+                  value: fechaEstimadaFin == null
+                      ? 'Sin fecha'
+                      : _fmtDate(fechaEstimadaFin!),
                 ),
                 _SummaryTile(
                   title: 'Citas realizadas',
@@ -1047,7 +1294,8 @@ class _TreatmentSummaryTopCard extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmtDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
 class _SummaryTile extends StatelessWidget {
@@ -1108,7 +1356,9 @@ class _PhaseBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: done
                   ? OcgColors.espresso
-                  : (current ? const Color(0xFF8A6F59) : const Color(0xFFEADBCB)),
+                  : (current
+                        ? const Color(0xFF8A6F59)
+                        : const Color(0xFFEADBCB)),
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -1157,7 +1407,10 @@ class _CurrentStageCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '$progress%',
-                style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: OcgColors.bronze,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -1208,7 +1461,9 @@ class _StageTimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badgeText = completed ? 'Completada' : (current ? 'Actual' : 'Pendiente');
+    final badgeText = completed
+        ? 'Completada'
+        : (current ? 'Actual' : 'Pendiente');
     final badgeColor = completed
         ? const Color(0xFF166534)
         : (current ? OcgColors.espresso : const Color(0xFF8A6F59));
@@ -1227,14 +1482,12 @@ class _StageTimelineTile extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: completed
                       ? const Color(0xFF166534)
-                      : (current ? OcgColors.espresso : const Color(0xFFEADBCB)),
+                      : (current
+                            ? OcgColors.espresso
+                            : const Color(0xFFEADBCB)),
                 ),
               ),
-              Container(
-                width: 2,
-                height: 78,
-                color: const Color(0xFFE5D5C6),
-              ),
+              Container(width: 2, height: 78, color: const Color(0xFFE5D5C6)),
             ],
           ),
           const SizedBox(width: 10),
@@ -1244,12 +1497,17 @@ class _StageTimelineTile extends StatelessWidget {
                 color: current ? const Color(0xFFFFF8F2) : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: current ? const Color(0xFFE0C9B3) : const Color(0xFFECD9C6),
+                  color: current
+                      ? const Color(0xFFE0C9B3)
+                      : const Color(0xFFECD9C6),
                   width: current ? 1.4 : 1,
                 ),
               ),
               child: ExpansionTile(
-                tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                tilePadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 initiallyExpanded: current,
                 collapsedIconColor: const Color(0xFF8A6F59),
@@ -1269,7 +1527,10 @@ class _StageTimelineTile extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: badgeColor.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(20),
@@ -1297,10 +1558,19 @@ class _StageTimelineTile extends StatelessWidget {
                   ],
                 ),
                 subtitle: date == null
-                    ? const Text('Sin fecha registrada', style: TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)))
+                    ? const Text(
+                        'Sin fecha registrada',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF8A6F59),
+                        ),
+                      )
                     : Text(
                         '${date!.day.toString().padLeft(2, '0')}/${date!.month.toString().padLeft(2, '0')}/${date!.year}',
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF8A6F59),
+                        ),
                       ),
                 children: [
                   Text(
