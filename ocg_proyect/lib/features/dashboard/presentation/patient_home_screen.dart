@@ -11,6 +11,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
+import '../../patients/presentation/patient_viewer_mode.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
 import 'patient_appointments_screen.dart';
@@ -54,11 +55,35 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     final sections = [
       _InicioSection(userId: effectivePatientId),
-      PatientAppointmentsScreen(embedded: true, patientIdOverride: overrideForAdmin),
+      PatientAppointmentsScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
+        viewerMode: widget.isAdminView
+            ? PatientViewerMode.adminViewer
+            : PatientViewerMode.patient,
+      ),
       _TratamientoSection(userId: effectivePatientId),
-      PatientPaymentsScreen(embedded: true, patientIdOverride: overrideForAdmin),
-      PatientSimulationsScreen(embedded: true, patientIdOverride: overrideForAdmin),
-      PatientProfileScreen(embedded: true, patientIdOverride: overrideForAdmin),
+      PatientPaymentsScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
+        viewerMode: widget.isAdminView
+            ? PatientViewerMode.adminViewer
+            : PatientViewerMode.patient,
+      ),
+      PatientSimulationsScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
+        viewerMode: widget.isAdminView
+            ? PatientViewerMode.adminViewer
+            : PatientViewerMode.patient,
+      ),
+      PatientProfileScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
+        viewerMode: widget.isAdminView
+            ? PatientViewerMode.adminViewer
+            : PatientViewerMode.patient,
+      ),
     ];
 
     return Scaffold(

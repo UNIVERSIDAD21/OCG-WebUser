@@ -1,7 +1,10 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../../app/router/route_names.dart';
 
 import '../../auth/providers/auth_providers.dart';
 import '../../../shared/constants/storage_paths.dart';
@@ -11,16 +14,19 @@ import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
+import 'patient_viewer_mode.dart';
 
 class PatientProfileScreen extends ConsumerStatefulWidget {
   const PatientProfileScreen({
     super.key,
     this.embedded = false,
     this.patientIdOverride,
+    this.viewerMode = PatientViewerMode.patient,
   });
 
   final bool embedded;
   final String? patientIdOverride;
+  final PatientViewerMode viewerMode;
 
   @override
   ConsumerState<PatientProfileScreen> createState() => _PatientProfileScreenState();
@@ -77,12 +83,19 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+    final isAdminViewer = widget.viewerMode == PatientViewerMode.adminViewer;
     final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
         ? widget.patientIdOverride!
         : (user?.uid ?? '');
 
     if (effectivePatientId.isEmpty) {
-      return const Center(child: Text('Debes iniciar sesión para ver tu perfil.'));
+      return Center(
+        child: Text(
+          isAdminViewer
+              ? 'No se pudo cargar el perfil del paciente.'
+              : 'Debes iniciar sesión para ver tu perfil.',
+        ),
+      );
     }
 
     final patientAsync = ref.watch(patientByIdProvider(effectivePatientId));
@@ -91,7 +104,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Text(
-            'No se pudo cargar tu perfil: $error',
+            isAdminViewer
+                ? 'No se pudo cargar el perfil del paciente: $error'
+                : 'No se pudo cargar tu perfil: $error',
             textAlign: TextAlign.center,
           ),
         ),
@@ -152,8 +167,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: OcgColors.ivory.withOpacity(0.25)),
                       ),
-                      child: const Text(
-                        'Perfil de paciente',
+                      child: Text(
+                        isAdminViewer ? 'Perfil del paciente' : 'Perfil de paciente',
                         style: TextStyle(
                           color: OcgColors.ivory,
                           fontSize: 12,
@@ -168,11 +183,32 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    if (isAdminViewer) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.go(
+                            RouteNames.adminPatientEdit.replaceFirst(
+                              ':patientId',
+                              patient.id,
+                            ),
+                          ),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Editar paciente'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     OcgCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Datos personales', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          Text(
+                            isAdminViewer
+                                ? 'Información del paciente'
+                                : 'Datos personales',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(height: 12),
                           Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
                           const SizedBox(height: 12),
@@ -208,7 +244,12 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Resumen clínico (solo lectura)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          Text(
+                            isAdminViewer
+                                ? 'Resumen clínico del paciente'
+                                : 'Resumen clínico (solo lectura)',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(height: 12),
                           _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
                           _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
@@ -229,7 +270,12 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Estado financiero', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          Text(
+                            isAdminViewer
+                                ? 'Estado financiero del paciente'
+                                : 'Estado financiero',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(height: 12),
                           _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
                           _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),

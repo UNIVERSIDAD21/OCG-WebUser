@@ -1,0 +1,1 @@
+enum PatientViewerMode { patient, adminViewer }

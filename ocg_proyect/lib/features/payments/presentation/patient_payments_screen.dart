@@ -8,16 +8,19 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
+import '../../patients/presentation/patient_viewer_mode.dart';
 
 class PatientPaymentsScreen extends ConsumerStatefulWidget {
   const PatientPaymentsScreen({
     super.key,
     this.embedded = false,
     this.patientIdOverride,
+    this.viewerMode = PatientViewerMode.patient,
   });
 
   final bool embedded;
   final String? patientIdOverride;
+  final PatientViewerMode viewerMode;
 
   @override
   ConsumerState<PatientPaymentsScreen> createState() => _PatientPaymentsScreenState();
@@ -44,6 +47,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     });
 
     final user = ref.watch(authStateProvider).asData?.value;
+    final isAdminViewer = widget.viewerMode == PatientViewerMode.adminViewer;
     final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
         ? widget.patientIdOverride!
         : (user?.uid ?? '');
@@ -76,11 +80,11 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Mis pagos',
+                  isAdminViewer ? 'Pagos del paciente' : 'Mis pagos',
                   style: TextStyle(
                     color: OcgColors.ivory,
                     fontSize: 28,
@@ -89,7 +93,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Estado de cuenta y movimientos',
+                  isAdminViewer ? 'Gestión financiera y movimientos' : 'Estado de cuenta y movimientos',
                   style: TextStyle(
                     color: Color(0xCCF8F5F0),
                     fontSize: 13,
@@ -140,16 +144,33 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                               elevation: 0,
                             ),
                             onPressed: saldo > 0
-                                ? () => _confirmAndPayu(
-                                      context,
-                                      effectivePatientId,
-                                      saldo,
-                                      user?.email ?? '',
-                                      user?.displayName ?? 'Paciente',
-                                    )
+                                ? () => isAdminViewer
+                                    ? _showRegisterManualPaymentDialog(
+                                        context,
+                                        effectivePatientId,
+                                        saldo,
+                                      )
+                                    : _confirmAndPayu(
+                                        context,
+                                        effectivePatientId,
+                                        saldo,
+                                        user?.email ?? '',
+                                        user?.displayName ?? 'Paciente',
+                                      )
                                 : null,
-                            icon: const Icon(Icons.lock_outline, size: 18),
-                            label: Text(saldo > 0 ? 'Pagar con PayU' : 'Tratamiento pagado'),
+                            icon: Icon(
+                              isAdminViewer
+                                  ? Icons.add_card_outlined
+                                  : Icons.lock_outline,
+                              size: 18,
+                            ),
+                            label: Text(
+                              saldo > 0
+                                  ? isAdminViewer
+                                      ? 'Registrar pago'
+                                      : 'Pagar con PayU'
+                                  : 'Tratamiento pagado',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -158,13 +179,19 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                           saldoPendiente: saldo,
                           currency: currency,
                           onGoToPay: saldo > 0
-                              ? () => _confirmAndPayu(
-                                    context,
-                                    effectivePatientId,
-                                    saldo,
-                                    user?.email ?? '',
-                                    user?.displayName ?? 'Paciente',
-                                  )
+                              ? () => isAdminViewer
+                                  ? _showRegisterManualPaymentDialog(
+                                      context,
+                                      effectivePatientId,
+                                      saldo,
+                                    )
+                                  : _confirmAndPayu(
+                                      context,
+                                      effectivePatientId,
+                                      saldo,
+                                      user?.email ?? '',
+                                      user?.displayName ?? 'Paciente',
+                                    )
                               : null,
                         ),
                       ],
@@ -234,9 +261,58 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     if (widget.embedded) return content;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis pagos')),
+      appBar: AppBar(title: Text(isAdminViewer ? 'Pagos del paciente' : 'Mis pagos')),
       body: content,
     );
+  }
+
+  Future<void> _showRegisterManualPaymentDialog(
+    BuildContext context,
+    String patientId,
+    double suggestedAmount,
+  ) async {
+    final amountCtrl = TextEditingController(text: suggestedAmount.toStringAsFixed(0));
+    final notesCtrl = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Registrar pago manual'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Monto (COP)'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: notesCtrl,
+              decoration: const InputDecoration(labelText: 'Observación (opcional)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Registrar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final monto = double.tryParse(amountCtrl.text.trim()) ?? 0;
+    if (monto <= 0) return;
+
+    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+    await ref.read(registerPaymentProvider.notifier).registerManual(
+          patientId: patientId,
+          monto: monto,
+          metodo: PaymentMethod.efectivo,
+          adminId: adminId,
+          notas: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        );
   }
 
   Future<void> _confirmAndPayu(

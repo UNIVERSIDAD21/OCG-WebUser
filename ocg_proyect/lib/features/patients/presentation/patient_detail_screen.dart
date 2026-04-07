@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
@@ -12,7 +13,11 @@ import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
-import '../../dashboard/presentation/patient_home_screen.dart';
+import '../../dashboard/presentation/patient_appointments_screen.dart';
+import '../../payments/presentation/patient_payments_screen.dart';
+import '../../simulator/presentation/patient_simulations_screen.dart';
+import 'patient_profile_screen.dart';
+import 'patient_viewer_mode.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../providers/patients_provider.dart';
@@ -104,11 +109,7 @@ class _PatientDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final existingAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
 
-    final content = PatientHomeScreen(
-      patientIdOverride: patient.id,
-      isAdminView: true,
-      initialSection: 5,
-    );
+    final content = _AdminPatientWorkspace(patient: patient);
 
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = DefaultTabController(
@@ -248,5 +249,131 @@ class _PatientDetailView extends ConsumerWidget {
     }
 
     return content;
+  }
+}
+
+class _AdminPatientWorkspace extends ConsumerStatefulWidget {
+  const _AdminPatientWorkspace({required this.patient});
+
+  final PatientModel patient;
+
+  @override
+  ConsumerState<_AdminPatientWorkspace> createState() =>
+      _AdminPatientWorkspaceState();
+}
+
+class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> {
+  int _section = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final views = [
+      PatientProfileScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      _AdminTreatmentHost(patient: widget.patient),
+      PatientAppointmentsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      PatientPaymentsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      PatientSimulationsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+    ];
+
+    return OcgAdaptiveScaffold(
+      selectedIndex: 1,
+      title: 'Paciente: ${widget.patient.nombre}',
+      body: Column(
+        children: [
+          SizedBox(
+            height: 54,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              scrollDirection: Axis.horizontal,
+              children: [
+                _sectionChip('Perfil', 0),
+                _sectionChip('Tratamiento', 1),
+                _sectionChip('Citas', 2),
+                _sectionChip('Pagos', 3),
+                _sectionChip('Simulador', 4),
+              ],
+            ),
+          ),
+          Expanded(child: IndexedStack(index: _section, children: views)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionChip(String text, int index) {
+    final active = _section == index;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        selected: active,
+        label: Text(text),
+        onSelected: (_) => setState(() => _section = index),
+      ),
+    );
+  }
+}
+
+class _AdminTreatmentHost extends StatelessWidget {
+  const _AdminTreatmentHost({required this.patient});
+
+  final PatientModel patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            20,
+            MediaQuery.paddingOf(context).top + 16,
+            20,
+            14,
+          ),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [OcgColors.espresso, Color(0xFF4A3628)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tratamiento del paciente',
+                style: TextStyle(
+                  color: OcgColors.ivory,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Seguimiento clínico y etapas desde administración',
+                style: TextStyle(color: Color(0xCCF8F5F0), fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: PatientTreatmentTab(patientId: patient.id, patient: patient)),
+      ],
+    );
   }
 }

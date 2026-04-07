@@ -12,6 +12,7 @@ import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
+import '../../patients/presentation/patient_viewer_mode.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,10 +68,12 @@ class PatientAppointmentsScreen extends ConsumerStatefulWidget {
     super.key,
     this.embedded = false,
     this.patientIdOverride,
+    this.viewerMode = PatientViewerMode.patient,
   });
 
   final bool embedded;
   final String? patientIdOverride;
+  final PatientViewerMode viewerMode;
 
   @override
   ConsumerState<PatientAppointmentsScreen> createState() =>
@@ -747,6 +750,7 @@ class _PatientAppointmentsScreenState
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
+    final isAdminViewer = widget.viewerMode == PatientViewerMode.adminViewer;
     final effectivePatientId = (widget.patientIdOverride?.isNotEmpty == true)
         ? widget.patientIdOverride!
         : (user?.uid ?? '');
@@ -782,8 +786,8 @@ class _PatientAppointmentsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Mis citas',
+              Text(
+                isAdminViewer ? 'Citas del paciente' : 'Mis citas',
                 style: TextStyle(
                   color: Color(0xFF1A1410),
                   fontSize: 28,
@@ -842,7 +846,9 @@ class _PatientAppointmentsScreenState
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'No se pudieron cargar tus citas.\n$e',
+                  isAdminViewer
+                      ? 'No se pudieron cargar las citas del paciente.\n$e'
+                      : 'No se pudieron cargar tus citas.\n$e',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Color(0xFF8A6F59)),
                 ),
@@ -882,8 +888,12 @@ class _PatientAppointmentsScreenState
                     ),
                     child: Text(
                       _filter == _PatientFilter.proximas
-                          ? 'No tienes citas próximas.\nPulsa + para agendar una nueva cita.'
-                          : 'Aún no hay citas en tu historial.',
+                          ? isAdminViewer
+                              ? 'No hay citas próximas para este paciente.\nPulsa + para agendar una nueva cita.'
+                              : 'No tienes citas próximas.\nPulsa + para agendar una nueva cita.'
+                          : isAdminViewer
+                              ? 'Aún no hay citas registradas en el historial del paciente.'
+                              : 'Aún no hay citas en tu historial.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Color(0xFF8A6F59),
@@ -939,7 +949,7 @@ class _PatientAppointmentsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis citas'),
+        title: Text(isAdminViewer ? 'Citas del paciente' : 'Mis citas'),
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',

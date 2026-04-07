@@ -7,19 +7,23 @@ import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../providers/simulation_provider.dart';
+import '../../patients/presentation/patient_viewer_mode.dart';
 
 class PatientSimulationsScreen extends ConsumerWidget {
   const PatientSimulationsScreen({
     super.key,
     this.embedded = false,
     this.patientIdOverride,
+    this.viewerMode = PatientViewerMode.patient,
   });
 
   final bool embedded;
   final String? patientIdOverride;
+  final PatientViewerMode viewerMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAdminViewer = viewerMode == PatientViewerMode.adminViewer;
     final authUid = ref.watch(authStateProvider).asData?.value?.uid ?? '';
     final userId = (patientIdOverride?.isNotEmpty == true) ? patientIdOverride! : authUid;
 
@@ -39,11 +43,13 @@ class PatientSimulationsScreen extends ConsumerWidget {
             error: (e, _) => Center(child: Text('No se pudieron cargar simulaciones: $e')),
             data: (items) {
               if (items.isEmpty) {
-                return const Center(
+                return Center(
                   child: OcgEmptyState(
                     icon: Icons.auto_awesome_outlined,
                     title: 'Sin simulaciones compartidas',
-                    subtitle: 'Cuando la doctora comparta una simulación, aparecerá aquí.',
+                    subtitle: isAdminViewer
+                        ? 'Cuando se comparta una simulación para este paciente, aparecerá aquí.'
+                        : 'Cuando la doctora comparta una simulación, aparecerá aquí.',
                   ),
                 );
               }
@@ -132,11 +138,11 @@ class PatientSimulationsScreen extends ConsumerWidget {
               end: Alignment.bottomRight,
             ),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Mis simulaciones',
+                isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones',
                 style: TextStyle(
                   color: Color(0xFFF8F5F0),
                   fontSize: 20,
@@ -145,7 +151,9 @@ class PatientSimulationsScreen extends ConsumerWidget {
               ),
               SizedBox(height: 2),
               Text(
-                'Compara evolución y resultados compartidos',
+                isAdminViewer
+                    ? 'Seguimiento visual del paciente'
+                    : 'Compara evolución y resultados compartidos',
                 style: TextStyle(
                   color: Color(0xCCF8F5F0),
                   fontSize: 13,
@@ -161,7 +169,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
     if (embedded) return decoratedBody;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis simulaciones')),
+      appBar: AppBar(title: Text(isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones')),
       body: decoratedBody,
     );
   }
