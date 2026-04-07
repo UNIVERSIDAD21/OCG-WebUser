@@ -169,6 +169,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           ),
         ),
       ),
+      showMobileAppBar: false,
       body: dashboardBody,
     );
   }
@@ -253,6 +254,23 @@ class _DashboardBody extends StatelessWidget {
         )
         .length;
 
+    final isMobile = MediaQuery.of(context).size.width <= 800;
+
+    if (isMobile) {
+      return _MobileAdminDashboard(
+        ref: ref,
+        todaysAppointments: todaysAppointments,
+        pendingConfirm: pendingConfirm,
+        canceladasSemana: canceladasSemana,
+        nuevosPacientes30d: nuevosPacientes30d,
+        citasSinConfirmar2h: citasSinConfirmar2h,
+        perfilesPendientes: perfilesPendientes,
+        pagosVencidos: pagosVencidos,
+        loadingAppointments: appointmentsAsync.isLoading,
+        appointmentsError: appointmentsAsync.hasError,
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -263,7 +281,6 @@ class _DashboardBody extends StatelessWidget {
             subtitle: 'Resumen operativo del día en OCG Clínica',
           ),
           const SizedBox(height: 20),
-
           LayoutBuilder(
             builder: (context, constraints) {
               final isCompact = constraints.maxWidth < 680;
@@ -275,21 +292,9 @@ class _DashboardBody extends StatelessWidget {
                 mainAxisSpacing: 10,
                 childAspectRatio: isCompact ? 1.08 : 1.35,
                 children: [
-                  KpiCard(
-                    title: 'Citas hoy',
-                    value: '${todaysAppointments.length}',
-                    icon: Icons.today_outlined,
-                  ),
-                  KpiCard(
-                    title: 'Citas sin confirmar',
-                    value: '$pendingConfirm',
-                    icon: Icons.pending_actions_outlined,
-                  ),
-                  KpiCard(
-                    title: 'Canceladas (7d)',
-                    value: '$canceladasSemana',
-                    icon: Icons.event_busy_outlined,
-                  ),
+                  KpiCard(title: 'Citas hoy', value: '${todaysAppointments.length}', icon: Icons.today_outlined),
+                  KpiCard(title: 'Citas sin confirmar', value: '$pendingConfirm', icon: Icons.pending_actions_outlined),
+                  KpiCard(title: 'Canceladas (7d)', value: '$canceladasSemana', icon: Icons.event_busy_outlined),
                   KpiCard(
                     title: 'Pacientes nuevos (30d)',
                     value: '$nuevosPacientes30d',
@@ -300,7 +305,6 @@ class _DashboardBody extends StatelessWidget {
               );
             },
           ),
-
           const SizedBox(height: 24),
           SectionPanel(
             title: 'Acceso rápido',
@@ -324,27 +328,14 @@ class _DashboardBody extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.4,
                   children: [
-                    _QuickCard(
-                      icon: Icons.people_outline,
-                      label: 'Pacientes',
-                      onTap: () => context.go(RouteNames.adminPatients),
-                    ),
-                    _QuickCard(
-                      icon: Icons.calendar_month_outlined,
-                      label: 'Agenda',
-                      onTap: () => context.go(RouteNames.adminAppointments),
-                    ),
-                    _QuickCard(
-                      icon: Icons.person_add_outlined,
-                      label: 'Nuevo paciente',
-                      onTap: () => context.go(RouteNames.adminPatients),
-                    ),
+                    _QuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients)),
+                    _QuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments)),
+                    _QuickCard(icon: Icons.person_add_outlined, label: 'Nuevo paciente', onTap: () => context.go(RouteNames.adminPatients)),
                   ],
                 );
               },
             ),
           ),
-
           const SizedBox(height: 16),
           SectionPanel(
             title: 'Alertas operativas',
@@ -354,7 +345,6 @@ class _DashboardBody extends StatelessWidget {
               pagosVencidos: pagosVencidos,
             ),
           ),
-
           const SizedBox(height: 16),
           SectionPanel(
             title: 'Agenda de hoy',
@@ -365,13 +355,495 @@ class _DashboardBody extends StatelessWidget {
               appointments: todaysAppointments.take(8).toList(),
             ),
           ),
-
           const SizedBox(height: 24),
           SectionPanel(
             title: 'Atajos administrativos',
             child: const _SignOutButton(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MobileAdminDashboard extends StatelessWidget {
+  const _MobileAdminDashboard({
+    required this.ref,
+    required this.todaysAppointments,
+    required this.pendingConfirm,
+    required this.canceladasSemana,
+    required this.nuevosPacientes30d,
+    required this.citasSinConfirmar2h,
+    required this.perfilesPendientes,
+    required this.pagosVencidos,
+    required this.loadingAppointments,
+    required this.appointmentsError,
+  });
+
+  final WidgetRef ref;
+  final List<AppointmentModel> todaysAppointments;
+  final int pendingConfirm;
+  final int canceladasSemana;
+  final int nuevosPacientes30d;
+  final int citasSinConfirmar2h;
+  final int perfilesPendientes;
+  final int pagosVencidos;
+  final bool loadingAppointments;
+  final bool appointmentsError;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    const wd = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
+    const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    final dateLabel = '${wd[now.weekday - 1]} ${now.day} DE ${months[now.month - 1]} · ${now.year}';
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(18, MediaQuery.paddingOf(context).top + 14, 18, 18),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF21170F), OcgColors.espresso],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Builder(
+                      builder: (ctx) => InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Scaffold.of(ctx).openDrawer(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: OcgColors.ivory.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.menu, color: OcgColors.ivory, size: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text('Panel Admin', style: TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 18)),
+                    ),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.notifications_none, color: OcgColors.ivory, size: 19),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: OcgColors.bronze,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text('AD', style: TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  dateLabel,
+                  style: TextStyle(
+                    color: OcgColors.ivory.withOpacity(0.68),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.45,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Buenos días, Admin',
+                  style: TextStyle(color: OcgColors.ivory, fontSize: 30, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Centro operativo del día',
+                  style: TextStyle(color: OcgColors.ivory.withOpacity(0.8), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [BoxShadow(color: Color(0x1E2C2016), blurRadius: 20, offset: Offset(0, 8))],
+                ),
+                child: GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 1.35,
+                  children: [
+                    _MobileKpiMini(value: '${todaysAppointments.length}', title: 'Citas hoy', subtitle: 'programadas', bg: const Color(0xFFF6EFE7)),
+                    _MobileKpiMini(value: '$pendingConfirm', title: 'Sin confirmar', subtitle: 'pendientes', bg: const Color(0xFFFFF4D8)),
+                    _MobileKpiMini(value: '$canceladasSemana', title: 'Canceladas', subtitle: 'últimos 7 días', bg: const Color(0xFFFFECEC)),
+                    _MobileKpiMini(value: '$nuevosPacientes30d', title: 'Nuevos', subtitle: 'últimos 30 días', bg: const Color(0xFFEFF8F0)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _MobileSectionTitle('Acceso rápido'),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _MobileQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _MobileQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _MobileQuickCard(
+                        icon: Icons.person_add_outlined,
+                        label: 'Nuevo paciente',
+                        onTap: () => context.go(RouteNames.adminPatients),
+                        emphasized: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const _MobileSectionTitle('Alertas operativas'),
+                const SizedBox(height: 10),
+                _MobileAlertCard(icon: Icons.schedule, title: '$citasSinConfirmar2h cita${citasSinConfirmar2h == 1 ? '' : 's'} sin confirmar', subtitle: 'Revisar próximas 2 horas', bg: const Color(0xFFFFF4D8), iconColor: OcgColors.warning),
+                const SizedBox(height: 8),
+                _MobileAlertCard(icon: Icons.description_outlined, title: '$perfilesPendientes perfiles incompletos', subtitle: 'Pendientes de actualización', bg: const Color(0xFFF6EFE7), iconColor: OcgColors.bronze),
+                const SizedBox(height: 8),
+                _MobileAlertCard(icon: Icons.payments_outlined, title: '$pagosVencidos pagos vencidos', subtitle: 'Seguimiento financiero requerido', bg: const Color(0xFFFFECEC), iconColor: OcgColors.error),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
+                    TextButton(
+                      onPressed: () => context.go(RouteNames.adminAppointments),
+                      child: const Text('Ver todo >', style: TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (loadingAppointments)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (appointmentsError)
+                  const Text('No se pudo cargar la agenda del día.')
+                else if (todaysAppointments.isEmpty)
+                  const Text('No hay citas programadas para hoy.')
+                else
+                  ...todaysAppointments.take(8).map((a) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _MobileAgendaCard(appointment: a, ref: ref),
+                      )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileSectionTitle extends StatelessWidget {
+  const _MobileSectionTitle(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 3, height: 16, decoration: BoxDecoration(color: OcgColors.bronze, borderRadius: BorderRadius.circular(99))),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+      ],
+    );
+  }
+}
+
+class _MobileKpiMini extends StatelessWidget {
+  const _MobileKpiMini({required this.value, required this.title, required this.subtitle, required this.bg});
+  final String value;
+  final String title;
+  final String subtitle;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+          const SizedBox(height: 4),
+          Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          Text(subtitle, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7E6754))),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileQuickCard extends StatelessWidget {
+  const _MobileQuickCard({required this.icon, required this.label, required this.onTap, this.emphasized = false});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = emphasized ? OcgColors.espresso : Colors.white;
+    final fg = emphasized ? OcgColors.ivory : OcgColors.espresso;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: emphasized ? OcgColors.espresso : const Color(0xFFE7D6C6)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: emphasized ? OcgColors.ivory.withOpacity(0.14) : const Color(0xFFF2EDE8),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 17, color: fg),
+            ),
+            const SizedBox(height: 8),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11.2, fontWeight: FontWeight.w700, color: fg)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileAlertCard extends StatelessWidget {
+  const _MobileAlertCard({required this.icon, required this.title, required this.subtitle, required this.bg, required this.iconColor});
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color bg;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0x26C4A890))),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: OcgColors.ink)),
+                Text(subtitle, style: const TextStyle(fontSize: 11.5, color: Color(0xFF7B6654))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileAgendaCard extends StatelessWidget {
+  const _MobileAgendaCard({required this.appointment, required this.ref});
+
+  final AppointmentModel appointment;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusLabel, statusColor) = switch (appointment.estado) {
+      AppointmentStatus.programada => ('Sin confirmar', OcgColors.warning),
+      AppointmentStatus.confirmada => ('Confirmada', const Color(0xFF1565C0)),
+      AppointmentStatus.completada => ('Completada', OcgColors.success),
+      AppointmentStatus.cancelada => ('Cancelada', OcgColors.error),
+      AppointmentStatus.noAsistio => ('No asistió', OcgColors.error),
+      AppointmentStatus.reprogramada => ('Reprogramada', Colors.purple),
+    };
+
+    final initials = appointment.patientName.trim().isEmpty
+        ? 'P'
+        : appointment.patientName
+            .trim()
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .take(2)
+            .map((e) => e[0].toUpperCase())
+            .join();
+
+    final canConfirm = appointment.estado == AppointmentStatus.programada;
+    final canComplete = appointment.estado == AppointmentStatus.confirmada;
+    final canReschedule = appointment.estado == AppointmentStatus.programada || appointment.estado == AppointmentStatus.confirmada;
+    final canCancel = appointment.estado == AppointmentStatus.programada || appointment.estado == AppointmentStatus.confirmada;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7D6C6)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 19,
+                  backgroundColor: const Color(0xFFF2EDE8),
+                  child: Text(initials, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700, fontSize: 12)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        appointment.patientName.isEmpty ? 'Paciente sin nombre' : appointment.patientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: OcgColors.ink),
+                      ),
+                      Text(
+                        '${_TodayAgendaCard._fmtHour(appointment.fechaHora)} · ${_TodayAgendaCard._tipoLabel(appointment.tipo)}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF7B6654)),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(99)),
+                  child: Text(statusLabel, style: TextStyle(fontSize: 10.5, color: statusColor, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFEFE2D6)),
+          Row(
+            children: [
+              _AgendaActionCell(
+                icon: Icons.check_circle_outline,
+                label: 'Confirmar',
+                color: OcgColors.success,
+                enabled: canConfirm,
+                onTap: () => _TodayAgendaCard(ref: ref, loading: false, hasError: false, appointments: const [])._updateStatus(context, appointment, AppointmentStatus.confirmada),
+              ),
+              _AgendaActionCell(
+                icon: Icons.task_alt,
+                label: 'Completar',
+                color: OcgColors.success,
+                enabled: canComplete,
+                onTap: () => _TodayAgendaCard(ref: ref, loading: false, hasError: false, appointments: const [])._updateStatus(context, appointment, AppointmentStatus.completada),
+              ),
+              _AgendaActionCell(
+                icon: Icons.edit_calendar_outlined,
+                label: 'Reprogramar',
+                color: OcgColors.bronze,
+                enabled: canReschedule,
+                onTap: () => _TodayAgendaCard(ref: ref, loading: false, hasError: false, appointments: const [])._showRescheduleDialog(context, appointment),
+              ),
+              _AgendaActionCell(
+                icon: Icons.cancel_outlined,
+                label: 'Cancelar',
+                color: OcgColors.error,
+                enabled: canCancel,
+                onTap: () => _TodayAgendaCard(ref: ref, loading: false, hasError: false, appointments: const [])._updateStatus(context, appointment, AppointmentStatus.cancelada),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AgendaActionCell extends StatelessWidget {
+  const _AgendaActionCell({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = enabled ? color : const Color(0xFFC2B3A5);
+    return Expanded(
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          height: 58,
+          decoration: const BoxDecoration(
+            border: Border(right: BorderSide(color: Color(0xFFEFE2D6), width: 1)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: fg)),
+            ],
+          ),
+        ),
       ),
     );
   }

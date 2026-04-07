@@ -18,6 +18,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.railTrailing,
     this.onSignOut,
+    this.showMobileAppBar = true,
   });
 
   final Widget body;
@@ -41,6 +42,9 @@ class OcgAdaptiveScaffold extends StatelessWidget {
 
   /// Acción de cerrar sesión usada por el Drawer móvil admin.
   final VoidCallback? onSignOut;
+
+  /// Permite ocultar el AppBar en móvil para pantallas con header custom.
+  final bool showMobileAppBar;
 
   // ─── Destinos admin (fuente única de verdad para rail + drawer) ─────────
 
@@ -261,10 +265,12 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     // ── Layout compacto (≤ 800px) ──────────────────────────────────────────
     return Scaffold(
       drawer: _buildAdminDrawer(context),
-      appBar: AppBar(
-        title: title != null ? Text(title!) : null,
-        actions: appBarActions,
-      ),
+      appBar: showMobileAppBar
+          ? AppBar(
+              title: title != null ? Text(title!) : null,
+              actions: appBarActions,
+            )
+          : null,
       floatingActionButton: floatingActionButton,
       body: body,
     );
