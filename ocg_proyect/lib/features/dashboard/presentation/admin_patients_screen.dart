@@ -1081,4 +1081,5 @@ String _tipoTratamientoLabel(TreatmentType value) => switch (value) {
       TreatmentType.alineadores => 'Alineadores',
       TreatmentType.ortopedia => 'Ortopedia',
       TreatmentType.retenedores => 'Retenedores',
+      TreatmentType.interceptivo => 'Interceptivo',
     };

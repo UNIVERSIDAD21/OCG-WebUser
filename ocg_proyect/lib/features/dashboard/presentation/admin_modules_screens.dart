@@ -576,6 +576,7 @@ class _TypeRow extends StatelessWidget {
         TreatmentType.alineadores => const Color(0xFF4A8F72),
         TreatmentType.ortopedia => const Color(0xFF8B6FB0),
         TreatmentType.retenedores => const Color(0xFFB07F6F),
+        TreatmentType.interceptivo => const Color(0xFF6F8F9D),
       };
 
   @override
@@ -717,6 +718,7 @@ String _tipoLabel(TreatmentType type) => switch (type) {
       TreatmentType.alineadores => 'Alineadores',
       TreatmentType.ortopedia => 'Ortopedia',
       TreatmentType.retenedores => 'Retenedores',
+      TreatmentType.interceptivo => 'Interceptivo',
     };
 
 class _KpiPill extends StatelessWidget {
