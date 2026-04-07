@@ -108,8 +108,20 @@ class _PatientDetailView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final existingAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
+    final sectionParam = GoRouterState.of(context).uri.queryParameters['section'];
+    final initialMobileSection = switch (sectionParam) {
+      'perfil' => 0,
+      'tratamiento' => 1,
+      'citas' => 2,
+      'pagos' => 3,
+      'simulador' => 4,
+      _ => 0,
+    };
 
-    final content = _AdminPatientWorkspace(patient: patient);
+    final content = _AdminPatientWorkspace(
+      patient: patient,
+      initialSection: initialMobileSection,
+    );
 
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = DefaultTabController(
@@ -253,9 +265,13 @@ class _PatientDetailView extends ConsumerWidget {
 }
 
 class _AdminPatientWorkspace extends ConsumerStatefulWidget {
-  const _AdminPatientWorkspace({required this.patient});
+  const _AdminPatientWorkspace({
+    required this.patient,
+    this.initialSection = 0,
+  });
 
   final PatientModel patient;
+  final int initialSection;
 
   @override
   ConsumerState<_AdminPatientWorkspace> createState() =>
@@ -263,7 +279,13 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
 }
 
 class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> {
-  int _section = 0;
+  late int _section;
+
+  @override
+  void initState() {
+    super.initState();
+    _section = widget.initialSection.clamp(0, 4);
+  }
 
   @override
   Widget build(BuildContext context) {

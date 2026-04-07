@@ -2853,22 +2853,7 @@ class _AdminAppointmentsScreenState
     return OcgAdaptiveScaffold(
       selectedIndex: 2,
       title: 'Agenda de citas',
-      appBarActions: [
-        IconButton(
-          tooltip: 'Crear cuenta de paciente',
-          icon: const Icon(Icons.person_add_outlined),
-          onPressed: () =>
-              AdminAppointmentsScreen.showCreatePatientAccountDialog(
-                context,
-                ref,
-              ),
-        ),
-        IconButton(
-          tooltip: 'Cerrar sesión',
-          icon: const Icon(Icons.logout, color: OcgColors.error),
-          onPressed: _handleSignOut,
-        ),
-      ],
+      appBarActions: const [],
       onSignOut: _handleSignOut,
       railTrailing: OutlinedButton.icon(
         onPressed: _handleSignOut,

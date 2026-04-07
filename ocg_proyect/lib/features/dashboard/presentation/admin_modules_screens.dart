@@ -268,21 +268,42 @@ class AdminSimulatorScreen extends ConsumerWidget {
         final content = [
           const PageHeader(
             title: 'Simulador',
-            subtitle: 'Acceso clínico al flujo de simulaciones por paciente',
+            subtitle: 'Gestión clínica de simulaciones por paciente',
           ),
           const SizedBox(height: 12),
-          const SectionPanel(
-            title: 'Flujo activo',
-            child: Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                'Selecciona un paciente para entrar a su ficha clínica y gestionar la simulación antes/después desde el flujo principal.',
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2C2016), OcgColors.espresso],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Workspace de simulación',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Toca un paciente para abrir directamente su sección de Simulador dentro del detalle admin.',
+                  style: TextStyle(color: Color(0xCCF8F5F0)),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
           SectionPanel(
-            title: 'Pacientes',
+            title: 'Pacientes con acceso a simulación',
             child: ordered.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(16),
@@ -291,15 +312,10 @@ class AdminSimulatorScreen extends ConsumerWidget {
                 : Column(
                     children: ordered
                         .map(
-                          (p) => _PatientActionTile(
+                          (p) => _AdminSimulatorPatientCard(
                             patient: p,
-                            subtitle:
-                                'Abrir detalle para gestionar simulación clínica',
                             onOpen: () => context.go(
-                              RouteNames.adminPatientDetail.replaceFirst(
-                                ':patientId',
-                                p.id,
-                              ),
+                              '${RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id)}?section=simulador',
                             ),
                           ),
                         )
@@ -1105,6 +1121,83 @@ class _KpiPill extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AdminSimulatorPatientCard extends StatelessWidget {
+  const _AdminSimulatorPatientCard({
+    required this.patient,
+    required this.onOpen,
+  });
+
+  final PatientModel patient;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onOpen,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8D8C8)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: OcgColors.espresso.withOpacity(0.14),
+              child: Text(
+                _initials(patient.nombre),
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.nombre,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: OcgColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Abrir simulaciones del paciente',
+                    style: TextStyle(color: OcgColors.ink.withOpacity(0.64)),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.auto_awesome, color: OcgColors.bronze),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 }
 
