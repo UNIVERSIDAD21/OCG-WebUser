@@ -63,9 +63,34 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: sections,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _selectedIndex,
+            children: sections,
+          ),
+          if (widget.isAdminView)
+            Positioned(
+              left: 12,
+              top: MediaQuery.paddingOf(context).top + 8,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: OcgColors.espresso.withOpacity(0.78),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.arrow_back, color: OcgColors.ivory, size: 20),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: PatientBottomNav(
         selectedIndex: _selectedIndex,
