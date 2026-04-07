@@ -50,13 +50,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         ? widget.patientIdOverride!
         : (user?.uid ?? '');
 
+    final overrideForAdmin = widget.isAdminView ? effectivePatientId : null;
+
     final sections = [
       _InicioSection(userId: effectivePatientId),
-      PatientAppointmentsScreen(embedded: true, patientIdOverride: effectivePatientId),
+      PatientAppointmentsScreen(embedded: true, patientIdOverride: overrideForAdmin),
       _TratamientoSection(userId: effectivePatientId),
-      PatientPaymentsScreen(embedded: true, patientIdOverride: effectivePatientId),
-      PatientSimulationsScreen(embedded: true, patientIdOverride: effectivePatientId),
-      PatientProfileScreen(embedded: true, patientIdOverride: effectivePatientId),
+      PatientPaymentsScreen(embedded: true, patientIdOverride: overrideForAdmin),
+      PatientSimulationsScreen(embedded: true, patientIdOverride: overrideForAdmin),
+      PatientProfileScreen(embedded: true, patientIdOverride: overrideForAdmin),
     ];
 
     return Scaffold(
