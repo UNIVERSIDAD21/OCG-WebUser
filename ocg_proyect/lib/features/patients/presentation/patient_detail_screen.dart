@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
-import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
@@ -16,7 +15,6 @@ import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_home_screen.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
-import '../../auth/providers/auth_providers.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
 import 'tabs/patient_payments_tab.dart';
@@ -64,11 +62,6 @@ class _PatientDetailView extends ConsumerWidget {
 
   final PatientModel patient;
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    await ref.read(authServiceProvider).signOut();
-    if (context.mounted) context.go(RouteNames.login);
-  }
-
   Future<void> _deletePatient(BuildContext context, WidgetRef ref) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -111,127 +104,10 @@ class _PatientDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final existingAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
 
-    final content = DefaultTabController(
-      length: 5,
-      child: OcgAdaptiveScaffold(
-        selectedIndex: 1,
-        onSignOut: () => _signOut(context, ref),
-        railTrailing: OutlinedButton.icon(
-          onPressed: () => _signOut(context, ref),
-          icon: const Icon(Icons.logout, size: 18),
-          label: const Text('Cerrar sesión'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFFFD9D9),
-            backgroundColor: OcgColors.error.withOpacity(0.14),
-            side: BorderSide(color: const Color(0xFFFFD9D9).withOpacity(0.55)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        ),
-        body: Column(
-          children: [
-            Material(
-              color: OcgColors.espresso,
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            tooltip: 'Volver',
-                            onPressed: () =>
-                                context.go(RouteNames.adminPatients),
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: OcgColors.ivory,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              patient.nombre,
-                              style: const TextStyle(
-                                color: OcgColors.ivory,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Eliminar paciente',
-                            onPressed: () => _deletePatient(context, ref),
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: OcgColors.ivory,
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Editar paciente',
-                            onPressed: () => context.go(
-                              RouteNames.adminPatientEdit.replaceFirst(
-                                ':patientId',
-                                patient.id,
-                              ),
-                            ),
-                            icon: const Icon(
-                              Icons.edit,
-                              color: OcgColors.ivory,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const TabBar(
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      labelColor: OcgColors.ivory,
-                      unselectedLabelColor: OcgColors.sand,
-                      indicatorColor: OcgColors.bronze,
-                      dividerColor: Colors.transparent,
-                      tabs: [
-                        Tab(text: 'Perfil'),
-                        Tab(text: 'Tratamiento'),
-                        Tab(text: 'Citas'),
-                        Tab(text: 'Pagos'),
-                        Tab(text: 'Simulador'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              color: OcgColors.mist,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                  OcgChip(label: formatTreatmentStage(patient.etapaActual)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  PatientProfileTab(patient: patient),
-                  PatientTreatmentTab(patientId: patient.id, patient: patient),
-                  PatientAppointmentsTab(patient: patient),
-                  PatientPaymentsTab(patientId: patient.id),
-                  PatientSimulatorTab(patient: patient),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    final content = PatientHomeScreen(
+      patientIdOverride: patient.id,
+      isAdminView: true,
+      initialSection: 5,
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
