@@ -167,6 +167,14 @@ class AdminPaymentsScreen extends ConsumerWidget {
 
         final totalDebt = withDebt.fold<double>(0, (acc, p) => acc + p.saldoPendiente);
 
+        if (!isDesktop) {
+          return _MobilePaymentsAdminView(
+            withDebt: withDebt,
+            overdue: overdue,
+            totalDebt: totalDebt,
+          );
+        }
+
         final content = [
           const PageHeader(
             title: 'Pagos',
@@ -228,6 +236,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 4,
       title: 'Pagos',
+      showMobileAppBar: false,
       onSignOut: () => _signOutAdminModules(context, ref),
       appBarActions: [
         IconButton(
@@ -720,6 +729,346 @@ String _tipoLabel(TreatmentType type) => switch (type) {
       TreatmentType.retenedores => 'Retenedores',
       TreatmentType.interceptivo => 'Interceptivo',
     };
+
+class _MobilePaymentsAdminView extends StatefulWidget {
+  const _MobilePaymentsAdminView({
+    required this.withDebt,
+    required this.overdue,
+    required this.totalDebt,
+  });
+
+  final List<PatientModel> withDebt;
+  final List<PatientModel> overdue;
+  final double totalDebt;
+
+  @override
+  State<_MobilePaymentsAdminView> createState() => _MobilePaymentsAdminViewState();
+}
+
+class _MobilePaymentsAdminViewState extends State<_MobilePaymentsAdminView> {
+  bool showOnlyOverdue = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = showOnlyOverdue ? widget.overdue : widget.withDebt;
+    final now = DateTime.now();
+    final subtitleDate = '${now.day} de ${_monthName(now.month)} ${now.year}';
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 12, 16, 16),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF21170F), OcgColors.espresso],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Builder(
+                  builder: (ctx) => InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => Scaffold.of(ctx).openDrawer(),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.menu, color: OcgColors.ivory, size: 20),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text('Pagos', style: TextStyle(color: OcgColors.ivory, fontSize: 22, fontWeight: FontWeight.w700)),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: OcgColors.ivory.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.notifications_none, color: OcgColors.ivory, size: 18),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: OcgColors.bronze, shape: BoxShape.circle),
+                  child: const Text('AD', style: TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Control financiero de la cartera', style: TextStyle(color: OcgColors.ink.withOpacity(0.92), fontSize: 22, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('Actualizado hoy · $subtitleDate', style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5)),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(child: _PayMiniKpi(value: '${widget.withDebt.length}', title: 'Con saldo', subtitle: 'pacientes activos', bg: const Color(0xFFF6EFE7))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _PayMiniKpi(value: '${widget.overdue.length}', title: 'Vencidos', subtitle: 'requieren atención', bg: const Color(0xFFFFECEC))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: OcgColors.espresso,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [BoxShadow(color: Color(0x332C2016), blurRadius: 16, offset: Offset(0, 6))],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('SALDO TOTAL EN CARTERA', style: TextStyle(color: OcgColors.ivory.withOpacity(0.72), fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                            const SizedBox(height: 8),
+                            Text('\$${formatCop(widget.totalDebt)}', style: const TextStyle(color: OcgColors.ivory, fontSize: 30, fontWeight: FontWeight.w800, height: 1)),
+                            const SizedBox(height: 4),
+                            Text('${widget.withDebt.length} pacientes activos', style: TextStyle(color: OcgColors.ivory.withOpacity(0.75), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: OcgColors.ivory.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.payments_outlined, color: OcgColors.ivory),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(child: _MobileSectionHeader(title: 'Cartera activa')),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2EDE8),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        children: [
+                          _MiniToggle(label: 'Todos', active: !showOnlyOverdue, onTap: () => setState(() => showOnlyOverdue = false)),
+                          _MiniToggle(label: 'Vencidos', active: showOnlyOverdue, onTap: () => setState(() => showOnlyOverdue = true)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (list.isEmpty)
+                  const Text('No hay pacientes en esta vista.')
+                else
+                  ...list.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _DebtPatientCard(patient: p),
+                      )),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4D8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF1DFB9)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: OcgColors.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${widget.overdue.length} pacientes con pagos vencidos', style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.ink, fontSize: 13)),
+                            const SizedBox(height: 2),
+                            const Text('Se recomienda contactar antes del 10 de abril', style: TextStyle(fontSize: 11.5, color: Color(0xFF7B6654))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayMiniKpi extends StatelessWidget {
+  const _PayMiniKpi({required this.value, required this.title, required this.subtitle, required this.bg});
+  final String value;
+  final String title;
+  final String subtitle;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(13)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+          const SizedBox(height: 4),
+          Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          Text(subtitle, style: const TextStyle(fontSize: 10.8, color: Color(0xFF7E6754))),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniToggle extends StatelessWidget {
+  const _MiniToggle({required this.label, required this.active, required this.onTap});
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? OcgColors.espresso : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+            fontWeight: FontWeight.w700,
+            fontSize: 11.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DebtPatientCard extends StatelessWidget {
+  const _DebtPatientCard({required this.patient});
+  final PatientModel patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final overdue = patient.fechaProximoPago != null && patient.fechaProximoPago!.isBefore(DateTime.now());
+    final overdueDays = overdue ? DateTime.now().difference(patient.fechaProximoPago!).inDays : 0;
+    final dueText = patient.fechaProximoPago == null
+        ? 'Sin fecha de próximo pago'
+        : overdue
+            ? 'Vencido hace $overdueDays días'
+            : 'Próximo pago: ${patient.fechaProximoPago!.day.toString().padLeft(2, '0')} ${_monthShort(patient.fechaProximoPago!.month)}';
+
+    final initials = patient.nombre.trim().isEmpty
+        ? 'P'
+        : patient.nombre.trim().split(' ').where((e) => e.isNotEmpty).take(2).map((e) => e[0].toUpperCase()).join();
+
+    return InkWell(
+      onTap: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id)),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: overdue ? const Color(0xFFF3C6C6) : const Color(0xFFE7D6C6)),
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: const Color(0xFFF2EDE8),
+                  child: Text(initials, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
+                ),
+                if (overdue)
+                  const Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Icon(Icons.error, size: 14, color: OcgColors.error),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(patient.nombre, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.ink, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(_tipoLabel(patient.tipoTratamiento ?? TreatmentType.convencional), style: const TextStyle(fontSize: 11.8, color: Color(0xFF8A6F59))),
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: overdue ? const Color(0xFFFFECEC) : const Color(0xFFEFF8F0),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      dueText,
+                      style: TextStyle(
+                        fontSize: 10.8,
+                        fontWeight: FontWeight.w700,
+                        color: overdue ? OcgColors.error : OcgColors.success,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('\$${formatCop(patient.saldoPendiente)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: overdue ? OcgColors.error : OcgColors.espresso)),
+                const Text('pendiente', style: TextStyle(fontSize: 10.5, color: Color(0xFF8A6F59))),
+              ],
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Color(0xFFB59D87), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _monthName(int m) => const ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][m - 1];
+String _monthShort(int m) => const ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][m - 1];
 
 class _KpiPill extends StatelessWidget {
   const _KpiPill({required this.title, required this.value});
