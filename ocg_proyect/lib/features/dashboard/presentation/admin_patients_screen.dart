@@ -308,71 +308,175 @@ class AdminPatientsScreen extends ConsumerWidget {
     final filteredPatients = ref.watch(filteredPatientsProvider);
     final selectedFilter = ref.watch(patientsFilterProvider);
 
-    final body = Column(
+    final mobileBody = Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: FilterBar(
-            hintText: 'Buscar por nombre o correo…',
-            onSearch: (value) =>
-                ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            16,
+            MediaQuery.paddingOf(context).top + 12,
+            16,
+            14,
+          ),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF21170F), OcgColors.espresso],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Row(
+            children: [
+              Builder(
+                builder: (ctx) => InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => Scaffold.of(ctx).openDrawer(),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.menu, color: OcgColors.ivory, size: 20),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Pacientes',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.notifications_none, color: OcgColors.ivory, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: OcgColors.bronze,
+                  shape: BoxShape.circle,
+                ),
+                child: const Text('AD', style: TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 11.5)),
+              ),
+            ],
           ),
         ),
-        SizedBox(
-          height: 46,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemBuilder: (context, index) {
-              final filter = _filters[index];
-              final selected = filter == selectedFilter;
-              return ChoiceChip(
-                label: Text(filter),
-                selected: selected,
-                onSelected: (_) =>
-                    ref.read(patientsFilterProvider.notifier).setFilter(filter),
-              );
-            },
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemCount: _filters.length,
-          ),
-        ),
-        const SizedBox(height: 8),
         Expanded(
           child: asyncPatients.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Center(
-              child: Text(
-                'No se pudo cargar pacientes: $error',
-                textAlign: TextAlign.center,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('No se pudo cargar pacientes: $error', textAlign: TextAlign.center),
               ),
             ),
-            data: (_) {
-              if (filteredPatients.isEmpty) {
-                return const Center(
-                  child: Text('No hay pacientes para los filtros actuales.'),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                itemCount: filteredPatients.length,
-                itemBuilder: (context, index) {
-                  final patient = filteredPatients[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _PatientCard(
-                      patient: patient,
-                      onTap: () => context.go(
-                        RouteNames.adminPatientDetail.replaceFirst(
-                          ':patientId',
-                          patient.id,
+            data: (_) => ListView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE7D6C6)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search, color: Color(0xFF8A6F59), size: 19),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          onChanged: (value) => ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: InputBorder.none,
+                            hintText: 'Buscar por nombre o correo...',
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2EDE8),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Icon(Icons.tune, size: 16, color: OcgColors.bronze),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _filters.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 7),
+                    itemBuilder: (context, index) {
+                      final filter = _filters[index];
+                      final selected = filter == selectedFilter;
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () => ref.read(patientsFilterProvider.notifier).setFilter(filter),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: selected ? OcgColors.espresso : Colors.white,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: selected ? OcgColors.espresso : const Color(0xFFE5D4C4)),
+                          ),
+                          child: Text(
+                            filter,
+                            style: TextStyle(
+                              color: selected ? OcgColors.ivory : const Color(0xFF8A6F59),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${filteredPatients.length} pacientes',
+                  style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                if (filteredPatients.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: Text('No hay pacientes para los filtros actuales.')),
+                  )
+                else
+                  ...filteredPatients.map((patient) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _PatientCard(
+                          patient: patient,
+                          onTap: () => context.go(
+                            RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
+                          ),
+                        ),
+                      )),
+              ],
+            ),
           ),
         ),
       ],
@@ -481,6 +585,7 @@ class AdminPatientsScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 1, // Pacientes = índice 1
       title: 'Pacientes',
+      showMobileAppBar: false,
       appBarActions: [
         IconButton(
           tooltip: 'Cerrar sesión',
@@ -508,7 +613,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         backgroundColor: OcgColors.bronze,
         child: const Icon(Icons.person_add),
       ),
-      body: body,
+      body: mobileBody,
     );
   }
 }
@@ -864,16 +969,38 @@ class _PatientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final initials = _initialsFromName(patient.nombre);
     final hasPhoto = patient.fotoUrl != null && patient.fotoUrl!.isNotEmpty;
+    final avatarTones = const [
+      Color(0xFFF3E7DA),
+      Color(0xFFEFE7F7),
+      Color(0xFFE5F3EA),
+      Color(0xFFF6EBD7),
+      Color(0xFFE4EDF9),
+    ];
+    final avatarBg = avatarTones[patient.id.hashCode.abs() % avatarTones.length];
+
+    final treatmentLabel = patient.tipoTratamiento == null
+        ? 'Pendiente'
+        : _tipoTratamientoLabel(patient.tipoTratamiento!);
+    final stageLabel = formatTreatmentStage(patient.etapaActual);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       onTap: onTap,
-      child: OcgCard(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE7D6C6)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x122C2016), blurRadius: 10, offset: Offset(0, 2)),
+          ],
+        ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: OcgColors.bronze.withOpacity(0.18),
+              backgroundColor: avatarBg,
               backgroundImage: hasPhoto ? NetworkImage(patient.fotoUrl!) : null,
               onBackgroundImageError: hasPhoto ? (_, _) {} : null,
               child: hasPhoto
@@ -883,6 +1010,7 @@ class _PatientCard extends StatelessWidget {
                       style: const TextStyle(
                         color: OcgColors.espresso,
                         fontWeight: FontWeight.w700,
+                        fontSize: 13,
                       ),
                     ),
             ),
@@ -893,33 +1021,64 @@ class _PatientCard extends StatelessWidget {
                 children: [
                   Text(
                     patient.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 15,
+                      color: OcgColors.ink,
                     ),
                   ),
+                  const SizedBox(height: 1),
                   Text(
                     patient.email,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.2, color: Color(0xFF8A6F59)),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
-                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      OcgChip(
-                        label: patient.tipoTratamiento?.name ?? 'Pendiente',
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2EDE8),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          treatmentLabel,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: OcgColors.espresso,
+                          ),
+                        ),
                       ),
-                      OcgChip(label: formatTreatmentStage(patient.etapaActual)),
+                      const Text('·', style: TextStyle(color: Color(0xFF8A6F59))),
+                      Text(
+                        stageLabel,
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: OcgColors.bronze),
+            const Icon(Icons.chevron_right, color: Color(0xFFB59D87), size: 20),
           ],
         ),
       ),
     );
   }
 }
+
+String _tipoTratamientoLabel(TreatmentType value) => switch (value) {
+      TreatmentType.convencional => 'Convencional',
+      TreatmentType.estetico => 'Brackets Estéticos',
+      TreatmentType.autoligado => 'Autoligado',
+      TreatmentType.alineadores => 'Alineadores',
+      TreatmentType.ortopedia => 'Ortopedia',
+      TreatmentType.retenedores => 'Retenedores',
+    };
