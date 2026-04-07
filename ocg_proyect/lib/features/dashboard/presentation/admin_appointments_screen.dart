@@ -2413,12 +2413,12 @@ class _AdminAppointmentsScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               GridView.count(
                 crossAxisCount: 7,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 1.05,
+                childAspectRatio: isDesktop ? 1.05 : 1.25,
                 children: calendarCells,
               ),
             ],
@@ -2890,7 +2890,9 @@ class _AdminAppointmentsScreenState
           Expanded(child: agendaBody),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
+        mini: true,
+        tooltip: 'Nueva cita',
         backgroundColor: OcgColors.espresso,
         foregroundColor: OcgColors.ivory,
         onPressed: () => AdminAppointmentsScreen.showCreateDialog(
@@ -2899,8 +2901,7 @@ class _AdminAppointmentsScreenState
           baseDate: selectedDate,
           existingAppointments: appointmentsAsync.asData?.value ?? const [],
         ),
-        icon: const Icon(Icons.add),
-        label: const Text('Nueva cita'),
+        child: const Icon(Icons.add, size: 18),
       ),
     );
   }
