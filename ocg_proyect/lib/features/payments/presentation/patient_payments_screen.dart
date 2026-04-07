@@ -144,8 +144,8 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                                       context,
                                       effectivePatientId,
                                       saldo,
-                                      user.email ?? '',
-                                      user.displayName ?? 'Paciente',
+                                      user?.email ?? '',
+                                      user?.displayName ?? 'Paciente',
                                     )
                                 : null,
                             icon: const Icon(Icons.lock_outline, size: 18),
@@ -162,8 +162,8 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                                     context,
                                     effectivePatientId,
                                     saldo,
-                                    user.email ?? '',
-                                    user.displayName ?? 'Paciente',
+                                    user?.email ?? '',
+                                    user?.displayName ?? 'Paciente',
                                   )
                               : null,
                         ),
