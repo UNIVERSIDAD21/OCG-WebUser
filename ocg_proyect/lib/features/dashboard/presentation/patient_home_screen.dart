@@ -922,23 +922,29 @@ class _TreatmentSummaryTopCard extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 94,
-            height: 94,
+            width: 138,
+            height: 138,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                CircularProgressIndicator(
-                  value: progress / 100,
-                  strokeWidth: 8,
-                  backgroundColor: const Color(0x55ECD9C6),
-                  valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
+                SizedBox(
+                  width: 138,
+                  height: 138,
+                  child: CircularProgressIndicator(
+                    value: progress / 100,
+                    strokeWidth: 13,
+                    backgroundColor: const Color(0x55ECD9C6),
+                    valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.ivory),
+                  ),
                 ),
                 Text(
                   '$progress%',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: OcgColors.ivory,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 31,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
                   ),
                 ),
               ],
