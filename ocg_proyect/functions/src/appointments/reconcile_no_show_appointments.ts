@@ -17,10 +17,10 @@ export const reconcileNoShowAppointments = onCall<ReconcileNoShowData>(
 
     const ids = (request.data?.appointmentIds ?? [])
       .map((id) => id.toString().trim())
-      .where((id) => id.isNotEmpty)
+      .filter((id) => id.length > 0)
       .slice(0, 200);
 
-    if (ids.isEmpty) {
+    if (ids.length === 0) {
       return {ok: true, updated: 0};
     }
 

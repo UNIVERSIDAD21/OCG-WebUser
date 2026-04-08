@@ -6,6 +6,7 @@ import {setAdminRole} from './auth/set_admin_role';
 import {setFcmToken} from './auth/set_fcm_token';
 import {createPatientAccount} from './auth/create_patient_account';
 import {registerPatientSelf} from './auth/register_patient_self';
+import {deletePatientAccount} from './auth/delete_patient_account';
 import {reserveAppointment} from './appointments/reserve_appointment';
 import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
@@ -35,8 +36,5 @@ export {
   createPayuSession,
   payuWebhook,
   reconcilePatientBalances,
-  initializeAllPaymentDocuments,
-};
-lances,
   initializeAllPaymentDocuments,
 };
