@@ -871,34 +871,43 @@ class _PatientAppointmentsScreenState
               const SizedBox(height: 10),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 360;
-                  return Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                  final compact = constraints.maxWidth < 390;
+                  return Row(
                     children: [
-                      _FilterPill(
-                        label: 'Activas',
-                        active: _filter == _PatientFilter.activas,
-                        icon: Icons.upcoming_outlined,
-                        count: activasCount,
-                        compact: compact,
-                        onTap: () => setState(() => _filter = _PatientFilter.activas),
+                      Expanded(
+                        child: _FilterPill(
+                          label: 'Activas',
+                          active: _filter == _PatientFilter.activas,
+                          icon: Icons.upcoming_outlined,
+                          count: activasCount,
+                          compact: compact,
+                          fill: true,
+                          onTap: () => setState(() => _filter = _PatientFilter.activas),
+                        ),
                       ),
-                      _FilterPill(
-                        label: 'Completadas',
-                        active: _filter == _PatientFilter.completadas,
-                        icon: Icons.task_alt,
-                        count: completadasCount,
-                        compact: compact,
-                        onTap: () => setState(() => _filter = _PatientFilter.completadas),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _FilterPill(
+                          label: 'Completadas',
+                          active: _filter == _PatientFilter.completadas,
+                          icon: Icons.task_alt,
+                          count: completadasCount,
+                          compact: compact,
+                          fill: true,
+                          onTap: () => setState(() => _filter = _PatientFilter.completadas),
+                        ),
                       ),
-                      _FilterPill(
-                        label: 'Incidencias',
-                        active: _filter == _PatientFilter.incidencias,
-                        icon: Icons.warning_amber_outlined,
-                        count: incidenciasCount,
-                        compact: compact,
-                        onTap: () => setState(() => _filter = _PatientFilter.incidencias),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _FilterPill(
+                          label: 'Incidencias',
+                          active: _filter == _PatientFilter.incidencias,
+                          icon: Icons.warning_amber_outlined,
+                          count: incidenciasCount,
+                          compact: compact,
+                          fill: true,
+                          onTap: () => setState(() => _filter = _PatientFilter.incidencias),
+                        ),
                       ),
                     ],
                   );
@@ -1040,6 +1049,7 @@ class _FilterPill extends StatelessWidget {
     required this.onTap,
     this.count,
     this.compact = false,
+    this.fill = false,
   });
 
   final String label;
@@ -1048,6 +1058,7 @@ class _FilterPill extends StatelessWidget {
   final VoidCallback onTap;
   final int? count;
   final bool compact;
+  final bool fill;
 
   @override
   Widget build(BuildContext context) {
@@ -1057,7 +1068,7 @@ class _FilterPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        constraints: BoxConstraints(minWidth: compact ? 104 : 120),
+        constraints: fill ? null : BoxConstraints(minWidth: compact ? 104 : 120),
         padding: EdgeInsets.symmetric(
           vertical: compact ? 9 : 10,
           horizontal: compact ? 10 : 12,
@@ -1078,23 +1089,24 @@ class _FilterPill extends StatelessWidget {
               color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
             ),
             SizedBox(width: compact ? 5 : 6),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                  fontSize: compact ? 11.8 : 12.5,
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                    fontSize: compact ? 11.8 : 12.5,
+                  ),
                 ),
               ),
             ),
-            if (count != null) ...[
-              SizedBox(width: compact ? 4 : 6),
+            if (count != null && !compact) ...[
+              const SizedBox(width: 6),
               Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 5 : 6,
-                  vertical: compact ? 1.5 : 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: active
                       ? OcgColors.ivory.withOpacity(0.2)
@@ -1105,7 +1117,7 @@ class _FilterPill extends StatelessWidget {
                   '$count',
                   style: TextStyle(
                     color: active ? OcgColors.ivory : OcgColors.espresso,
-                    fontSize: compact ? 10 : 10.5,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
