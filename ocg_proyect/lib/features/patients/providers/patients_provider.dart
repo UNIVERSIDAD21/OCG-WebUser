@@ -5,9 +5,13 @@ import '../data/models/patient_model.dart';
 import '../data/repositories/patients_repository.dart';
 
 final firestoreProvider = Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
+final functionsProvider = Provider<FirebaseFunctions>((ref) => FirebaseFunctions.instance);
 
 final patientsRepositoryProvider = Provider<PatientsRepository>((ref) {
-  return PatientsRepository(ref.watch(firestoreProvider));
+  return PatientsRepository(
+    ref.watch(firestoreProvider),
+    ref.watch(functionsProvider),
+  );
 });
 
 final patientsStreamProvider = StreamProvider<List<PatientModel>>((ref) {

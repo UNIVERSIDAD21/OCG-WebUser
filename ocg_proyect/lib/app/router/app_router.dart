@@ -62,8 +62,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final userRole = ref.read(userRoleProvider);
       final isLoggedIn = authState.asData?.value != null;
+      final authFlowLoading = ref.read(authNotifierProvider).isLoading;
 
-      if (authState.isLoading) {
+      if (authState.isLoading || authFlowLoading) {
         return location == RouteNames.splash ? null : RouteNames.splash;
       }
 

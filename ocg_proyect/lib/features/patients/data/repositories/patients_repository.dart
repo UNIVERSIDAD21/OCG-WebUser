@@ -137,7 +137,8 @@ class PatientsRepository {
   }
 
   Future<void> deletePatient(String patientId) async {
-    await _db.collection(FirestorePaths.patients).doc(patientId).delete();
+    final callable = _functions.httpsCallable('deletePatientAccount');
+    await callable.call(<String, dynamic>{'patientId': patientId});
   }
 
   Future<void> updateTreatmentStage({
@@ -161,6 +162,12 @@ class PatientsRepository {
       'notas': notas,
       'cambiadoPor': adminId,
       'fotosIds': <String>[],
+    });
+
+    await batch.commit();
+  }
+}
+  'fotosIds': <String>[],
     });
 
     await batch.commit();

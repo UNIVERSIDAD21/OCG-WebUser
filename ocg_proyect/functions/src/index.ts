@@ -27,6 +27,7 @@ export {
   setFcmToken,
   createPatientAccount,
   registerPatientSelf,
+  deletePatientAccount,
   reserveAppointment,
   onAppointmentWrite,
   seedAvailability,
@@ -34,5 +35,8 @@ export {
   createPayuSession,
   payuWebhook,
   reconcilePatientBalances,
+  initializeAllPaymentDocuments,
+};
+lances,
   initializeAllPaymentDocuments,
 };
