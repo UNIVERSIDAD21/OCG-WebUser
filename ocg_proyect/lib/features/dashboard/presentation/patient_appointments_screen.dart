@@ -79,9 +79,7 @@ IconData _estadoIcon(AppointmentStatus s) => switch (s) {
 };
 
 bool _isActiva(AppointmentModel a) => switch (a.estado) {
-  AppointmentStatus.programada ||
-  AppointmentStatus.confirmada ||
-  AppointmentStatus.reprogramada => true,
+  AppointmentStatus.programada || AppointmentStatus.confirmada => true,
   _ => false,
 };
 
@@ -89,7 +87,8 @@ bool _isCompletada(AppointmentModel a) => a.estado == AppointmentStatus.completa
 
 bool _isIncidencia(AppointmentModel a) => switch (a.estado) {
   AppointmentStatus.cancelada ||
-  AppointmentStatus.noAsistio => true,
+  AppointmentStatus.noAsistio ||
+  AppointmentStatus.reprogramada => true,
   _ => false,
 };
 
