@@ -180,8 +180,8 @@ class _PatientAppointmentsScreenState
     final patientPhone = cachedPatient?.telefono ?? '';
 
     String notesText = '';
-    bool expandMorning = true;
-    bool expandAfternoon = true;
+    bool expandMorning = false;
+    bool expandAfternoon = false;
 
     AppointmentType selectedType = AppointmentType.valoracion;
     DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1));
@@ -194,6 +194,10 @@ class _PatientAppointmentsScreenState
     );
     String? errorMsg;
     bool saving = false;
+    var selectedDayKey = _dayKey(selectedDateTime);
+    var availabilityStream = ref
+        .read(availabilityRepositoryProvider)
+        .watchAvailabilityByDay(selectedDayKey);
 
     DateTime dateFromLabel(DateTime baseDay, String label) {
       final normalized = label.trim().toUpperCase();
@@ -275,6 +279,10 @@ class _PatientAppointmentsScreenState
                           AppointmentsBusinessRules.workdayStartHour,
                           0,
                         );
+                        selectedDayKey = _dayKey(selectedDateTime);
+                        availabilityStream = ref
+                            .read(availabilityRepositoryProvider)
+                            .watchAvailabilityByDay(selectedDayKey);
                         errorMsg = null;
                       });
                     },
@@ -291,9 +299,7 @@ class _PatientAppointmentsScreenState
                   ),
                   const SizedBox(height: 6),
                   StreamBuilder(
-                    stream: ref
-                        .read(availabilityRepositoryProvider)
-                        .watchAvailabilityByDay(_dayKey(selectedDateTime)),
+                    stream: availabilityStream,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Padding(
