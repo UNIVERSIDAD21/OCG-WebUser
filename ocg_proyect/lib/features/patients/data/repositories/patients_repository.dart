@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../../payments/data/models/payment_model.dart';
@@ -6,9 +7,11 @@ import '../../../payments/data/repositories/payments_repository.dart';
 import '../models/patient_model.dart';
 
 class PatientsRepository {
-  PatientsRepository(this._db);
+  PatientsRepository(this._db, [FirebaseFunctions? functions])
+      : _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseFirestore _db;
+  final FirebaseFunctions _functions;
 
   CollectionReference<Map<String, dynamic>> get _patientsRef =>
       _db.collection(FirestorePaths.patients);
@@ -162,12 +165,6 @@ class PatientsRepository {
       'notas': notas,
       'cambiadoPor': adminId,
       'fotosIds': <String>[],
-    });
-
-    await batch.commit();
-  }
-}
-  'fotosIds': <String>[],
     });
 
     await batch.commit();
