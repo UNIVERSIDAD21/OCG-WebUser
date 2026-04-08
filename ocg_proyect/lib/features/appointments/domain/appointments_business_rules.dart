@@ -231,6 +231,23 @@ class AppointmentsBusinessRules {
     return horasRestantes >= 24;
   }
 
+  static bool shouldMarkAsNoShow(
+    AppointmentModel appointment, {
+    DateTime? now,
+  }) {
+    if (appointment.estado != AppointmentStatus.programada &&
+        appointment.estado != AppointmentStatus.confirmada) {
+      return false;
+    }
+
+    final referenceNow = now ?? DateTime.now();
+    final endAt = appointment.fechaHora.add(
+      Duration(minutes: appointment.duracionMinutos),
+    );
+
+    return endAt.isBefore(referenceNow);
+  }
+
   static bool _isSameCalendarDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }

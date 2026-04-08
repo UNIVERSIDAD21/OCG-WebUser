@@ -46,11 +46,13 @@ class AppointmentsRepository {
     return _appointmentsRef
         .orderBy('fechaHora', descending: true)
         .snapshots()
-        .map(
-          (s) => _dedupeAppointments(
+        .asyncMap((s) async {
+          final items = _dedupeAppointments(
             s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
-          ),
-        );
+          );
+          final reconciled = await _reconcileNoShowStatuses(items);
+          return reconciled;
+        });
   }
 
   Stream<List<AppointmentModel>> watchPatientAppointments(String patientId) {
@@ -58,11 +60,13 @@ class AppointmentsRepository {
         .where('patientId', isEqualTo: patientId)
         .orderBy('fechaHora', descending: true)
         .snapshots()
-        .map(
-          (s) => _dedupeAppointments(
+        .asyncMap((s) async {
+          final items = _dedupeAppointments(
             s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
-          ),
-        );
+          );
+          final reconciled = await _reconcileNoShowStatuses(items);
+          return reconciled;
+        });
   }
 
   // ─── Crear cita (admin) ───────────────────────────────────────────────────
@@ -292,6 +296,41 @@ class AppointmentsRepository {
     } catch (_) {
       // No bloquear el flujo principal si falla la actualización de caché
     }
+  }
+
+  Future<List<AppointmentModel>> _reconcileNoShowStatuses(
+    List<AppointmentModel> items,
+  ) async {
+    final now = DateTime.now();
+    final toNoShow = items
+        .where((a) => AppointmentsBusinessRules.shouldMarkAsNoShow(a, now: now))
+        .toList();
+
+    if (toNoShow.isEmpty) return items;
+
+    final batch = _db.batch();
+    for (final appointment in toNoShow) {
+      final ref = _appointmentsRef.doc(appointment.id);
+      batch.update(ref, {
+        'estado': AppointmentStatus.noAsistio.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    try {
+      await batch.commit();
+    } catch (_) {
+      // Si falla escritura, al menos devolvemos estado reconciliado en memoria.
+    }
+
+    final noShowIds = toNoShow.map((e) => e.id).toSet();
+    return items
+        .map(
+          (a) => noShowIds.contains(a.id)
+              ? a.copyWith(estado: AppointmentStatus.noAsistio)
+              : a,
+        )
+        .toList();
   }
 
   List<AppointmentModel> _dedupeAppointments(List<AppointmentModel> items) {

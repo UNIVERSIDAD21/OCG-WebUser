@@ -16,16 +16,26 @@ import '../../patients/presentation/patient_viewer_mode.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-String _fmtDate(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}/'
-    '${d.month.toString().padLeft(2, '0')}/${d.year}';
+const _bogotaOffset = Duration(hours: 5);
+
+DateTime _toBogota(DateTime dateTime) {
+  final utc = dateTime.isUtc ? dateTime : dateTime.toUtc();
+  return utc.subtract(_bogotaOffset);
+}
+
+String _fmtDate(DateTime d) {
+  final b = _toBogota(d);
+  return '${b.day.toString().padLeft(2, '0')}/'
+      '${b.month.toString().padLeft(2, '0')}/${b.year}';
+}
 
 String _fmtDateTime(DateTime d) {
-  final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
-  final suffix = d.hour >= 12 ? 'PM' : 'AM';
+  final b = _toBogota(d);
+  final hour12 = b.hour % 12 == 0 ? 12 : b.hour % 12;
+  final suffix = b.hour >= 12 ? 'PM' : 'AM';
   return '${_fmtDate(d)} a las '
       '${hour12.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')} $suffix';
+      '${b.minute.toString().padLeft(2, '0')} $suffix';
 }
 
 String _dayKey(DateTime d) =>
@@ -1217,8 +1227,9 @@ class _AppointmentTile extends StatelessWidget {
     final statusColor = _estadoColor(appointment.estado);
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-    final day = appointment.fechaHora.day.toString().padLeft(2, '0');
-    final month = months[appointment.fechaHora.month - 1];
+    final localBogota = _toBogota(appointment.fechaHora);
+    final day = localBogota.day.toString().padLeft(2, '0');
+    final month = months[localBogota.month - 1];
 
     return Container(
       decoration: BoxDecoration(
