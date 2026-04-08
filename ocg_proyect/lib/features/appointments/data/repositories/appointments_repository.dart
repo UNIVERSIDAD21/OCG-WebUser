@@ -308,19 +308,14 @@ class AppointmentsRepository {
 
     if (toNoShow.isEmpty) return items;
 
-    final batch = _db.batch();
-    for (final appointment in toNoShow) {
-      final ref = _appointmentsRef.doc(appointment.id);
-      batch.update(ref, {
-        'estado': AppointmentStatus.noAsistio.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
     try {
-      await batch.commit();
+      final callable = _functions.httpsCallable('reconcileNoShowAppointments');
+      await callable.call(<String, dynamic>{
+        'appointmentIds': toNoShow.map((e) => e.id).toList(),
+      });
     } catch (_) {
-      // Si falla escritura, al menos devolvemos estado reconciliado en memoria.
+      // Si la función no está desplegada o falla, mantenemos consistencia visual
+      // en cliente sin romper flujo ni permisos.
     }
 
     final noShowIds = toNoShow.map((e) => e.id).toSet();

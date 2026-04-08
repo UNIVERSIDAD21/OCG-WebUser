@@ -9,6 +9,7 @@ import {registerPatientSelf} from './auth/register_patient_self';
 import {reserveAppointment} from './appointments/reserve_appointment';
 import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
+import {reconcileNoShowAppointments} from './appointments/reconcile_no_show_appointments';
 import {createPayuSession} from './payments/create_payu_session';
 import {payuWebhook} from './payments/payu_webhook';
 import {reconcilePatientBalances} from './payments/reconcile_balances';
@@ -29,6 +30,7 @@ export {
   reserveAppointment,
   onAppointmentWrite,
   seedAvailability,
+  reconcileNoShowAppointments,
   createPayuSession,
   payuWebhook,
   reconcilePatientBalances,
