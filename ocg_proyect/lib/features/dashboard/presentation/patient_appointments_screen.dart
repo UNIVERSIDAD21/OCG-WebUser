@@ -834,46 +834,75 @@ class _PatientAppointmentsScreenState
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFE8D8C8)),
                 ),
-                child: Row(
-                  children: [
-                    _KpiMini(label: 'Activas', value: activasCount, color: const Color(0xFF1565C0)),
-                    const SizedBox(width: 8),
-                    _KpiMini(label: 'Completadas', value: completadasCount, color: const Color(0xFF2E7D32)),
-                    const SizedBox(width: 8),
-                    _KpiMini(label: 'Incidencias', value: incidenciasCount, color: OcgColors.error),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth < 360) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              _KpiMini(label: 'Activas', value: activasCount, color: const Color(0xFF1565C0)),
+                              const SizedBox(width: 8),
+                              _KpiMini(label: 'Completadas', value: completadasCount, color: const Color(0xFF2E7D32)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _KpiMini(label: 'Incidencias', value: incidenciasCount, color: OcgColors.error),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        _KpiMini(label: 'Activas', value: activasCount, color: const Color(0xFF1565C0)),
+                        const SizedBox(width: 8),
+                        _KpiMini(label: 'Completadas', value: completadasCount, color: const Color(0xFF2E7D32)),
+                        const SizedBox(width: 8),
+                        _KpiMini(label: 'Incidencias', value: incidenciasCount, color: OcgColors.error),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _FilterPill(
-                      label: 'Activas',
-                      active: _filter == _PatientFilter.activas,
-                      icon: Icons.upcoming_outlined,
-                      count: activasCount,
-                      onTap: () => setState(() => _filter = _PatientFilter.activas),
-                    ),
-                    const SizedBox(width: 6),
-                    _FilterPill(
-                      label: 'Completadas',
-                      active: _filter == _PatientFilter.completadas,
-                      icon: Icons.task_alt,
-                      count: completadasCount,
-                      onTap: () => setState(() => _filter = _PatientFilter.completadas),
-                    ),
-                    const SizedBox(width: 6),
-                    _FilterPill(
-                      label: 'Incidencias',
-                      active: _filter == _PatientFilter.incidencias,
-                      icon: Icons.warning_amber_outlined,
-                      count: incidenciasCount,
-                      onTap: () => setState(() => _filter = _PatientFilter.incidencias),
-                    ),
-                  ],
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 360;
+                  return Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _FilterPill(
+                        label: 'Activas',
+                        active: _filter == _PatientFilter.activas,
+                        icon: Icons.upcoming_outlined,
+                        count: activasCount,
+                        compact: compact,
+                        onTap: () => setState(() => _filter = _PatientFilter.activas),
+                      ),
+                      _FilterPill(
+                        label: 'Completadas',
+                        active: _filter == _PatientFilter.completadas,
+                        icon: Icons.task_alt,
+                        count: completadasCount,
+                        compact: compact,
+                        onTap: () => setState(() => _filter = _PatientFilter.completadas),
+                      ),
+                      _FilterPill(
+                        label: 'Incidencias',
+                        active: _filter == _PatientFilter.incidencias,
+                        icon: Icons.warning_amber_outlined,
+                        count: incidenciasCount,
+                        compact: compact,
+                        onTap: () => setState(() => _filter = _PatientFilter.incidencias),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -1010,6 +1039,7 @@ class _FilterPill extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.count,
+    this.compact = false,
   });
 
   final String label;
@@ -1017,6 +1047,7 @@ class _FilterPill extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final int? count;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1026,7 +1057,11 @@ class _FilterPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        constraints: BoxConstraints(minWidth: compact ? 104 : 120),
+        padding: EdgeInsets.symmetric(
+          vertical: compact ? 9 : 10,
+          horizontal: compact ? 10 : 12,
+        ),
         decoration: BoxDecoration(
           color: active ? OcgColors.espresso : const Color(0xFFF2EDE8),
           borderRadius: BorderRadius.circular(12),
@@ -1039,22 +1074,27 @@ class _FilterPill extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 15,
+              size: compact ? 14 : 15,
               color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
             ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
-                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                fontSize: 12.5,
+            SizedBox(width: compact ? 5 : 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                  fontSize: compact ? 11.8 : 12.5,
+                ),
               ),
             ),
             if (count != null) ...[
-              const SizedBox(width: 6),
+              SizedBox(width: compact ? 4 : 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 5 : 6,
+                  vertical: compact ? 1.5 : 2,
+                ),
                 decoration: BoxDecoration(
                   color: active
                       ? OcgColors.ivory.withOpacity(0.2)
@@ -1065,7 +1105,7 @@ class _FilterPill extends StatelessWidget {
                   '$count',
                   style: TextStyle(
                     color: active ? OcgColors.ivory : OcgColors.espresso,
-                    fontSize: 10.5,
+                    fontSize: compact ? 10 : 10.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
