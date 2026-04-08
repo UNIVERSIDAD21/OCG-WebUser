@@ -16,7 +16,21 @@ final authStateProvider = StreamProvider<User?>((ref) {
 final userRoleProvider = FutureProvider<String?>((ref) async {
   final user = ref.watch(authStateProvider).asData?.value;
   if (user == null) return null;
-  return ref.watch(authServiceProvider).getUserRole();
+
+  final authService = ref.watch(authServiceProvider);
+  final role = await authService.getUserRole();
+
+  // Guard global de sesión: si el usuario es paciente pero su perfil ya no
+  // existe (o está inactivo), invalidamos sesión inmediatamente.
+  if (role == 'patient') {
+    final exists = await authService.currentPatientProfileExists();
+    if (!exists) {
+      await authService.signOut();
+      return null;
+    }
+  }
+
+  return role;
 });
 
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, void>(
