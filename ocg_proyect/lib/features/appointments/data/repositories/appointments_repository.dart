@@ -72,6 +72,13 @@ class AppointmentsRepository {
   // ─── Crear cita (admin) ───────────────────────────────────────────────────
 
   Future<String> createAppointment(AppointmentModel appointment) async {
+    // Safety-net arquitectónico: si por error de UI/ruteo llega un intento
+    // de agenda de paciente por la ruta "admin" (write directo), lo redirigimos
+    // al flujo oficial vía Cloud Function para evitar PERMISSION_DENIED.
+    if (appointment.creadoPor == appointment.patientId) {
+      return createAppointmentAsPatient(appointment);
+    }
+
     try {
       final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
         start: appointment.fechaHora,
