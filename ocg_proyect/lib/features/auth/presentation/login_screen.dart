@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _error = sessionError);
-        ref.read(authInvalidSessionMessageProvider.notifier).state = null;
+        ref.read(authInvalidSessionMessageProvider.notifier).set(null);
       });
     }
 
