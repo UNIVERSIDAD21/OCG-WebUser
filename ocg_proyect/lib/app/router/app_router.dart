@@ -74,7 +74,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (userRole.isLoading) {
-        return _isPublicRoute(location) ? RouteNames.splash : null;
+        // Nunca renderizar zonas protegidas mientras resolvemos rol/perfil.
+        // Evita el rebote visual login -> home -> login en sesiones inválidas.
+        return location == RouteNames.splash ? null : RouteNames.splash;
       }
 
       final role = userRole.asData?.value;
