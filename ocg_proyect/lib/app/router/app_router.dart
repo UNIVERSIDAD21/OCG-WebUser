@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,34 +26,63 @@ bool _isPublicRoute(String location) {
 bool _isAdminRoute(String location) => location.startsWith('/admin');
 bool _isPatientRoute(String location) => location.startsWith('/patient');
 
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(this.ref) {
+    _authSub = ref.listen<AsyncValue<dynamic>>(
+      authStateProvider,
+      (_, __) => notifyListeners(),
+    );
+    _roleSub = ref.listen<AsyncValue<dynamic>>(
+      userRoleProvider,
+      (_, __) => notifyListeners(),
+    );
+  }
+
+  final Ref ref;
+  ProviderSubscription<AsyncValue<dynamic>>? _authSub;
+  ProviderSubscription<AsyncValue<dynamic>>? _roleSub;
+
+  @override
+  void dispose() {
+    _authSub?.close();
+    _roleSub?.close();
+    super.dispose();
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final userRole = ref.watch(userRoleProvider);
+  final refreshNotifier = _RouterRefreshNotifier(ref);
+  ref.onDispose(refreshNotifier.dispose);
 
   return GoRouter(
-    initialLocation: RouteNames.login,
+    initialLocation: RouteNames.splash,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final location = state.matchedLocation;
+      final authState = ref.read(authStateProvider);
+      final userRole = ref.read(userRoleProvider);
       final isLoggedIn = authState.asData?.value != null;
 
-      if (authState.isLoading) return null;
+      if (authState.isLoading) {
+        return location == RouteNames.splash ? null : RouteNames.splash;
+      }
 
       if (!isLoggedIn) {
+        if (location == RouteNames.splash) return RouteNames.login;
         return _isPublicRoute(location) ? null : RouteNames.login;
       }
 
-      // Anti-race authState vs role: no navegar a zonas protegidas hasta resolver el rol.
       if (userRole.isLoading) {
-        return _isPublicRoute(location) ? null : RouteNames.login;
+        return _isPublicRoute(location) ? RouteNames.splash : null;
       }
 
       final role = userRole.asData?.value;
       if (role == null) {
-        return _isPublicRoute(location) ? null : RouteNames.login;
+        return location == RouteNames.splash ? null : RouteNames.splash;
       }
       final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
-      if (_isPublicRoute(location)) {
+      if (location == RouteNames.splash || _isPublicRoute(location)) {
         return effectiveRole == 'admin'
             ? RouteNames.adminDashboard
             : RouteNames.patientHome;
@@ -69,6 +99,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: RouteNames.splash,
+        builder: (context, state) => const _AuthResolvingScreen(),
+      ),
       GoRoute(
         path: RouteNames.login,
         builder: (context, state) => const LoginScreen(),
@@ -149,3 +183,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _AuthResolvingScreen extends StatelessWidget {
+  const _AuthResolvingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
