@@ -25,6 +25,8 @@ final userRoleProvider = FutureProvider<String?>((ref) async {
   if (role == 'patient') {
     final exists = await authService.currentPatientProfileExists();
     if (!exists) {
+      ref.read(authInvalidSessionMessageProvider.notifier).state =
+          'Correo o contraseña incorrectos';
       await authService.signOut();
       return null;
     }
@@ -32,6 +34,8 @@ final userRoleProvider = FutureProvider<String?>((ref) async {
 
   return role;
 });
+
+final authInvalidSessionMessageProvider = StateProvider<String?>((ref) => null);
 
 final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, void>(
   AuthNotifier.new,

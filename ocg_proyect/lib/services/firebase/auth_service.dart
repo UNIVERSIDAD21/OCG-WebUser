@@ -64,7 +64,11 @@ class AuthService {
         .where('email', isEqualTo: cleanEmail)
         .limit(1)
         .get();
-    if (patientSnap.docs.isNotEmpty) return true;
+    if (patientSnap.docs.isNotEmpty) {
+      final data = patientSnap.docs.first.data();
+      final isDeleted = data['deletedAt'] != null || data['activo'] == false;
+      if (!isDeleted) return true;
+    }
 
     final adminSnap = await _db
         .collection(FirestorePaths.admins)

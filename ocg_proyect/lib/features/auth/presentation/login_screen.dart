@@ -89,6 +89,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authNotifierProvider).isLoading;
+    final sessionError = ref.watch(authInvalidSessionMessageProvider);
+
+    if (sessionError != null && _error == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _error = sessionError);
+        ref.read(authInvalidSessionMessageProvider.notifier).state = null;
+      });
+    }
 
     return Scaffold(
       backgroundColor: OcgColors.ivory,
