@@ -54,7 +54,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final overrideForAdmin = widget.isAdminView ? effectivePatientId : null;
 
     final sections = [
-      _InicioSection(userId: effectivePatientId),
+      _InicioSection(
+        userId: effectivePatientId,
+        onOpenProfile: () => setState(() => _selectedIndex = 5),
+      ),
       PatientAppointmentsScreen(
         embedded: true,
         patientIdOverride: overrideForAdmin,
@@ -173,8 +176,9 @@ int _phaseFromProgress(int progress) {
 }
 
 class _InicioSection extends ConsumerWidget {
-  const _InicioSection({required this.userId});
+  const _InicioSection({required this.userId, this.onOpenProfile});
   final String userId;
+  final VoidCallback? onOpenProfile;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -303,7 +307,14 @@ class _InicioSection extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        _PatientAvatar(name: nombre, photoUrl: patient.fotoUrl),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: onOpenProfile,
+                          child: _PatientAvatar(
+                            name: nombre,
+                            photoUrl: patient.fotoUrl,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 18),

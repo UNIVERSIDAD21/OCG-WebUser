@@ -209,9 +209,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                                 : 'Datos personales',
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 24),
                           _Field(label: 'Nombre', value: patient.nombre),
                           _Field(label: 'Correo', value: patient.email),
                           _EditableField(
