@@ -44,6 +44,18 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   bool _loading = false;
   bool _loadedInitialData = false;
 
+  String _initialName = '';
+  String _initialEmail = '';
+  String _initialPhone = '';
+  String _initialNotas = '';
+  String _initialTotal = '';
+  String _initialSaldo = '';
+  DateTime _initialFechaNacimiento = DateTime(2000, 1, 1);
+  DateTime _initialFechaInicio = DateTime.now();
+  DateTime? _initialFechaEstimadaFin;
+  TreatmentType _initialTipo = TreatmentType.convencional;
+  TreatmentStage _initialEtapa = TreatmentStage.valoracionInicial;
+
   @override
   void dispose() {
     _idCtrl.dispose();
@@ -118,50 +130,68 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<TreatmentType>(
-                            initialValue: _tipo,
-                            items: TreatmentType.values
-                                .map(
-                                  (e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Text(e.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _tipo = value);
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Tipo tratamiento',
-                            ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 560;
+
+                        Widget typeField = DropdownButtonFormField<TreatmentType>(
+                          initialValue: _tipo,
+                          isExpanded: true,
+                          items: TreatmentType.values
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(_treatmentTypeLabel(e)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _tipo = value);
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo tratamiento',
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<TreatmentStage>(
-                            initialValue: _etapa,
-                            items: TreatmentStage.values
-                                .map(
-                                  (e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Text(e.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _etapa = value);
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Etapa actual',
-                            ),
+                        );
+
+                        Widget stageField = DropdownButtonFormField<TreatmentStage>(
+                          initialValue: _etapa,
+                          isExpanded: true,
+                          items: TreatmentStage.values
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(formatTreatmentStage(e)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _etapa = value);
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Etapa actual',
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isNarrow) {
+                          return Column(
+                            children: [
+                              typeField,
+                              const SizedBox(height: 10),
+                              stageField,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: typeField),
+                            const SizedBox(width: 10),
+                            Expanded(child: stageField),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -218,10 +248,30 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       onClear: () => setState(() => _fechaEstimadaFin = null),
                     ),
                     const SizedBox(height: 16),
-                    OcgButton(
-                      label: 'Guardar cambios',
-                      isLoading: _loading,
-                      onPressed: _loading ? null : _save,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _loading
+                                ? null
+                                : () async {
+                                    final canLeave =
+                                        await _confirmDiscardChangesIfNeeded();
+                                    if (!canLeave || !context.mounted) return;
+                                    context.pop();
+                                  },
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OcgButton(
+                            label: 'Guardar cambios',
+                            isLoading: _loading,
+                            onPressed: _loading ? null : _save,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -280,13 +330,34 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
+    return WillPopScope(
+      onWillPop: _confirmDiscardChangesIfNeeded,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final canLeave = await _confirmDiscardChangesIfNeeded();
+              if (!canLeave || !context.mounted) return;
+              context.pop();
+            },
+          ),
+          title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
+        ),
+        body: pageBody,
       ),
-      body: pageBody,
     );
   }
+
+  String _treatmentTypeLabel(TreatmentType type) => switch (type) {
+    TreatmentType.convencional => 'Convencional',
+    TreatmentType.estetico => 'Estético',
+    TreatmentType.autoligado => 'Autoligado',
+    TreatmentType.alineadores => 'Alineadores',
+    TreatmentType.ortopedia => 'Ortopedia',
+    TreatmentType.interceptivo => 'Interceptivo',
+    TreatmentType.retenedores => 'Retenedores',
+  };
 
   String _formatCopInput(num value) {
     return formatCop(value);

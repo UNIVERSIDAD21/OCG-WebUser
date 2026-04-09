@@ -121,6 +121,10 @@ class _PatientDetailView extends ConsumerWidget {
     final content = _AdminPatientWorkspace(
       patient: patient,
       initialSection: initialMobileSection,
+      onEdit: () => context.go(
+        RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
+      ),
+      onDelete: () => _deletePatient(context, ref),
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
@@ -267,10 +271,14 @@ class _PatientDetailView extends ConsumerWidget {
 class _AdminPatientWorkspace extends ConsumerStatefulWidget {
   const _AdminPatientWorkspace({
     required this.patient,
+    required this.onEdit,
+    required this.onDelete,
     this.initialSection = 0,
   });
 
   final PatientModel patient;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
   final int initialSection;
 
   @override
@@ -316,6 +324,18 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
     return OcgAdaptiveScaffold(
       selectedIndex: 1,
       title: 'Paciente: ${widget.patient.nombre}',
+      appBarActions: [
+        IconButton(
+          tooltip: 'Editar paciente',
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: widget.onEdit,
+        ),
+        IconButton(
+          tooltip: 'Eliminar paciente',
+          icon: const Icon(Icons.delete_outline, color: OcgColors.error),
+          onPressed: widget.onDelete,
+        ),
+      ],
       body: Column(
         children: [
           SizedBox(
