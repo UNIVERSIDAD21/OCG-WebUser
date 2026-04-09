@@ -252,39 +252,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ],
     );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFE8E4DD),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 24 : 20,
-            vertical: isDesktop ? 24 : 18,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isDesktop ? 420 : double.infinity),
-              child: Container(
-                padding: EdgeInsets.fromLTRB(isDesktop ? 28 : 4, 28, isDesktop ? 28 : 4, 24),
-                decoration: BoxDecoration(
-                  color: OcgColors.ivory,
-                  borderRadius: BorderRadius.circular(isDesktop ? 28 : 0),
-                  border: isDesktop
-                      ? Border.all(color: const Color(0xFFC8BFB0))
-                      : null,
-                  boxShadow: isDesktop
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x2E2D1B0E),
-                            blurRadius: 48,
-                            offset: Offset(0, 16),
-                          ),
-                        ]
-                      : null,
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFE8E4DD),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                  decoration: BoxDecoration(
+                    color: OcgColors.ivory,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: const Color(0xFFC8BFB0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x2E2D1B0E),
+                        blurRadius: 48,
+                        offset: Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: formContent,
                 ),
-                child: formContent,
               ),
             ),
           ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: OcgColors.ivory,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned(
+              top: -40,
+              left: -50,
+              right: -50,
+              child: Container(
+                height: 220,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0x36DDD0BC), OcgColors.ivory],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 90,
+              left: 20,
+              right: 20,
+              child: CustomPaint(
+                painter: _TopArcPainter(),
+                size: const Size(double.infinity, 80),
+              ),
+            ),
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      40,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    formContent,
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: OcgColors.espresso.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -453,6 +509,25 @@ class _SuccessBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TopArcPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x66DDD0BC)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    final path = Path()
+      ..moveTo(0, 56)
+      ..quadraticBezierTo(size.width / 2, 8, size.width, 56);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _RegisterPatientDialog extends ConsumerStatefulWidget {
