@@ -7,9 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../providers/auth_providers.dart';
-import '../../../shared/utils/dialog_utils.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,18 +20,36 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+
   String _email = '';
   String _password = '';
   bool _obscure = true;
   String? _error;
   int _errorVersion = 0;
-
-  // ✅ NUEVO: bandera para mostrar mensaje de cuenta creada
   bool _showAccountCreatedBanner = false;
 
   @override
+  void initState() {
+    super.initState();
+    _emailFocus.addListener(_onFocusChanged);
+    _passwordFocus.addListener(_onFocusChanged);
+  }
+
+  @override
   void dispose() {
+    _emailFocus
+      ..removeListener(_onFocusChanged)
+      ..dispose();
+    _passwordFocus
+      ..removeListener(_onFocusChanged)
+      ..dispose();
     super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _setTransientError(String message) {
@@ -56,9 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref
-          .read(authNotifierProvider.notifier)
-          .signIn(_email.trim(), _password);
+      await ref.read(authNotifierProvider.notifier).signIn(_email.trim(), _password);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       if (e.code == 'wrong-password' ||
@@ -77,12 +93,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _setTransientError('No se pudo iniciar sesión. Intenta de nuevo.');
     }
   }
-
-  // ─── Diálogo de registro ─────────────────────────────────────────────────
-  //
-  // Después de crear la cuenta se hace sign-out inmediato,
-  //    se muestra un banner de éxito y el usuario debe iniciar sesión
-  //    manualmente (flujo correcto para un sistema clínico).
 
   Future<void> _openRegisterDialog() async {
     await showDialog<bool>(
@@ -111,19 +121,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
-    final formContent = Column(
+    if (isDesktop) {
+      return _buildDesktop(context, isLoading);
+    }
+    return _buildMobile(context, isLoading);
+  }
+
+  Widget _buildDesktop(BuildContext context, bool isLoading) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFE8E4DD),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F3EC),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFC8BFB0)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x2E2D1B0E),
+                      blurRadius: 48,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: _buildLoginContent(context, isLoading, includeFooterIndicator: false),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobile(BuildContext context, bool isLoading) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F3EC),
+      body: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final minHeight = constraints.maxHeight;
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minHeight),
+                child: Stack(
+                  children: [
+                    const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _FakeStatusBar(),
+                          const SizedBox(height: 8),
+                          const SizedBox(height: 160),
+                          Transform.translate(
+                            offset: const Offset(0, -50),
+                            child: _buildLoginContent(context, isLoading, includeFooterIndicator: true),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginContent(
+    BuildContext context,
+    bool isLoading, {
+    required bool includeFooterIndicator,
+  }) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _LoginBrandHeader(),
-        const SizedBox(height: 28),
+        const _LoginBrandHeader(),
+        const SizedBox(height: 32),
         const Text(
           'Bienvenido de nuevo',
           style: TextStyle(
             fontFamily: 'Cormorant Garamond',
             fontSize: 30,
             fontWeight: FontWeight.w500,
-            color: OcgColors.espresso,
-            height: 1.2,
+            color: Color(0xFF2D1B0E),
+            height: 1.25,
           ),
         ),
         const SizedBox(height: 8),
@@ -131,15 +223,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           'Accede a tu cuenta para gestionar tus citas y tratamientos.',
           style: TextStyle(
             fontSize: 13.5,
-            color: OcgColors.ink.withOpacity(0.75),
-            height: 1.5,
+            color: const Color(0xFF5C4A3A).withOpacity(0.75),
+            height: 1.55,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 24),
         if (_showAccountCreatedBanner) ...[
-          _SuccessBanner(
-            onClose: () => setState(() => _showAccountCreatedBanner = false),
-          ),
+          _SuccessBanner(onClose: () => setState(() => _showAccountCreatedBanner = false)),
           const SizedBox(height: 14),
         ],
         if (_error != null) ...[
@@ -151,234 +241,286 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             children: [
               TextFormField(
+                focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(fontSize: 15, color: Color(0xFF2D1B0E), letterSpacing: 0.15),
                 decoration: _fieldDecoration(
                   hint: 'Correo electrónico',
                   icon: Icons.email_outlined,
+                  isFocused: _emailFocus.hasFocus,
+                  hasValue: _email.trim().isNotEmpty,
                 ),
-                onChanged: (v) => _email = v,
+                onChanged: (v) {
+                  setState(() => _email = v);
+                },
                 validator: Validators.email,
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 14),
               TextFormField(
+                focusNode: _passwordFocus,
                 obscureText: _obscure,
+                style: const TextStyle(fontSize: 15, color: Color(0xFF2D1B0E), letterSpacing: 0.15),
                 decoration: _fieldDecoration(
                   hint: 'Contraseña',
                   icon: Icons.lock_outline,
+                  isFocused: _passwordFocus.hasFocus,
+                  hasValue: _password.isNotEmpty,
                   suffix: IconButton(
                     icon: Icon(
-                      _obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: const Color(0xFFDDD0BC),
+                      _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: (_passwordFocus.hasFocus || _password.isNotEmpty)
+                          ? const Color(0xFF8C6239)
+                          : const Color(0xFFDDD0BC),
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
-                onChanged: (v) => _password = v,
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
+                onChanged: (v) {
+                  setState(() => _password = v);
+                },
+                validator: (v) => (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
                 onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D1B0E),
+                    foregroundColor: const Color(0xFFF7F3EC),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                    shadowColor: const Color(0x302D1B0E),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.9,
+                    ),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF7F3EC)),
+                        )
+                      : const Text('INICIAR SESIÓN'),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        SizedBox(
-          height: 58,
-          child: ElevatedButton(
-            onPressed: isLoading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: OcgColors.espresso,
-              foregroundColor: OcgColors.ivory,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              textStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: OcgColors.ivory,
-                    ),
-                  )
-                : const Text('INICIAR SESIÓN'),
-          ),
-        ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         Row(
           children: [
             TextButton(
               onPressed: () => context.push(RouteNames.forgotPassword),
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
               child: Text(
                 '¿Olvidaste tu contraseña?',
                 style: TextStyle(
-                  color: OcgColors.ink.withOpacity(0.75),
+                  color: const Color(0xFF5C4A3A).withOpacity(0.75),
                   fontSize: 13,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
             const Spacer(),
             TextButton(
               onPressed: _openRegisterDialog,
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
               child: const Text(
                 'Crear cuenta',
                 style: TextStyle(
-                  color: OcgColors.bronze,
+                  color: Color(0xFF8C6239),
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 40),
         Text(
           '© 2026 OCG Clínica Dental · Todos los derechos reservados',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 10.5,
-            color: OcgColors.ink.withOpacity(0.4),
+            color: const Color(0xFF5C4A3A).withOpacity(0.4),
+            letterSpacing: 0.2,
           ),
         ),
+        if (includeFooterIndicator) ...[
+          const SizedBox(height: 16),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D1B0E).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ],
       ],
-    );
-
-    if (isDesktop) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFE8E4DD),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-                  decoration: BoxDecoration(
-                    color: OcgColors.ivory,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFFC8BFB0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x2E2D1B0E),
-                        blurRadius: 48,
-                        offset: Offset(0, 16),
-                      ),
-                    ],
-                  ),
-                  child: formContent,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: OcgColors.ivory,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned(
-              top: -40,
-              left: -50,
-              right: -50,
-              child: Container(
-                height: 220,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0x36DDD0BC), OcgColors.ivory],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 90,
-              left: 20,
-              right: 20,
-              child: CustomPaint(
-                painter: _TopArcPainter(),
-                size: const Size(double.infinity, 80),
-              ),
-            ),
-            SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height -
-                      MediaQuery.of(context).padding.top -
-                      40,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    formContent,
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: OcgColors.espresso.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   InputDecoration _fieldDecoration({
     required String hint,
     required IconData icon,
+    required bool isFocused,
+    required bool hasValue,
     Widget? suffix,
   }) {
-    final border = OutlineInputBorder(
+    final borderColor = isFocused
+        ? const Color(0xFF8C6239)
+        : hasValue
+            ? const Color(0xFF5C4A3A)
+            : const Color(0xFFDDD0BC);
+
+    final baseBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFFDDD0BC)),
+      borderSide: BorderSide(color: borderColor, width: isFocused ? 1.5 : 1),
     );
 
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFB0A090), fontSize: 15),
       filled: true,
-      fillColor: OcgColors.ivory,
+      fillColor: const Color(0xFFF7F3EC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      prefixIcon: Icon(icon, color: const Color(0xFFDDD0BC)),
+      prefixIcon: Icon(
+        icon,
+        color: (isFocused || hasValue) ? const Color(0xFF8C6239) : const Color(0xFFDDD0BC),
+        size: 18,
+      ),
       suffixIcon: suffix,
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: OcgColors.bronze, width: 1.4),
+      border: baseBorder,
+      enabledBorder: baseBorder,
+      focusedBorder: baseBorder,
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFC0392B)),
       ),
-      errorBorder: border.copyWith(
-        borderSide: const BorderSide(color: OcgColors.error),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFC0392B), width: 1.4),
       ),
-      focusedErrorBorder: border.copyWith(
-        borderSide: const BorderSide(color: OcgColors.error, width: 1.4),
+      errorStyle: const TextStyle(fontSize: 12, color: Color(0xFFC0392B), height: 1.2),
+    );
+  }
+}
+
+class _TopDeco extends StatelessWidget {
+  const _TopDeco();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x36DDD0BC), Color(0xFFF7F3EC)],
+                stops: [0, 0.6],
+              ),
+            ),
+          ),
+          Positioned(top: -85, right: -30, child: _DecoCircle(size: 240, color: Color(0x088C6239))),
+          Positioned(top: -55, right: 0, child: _DecoCircle(size: 180, color: Color(0x068C6239))),
+          Positioned(bottom: -20, left: -50, child: _DecoCircle(size: 160, color: Color(0x30DDD0BC))),
+          Positioned.fill(child: CustomPaint(painter: _TopWavePainter())),
+          const Positioned(
+            top: 28,
+            right: 36,
+            child: _DecoCircle(size: 5, color: Color(0x4F8C6239)),
+          ),
+          const Positioned(
+            top: 44,
+            right: 52,
+            child: _DecoCircle(size: 3, color: Color(0x388C6239)),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _DecoCircle extends StatelessWidget {
+  const _DecoCircle({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _TopWavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x99DDD0BC)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final path = Path()
+      ..moveTo(20, size.height - 30)
+      ..quadraticBezierTo(size.width / 2, size.height - 80, size.width - 20, size.height - 30);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _FakeStatusBar extends StatelessWidget {
+  const _FakeStatusBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final time = TimeOfDay.now().format(context);
+    return Row(
+      children: [
+        Text(
+          time,
+          style: const TextStyle(
+            color: Color(0xFF2D1B0E),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const Spacer(),
+        const Icon(Icons.signal_cellular_alt, size: 16, color: Color(0xFF2D1B0E)),
+        const SizedBox(width: 6),
+        const Icon(Icons.wifi, size: 16, color: Color(0xFF2D1B0E)),
+        const SizedBox(width: 6),
+        const Icon(Icons.battery_full_rounded, size: 19, color: Color(0xFF2D1B0E)),
+      ],
+    );
+  }
+}
+
 class _LoginBrandHeader extends StatelessWidget {
+  const _LoginBrandHeader();
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -400,8 +542,8 @@ class _LoginBrandHeader extends StatelessWidget {
             fontFamily: 'Cormorant Garamond',
             fontSize: 56,
             fontWeight: FontWeight.w600,
-            color: OcgColors.espresso,
-            letterSpacing: 8,
+            color: Color(0xFF2D1B0E),
+            letterSpacing: 10,
             height: 1,
           ),
         ),
@@ -410,11 +552,41 @@ class _LoginBrandHeader extends StatelessWidget {
           'CLÍNICA DENTAL',
           style: TextStyle(
             fontSize: 10,
-            color: OcgColors.bronze,
-            letterSpacing: 3.2,
+            color: Color(0xFF8C6239),
+            letterSpacing: 3.5,
+            fontWeight: FontWeight.w400,
           ),
         ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            _SepLine(leftToRight: true),
+            _SepLine(leftToRight: false),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _SepLine extends StatelessWidget {
+  const _SepLine({required this.leftToRight});
+
+  final bool leftToRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 0.5,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: leftToRight ? Alignment.centerLeft : Alignment.centerRight,
+          end: leftToRight ? Alignment.centerRight : Alignment.centerLeft,
+          colors: const [Colors.transparent, Color(0xFFDDD0BC)],
+        ),
+      ),
     );
   }
 }
@@ -426,8 +598,8 @@ class _DecoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 28,
-      height: 1,
-      color: OcgColors.bronze.withOpacity(0.5),
+      height: 0.5,
+      color: const Color(0xFF8C6239).withOpacity(0.5),
     );
   }
 }
@@ -441,7 +613,7 @@ class _DecoDot extends StatelessWidget {
       width: 4,
       height: 4,
       decoration: BoxDecoration(
-        color: OcgColors.bronze.withOpacity(0.5),
+        color: const Color(0xFF8C6239).withOpacity(0.5),
         shape: BoxShape.circle,
       ),
     );
@@ -458,14 +630,14 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: OcgColors.error.withOpacity(0.08),
+        color: const Color(0x14C0392B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: OcgColors.error.withOpacity(0.3)),
+        border: Border.all(color: const Color(0x52C0392B)),
       ),
       child: Text(
         error,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: OcgColors.error, fontSize: 13),
+        style: const TextStyle(color: Color(0xFFC0392B), fontSize: 13),
       ),
     );
   }
@@ -479,28 +651,24 @@ class _SuccessBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF2E7D32).withOpacity(0.1),
+        color: const Color(0x1A0F6E56),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.4)),
+        border: Border.all(color: const Color(0x4D0F6E56)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_outline, color: Color(0xFF2E7D32), size: 22),
-          const SizedBox(width: 10),
+          const Icon(Icons.check, size: 16, color: Color(0xFF0F6E56)),
+          const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              '¡Tu cuenta ha sido creada exitosamente!\nInicia sesión para continuar.',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              '¡Tu cuenta ha sido creada exitosamente! Inicia sesión para continuar.',
+              style: TextStyle(color: Color(0xFF0F6E56), fontSize: 13),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, size: 16, color: Color(0xFF2E7D32)),
+            icon: const Icon(Icons.close, size: 16, color: Color(0xFF0F6E56)),
             onPressed: onClose,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -509,25 +677,6 @@ class _SuccessBanner extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TopArcPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0x66DDD0BC)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    final path = Path()
-      ..moveTo(0, 56)
-      ..quadraticBezierTo(size.width / 2, 8, size.width, 56);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _RegisterPatientDialog extends ConsumerStatefulWidget {
@@ -550,7 +699,6 @@ class _RegisterPatientDialogState
   String _pass = '';
   String _confirm = '';
 
-  // DESPUÉS — signOut inmediato antes de cerrar el diálogo:
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -560,16 +708,12 @@ class _RegisterPatientDialogState
     });
 
     try {
-      // 1. Crear la cuenta (esto hace auto-login internamente)
-      await ref
-          .read(authNotifierProvider.notifier)
-          .registerPatient(
+      await ref.read(authNotifierProvider.notifier).registerPatient(
             email: _email.trim(),
             password: _pass,
             displayName: _name.trim(),
           );
 
-      // 2. Cerrar el diálogo pasando true para activar el banner
       if (!mounted) return;
       popDialog(context, true);
     } on FirebaseAuthException catch (e) {
@@ -669,9 +813,7 @@ class _RegisterPatientDialogState
       ),
       actions: [
         TextButton(
-          onPressed: _isSubmitting
-              ? null
-              : () => Navigator.of(context).pop(false),
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
