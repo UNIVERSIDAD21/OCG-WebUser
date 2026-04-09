@@ -174,12 +174,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 14, 28, 24),
+                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const _FakeStatusBar(),
-                          const SizedBox(height: 8),
                           const SizedBox(height: 160),
                           Transform.translate(
                             offset: const Offset(0, -50),
@@ -488,34 +486,6 @@ class _TopWavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _FakeStatusBar extends StatelessWidget {
-  const _FakeStatusBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final time = TimeOfDay.now().format(context);
-    return Row(
-      children: [
-        Text(
-          time,
-          style: const TextStyle(
-            color: Color(0xFF2D1B0E),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const Spacer(),
-        const Icon(Icons.signal_cellular_alt, size: 16, color: Color(0xFF2D1B0E)),
-        const SizedBox(width: 6),
-        const Icon(Icons.wifi, size: 16, color: Color(0xFF2D1B0E)),
-        const SizedBox(width: 6),
-        const Icon(Icons.battery_full_rounded, size: 19, color: Color(0xFF2D1B0E)),
-      ],
-    );
-  }
 }
 
 class _LoginBrandHeader extends StatelessWidget {
