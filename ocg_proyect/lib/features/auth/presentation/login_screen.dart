@@ -165,6 +165,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildMobile(BuildContext context, bool isLoading) {
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    final footerBottom = bottomInset > 0 ? 2.0 : 10.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
       body: Stack(
@@ -186,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       includeFooterIndicator: false,
                       includeFooter: false,
                     ),
-                    const SizedBox(height: 90),
+                    const SizedBox(height: 74),
                   ],
                 ),
               ),
@@ -195,14 +198,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Positioned(
             left: 28,
             right: 28,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: _LoginFooter(showIndicator: true),
-              ),
-            ),
+            bottom: footerBottom,
+            child: const _LoginFooter(showIndicator: true),
           ),
         ],
       ),
@@ -428,19 +425,19 @@ class _TopDeco extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(top: -85, right: -30, child: _DecoCircle(size: 240, color: Color(0x088C6239))),
-          Positioned(top: -55, right: 0, child: _DecoCircle(size: 180, color: Color(0x068C6239))),
-          Positioned(bottom: -20, left: -50, child: _DecoCircle(size: 160, color: Color(0x30DDD0BC))),
+          Positioned(top: -85, right: -30, child: _DecoCircle(size: 240, color: Color(0x128C6239))),
+          Positioned(top: -55, right: 0, child: _DecoCircle(size: 180, color: Color(0x0D8C6239))),
+          Positioned(bottom: -20, left: -50, child: _DecoCircle(size: 160, color: Color(0x4ADDD0BC))),
           Positioned.fill(child: CustomPaint(painter: _TopWavePainter())),
           const Positioned(
             top: 28,
             right: 36,
-            child: _DecoCircle(size: 5, color: Color(0x4F8C6239)),
+            child: _DecoCircle(size: 5, color: Color(0x738C6239)),
           ),
           const Positioned(
             top: 44,
             right: 52,
-            child: _DecoCircle(size: 3, color: Color(0x388C6239)),
+            child: _DecoCircle(size: 3, color: Color(0x5A8C6239)),
           ),
         ],
       ),
@@ -468,9 +465,9 @@ class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0x99DDD0BC)
+      ..color = const Color(0xC4D2C1A8)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
+      ..strokeWidth = 1.1;
 
     final path = Path()
       ..moveTo(20, size.height - 30)
@@ -544,12 +541,12 @@ class _SepLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 40,
-      height: 0.5,
+      height: 1.0,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: leftToRight ? Alignment.centerLeft : Alignment.centerRight,
           end: leftToRight ? Alignment.centerRight : Alignment.centerLeft,
-          colors: const [Colors.transparent, Color(0xFFDDD0BC)],
+          colors: const [Colors.transparent, Color(0xFFC9B295)],
         ),
       ),
     );
@@ -563,8 +560,8 @@ class _DecoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 28,
-      height: 0.5,
-      color: const Color(0xFF8C6239).withOpacity(0.5),
+      height: 1.0,
+      color: const Color(0xFF8C6239).withOpacity(0.78),
     );
   }
 }
@@ -578,7 +575,7 @@ class _DecoDot extends StatelessWidget {
       width: 4,
       height: 4,
       decoration: BoxDecoration(
-        color: const Color(0xFF8C6239).withOpacity(0.5),
+        color: const Color(0xFF8C6239).withOpacity(0.78),
         shape: BoxShape.circle,
       ),
     );
