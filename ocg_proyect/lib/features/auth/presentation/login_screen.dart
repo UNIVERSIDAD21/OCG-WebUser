@@ -254,7 +254,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 validator: Validators.email,
                 onFieldSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               TextFormField(
                 focusNode: _passwordFocus,
                 obscureText: _obscure,
@@ -281,7 +281,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 validator: (v) => (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 height: 58,
