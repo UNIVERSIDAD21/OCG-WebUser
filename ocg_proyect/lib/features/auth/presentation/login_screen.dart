@@ -173,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 110),
-                  Expanded(
+                  Flexible(
                     child: SingleChildScrollView(
                       child: _buildLoginContent(
                         context,
@@ -182,6 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   const _LoginFooter(showIndicator: true),
                 ],
               ),
@@ -337,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 40),
+        SizedBox(height: includeFooterIndicator ? 40 : 18),
         _LoginFooter(showIndicator: includeFooterIndicator),
       ],
     );
