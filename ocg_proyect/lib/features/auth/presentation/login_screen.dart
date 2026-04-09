@@ -25,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _password = '';
   bool _obscure = true;
   String? _error;
+  int _errorVersion = 0;
 
   // ✅ NUEVO: bandera para mostrar mensaje de cuenta creada
   bool _showAccountCreatedBanner = false;
@@ -32,6 +33,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  void _setTransientError(String message) {
+    _errorVersion++;
+    final currentVersion = _errorVersion;
+    setState(() => _error = message);
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      if (_errorVersion != currentVersion) return;
+      setState(() => _error = null);
+    });
   }
 
   Future<void> _submit() async {
@@ -49,22 +62,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .signIn(_email.trim(), _password);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      setState(() {
-        if (e.code == 'wrong-password' ||
-            e.code == 'invalid-credential' ||
-            e.code == 'user-not-found') {
-          _error = 'Correo o contraseña incorrectos';
-        } else if (e.code == 'user-disabled') {
-          _error = 'Correo o contraseña incorrectos';
-        } else if (e.code == 'network-request-failed') {
-          _error = 'Sin conexión a internet. Verifica tu red.';
-        } else {
-          _error = '[${e.code}] ${e.message ?? 'No se pudo iniciar sesión.'}';
-        }
-      });
+      if (e.code == 'wrong-password' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'user-not-found') {
+        _setTransientError('Correo o contraseña incorrectos');
+      } else if (e.code == 'user-disabled') {
+        _setTransientError('Correo o contraseña incorrectos');
+      } else if (e.code == 'network-request-failed') {
+        _setTransientError('Sin conexión a internet. Verifica tu red.');
+      } else {
+        _setTransientError('[${e.code}] ${e.message ?? 'No se pudo iniciar sesión.'}');
+      }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudo iniciar sesión. Intenta de nuevo.');
+      _setTransientError('No se pudo iniciar sesión. Intenta de nuevo.');
     }
   }
 
@@ -94,7 +105,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (sessionError != null && _error == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        setState(() => _error = sessionError);
+        _setTransientError(sessionError);
         ref.read(authInvalidSessionMessageProvider.notifier).set(null);
       });
     }
