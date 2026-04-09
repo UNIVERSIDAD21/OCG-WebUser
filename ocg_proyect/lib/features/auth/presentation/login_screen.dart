@@ -174,15 +174,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 24),
+                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 160),
-                          Transform.translate(
-                            offset: const Offset(0, -50),
-                            child: _buildLoginContent(context, isLoading, includeFooterIndicator: true),
-                          ),
+                          const SizedBox(height: 110),
+                          _buildLoginContent(context, isLoading, includeFooterIndicator: true),
                         ],
                       ),
                     ),
@@ -352,7 +349,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         if (includeFooterIndicator) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Center(
             child: Container(
               width: 36,
