@@ -150,7 +150,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-                child: _buildLoginContent(context, isLoading, includeFooterIndicator: false),
+                child: _buildLoginContent(
+                  context,
+                  isLoading,
+                  includeFooterIndicator: false,
+                  includeFooter: true,
+                ),
               ),
             ),
           ),
@@ -179,6 +184,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         context,
                         isLoading,
                         includeFooterIndicator: false,
+                        includeFooter: false,
                       ),
                     ),
                   ),
@@ -197,6 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     BuildContext context,
     bool isLoading, {
     required bool includeFooterIndicator,
+    required bool includeFooter,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -338,8 +345,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ],
         ),
-        SizedBox(height: includeFooterIndicator ? 40 : 18),
-        _LoginFooter(showIndicator: includeFooterIndicator),
+        if (includeFooter) ...[
+          SizedBox(height: includeFooterIndicator ? 40 : 18),
+          _LoginFooter(showIndicator: includeFooterIndicator),
+        ],
       ],
     );
   }
