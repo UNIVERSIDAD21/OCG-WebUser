@@ -386,6 +386,48 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
   }
 
+  bool _hasUnsavedChanges() {
+    if (!widget.isEdit || !_loadedInitialData) return false;
+
+    return _nameCtrl.text.trim() != _initialName.trim() ||
+        _emailCtrl.text.trim() != _initialEmail.trim() ||
+        _phoneCtrl.text.trim() != _initialPhone.trim() ||
+        _notasCtrl.text.trim() != _initialNotas.trim() ||
+        _totalCtrl.text.trim() != _initialTotal.trim() ||
+        _saldoCtrl.text.trim() != _initialSaldo.trim() ||
+        _fechaNacimiento != _initialFechaNacimiento ||
+        _fechaInicio != _initialFechaInicio ||
+        _fechaEstimadaFin != _initialFechaEstimadaFin ||
+        _tipo != _initialTipo ||
+        _etapa != _initialEtapa;
+  }
+
+  Future<bool> _confirmDiscardChangesIfNeeded() async {
+    if (!_hasUnsavedChanges()) return true;
+
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Descartar cambios'),
+        content: const Text(
+          'Tienes cambios sin guardar. ¿Deseas salir y descartarlos?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Seguir editando'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldDiscard == true;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (!widget.isEdit) return;
