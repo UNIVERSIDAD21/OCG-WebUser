@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
-import '../../../shared/widgets/ocg_button.dart';
 import '../providers/auth_providers.dart';
 import '../../../shared/utils/dialog_utils.dart';
 
@@ -110,202 +109,402 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     }
 
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+
     return Scaffold(
-      backgroundColor: OcgColors.ivory,
+      backgroundColor: const Color(0xFFE8E4DD),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ── Logo ──
-                  Column(
-                    children: [
-                      const Text(
-                        'OCG',
-                        style: TextStyle(
-                          fontFamily: 'Cormorant Garamond',
-                          fontSize: 52,
-                          fontWeight: FontWeight.w700,
-                          color: OcgColors.espresso,
-                          letterSpacing: 4,
-                        ),
-                      ),
-                      Text(
-                        'Clínica Dental',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: OcgColors.ink.withOpacity(0.5),
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ],
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 24 : 8,
+              vertical: 24,
+            ),
+            child: Container(
+              width: 390,
+              constraints: const BoxConstraints(minHeight: 780),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(isDesktop ? 44 : 24),
+                border: Border.all(color: const Color(0xFFC8BFB0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x2E2D1B0E),
+                    blurRadius: 48,
+                    offset: Offset(0, 16),
                   ),
-                  const SizedBox(height: 40),
-
-                  // ✅ NUEVO: Banner de cuenta creada exitosamente
-                  if (_showAccountCreatedBanner) ...[
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2E7D32).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF2E7D32).withOpacity(0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check_circle_outline,
-                            color: Color(0xFF2E7D32),
-                            size: 22,
-                          ),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              '¡Tu cuenta ha sido creada exitosamente!\nInicia sesión para continuar.',
-                              style: TextStyle(
-                                color: Color(0xFF2E7D32),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Color(0xFF2E7D32),
-                            ),
-                            onPressed: () => setState(
-                              () => _showAccountCreatedBanner = false,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // ── Error ──
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: OcgColors.error.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: OcgColors.error.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          color: OcgColors.error,
-                          fontSize: 13,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // ── Formulario ──
-                  Form(
-                    key: _formKey,
-                    child: Column(
+                ],
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        TextFormField(
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Correo electrónico',
-                            prefixIcon: Icon(Icons.email_outlined),
+                        Text(
+                          TimeOfDay.now().format(context),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: OcgColors.espresso,
                           ),
-                          onChanged: (v) => _email = v,
-                          validator: Validators.email,
-                          onFieldSubmitted: (_) => _submit(),
                         ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          obscureText: _obscure,
-                          decoration: InputDecoration(
-                            labelText: 'Contraseña',
-                            prefixIcon: const Icon(Icons.lock_outlined),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscure
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
-                            ),
-                          ),
-                          onChanged: (v) => _password = v,
-                          validator: (v) => (v == null || v.isEmpty)
-                              ? 'Ingresa tu contraseña'
-                              : null,
-                          onFieldSubmitted: (_) => _submit(),
+                        Row(
+                          children: const [
+                            Icon(Icons.signal_cellular_alt, size: 16),
+                            SizedBox(width: 4),
+                            Icon(Icons.wifi, size: 16),
+                            SizedBox(width: 4),
+                            Icon(Icons.battery_full, size: 18),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // ── Botón iniciar sesión ──
-                  OcgButton(
-                    label: 'Iniciar sesión',
-                    isLoading: isLoading,
-                    onPressed: isLoading ? null : _submit,
+                  Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0x36DDD0BC), OcgColors.ivory],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // ── Links ──
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                            onPressed: () => context.push(RouteNames.forgotPassword),
-                            child: const Text(
-                              '¿Olvidaste tu contraseña?',
-                              style: TextStyle(
-                                color: OcgColors.bronze,
-                                fontSize: 13,
+                  Transform.translate(
+                    offset: const Offset(0, -44),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _LoginBrandHeader(),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'Bienvenido de nuevo',
+                            style: TextStyle(
+                              fontFamily: 'Cormorant Garamond',
+                              fontSize: 30,
+                              fontWeight: FontWeight.w500,
+                              color: OcgColors.espresso,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Accede a tu cuenta para gestionar tus citas y tratamientos.',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              color: OcgColors.ink.withOpacity(0.75),
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (_showAccountCreatedBanner) ...[
+                            _SuccessBanner(
+                              onClose: () => setState(
+                                () => _showAccountCreatedBanner = false,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (_error != null) ...[
+                            _ErrorBanner(error: _error!),
+                            const SizedBox(height: 14),
+                          ],
+                          Form(
+                            key: _formKey,
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  keyboardType: TextInputType.emailAddress,
+                                  decoration: _fieldDecoration(
+                                    hint: 'Correo electrónico',
+                                    icon: Icons.email_outlined,
+                                  ),
+                                  onChanged: (v) => _email = v,
+                                  validator: Validators.email,
+                                  onFieldSubmitted: (_) => _submit(),
+                                ),
+                                const SizedBox(height: 14),
+                                TextFormField(
+                                  obscureText: _obscure,
+                                  decoration: _fieldDecoration(
+                                    hint: 'Contraseña',
+                                    icon: Icons.lock_outline,
+                                    suffix: IconButton(
+                                      icon: Icon(
+                                        _obscure
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                        color: const Color(0xFFDDD0BC),
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _obscure = !_obscure),
+                                    ),
+                                  ),
+                                  onChanged: (v) => _password = v,
+                                  validator: (v) =>
+                                      (v == null || v.isEmpty)
+                                      ? 'Ingresa tu contraseña'
+                                      : null,
+                                  onFieldSubmitted: (_) => _submit(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            height: 58,
+                            child: ElevatedButton(
+                              onPressed: isLoading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: OcgColors.espresso,
+                                foregroundColor: OcgColors.ivory,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: OcgColors.ivory,
+                                      ),
+                                    )
+                                  : const Text('INICIAR SESIÓN'),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () =>
+                                    context.push(RouteNames.forgotPassword),
+                                child: Text(
+                                  '¿Olvidaste tu contraseña?',
+                                  style: TextStyle(
+                                    color: OcgColors.ink.withOpacity(0.75),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: _openRegisterDialog,
+                                child: const Text(
+                                  'Crear cuenta',
+                                  style: TextStyle(
+                                    color: OcgColors.bronze,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 26),
+                          Text(
+                            '© 2026 OCG Clínica Dental · Todos los derechos reservados',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: OcgColors.ink.withOpacity(0.4),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Center(
+                            child: Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: OcgColors.espresso.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _openRegisterDialog,
-                            child: const Text(
-                              'Crear cuenta',
-                              style: TextStyle(
-                                color: OcgColors.espresso,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFDDD0BC)),
+    );
+
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: OcgColors.ivory,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      prefixIcon: Icon(icon, color: const Color(0xFFDDD0BC)),
+      suffixIcon: suffix,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+        borderSide: const BorderSide(color: OcgColors.bronze, width: 1.4),
+      ),
+      errorBorder: border.copyWith(
+        borderSide: const BorderSide(color: OcgColors.error),
+      ),
+      focusedErrorBorder: border.copyWith(
+        borderSide: const BorderSide(color: OcgColors.error, width: 1.4),
+      ),
+    );
+  }
+}
+
+class _LoginBrandHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            _DecoLine(),
+            SizedBox(width: 10),
+            _DecoDot(),
+            SizedBox(width: 10),
+            _DecoLine(),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'OCG',
+          style: TextStyle(
+            fontFamily: 'Cormorant Garamond',
+            fontSize: 56,
+            fontWeight: FontWeight.w600,
+            color: OcgColors.espresso,
+            letterSpacing: 8,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'CLÍNICA DENTAL',
+          style: TextStyle(
+            fontSize: 10,
+            color: OcgColors.bronze,
+            letterSpacing: 3.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DecoLine extends StatelessWidget {
+  const _DecoLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 1,
+      color: OcgColors.bronze.withOpacity(0.5),
+    );
+  }
+}
+
+class _DecoDot extends StatelessWidget {
+  const _DecoDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(
+        color: OcgColors.bronze.withOpacity(0.5),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.error});
+
+  final String error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OcgColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.error.withOpacity(0.3)),
+      ),
+      child: Text(
+        error,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: OcgColors.error, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _SuccessBanner extends StatelessWidget {
+  const _SuccessBanner({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E7D32).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Color(0xFF2E7D32), size: 22),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              '¡Tu cuenta ha sido creada exitosamente!\nInicia sesión para continuar.',
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: Color(0xFF2E7D32)),
+            onPressed: onClose,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
       ),
     );
   }
