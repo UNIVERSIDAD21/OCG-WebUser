@@ -57,6 +57,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       _InicioSection(
         userId: effectivePatientId,
         onOpenProfile: () => setState(() => _selectedIndex = 5),
+        onOpenPayments: () => setState(() => _selectedIndex = 3),
       ),
       PatientAppointmentsScreen(
         embedded: true,
@@ -176,9 +177,14 @@ int _phaseFromProgress(int progress) {
 }
 
 class _InicioSection extends ConsumerWidget {
-  const _InicioSection({required this.userId, this.onOpenProfile});
+  const _InicioSection({
+    required this.userId,
+    this.onOpenProfile,
+    this.onOpenPayments,
+  });
   final String userId;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenPayments;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -349,8 +355,8 @@ class _InicioSection extends ConsumerWidget {
                       total: total,
                       saldo: saldo,
                       pagoPercent: pagoPercent,
-                      onGoToPayments: () =>
-                          context.go(RouteNames.patientPayments),
+                      onGoToPayments: onOpenPayments ??
+                          () => context.go(RouteNames.patientPayments),
                     ),
                     const SizedBox(height: 18),
                     const _SectionTitle('Etapas del tratamiento'),
