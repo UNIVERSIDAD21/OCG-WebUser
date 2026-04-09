@@ -258,7 +258,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                                     final canLeave =
                                         await _confirmDiscardChangesIfNeeded();
                                     if (!canLeave || !context.mounted) return;
-                                    context.pop();
+                                    _exitWithoutSaving();
                                   },
                             child: const Text('Cancelar'),
                           ),
@@ -339,7 +339,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
             onPressed: () async {
               final canLeave = await _confirmDiscardChangesIfNeeded();
               if (!canLeave || !context.mounted) return;
-              context.pop();
+              _exitWithoutSaving();
             },
           ),
           title: Text(isEdit ? 'Editar paciente' : 'Nuevo paciente'),
@@ -426,6 +426,24 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     );
 
     return shouldDiscard == true;
+  }
+
+  void _exitWithoutSaving() {
+    if (!mounted) return;
+
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    if (widget.isEdit && widget.patientId != null) {
+      context.go(
+        RouteNames.adminPatientDetail.replaceFirst(':patientId', widget.patientId!),
+      );
+      return;
+    }
+
+    context.go(RouteNames.adminPatients);
   }
 
   Future<void> _save() async {
