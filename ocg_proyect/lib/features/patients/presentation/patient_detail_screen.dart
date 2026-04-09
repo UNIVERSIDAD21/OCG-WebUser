@@ -27,47 +27,22 @@ import 'tabs/patient_profile_tab.dart';
 import 'tabs/patient_simulator_tab.dart';
 import 'tabs/patient_treatment_tab.dart';
 
-class PatientDetailScreen extends ConsumerWidget {
+class PatientDetailScreen extends ConsumerStatefulWidget {
   const PatientDetailScreen({super.key, required this.patientId});
 
   final String patientId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final patientAsync = ref.watch(patientByIdProvider(patientId));
-
-    return patientAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('Detalle de paciente')),
-        body: Center(
-          child: Text(
-            'No se pudo cargar el paciente: $error',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-      data: (patient) {
-        if (patient == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Detalle de paciente')),
-            body: const Center(child: Text('Paciente no encontrado.')),
-          );
-        }
-
-        return _PatientDetailView(patient: patient);
-      },
-    );
-  }
+  ConsumerState<PatientDetailScreen> createState() => _PatientDetailScreenState();
 }
 
-class _PatientDetailView extends ConsumerWidget {
-  const _PatientDetailView({required this.patient});
+class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
+  bool _deleting = false;
+  bool _deletedFromThisFlow = false;
 
-  final PatientModel patient;
+  Future<void> _deletePatient(PatientModel patient) async {
+    if (_deleting) return;
 
-  Future<void> _deletePatient(BuildContext context, WidgetRef ref) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -88,22 +63,89 @@ class _PatientDetailView extends ConsumerWidget {
       ),
     );
 
-    if (shouldDelete != true) return;
+    if (shouldDelete != true || !mounted) return;
+
+    setState(() => _deleting = true);
 
     try {
       await ref.read(patientsRepositoryProvider).deletePatient(patient.id);
-      if (!context.mounted) return;
+      if (!mounted) return;
+      setState(() {
+        _deletedFromThisFlow = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Paciente eliminado correctamente')),
       );
       context.go(RouteNames.adminPatients);
     } catch (e) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
+
+    return patientAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => Scaffold(
+        appBar: AppBar(title: const Text('Detalle de paciente')),
+        body: Center(
+          child: Text(
+            'No se pudo cargar el paciente: $error',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      data: (patient) {
+        if (patient == null) {
+          if (_deletedFromThisFlow) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              context.go(RouteNames.adminPatients);
+            });
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          return Scaffold(
+            appBar: AppBar(title: const Text('Detalle de paciente')),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Paciente no encontrado.'),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => context.go(RouteNames.adminPatients),
+                    child: const Text('Volver a pacientes'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return _PatientDetailView(
+          patient: patient,
+          onDelete: _deleting ? null : () => _deletePatient(patient),
+        );
+      },
+    );
+  }
+}
+
+class _PatientDetailView extends ConsumerWidget {
+  const _PatientDetailView({required this.patient, required this.onDelete});
+
+  final PatientModel patient;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,7 +166,7 @@ class _PatientDetailView extends ConsumerWidget {
       onEdit: () => context.go(
         RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
       ),
-      onDelete: () => _deletePatient(context, ref),
+      onDelete: onDelete ?? () {},
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
@@ -154,7 +196,7 @@ class _PatientDetailView extends ConsumerWidget {
                     label: const Text('Editar'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => _deletePatient(context, ref),
+                    onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline),
                     label: const Text('Eliminar'),
                   ),
