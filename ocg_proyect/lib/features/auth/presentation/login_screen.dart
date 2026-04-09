@@ -167,30 +167,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildMobile(BuildContext context, bool isLoading) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 0, 28, 10),
+          child: const _LoginFooter(showIndicator: true),
+        ),
+      ),
       body: SafeArea(
         top: false,
+        bottom: false,
         child: Stack(
           children: [
             const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 110),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: _buildLoginContent(
-                        context,
-                        isLoading,
-                        includeFooterIndicator: false,
-                        includeFooter: false,
-                      ),
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 110),
+                    _buildLoginContent(
+                      context,
+                      isLoading,
+                      includeFooterIndicator: false,
+                      includeFooter: false,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const _LoginFooter(showIndicator: true),
-                ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             ),
           ],
