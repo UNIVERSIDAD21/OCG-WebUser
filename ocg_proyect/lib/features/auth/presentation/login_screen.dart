@@ -111,232 +111,177 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
+    final formContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _LoginBrandHeader(),
+        const SizedBox(height: 28),
+        const Text(
+          'Bienvenido de nuevo',
+          style: TextStyle(
+            fontFamily: 'Cormorant Garamond',
+            fontSize: 30,
+            fontWeight: FontWeight.w500,
+            color: OcgColors.espresso,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Accede a tu cuenta para gestionar tus citas y tratamientos.',
+          style: TextStyle(
+            fontSize: 13.5,
+            color: OcgColors.ink.withOpacity(0.75),
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (_showAccountCreatedBanner) ...[
+          _SuccessBanner(
+            onClose: () => setState(() => _showAccountCreatedBanner = false),
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (_error != null) ...[
+          _ErrorBanner(error: _error!),
+          const SizedBox(height: 14),
+        ],
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                keyboardType: TextInputType.emailAddress,
+                decoration: _fieldDecoration(
+                  hint: 'Correo electrónico',
+                  icon: Icons.email_outlined,
+                ),
+                onChanged: (v) => _email = v,
+                validator: Validators.email,
+                onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                obscureText: _obscure,
+                decoration: _fieldDecoration(
+                  hint: 'Contraseña',
+                  icon: Icons.lock_outline,
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: const Color(0xFFDDD0BC),
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                onChanged: (v) => _password = v,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
+                onFieldSubmitted: (_) => _submit(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          height: 58,
+          child: ElevatedButton(
+            onPressed: isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: OcgColors.espresso,
+              foregroundColor: OcgColors.ivory,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: OcgColors.ivory,
+                    ),
+                  )
+                : const Text('INICIAR SESIÓN'),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => context.push(RouteNames.forgotPassword),
+              child: Text(
+                '¿Olvidaste tu contraseña?',
+                style: TextStyle(
+                  color: OcgColors.ink.withOpacity(0.75),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: _openRegisterDialog,
+              child: const Text(
+                'Crear cuenta',
+                style: TextStyle(
+                  color: OcgColors.bronze,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 26),
+        Text(
+          '© 2026 OCG Clínica Dental · Todos los derechos reservados',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10.5,
+            color: OcgColors.ink.withOpacity(0.4),
+          ),
+        ),
+      ],
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFE8E4DD),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 24 : 8,
-              vertical: 24,
-            ),
-            child: Container(
-              width: 390,
-              constraints: const BoxConstraints(minHeight: 780),
-              decoration: BoxDecoration(
-                color: OcgColors.ivory,
-                borderRadius: BorderRadius.circular(isDesktop ? 44 : 24),
-                border: Border.all(color: const Color(0xFFC8BFB0)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x2E2D1B0E),
-                    blurRadius: 48,
-                    offset: Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          TimeOfDay.now().format(context),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: OcgColors.espresso,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 24 : 20,
+            vertical: isDesktop ? 24 : 18,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isDesktop ? 420 : double.infinity),
+              child: Container(
+                padding: EdgeInsets.fromLTRB(isDesktop ? 28 : 4, 28, isDesktop ? 28 : 4, 24),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory,
+                  borderRadius: BorderRadius.circular(isDesktop ? 28 : 0),
+                  border: isDesktop
+                      ? Border.all(color: const Color(0xFFC8BFB0))
+                      : null,
+                  boxShadow: isDesktop
+                      ? const [
+                          BoxShadow(
+                            color: Color(0x2E2D1B0E),
+                            blurRadius: 48,
+                            offset: Offset(0, 16),
                           ),
-                        ),
-                        Row(
-                          children: const [
-                            Icon(Icons.signal_cellular_alt, size: 16),
-                            SizedBox(width: 4),
-                            Icon(Icons.wifi, size: 16),
-                            SizedBox(width: 4),
-                            Icon(Icons.battery_full, size: 18),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    height: 160,
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0x36DDD0BC), OcgColors.ivory],
-                      ),
-                    ),
-                  ),
-                  Transform.translate(
-                    offset: const Offset(0, -44),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _LoginBrandHeader(),
-                          const SizedBox(height: 28),
-                          const Text(
-                            'Bienvenido de nuevo',
-                            style: TextStyle(
-                              fontFamily: 'Cormorant Garamond',
-                              fontSize: 30,
-                              fontWeight: FontWeight.w500,
-                              color: OcgColors.espresso,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Accede a tu cuenta para gestionar tus citas y tratamientos.',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              color: OcgColors.ink.withOpacity(0.75),
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          if (_showAccountCreatedBanner) ...[
-                            _SuccessBanner(
-                              onClose: () => setState(
-                                () => _showAccountCreatedBanner = false,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-                          if (_error != null) ...[
-                            _ErrorBanner(error: _error!),
-                            const SizedBox(height: 14),
-                          ],
-                          Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: _fieldDecoration(
-                                    hint: 'Correo electrónico',
-                                    icon: Icons.email_outlined,
-                                  ),
-                                  onChanged: (v) => _email = v,
-                                  validator: Validators.email,
-                                  onFieldSubmitted: (_) => _submit(),
-                                ),
-                                const SizedBox(height: 14),
-                                TextFormField(
-                                  obscureText: _obscure,
-                                  decoration: _fieldDecoration(
-                                    hint: 'Contraseña',
-                                    icon: Icons.lock_outline,
-                                    suffix: IconButton(
-                                      icon: Icon(
-                                        _obscure
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
-                                        color: const Color(0xFFDDD0BC),
-                                      ),
-                                      onPressed: () =>
-                                          setState(() => _obscure = !_obscure),
-                                    ),
-                                  ),
-                                  onChanged: (v) => _password = v,
-                                  validator: (v) =>
-                                      (v == null || v.isEmpty)
-                                      ? 'Ingresa tu contraseña'
-                                      : null,
-                                  onFieldSubmitted: (_) => _submit(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          SizedBox(
-                            height: 58,
-                            child: ElevatedButton(
-                              onPressed: isLoading ? null : _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: OcgColors.espresso,
-                                foregroundColor: OcgColors.ivory,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                textStyle: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              child: isLoading
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: OcgColors.ivory,
-                                      ),
-                                    )
-                                  : const Text('INICIAR SESIÓN'),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    context.push(RouteNames.forgotPassword),
-                                child: Text(
-                                  '¿Olvidaste tu contraseña?',
-                                  style: TextStyle(
-                                    color: OcgColors.ink.withOpacity(0.75),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: _openRegisterDialog,
-                                child: const Text(
-                                  'Crear cuenta',
-                                  style: TextStyle(
-                                    color: OcgColors.bronze,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 26),
-                          Text(
-                            '© 2026 OCG Clínica Dental · Todos los derechos reservados',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: OcgColors.ink.withOpacity(0.4),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Center(
-                            child: Container(
-                              width: 36,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: OcgColors.espresso.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                        ]
+                      : null,
+                ),
+                child: formContent,
               ),
             ),
           ),
