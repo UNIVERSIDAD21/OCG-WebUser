@@ -166,7 +166,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildMobile(BuildContext context, bool isLoading) {
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    final footerBottom = bottomInset > 0 ? 2.0 : 10.0;
+    final footerBottom = bottomInset > 0 ? 6.0 : 8.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
@@ -601,7 +601,7 @@ class _LoginFooter extends StatelessWidget {
           ),
         ),
         if (showIndicator) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Center(
             child: Container(
               width: 36,
