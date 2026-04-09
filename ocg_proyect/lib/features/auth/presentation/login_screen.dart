@@ -164,30 +164,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: const Color(0xFFF7F3EC),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final minHeight = constraints.maxHeight;
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: minHeight),
-                child: Stack(
-                  children: [
-                    const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 110),
-                          _buildLoginContent(context, isLoading, includeFooterIndicator: true),
-                        ],
+        child: Stack(
+          children: [
+            const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 110),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: _buildLoginContent(
+                        context,
+                        isLoading,
+                        includeFooterIndicator: false,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const _LoginFooter(showIndicator: true),
+                ],
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -339,28 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
         const SizedBox(height: 40),
-        Text(
-          '© 2026 OCG Clínica Dental · Todos los derechos reservados',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 10.5,
-            color: const Color(0xFF5C4A3A).withOpacity(0.4),
-            letterSpacing: 0.2,
-          ),
-        ),
-        if (includeFooterIndicator) ...[
-          const SizedBox(height: 10),
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFF2D1B0E).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        ],
+        _LoginFooter(showIndicator: includeFooterIndicator),
       ],
     );
   }
@@ -583,6 +561,42 @@ class _DecoDot extends StatelessWidget {
         color: const Color(0xFF8C6239).withOpacity(0.5),
         shape: BoxShape.circle,
       ),
+    );
+  }
+}
+
+class _LoginFooter extends StatelessWidget {
+  const _LoginFooter({required this.showIndicator});
+
+  final bool showIndicator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '© 2026 OCG Clínica Dental · Todos los derechos reservados',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10.5,
+            color: const Color(0xFF5C4A3A).withOpacity(0.4),
+            letterSpacing: 0.2,
+          ),
+        ),
+        if (showIndicator) ...[
+          const SizedBox(height: 10),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D1B0E).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
