@@ -7,6 +7,13 @@ type RegisterPatientSelfData = {
   displayName?: string;
 };
 
+function isActiveUserDoc(data: admin.firestore.DocumentData | undefined): boolean {
+  if (!data) return false;
+  const deletedAt = data.deletedAt;
+  const activo = data.activo;
+  return deletedAt == null && activo !== false;
+}
+
 export const registerPatientSelf = onCall<RegisterPatientSelfData>(
   {region: 'us-central1'},
   async (request: CallableRequest<RegisterPatientSelfData>) => {
@@ -21,13 +28,15 @@ export const registerPatientSelf = onCall<RegisterPatientSelfData>(
 
     const db = admin.firestore();
 
-    const patientByEmail = await db.collection('patients').where('email', '==', email).limit(1).get();
-    if (!patientByEmail.empty) {
+    const patientByEmail = await db.collection('patients').where('email', '==', email).limit(5).get();
+    const hasActivePatient = patientByEmail.docs.some((doc) => isActiveUserDoc(doc.data()));
+    if (hasActivePatient) {
       throw new HttpsError('already-exists', 'Este correo ya está en uso.');
     }
 
-    const adminByEmail = await db.collection('admins').where('email', '==', email).limit(1).get();
-    if (!adminByEmail.empty) {
+    const adminByEmail = await db.collection('admins').where('email', '==', email).limit(5).get();
+    const hasActiveAdmin = adminByEmail.docs.some((doc) => isActiveUserDoc(doc.data()));
+    if (hasActiveAdmin) {
       throw new HttpsError('already-exists', 'Este correo ya está en uso.');
     }
 
