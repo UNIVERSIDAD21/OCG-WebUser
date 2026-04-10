@@ -579,9 +579,24 @@ class AdminPatientsScreen extends ConsumerWidget {
                       onChanged: (value) => ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
                       decoration: const InputDecoration(
                         isDense: true,
-                        hintText: 'Buscar en pacientes...',
+                        hintText: 'Buscar en pacientes ...',
                         border: InputBorder.none,
                       ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F5F0),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE8DDD2)),
+                    ),
+                    child: Row(
+                      children: const [
+                        Icon(Icons.tune, size: 14, color: Color(0xFF9A735C)),
+                        SizedBox(width: 6),
+                        Text('Filtros', style: TextStyle(fontSize: 12, color: Color(0xFF9A735C), fontWeight: FontWeight.w600)),
+                      ],
                     ),
                   ),
                 ],
@@ -602,6 +617,25 @@ class AdminPatientsScreen extends ConsumerWidget {
               }).toList(),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('Listado de pacientes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF2C2016))),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6EFE7),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: const Color(0xFFE2D0BC)),
+                  ),
+                  child: Text(
+                    '${filteredPatients.length} registros',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFDFC),
@@ -616,27 +650,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                     )
                   : Column(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F5F0),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE8DDD2)),
-                          ),
-                          child: Row(
-                            children: const [
-                              Expanded(flex: 4, child: Text('Paciente', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C), letterSpacing: .3))),
-                              Expanded(flex: 2, child: Text('Tratamiento', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C), letterSpacing: .3))),
-                              Expanded(flex: 2, child: Text('Etapa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C), letterSpacing: .3))),
-                              Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Saldo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C), letterSpacing: .3)))),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
                         for (var i = 0; i < filteredPatients.length; i++) ...[
                           _DesktopPatientRow(
                             patient: filteredPatients[i],
-                            selected: i == 0,
+                            selected: false,
                             onTap: () => context.go(
                               RouteNames.adminPatientDetail.replaceFirst(':patientId', filteredPatients[i].id),
                             ),
@@ -954,100 +971,95 @@ class _DesktopPatientRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            Expanded(
-              flex: 4,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 17,
-                    backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                    child: Text(
-                      _initialsFromName(patient.nombre),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: OcgColors.espresso,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patient.nombre,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: OcgColors.espresso,
-                          ),
-                        ),
-                        Text(
-                          patient.email,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: OcgColors.ink.withOpacity(.55),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: stageBg,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    stage,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: stageFg,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: OcgColors.bronze.withOpacity(0.16),
+              child: Text(
+                _initialsFromName(patient.nombre),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: OcgColors.espresso,
                 ),
               ),
             ),
+            const SizedBox(width: 12),
             Expanded(
-              flex: 2,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '\$${formatCop(patient.saldoPendiente)}',
+                    patient.nombre,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       color: OcgColors.espresso,
                     ),
                   ),
                   Text(
-                    patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!),
+                    patient.email,
                     style: TextStyle(
                       fontSize: 11,
-                      color: OcgColors.ink.withOpacity(.5),
+                      color: OcgColors.ink.withOpacity(.55),
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: stageBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          stage,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: stageFg,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.chevron_right, color: OcgColors.bronze, size: 17),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${formatCop(patient.saldoPendiente)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                Text(
+                  patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: OcgColors.ink.withOpacity(.5),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F5F0),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              child: const Icon(Icons.chevron_right, color: OcgColors.bronze, size: 14),
+            ),
           ],
         ),
       ),
