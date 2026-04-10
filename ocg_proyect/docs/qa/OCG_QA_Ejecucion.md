@@ -29,7 +29,7 @@ Base: `docs/qa/OCG_QA_Matriz_Pruebas_Completa.md`
 
 | Bloque | Estado | Observaciones |
 |---|---|---|
-| 1. Autenticación y guards | En progreso | Inicio de ejecución |
+| 1. Autenticación y guards | Terminado (Bloqueado por entorno) | Ver `docs/qa/resultado_bloque_01_auth.md` |
 | 2. Admin Pacientes | Pendiente |  |
 | 3. Admin Agenda | Pendiente |  |
 | 4. Paciente Citas/Pagos/Perfil | Pendiente |  |
