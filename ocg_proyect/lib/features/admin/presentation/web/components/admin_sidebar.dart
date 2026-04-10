@@ -155,7 +155,13 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
     ];
 
     return Container(
-      color: OcgColors.espresso,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1F140C), Color(0xFF2C2016)],
+        ),
+      ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -517,206 +517,140 @@ class _WebAdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    const wd = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO'];
-    const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-    final dateLabel = '${wd[now.weekday - 1]} ${now.day} DE ${months[now.month - 1]} · ${now.year}';
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(26, 18, 26, 40),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF21170F), OcgColors.espresso],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dateLabel,
-                        style: TextStyle(
-                          color: OcgColors.ivory.withOpacity(0.68),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.45,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Dashboard',
-                        style: TextStyle(color: OcgColors.ivory, fontSize: 34, fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Resumen operativo del día',
-                        style: TextStyle(color: OcgColors.ivory.withOpacity(0.8), fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: OcgColors.ivory,
-                    side: BorderSide(color: OcgColors.ivory.withOpacity(0.35)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: const StadiumBorder(),
-                  ),
-                  onPressed: () => context.go(RouteNames.adminPayments),
-                  icon: const Icon(Icons.payments_outlined, size: 16),
-                  label: const Text('Pagos'),
-                ),
-              ],
+          const Text(
+            'Dashboard',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF2C2016),
+              letterSpacing: -0.3,
+              height: 1.05,
             ),
           ),
-          Transform.translate(
-            offset: const Offset(0, -18),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: const [BoxShadow(color: Color(0x1E2C2016), blurRadius: 20, offset: Offset(0, 8))],
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cols = constraints.maxWidth > 980 ? 4 : 2;
-                  return GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: cols,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: cols == 4 ? 1.45 : 1.65,
-                    children: [
-                      _MobileKpiMini(
-                        value: '${todaysAppointments.length}',
-                        title: 'Citas hoy',
-                        subtitle: 'programadas',
-                        bg: const Color(0xFFF6EFE7),
-                        onTap: () => context.go(RouteNames.adminAppointments),
-                      ),
-                      _MobileKpiMini(
-                        value: '$pendingConfirm',
-                        title: 'Sin confirmar',
-                        subtitle: 'pendientes',
-                        bg: const Color(0xFFFFF4D8),
-                        onTap: () => context.go(RouteNames.adminAppointments),
-                      ),
-                      _MobileKpiMini(
-                        value: '$canceladasSemana',
-                        title: 'Canceladas',
-                        subtitle: 'últimos 7 días',
-                        bg: const Color(0xFFFFECEC),
-                        onTap: () => context.go(RouteNames.adminAppointments),
-                      ),
-                      _MobileKpiMini(
-                        value: '$nuevosPacientes30d',
-                        title: 'Nuevos',
-                        subtitle: 'últimos 30 días',
-                        bg: const Color(0xFFEFF8F0),
-                        onTap: () => context.go(RouteNames.adminPatients),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
+          const SizedBox(height: 6),
+          const Text(
+            'Gestión clínica y financiera',
+            style: TextStyle(fontSize: 13, color: Color(0xFF9A735C)),
           ),
-          const SizedBox(height: 4),
-          const _MobileSectionTitle('Acceso rápido'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _MobileQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
-              const SizedBox(width: 10),
-              Expanded(child: _MobileQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MobileQuickCard(
-                  icon: Icons.person_add_outlined,
-                  label: 'Nuevo paciente',
-                  onTap: () => context.go(RouteNames.adminPatients),
-                  emphasized: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final twoCols = constraints.maxWidth > 1080;
-              final alerts = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              final cols = constraints.maxWidth > 1080 ? 4 : 2;
+              return GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: cols == 4 ? 1.95 : 1.7,
                 children: [
-                  const _MobileSectionTitle('Alertas operativas'),
-                  const SizedBox(height: 10),
-                  _MobileAlertCard(icon: Icons.schedule, title: '$citasSinConfirmar2h cita${citasSinConfirmar2h == 1 ? '' : 's'} sin confirmar', subtitle: 'Revisar próximas 2 horas', bg: const Color(0xFFFFF4D8), iconColor: OcgColors.warning),
-                  const SizedBox(height: 8),
-                  _MobileAlertCard(icon: Icons.description_outlined, title: '$perfilesPendientes perfiles incompletos', subtitle: 'Pendientes de actualización', bg: const Color(0xFFF6EFE7), iconColor: OcgColors.bronze),
-                  const SizedBox(height: 8),
-                  _MobileAlertCard(icon: Icons.payments_outlined, title: '$pagosVencidos pagos vencidos', subtitle: 'Seguimiento financiero requerido', bg: const Color(0xFFFFECEC), iconColor: OcgColors.error),
-                ],
-              );
-
-              final agenda = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
-                      TextButton(
-                        onPressed: () => context.go(RouteNames.adminAppointments),
-                        child: const Text('Ver todo >', style: TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700, fontSize: 12.5)),
-                      ),
-                    ],
+                  _MobileKpiMini(
+                    value: '${todaysAppointments.length}',
+                    title: 'Citas hoy',
+                    subtitle: 'programadas',
+                    bg: const Color(0xFFF6EFE7),
+                    onTap: () => context.go(RouteNames.adminAppointments),
                   ),
-                  const SizedBox(height: 4),
-                  if (loadingAppointments)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (appointmentsError)
-                    const Text('No se pudo cargar la agenda del día.')
-                  else if (todaysAppointments.isEmpty)
-                    const Text('No hay citas programadas para hoy.')
-                  else
-                    ...todaysAppointments.take(8).map((a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _MobileAgendaCard(appointment: a, ref: ref),
-                        )),
-                ],
-              );
-
-              if (!twoCols) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [alerts, const SizedBox(height: 18), agenda],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: alerts),
-                  const SizedBox(width: 18),
-                  Expanded(child: agenda),
+                  _MobileKpiMini(
+                    value: '$pendingConfirm',
+                    title: 'Sin confirmar',
+                    subtitle: 'pendientes',
+                    bg: const Color(0xFFEFF8F0),
+                    onTap: () => context.go(RouteNames.adminAppointments),
+                  ),
+                  _MobileKpiMini(
+                    value: '$canceladasSemana',
+                    title: 'Canceladas',
+                    subtitle: 'últimos 7 días',
+                    bg: const Color(0xFFFFF4D8),
+                    onTap: () => context.go(RouteNames.adminAppointments),
+                  ),
+                  _MobileKpiMini(
+                    value: '$pagosVencidos',
+                    title: 'Saldo pendiente',
+                    subtitle: 'por cobrar',
+                    bg: const Color(0xFFFFECEC),
+                    onTap: () => context.go(RouteNames.adminPayments),
+                  ),
                 ],
               );
             },
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8DDD2)),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
+                    TextButton(
+                      onPressed: () => context.go(RouteNames.adminAppointments),
+                      child: const Text('Ver todo >', style: TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700, fontSize: 12.5)),
+                    ),
+                  ],
+                ),
+                if (loadingAppointments)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (appointmentsError)
+                  const Text('No se pudo cargar la agenda del día.')
+                else if (todaysAppointments.isEmpty)
+                  const Text('No hay citas programadas para hoy.')
+                else
+                  ...todaysAppointments.take(8).map((a) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _MobileAgendaCard(appointment: a, ref: ref),
+                      )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _MobileAlertCard(
+                  icon: Icons.schedule,
+                  title: '$citasSinConfirmar2h cita${citasSinConfirmar2h == 1 ? '' : 's'} sin confirmar',
+                  subtitle: 'Próximas 2 horas',
+                  bg: const Color(0xFFFFF4D8),
+                  iconColor: OcgColors.warning,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MobileAlertCard(
+                  icon: Icons.description_outlined,
+                  title: '$perfilesPendientes perfiles incompletos',
+                  subtitle: 'Pendientes de actualización',
+                  bg: const Color(0xFFF6EFE7),
+                  iconColor: OcgColors.bronze,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MobileAlertCard(
+                  icon: Icons.person_add_alt_1_outlined,
+                  title: '$nuevosPacientes30d nuevos pacientes',
+                  subtitle: 'Últimos 30 días',
+                  bg: const Color(0xFFEFF8F0),
+                  iconColor: OcgColors.success,
+                ),
+              ),
+            ],
           ),
         ],
       ),
