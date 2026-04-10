@@ -938,23 +938,23 @@ class _DesktopGlassCard extends StatelessWidget {
           ),
           const Positioned(top: 0, left: 0, right: 0, child: _CardTopShimmer()),
           const Positioned(
-            top: 14,
-            left: 14,
+            top: 2,
+            left: 2,
             child: _CardCorner(top: true, left: true),
           ),
           const Positioned(
-            top: 14,
-            right: 14,
+            top: 2,
+            right: 2,
             child: _CardCorner(top: true, right: true),
           ),
           const Positioned(
-            bottom: 14,
-            left: 14,
+            bottom: 2,
+            left: 2,
             child: _CardCorner(bottom: true, left: true),
           ),
           const Positioned(
-            bottom: 14,
-            right: 14,
+            bottom: 2,
+            right: 2,
             child: _CardCorner(bottom: true, right: true),
           ),
           Padding(
