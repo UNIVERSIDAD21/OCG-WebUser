@@ -266,15 +266,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       children: [
         _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
         const SizedBox(height: 24),
-        const Text(
-          'Estamos contigo\nen cada sonrisa',
+        RichText(
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Cormorant Garamond',
-            fontSize: 30,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF2D1B0E),
-            height: 1.25,
+          text: const TextSpan(
+            style: TextStyle(
+              fontFamily: 'Cormorant Garamond',
+              fontSize: 30,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF2D1B0E),
+              height: 1.25,
+            ),
+            children: [
+              TextSpan(text: 'Estamos contigo\n'),
+              TextSpan(
+                text: 'en cada sonrisa',
+                style: TextStyle(
+                  color: Color(0xFF9A6A3B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -506,28 +517,28 @@ class _TopDeco extends StatelessWidget {
           Positioned(
             top: -85,
             right: -30,
-            child: _DecoCircle(size: 240, color: Color(0x128C6239)),
+            child: _DecoCircle(size: 240, color: Color(0x1F8C6239)),
           ),
           Positioned(
             top: -55,
             right: 0,
-            child: _DecoCircle(size: 180, color: Color(0x0D8C6239)),
+            child: _DecoCircle(size: 180, color: Color(0x178C6239)),
           ),
           Positioned(
             bottom: -20,
             left: -50,
-            child: _DecoCircle(size: 160, color: Color(0x4ADDD0BC)),
+            child: _DecoCircle(size: 160, color: Color(0x66DDD0BC)),
           ),
           Positioned.fill(child: CustomPaint(painter: _TopWavePainter())),
           const Positioned(
             top: 28,
             right: 36,
-            child: _DecoCircle(size: 5, color: Color(0x738C6239)),
+            child: _DecoCircle(size: 5, color: Color(0x8F8C6239)),
           ),
           const Positioned(
             top: 44,
             right: 52,
-            child: _DecoCircle(size: 3, color: Color(0x5A8C6239)),
+            child: _DecoCircle(size: 3, color: Color(0x728C6239)),
           ),
         ],
       ),
@@ -555,9 +566,9 @@ class _TopWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xC4D2C1A8)
+      ..color = const Color(0xE0C8B293)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.1;
+      ..strokeWidth = 1.5;
 
     final path = Path()
       ..moveTo(20, size.height - 30)
@@ -641,12 +652,12 @@ class _SepLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 40,
-      height: 1.0,
+      height: 1.4,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: leftToRight ? Alignment.centerLeft : Alignment.centerRight,
           end: leftToRight ? Alignment.centerRight : Alignment.centerLeft,
-          colors: const [Colors.transparent, Color(0xFFC9B295)],
+          colors: const [Colors.transparent, Color(0xFFB8946D)],
         ),
       ),
     );
@@ -660,8 +671,8 @@ class _DecoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 28,
-      height: 1.0,
-      color: const Color(0xFF8C6239).withOpacity(0.78),
+      height: 1.4,
+      color: const Color(0xFF8C6239).withOpacity(0.92),
     );
   }
 }
@@ -675,7 +686,7 @@ class _DecoDot extends StatelessWidget {
       width: 4,
       height: 4,
       decoration: BoxDecoration(
-        color: const Color(0xFF8C6239).withOpacity(0.78),
+        color: const Color(0xFF8C6239).withOpacity(0.95),
         shape: BoxShape.circle,
       ),
     );
