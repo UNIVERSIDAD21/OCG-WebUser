@@ -65,58 +65,9 @@ class AdminTreatmentsScreen extends ConsumerWidget {
           );
         }
 
-        final content = [
-          const PageHeader(
-            title: 'Tratamientos',
-            subtitle: 'Seguimiento clínico por etapa y acceso rápido por paciente',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: TreatmentStage.values.map((stage) {
-              return _KpiPill(
-                title: stageNames[stage] ?? stage.name,
-                value: '${byStage[stage] ?? 0}',
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-          SectionPanel(
-            title: 'Pacientes en tratamiento activo',
-            child: activePatients.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No hay pacientes activos en este momento.'),
-                  )
-                : Column(
-                    children: activePatients
-                        .map(
-                          (p) => _PatientActionTile(
-                            patient: p,
-                            subtitle:
-                                '${p.tipoTratamiento?.name ?? 'Tipo pendiente'} · ${stageNames[p.etapaActual] ?? p.etapaActual.name}',
-                            onOpen: () => context.go(
-                              RouteNames.adminPatientDetail.replaceFirst(
-                                ':patientId',
-                                p.id,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-          ),
-        ];
-
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: content,
-            ),
-          ),
+        return _WebTreatmentsView(
+          byStage: byStage,
+          activePatients: activePatients,
         );
       },
     );
@@ -357,6 +308,106 @@ class AdminSimulatorScreen extends ConsumerWidget {
   }
 }
 
+class _WebTreatmentsView extends StatelessWidget {
+  const _WebTreatmentsView({
+    required this.byStage,
+    required this.activePatients,
+  });
+
+  final Map<TreatmentStage, int> byStage;
+  final List<PatientModel> activePatients;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF21170F), OcgColors.espresso],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tratamientos',
+                  style: TextStyle(color: OcgColors.ivory, fontSize: 32, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Seguimiento clínico por etapa y acceso rápido por paciente',
+                  style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _MobileSectionHeader(title: 'Distribución por etapa'),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 980 ? 6 : 3;
+              return GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: cols == 6 ? 2.1 : 2.4,
+                children: TreatmentStage.values.map((stage) {
+                  final label = stageNames[stage] ?? stage.name;
+                  return _MiniStageCard(
+                    value: '${byStage[stage] ?? 0}',
+                    label: label,
+                    bg: const Color(0xFFF6EFE7),
+                    onTap: () => context.go(RouteNames.adminPatients),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const _MobileSectionHeader(title: 'Acceso rápido'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _MobileQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
+              const SizedBox(width: 10),
+              Expanded(child: _MobileQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
+              const SizedBox(width: 10),
+              Expanded(child: _MobileQuickCard(icon: Icons.payments_outlined, label: 'Pagos', onTap: () => context.go(RouteNames.adminPayments), emphasized: true)),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _MobileSectionHeader(title: 'Pacientes en tratamiento'),
+          const SizedBox(height: 10),
+          if (activePatients.isEmpty)
+            const Text('No hay pacientes activos en este momento.')
+          else
+            ...activePatients.map(
+              (p) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _TreatmentPatientCard(
+                  patient: p,
+                  onOpen: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MobileTreatmentsView extends StatelessWidget {
   const _MobileTreatmentsView({
     required this.ref,
@@ -565,23 +616,33 @@ class _MobileSectionHeader extends StatelessWidget {
 }
 
 class _MiniStageCard extends StatelessWidget {
-  const _MiniStageCard({required this.value, required this.label, required this.bg});
+  const _MiniStageCard({
+    required this.value,
+    required this.label,
+    required this.bg,
+    this.onTap,
+  });
   final String value;
   final String label;
   final Color bg;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: OcgColors.espresso)),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: OcgColors.espresso)),
+          ],
+        ),
       ),
     );
   }
