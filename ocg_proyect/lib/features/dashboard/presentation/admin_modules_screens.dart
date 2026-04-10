@@ -352,140 +352,200 @@ class _UnifiedTreatmentsView extends StatefulWidget {
 
 class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
   TreatmentType? selectedType;
+  String selectedStatus = 'Todos';
+  String query = '';
 
   @override
   Widget build(BuildContext context) {
-    final filteredActivePatients = selectedType == null
-        ? widget.activePatients
-        : widget.activePatients
-            .where((p) => p.tipoTratamiento == selectedType)
-            .toList();
+    List<PatientModel> filteredActivePatients = widget.activePatients;
+
+    if (selectedType != null) {
+      filteredActivePatients = filteredActivePatients
+          .where((p) => p.tipoTratamiento == selectedType)
+          .toList();
+    }
+
+    if (selectedStatus == 'Completados') {
+      filteredActivePatients = filteredActivePatients
+          .where((p) => p.etapaActual == TreatmentStage.alta || p.etapaActual == TreatmentStage.retencion)
+          .toList();
+    } else if (selectedStatus == 'En espera') {
+      filteredActivePatients = filteredActivePatients
+          .where((p) => p.etapaActual == TreatmentStage.valoracionInicial || p.etapaActual == TreatmentStage.estudioPlaneacion)
+          .toList();
+    } else if (selectedStatus == 'Activos') {
+      filteredActivePatients = filteredActivePatients
+          .where((p) => p.etapaActual != TreatmentStage.alta)
+          .toList();
+    }
+
+    if (query.trim().isNotEmpty) {
+      final q = query.toLowerCase().trim();
+      filteredActivePatients = filteredActivePatients
+          .where((p) => p.nombre.toLowerCase().contains(q) || p.email.toLowerCase().contains(q))
+          .toList();
+    }
+
+    final activeCount = widget.activePatients.where((p) => p.etapaActual != TreatmentStage.alta).length;
+    final completedCount = widget.activePatients.where((p) => p.etapaActual == TreatmentStage.alta || p.etapaActual == TreatmentStage.retencion).length;
+    final waitingCount = widget.activePatients.where((p) => p.etapaActual == TreatmentStage.valoracionInicial || p.etapaActual == TreatmentStage.estudioPlaneacion).length;
+    final ingresos = widget.activePatients.fold<double>(0, (sum, p) => sum + p.totalTratamiento);
 
     final byType = <TreatmentType, int>{
       for (final t in TreatmentType.values)
         t: filteredActivePatients.where((p) => p.tipoTratamiento == t).length,
     };
 
-    final byStageFiltered = <TreatmentStage, int>{
-      for (final stage in TreatmentStage.values)
-        stage: filteredActivePatients.where((p) => p.etapaActual == stage).length,
-    };
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF21170F), OcgColors.espresso],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tratamientos',
-                  style: TextStyle(color: OcgColors.ivory, fontSize: 32, fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tratamientos', style: TextStyle(fontSize: 46, fontWeight: FontWeight.w800, color: Color(0xFF2C2016), height: 1)),
+                    SizedBox(height: 4),
+                    Text('Seguimiento clínico y progreso', style: TextStyle(fontSize: 13, color: Color(0xFF9A735C))),
+                  ],
                 ),
-                SizedBox(height: 6),
-                Text(
-                  'Seguimiento clínico por etapa, tipo de tratamiento y pacientes activos',
-                  style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2C2016),
+                  foregroundColor: OcgColors.ivory,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                ),
+                onPressed: () => context.go(RouteNames.adminPatients),
+                icon: const Icon(Icons.add, size: 16, color: Color(0xFFC9A882)),
+                label: const Text('Nuevo tratamiento'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.45,
+            children: [
+              _PayMiniKpi(value: '$activeCount', title: 'Tratamientos activos', subtitle: '+2 este mes', bg: const Color(0xFFF6EFE7)),
+              _PayMiniKpi(value: '$completedCount', title: 'Completados', subtitle: 'últimos 30 días', bg: const Color(0xFFEFF8F0)),
+              _PayMiniKpi(value: '$waitingCount', title: 'En espera', subtitle: 'pendientes inicio', bg: const Color(0xFFFFF4D8)),
+              _PayMiniKpi(value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M', title: 'Ingresos totales', subtitle: 'tratamientos vigentes', bg: const Color(0xFFFFECEC)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8DDD2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 16, color: Color(0xFFC9A882)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    onChanged: (v) => setState(() => query = v),
+                    decoration: const InputDecoration(isDense: true, hintText: 'Buscar tratamientos...', border: InputBorder.none),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F5F0),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE8DDD2)),
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.tune, size: 14, color: Color(0xFF9A735C)),
+                      SizedBox(width: 6),
+                      Text('Filtros', style: TextStyle(fontSize: 12, color: Color(0xFF9A735C), fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          const _MobileSectionHeader(title: 'Distribución por etapa'),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cols = constraints.maxWidth > 980 ? 6 : 3;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: cols == 6 ? 2.1 : 2.4,
-                children: TreatmentStage.values.map((stage) {
-                  final label = stageNames[stage] ?? stage.name;
-                  return _MiniStageCard(
-                    value: '${byStageFiltered[stage] ?? 0}',
-                    label: label,
-                    bg: const Color(0xFFF6EFE7),
-                    onTap: () => context.go(RouteNames.adminPatients),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          const _MobileSectionHeader(title: 'Filtro por tipo de tratamiento'),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              ChoiceChip(
-                label: const Text('Todos'),
-                selected: selectedType == null,
-                onSelected: (_) => setState(() => selectedType = null),
-              ),
+              ...['Todos', 'Activos', 'Completados', 'En espera'].map((f) {
+                final selected = selectedStatus == f;
+                return _TreatmentChip(label: f, selected: selected, onTap: () => setState(() => selectedStatus = f));
+              }),
               ...TreatmentType.values.map((t) {
                 final label = _tipoLabel(t);
-                return ChoiceChip(
-                  label: Text(label),
-                  selected: selectedType == t,
-                  onSelected: (_) => setState(() => selectedType = t),
-                );
+                final selected = selectedType == t;
+                return _TreatmentChip(label: label, selected: selected, onTap: () => setState(() => selectedType = selected ? null : t));
               }),
             ],
           ),
-          const SizedBox(height: 16),
-          const _MobileSectionHeader(title: 'Por tipo de tratamiento'),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Text('Listado de tratamientos', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF2C2016))),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6EFE7),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: const Color(0xFFE2D0BC)),
+                ),
+                child: Text('${filteredActivePatients.length} registros', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9A735C))),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE7D6C6)),
+              color: const Color(0xFFFFFDFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8DDD2)),
             ),
-            child: Column(
-              children: [
-                _TypeRow(type: TreatmentType.convencional, count: byType[TreatmentType.convencional] ?? 0, max: filteredActivePatients.length),
-                _TypeRow(type: TreatmentType.estetico, count: byType[TreatmentType.estetico] ?? 0, max: filteredActivePatients.length),
-                _TypeRow(type: TreatmentType.autoligado, count: byType[TreatmentType.autoligado] ?? 0, max: filteredActivePatients.length),
-                _TypeRow(type: TreatmentType.alineadores, count: byType[TreatmentType.alineadores] ?? 0, max: filteredActivePatients.length),
-                _TypeRow(type: TreatmentType.ortopedia, count: byType[TreatmentType.ortopedia] ?? 0, max: filteredActivePatients.length),
-                _TypeRow(type: TreatmentType.retenedores, count: byType[TreatmentType.retenedores] ?? 0, max: filteredActivePatients.length, isLast: true),
-              ],
-            ),
+            padding: const EdgeInsets.all(14),
+            child: filteredActivePatients.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Text('No hay tratamientos para los filtros actuales.'),
+                  )
+                : Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(8, 2, 8, 8),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 3, child: Text('PACIENTE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 2, child: Text('TIPO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 2, child: Text('ESTADO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 3, child: Text('PROGRESO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('FINANCIERO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C))))),
+                          ],
+                        ),
+                      ),
+                      for (var i = 0; i < filteredActivePatients.length; i++) ...[
+                        _TreatmentPatientCard(
+                          patient: filteredActivePatients[i],
+                          onOpen: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', filteredActivePatients[i].id)),
+                        ),
+                        if (i != filteredActivePatients.length - 1) const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
           ),
-          const SizedBox(height: 18),
-          const _MobileSectionHeader(title: 'Pacientes en tratamiento'),
-          const SizedBox(height: 10),
-          if (filteredActivePatients.isEmpty)
-            const Text('No hay pacientes activos para este tipo de tratamiento.')
-          else
-            ...filteredActivePatients.map(
-              (p) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _TreatmentPatientCard(
-                  patient: p,
-                  onOpen: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id)),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -968,6 +1028,49 @@ class _TypeRow extends StatelessWidget {
   }
 }
 
+class _TreatmentChip extends StatelessWidget {
+  const _TreatmentChip({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF2C2016) : const Color(0xFFF8F5F0),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: selected ? const Color(0xFF2C2016) : const Color(0xFFE8DDD2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              const Icon(Icons.check_circle, size: 12, color: OcgColors.ivory),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? OcgColors.ivory : const Color(0xFF7E6A5B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _fmtShortDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
 class _TreatmentPatientCard extends StatelessWidget {
   const _TreatmentPatientCard({required this.patient, required this.onOpen});
   final PatientModel patient;
@@ -976,76 +1079,120 @@ class _TreatmentPatientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initials = _initials(patient.nombre);
-    final stageLabel = stageNames[patient.etapaActual] ?? patient.etapaActual.name;
-    final treatmentLabel = _tipoLabel(patient.tipoTratamiento ?? TreatmentType.convencional);
+    final treatmentLabel = _tipoLabel(patient.tipoTratamiento ?? TreatmentType.convencional).toLowerCase();
 
     final stageIdx = TreatmentStage.values.indexOf(patient.etapaActual).clamp(0, TreatmentStage.values.length - 1);
     final progress = (((stageIdx) / (TreatmentStage.values.length - 1)) * 100).round().clamp(0, 100);
 
-    final months = DateTime.now().difference(patient.fechaInicio).inDays ~/ 30;
+    final statusLabel = (patient.etapaActual == TreatmentStage.alta || patient.etapaActual == TreatmentStage.retencion)
+        ? 'Completado'
+        : (patient.etapaActual == TreatmentStage.valoracionInicial || patient.etapaActual == TreatmentStage.estudioPlaneacion)
+            ? 'En espera'
+            : 'Activo';
 
-    final statusBg = stageIdx >= 4
+    final statusBg = statusLabel == 'Activo'
         ? const Color(0xFFEFF8F0)
-        : (stageIdx <= 1 ? const Color(0xFFFFF4D8) : const Color(0xFFEFF2FA));
-    final statusColor = stageIdx >= 4
-        ? OcgColors.success
-        : (stageIdx <= 1 ? OcgColors.warning : const Color(0xFF3B5B8C));
+        : statusLabel == 'Completado'
+            ? const Color(0xFFE8F5E9)
+            : const Color(0xFFFFF4D8);
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onOpen,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE7D6C6)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEFE2D6)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 21,
-                  backgroundColor: const Color(0xFFF2EDE8),
-                  child: Text(initials, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFF2E7D4C),
+                    child: Text(initials, style: const TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 11)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(patient.nombre, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: OcgColors.ink)),
+                        Text('Inicio: ${_fmtShortDate(patient.fechaInicio)}', style: const TextStyle(fontSize: 11, color: Color(0xFF8A6F59))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFF6EFE7), borderRadius: BorderRadius.circular(999), border: Border.all(color: const Color(0xFFE6D8CB))),
+                child: Text(treatmentLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF7E6A5B), fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999), border: Border.all(color: const Color(0xFFE6D8CB))),
+                child: Text(statusLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF406B4D), fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(patient.nombre, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: OcgColors.ink), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 2),
-                      Text('$treatmentLabel · ${months <= 0 ? 1 : months} meses', style: const TextStyle(fontSize: 12, color: Color(0xFF8A6F59))),
+                      Text('${(progress / 5).round()} sesiones', style: const TextStyle(fontSize: 11, color: Color(0xFF8A6F59))),
+                      const Spacer(),
+                      Text('$progress%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)),
-                  child: Text(stageLabel, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: statusColor)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Text('Progreso del tratamiento', style: TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59))),
-                const Spacer(),
-                Text('$progress%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progress / 100,
-                minHeight: 6,
-                backgroundColor: const Color(0xFFF2EDE8),
-                valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.bronze),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: progress / 100,
+                      minHeight: 4,
+                      backgroundColor: const Color(0xFFF2EDE8),
+                      valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.bronze),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Próx: ${patient.proximaCita == null ? '--/--/----' : _fmtShortDate(patient.proximaCita!)}', style: const TextStyle(fontSize: 10.5, color: Color(0xFF9A735C))),
+                ],
               ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('\$${formatCop(patient.totalTratamiento)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+                  Text('de \$${formatCop(patient.totalTratamiento - patient.saldoPendiente)}', style: const TextStyle(fontSize: 11, color: Color(0xFF8A6F59))),
+                  Text('Pendiente: \$${formatCop(patient.saldoPendiente)}', style: const TextStyle(fontSize: 10.5, color: Color(0xFFB06A5A))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(color: const Color(0xFFF8F5F0), borderRadius: BorderRadius.circular(999), border: Border.all(color: const Color(0xFFE8DDD2))),
+              child: const Icon(Icons.chevron_right, color: OcgColors.bronze, size: 14),
             ),
           ],
         ),
