@@ -264,10 +264,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _LoginBrandHeader(shiftUp: 0),
+        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
         const SizedBox(height: 24),
         const Text(
           'Estamos contigo\nen cada sonrisa',
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Cormorant Garamond',
             fontSize: 30,
