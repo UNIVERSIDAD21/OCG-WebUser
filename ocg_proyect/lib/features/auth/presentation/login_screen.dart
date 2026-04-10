@@ -221,17 +221,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Con top SafeArea activo, solo se deja un
-                                // clearance leve para que respire el bloque.
+                                // Con top SafeArea activo, dejamos una base
+                                // corta y elevamos el contenido para que el
+                                // wordmark OCG cruce la unión deco/contenido.
                                 const SizedBox(height: 24),
-                                _buildLoginContent(
-                                  context,
-                                  isLoading,
-                                  includeFooterIndicator: false,
-                                  includeFooter: false,
+                                Transform.translate(
+                                  offset: const Offset(0, -34),
+                                  child: _buildLoginContent(
+                                    context,
+                                    isLoading,
+                                    includeFooterIndicator: false,
+                                    includeFooter: false,
+                                  ),
                                 ),
-                                // Pequeño buffer inferior antes del footer.
-                                const SizedBox(height: 20),
+                                // Compensación inferior por el translate.
+                                const SizedBox(height: 8),
                               ],
                             ),
                           ),
