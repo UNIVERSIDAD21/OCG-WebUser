@@ -38,6 +38,15 @@ String _fmtDateTime(DateTime d) {
       '${b.minute.toString().padLeft(2, '0')} $suffix';
 }
 
+String _fmtClinicWallDateTime(DateTime d) {
+  final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  final suffix = d.hour >= 12 ? 'PM' : 'AM';
+  return '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/${d.year} a las '
+      '${hour12.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')} $suffix';
+}
+
 
 String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.valoracion => 'Valoración',
@@ -240,7 +249,7 @@ class _PatientAppointmentsScreenState
                     ),
                     title: const Text('Fecha'),
                     subtitle: Text(
-                      _fmtDateTime(selectedDateTime),
+                      _fmtClinicWallDateTime(selectedDateTime),
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         color: OcgColors.espresso,
@@ -249,7 +258,7 @@ class _PatientAppointmentsScreenState
                     onTap: () async {
                       final pickedDate = await showDatePicker(
                         context: dialogContext,
-                        initialDate: AppointmentsBusinessRules.toBogota(selectedDateTime),
+                        initialDate: selectedDateTime,
                         firstDate: DateTime(
                           bogotaNow.year,
                           bogotaNow.month,
@@ -357,13 +366,13 @@ class _PatientAppointmentsScreenState
                       final morningLabels = availableLabels
                           .where((label) {
                             final d = dateFromSlotKey(selectedDateTime, label);
-                            return AppointmentsBusinessRules.toBogota(d).hour < 12;
+                            return d.hour < 12;
                           })
                           .toList();
                       final afternoonLabels = availableLabels
                           .where((label) {
                             final d = dateFromSlotKey(selectedDateTime, label);
-                            return AppointmentsBusinessRules.toBogota(d).hour >= 12;
+                            return d.hour >= 12;
                           })
                           .toList();
 
