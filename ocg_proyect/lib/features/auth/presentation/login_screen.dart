@@ -165,8 +165,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildMobile(BuildContext context, bool isLoading) {
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    final footerBottom = bottomInset > 0 ? 6.0 : 8.0;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    const footerHeight = 52.0;
+    const footerGap = 6.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
@@ -174,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
+            padding: EdgeInsets.fromLTRB(28, 0, 28, footerHeight + footerGap + bottomInset),
             child: SafeArea(
               top: false,
               bottom: false,
@@ -189,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       includeFooterIndicator: false,
                       includeFooter: false,
                     ),
-                    const SizedBox(height: 74),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -198,8 +199,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Positioned(
             left: 28,
             right: 28,
-            bottom: footerBottom,
-            child: const _LoginFooter(showIndicator: true),
+            bottom: footerGap,
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 0),
+              child: const _LoginFooter(showIndicator: true),
+            ),
           ),
         ],
       ),
