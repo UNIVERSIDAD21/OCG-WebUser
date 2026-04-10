@@ -271,7 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 14),
+        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
         const SizedBox(height: 24),
         const Text(
           'Bienvenido de nuevo',
