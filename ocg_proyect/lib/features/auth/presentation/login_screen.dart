@@ -165,48 +165,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildMobile(BuildContext context, bool isLoading) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    const footerHeight = 52.0;
-    const footerGap = 6.0;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
-      body: Stack(
-        children: [
-          const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-          Padding(
-            padding: EdgeInsets.fromLTRB(28, 0, 28, footerHeight + footerGap + bottomInset),
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 110),
-                    _buildLoginContent(
-                      context,
-                      isLoading,
-                      includeFooterIndicator: false,
-                      includeFooter: false,
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Stack(
+          children: [
+            const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 110),
+                          _buildLoginContent(
+                            context,
+                            isLoading,
+                            includeFooterIndicator: false,
+                            includeFooter: false,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
+                  ),
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.only(bottom: 6),
+                    child: const _LoginFooter(showIndicator: true),
+                  ),
+                ],
               ),
             ),
-          ),
-          Positioned(
-            left: 28,
-            right: 28,
-            bottom: footerGap,
-            child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 0),
-              child: const _LoginFooter(showIndicator: true),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
