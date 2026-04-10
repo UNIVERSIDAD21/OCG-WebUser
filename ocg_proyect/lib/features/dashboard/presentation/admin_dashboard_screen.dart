@@ -662,7 +662,7 @@ class _WebAdminDashboard extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, constraints) {
               final split = constraints.maxWidth >= 1100;
