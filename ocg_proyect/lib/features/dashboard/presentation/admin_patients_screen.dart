@@ -528,6 +528,16 @@ class AdminPatientsScreen extends ConsumerWidget {
             citasHoy: citasHoy,
             saldoPendienteTotal: saldoPendienteTotal,
             nuevosMes: nuevosMes,
+            onTapTotal: () {
+              ref.read(patientsFilterProvider.notifier).setFilter('Todos');
+              context.go(RouteNames.adminPatients);
+            },
+            onTapActivos: () {
+              ref.read(patientsFilterProvider.notifier).setFilter('Activos');
+              context.go(RouteNames.adminPatients);
+            },
+            onTapCitasHoy: () => context.go(RouteNames.adminAppointments),
+            onTapSaldoPendiente: () => context.go(RouteNames.adminPayments),
           ),
           const SizedBox(height: 12),
           FilterBar(
@@ -640,6 +650,10 @@ class _KpiRow extends StatelessWidget {
     required this.citasHoy,
     required this.saldoPendienteTotal,
     required this.nuevosMes,
+    required this.onTapTotal,
+    required this.onTapActivos,
+    required this.onTapCitasHoy,
+    required this.onTapSaldoPendiente,
   });
 
   final int totalPacientes;
@@ -647,6 +661,10 @@ class _KpiRow extends StatelessWidget {
   final int citasHoy;
   final double saldoPendienteTotal;
   final int nuevosMes;
+  final VoidCallback onTapTotal;
+  final VoidCallback onTapActivos;
+  final VoidCallback onTapCitasHoy;
+  final VoidCallback onTapSaldoPendiente;
 
   @override
   Widget build(BuildContext context) {
@@ -681,21 +699,25 @@ class _KpiRow extends StatelessWidget {
               footer: '+$nuevosMes este mes',
               footerColor: const Color(0xFF2E7D32),
               footerBg: const Color(0xFFE8F5E9),
+              onTap: onTapTotal,
             ),
             _KpiCard(
               icon: Icons.timelapse_outlined,
               value: '$pacientesActivos',
               label: 'Activos',
+              onTap: onTapActivos,
             ),
             _KpiCard(
               icon: Icons.calendar_month_outlined,
               value: '$citasHoy',
               label: 'Citas hoy',
+              onTap: onTapCitasHoy,
             ),
             _KpiCard(
               icon: Icons.attach_money,
               value: '\$${formatCop(saldoPendienteTotal)}',
               label: 'Saldo pendiente',
+              onTap: onTapSaldoPendiente,
             ),
           ],
         );
@@ -712,6 +734,7 @@ class _KpiCard extends StatelessWidget {
     this.footer,
     this.footerColor,
     this.footerBg,
+    this.onTap,
   });
 
   final IconData icon;
@@ -720,6 +743,7 @@ class _KpiCard extends StatelessWidget {
   final String? footer;
   final Color? footerColor;
   final Color? footerBg;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -727,16 +751,19 @@ class _KpiCard extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 220;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: OcgColors.ivory,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: OcgColors.sand, width: .7),
-          ),
-          padding: EdgeInsets.all(compact ? 10 : 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: OcgColors.ivory,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: OcgColors.sand, width: .7),
+            ),
+            padding: EdgeInsets.all(compact ? 10 : 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Container(
                 width: compact ? 26 : 28,
                 height: compact ? 26 : 28,

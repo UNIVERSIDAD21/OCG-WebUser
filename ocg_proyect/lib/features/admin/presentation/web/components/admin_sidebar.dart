@@ -81,7 +81,8 @@ class AdminSidebar extends ConsumerWidget {
                   vertical: 10,
                 ),
                 children: items.map((item) {
-                  final active = currentRoute == item.route;
+                  final active = currentRoute == item.route ||
+                      currentRoute.startsWith('${item.route}/');
 
                   final bgColor = active ? OcgColors.ivory : Colors.transparent;
                   final fgColor = active ? OcgColors.espresso : OcgColors.ivory;

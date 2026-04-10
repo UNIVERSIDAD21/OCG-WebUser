@@ -583,10 +583,34 @@ class _WebAdminDashboard extends StatelessWidget {
                     mainAxisSpacing: 10,
                     childAspectRatio: cols == 4 ? 1.45 : 1.65,
                     children: [
-                      _MobileKpiMini(value: '${todaysAppointments.length}', title: 'Citas hoy', subtitle: 'programadas', bg: const Color(0xFFF6EFE7)),
-                      _MobileKpiMini(value: '$pendingConfirm', title: 'Sin confirmar', subtitle: 'pendientes', bg: const Color(0xFFFFF4D8)),
-                      _MobileKpiMini(value: '$canceladasSemana', title: 'Canceladas', subtitle: 'últimos 7 días', bg: const Color(0xFFFFECEC)),
-                      _MobileKpiMini(value: '$nuevosPacientes30d', title: 'Nuevos', subtitle: 'últimos 30 días', bg: const Color(0xFFEFF8F0)),
+                      _MobileKpiMini(
+                        value: '${todaysAppointments.length}',
+                        title: 'Citas hoy',
+                        subtitle: 'programadas',
+                        bg: const Color(0xFFF6EFE7),
+                        onTap: () => context.go(RouteNames.adminAppointments),
+                      ),
+                      _MobileKpiMini(
+                        value: '$pendingConfirm',
+                        title: 'Sin confirmar',
+                        subtitle: 'pendientes',
+                        bg: const Color(0xFFFFF4D8),
+                        onTap: () => context.go(RouteNames.adminAppointments),
+                      ),
+                      _MobileKpiMini(
+                        value: '$canceladasSemana',
+                        title: 'Canceladas',
+                        subtitle: 'últimos 7 días',
+                        bg: const Color(0xFFFFECEC),
+                        onTap: () => context.go(RouteNames.adminAppointments),
+                      ),
+                      _MobileKpiMini(
+                        value: '$nuevosPacientes30d',
+                        title: 'Nuevos',
+                        subtitle: 'últimos 30 días',
+                        bg: const Color(0xFFEFF8F0),
+                        onTap: () => context.go(RouteNames.adminPatients),
+                      ),
                     ],
                   );
                 },
@@ -699,25 +723,36 @@ class _MobileSectionTitle extends StatelessWidget {
 }
 
 class _MobileKpiMini extends StatelessWidget {
-  const _MobileKpiMini({required this.value, required this.title, required this.subtitle, required this.bg});
+  const _MobileKpiMini({
+    required this.value,
+    required this.title,
+    required this.subtitle,
+    required this.bg,
+    this.onTap,
+  });
   final String value;
   final String title;
   final String subtitle;
   final Color bg;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
-          Text(subtitle, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7E6754))),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+            const SizedBox(height: 4),
+            Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+            Text(subtitle, style: const TextStyle(fontSize: 10.5, color: Color(0xFF7E6754))),
+          ],
+        ),
       ),
     );
   }
