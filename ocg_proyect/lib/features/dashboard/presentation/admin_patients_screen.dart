@@ -860,89 +860,113 @@ class _KpiCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 220;
+        final base = bgColor ?? OcgColors.ivory;
 
         return InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(18),
           child: Container(
             decoration: BoxDecoration(
-              color: bgColor ?? OcgColors.ivory,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8DDD2), width: .9),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  base,
+                  Color.lerp(base, Colors.white, 0.35)!,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x142C2016),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
-            padding: EdgeInsets.all(compact ? 10 : 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: EdgeInsets.fromLTRB(compact ? 12 : 14, compact ? 10 : 12, compact ? 12 : 14, compact ? 10 : 12),
+            child: Stack(
               children: [
-                Container(
-                  width: compact ? 26 : 28,
-                  height: compact ? 26 : 28,
-                  decoration: BoxDecoration(
-                    color: OcgColors.bronze.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: compact ? 15 : 16,
-                    color: OcgColors.bronze,
+                Positioned(
+                  top: -16,
+                  right: -16,
+                  child: Container(
+                    width: compact ? 44 : 52,
+                    height: compact ? 44 : 52,
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory.withOpacity(0.28),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-                SizedBox(height: compact ? 6 : 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          value,
-                          style: TextStyle(
-                            fontSize: compact ? 18 : 21,
-                            fontWeight: FontWeight.w600,
-                            color: OcgColors.espresso,
-                            height: 1.05,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: compact ? 10 : 11,
-                          color: OcgColors.ink.withOpacity(.58),
-                          height: 1.15,
-                        ),
-                      ),
-                      if (footer != null && footer!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 5),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          width: compact ? 20 : 22,
+                          height: compact ? 20 : 22,
                           decoration: BoxDecoration(
-                            color: footerBg,
-                            borderRadius: BorderRadius.circular(40),
+                            color: const Color(0xFFF3E9DD),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0x1A2C2016)),
                           ),
-                          child: Text(
-                            footer!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: compact ? 9 : 10,
-                              color: footerColor,
-                              fontWeight: FontWeight.w500,
-                              height: 1.1,
-                            ),
+                          child: Icon(icon, size: 12, color: const Color(0xFF9A735C)),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 18,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            color: const Color(0x409A735C),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: compact ? 8 : 10),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: compact ? 20 : 24,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF2C2016),
+                          letterSpacing: -0.4,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 11 : 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF2C2016),
+                      ),
+                    ),
+                    if (footer != null && footer!.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          footer!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compact ? 10 : 10.5,
+                            color: const Color(0xFF9A735C),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
