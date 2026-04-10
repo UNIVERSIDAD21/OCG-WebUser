@@ -126,56 +126,11 @@ class AdminPaymentsScreen extends ConsumerWidget {
           );
         }
 
-        final content = [
-          const PageHeader(
-            title: 'Pagos',
-            subtitle: 'Control financiero de saldos y vencimientos',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _KpiPill(title: 'Pacientes con saldo', value: '${withDebt.length}'),
-              _KpiPill(title: 'Pagos vencidos', value: '${overdue.length}'),
-              _KpiPill(title: 'Saldo pendiente total', value: '\$${formatCop(totalDebt)}'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SectionPanel(
-            title: 'Cartera activa',
-            child: withDebt.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No hay saldos pendientes.'),
-                  )
-                : Column(
-                    children: withDebt.map((p) {
-                      final due = p.fechaProximoPago;
-                      final dueText = due == null
-                          ? 'Sin fecha de próximo pago'
-                          : 'Próximo pago: ${due.day.toString().padLeft(2, '0')}/${due.month.toString().padLeft(2, '0')}/${due.year}';
-                      return _PatientActionTile(
-                        patient: p,
-                        subtitle: 'Saldo: \$${formatCop(p.saldoPendiente)} · $dueText',
-                        critical: due != null && due.isBefore(today),
-                        onOpen: () => context.go(
-                          RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-          ),
-        ];
-
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: content,
-            ),
-          ),
+        return _WebPaymentsView(
+          withDebt: withDebt,
+          overdue: overdue,
+          totalDebt: totalDebt,
+          today: today,
         );
       },
     );
@@ -198,6 +153,118 @@ class AdminPaymentsScreen extends ConsumerWidget {
       ],
       railTrailing: _buildRailSignOutButton(context, ref),
       body: body,
+    );
+  }
+}
+
+class _WebPaymentsView extends StatelessWidget {
+  const _WebPaymentsView({
+    required this.withDebt,
+    required this.overdue,
+    required this.totalDebt,
+    required this.today,
+  });
+
+  final List<PatientModel> withDebt;
+  final List<PatientModel> overdue;
+  final double totalDebt;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF21170F), OcgColors.espresso],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pagos',
+                  style: TextStyle(color: OcgColors.ivory, fontSize: 32, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Control financiero de saldos y vencimientos',
+                  style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 980 ? 3 : 1;
+              return GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: cols == 3 ? 2.1 : 3.0,
+                children: [
+                  _PayMiniKpi(
+                    value: '${withDebt.length}',
+                    title: 'Con saldo',
+                    subtitle: 'pacientes activos',
+                    bg: const Color(0xFFF6EFE7),
+                    onTap: () => context.go(RouteNames.adminPatients),
+                  ),
+                  _PayMiniKpi(
+                    value: '${overdue.length}',
+                    title: 'Vencidos',
+                    subtitle: 'requieren atención',
+                    bg: const Color(0xFFFFECEC),
+                    onTap: () => context.go(RouteNames.adminPatients),
+                  ),
+                  _PayMiniKpi(
+                    value: '\$${formatCop(totalDebt)}',
+                    title: 'Saldo pendiente',
+                    subtitle: 'cartera total',
+                    bg: const Color(0xFFFFF4D8),
+                    onTap: () => context.go(RouteNames.adminPayments),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const _MobileSectionHeader(title: 'Cartera activa'),
+          const SizedBox(height: 10),
+          if (withDebt.isEmpty)
+            const Text('No hay saldos pendientes.')
+          else
+            ...withDebt.map((p) {
+              final due = p.fechaProximoPago;
+              final dueText = due == null
+                  ? 'Sin fecha de próximo pago'
+                  : 'Próximo pago: ${due.day.toString().padLeft(2, '0')}/${due.month.toString().padLeft(2, '0')}/${due.year}';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _PatientActionTile(
+                  patient: p,
+                  subtitle: 'Saldo: \$${formatCop(p.saldoPendiente)} · $dueText',
+                  critical: due != null && due.isBefore(today),
+                  onOpen: () => context.go(
+                    RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
     );
   }
 }
@@ -1001,25 +1068,36 @@ class _MobilePaymentsAdminViewState extends State<_MobilePaymentsAdminView> {
 }
 
 class _PayMiniKpi extends StatelessWidget {
-  const _PayMiniKpi({required this.value, required this.title, required this.subtitle, required this.bg});
+  const _PayMiniKpi({
+    required this.value,
+    required this.title,
+    required this.subtitle,
+    required this.bg,
+    this.onTap,
+  });
   final String value;
   final String title;
   final String subtitle;
   final Color bg;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(13)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
-          Text(subtitle, style: const TextStyle(fontSize: 10.8, color: Color(0xFF7E6754))),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(13)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+            const SizedBox(height: 4),
+            Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+            Text(subtitle, style: const TextStyle(fontSize: 10.8, color: Color(0xFF7E6754))),
+          ],
+        ),
       ),
     );
   }
