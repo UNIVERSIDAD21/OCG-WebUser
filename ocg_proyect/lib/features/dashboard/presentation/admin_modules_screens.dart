@@ -435,10 +435,10 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
             mainAxisSpacing: 12,
             childAspectRatio: 2.45,
             children: [
-              _PayMiniKpi(value: '$activeCount', title: 'Tratamientos activos', subtitle: '+2 este mes', bg: const Color(0xFFF6EFE7)),
-              _PayMiniKpi(value: '$completedCount', title: 'Completados', subtitle: 'últimos 30 días', bg: const Color(0xFFEFF8F0)),
-              _PayMiniKpi(value: '$waitingCount', title: 'En espera', subtitle: 'pendientes inicio', bg: const Color(0xFFFFF4D8)),
-              _PayMiniKpi(value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M', title: 'Ingresos totales', subtitle: 'tratamientos vigentes', bg: const Color(0xFFFFECEC)),
+              _TreatmentKpiPremium(value: '$activeCount', title: 'Tratamientos activos', subtitle: '+2 este mes', bg: const Color(0xFFF6EFE7), accent: const Color(0xFF9A735C), icon: Icons.monitor_heart_outlined),
+              _TreatmentKpiPremium(value: '$completedCount', title: 'Completados', subtitle: 'últimos 30 días', bg: const Color(0xFFEFF8F0), accent: const Color(0xFF2E7D4C), icon: Icons.check_circle_outline),
+              _TreatmentKpiPremium(value: '$waitingCount', title: 'En espera', subtitle: 'pendientes inicio', bg: const Color(0xFFFFF4D8), accent: const Color(0xFFC99730), icon: Icons.schedule_outlined),
+              _TreatmentKpiPremium(value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M', title: 'Ingresos totales', subtitle: 'tratamientos vigentes', bg: const Color(0xFFFFECEC), accent: const Color(0xFFB06A5A), icon: Icons.payments_outlined),
             ],
           ),
           const SizedBox(height: 14),
@@ -1021,6 +1021,101 @@ class _TypeRow extends StatelessWidget {
           SizedBox(
             width: 24,
             child: Text('$count', textAlign: TextAlign.right, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TreatmentKpiPremium extends StatelessWidget {
+  const _TreatmentKpiPremium({
+    required this.value,
+    required this.title,
+    required this.subtitle,
+    required this.bg,
+    required this.accent,
+    required this.icon,
+  });
+
+  final String value;
+  final String title;
+  final String subtitle;
+  final Color bg;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [bg, Color.lerp(bg, Colors.white, 0.35)!],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
+        boxShadow: const [
+          BoxShadow(color: Color(0x122C2016), blurRadius: 14, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -18,
+            right: -12,
+            child: Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.28),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x1A2C2016)),
+                    ),
+                    child: Icon(icon, size: 12, color: accent),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 18,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2C2016),
+                  letterSpacing: -0.4,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C2016))),
+              Text(subtitle, style: TextStyle(fontSize: 10.5, color: accent.withOpacity(0.9), fontWeight: FontWeight.w500)),
+            ],
           ),
         ],
       ),
