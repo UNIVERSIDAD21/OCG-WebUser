@@ -38,10 +38,6 @@ String _fmtDateTime(DateTime d) {
       '${b.minute.toString().padLeft(2, '0')} $suffix';
 }
 
-String _dayKey(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}'
-    '${d.month.toString().padLeft(2, '0')}'
-    '${d.day.toString().padLeft(2, '0')}';
 
 String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.valoracion => 'Valoración',
@@ -184,39 +180,26 @@ class _PatientAppointmentsScreenState
     bool expandAfternoon = false;
 
     AppointmentType selectedType = AppointmentType.valoracion;
-    DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1));
-    selectedDateTime = DateTime(
-      selectedDateTime.year,
-      selectedDateTime.month,
-      selectedDateTime.day,
-      AppointmentsBusinessRules.workdayStartHour,
-      0,
+    final bogotaNow = AppointmentsBusinessRules.toBogota(DateTime.now());
+    DateTime selectedDateTime = AppointmentsBusinessRules.fromBogotaComponents(
+      year: bogotaNow.year,
+      month: bogotaNow.month,
+      day: bogotaNow.day + 1,
+      hour: AppointmentsBusinessRules.workdayStartHour,
+      minute: 0,
     );
     String? errorMsg;
     bool saving = false;
-    var selectedDayKey = _dayKey(selectedDateTime);
+    var selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(selectedDateTime);
     var availabilityStream = ref
         .read(availabilityRepositoryProvider)
         .watchAvailabilityByDay(selectedDayKey);
 
-    DateTime dateFromLabel(DateTime baseDay, String label) {
-      final normalized = label.trim().toUpperCase();
-      final hasAmPm = normalized.endsWith('AM') || normalized.endsWith('PM');
-
-      final timePart = hasAmPm
-          ? normalized.substring(0, normalized.length - 2).trim()
-          : normalized;
-      final parts = timePart.split(':');
-      var hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
-
-      if (hasAmPm) {
-        final isPm = normalized.endsWith('PM');
-        if (isPm && hour < 12) hour += 12;
-        if (!isPm && hour == 12) hour = 0;
-      }
-
-      return DateTime(baseDay.year, baseDay.month, baseDay.day, hour, minute);
+    DateTime dateFromSlotKey(DateTime baseDay, String slotKey) {
+      return AppointmentsBusinessRules.dateTimeFromDayAndSlotKeyBogota(
+        dayReference: baseDay,
+        slotKey: slotKey,
+      );
     }
 
     showDialog<void>(
@@ -266,20 +249,28 @@ class _PatientAppointmentsScreenState
                     onTap: () async {
                       final pickedDate = await showDatePicker(
                         context: dialogContext,
-                        initialDate: selectedDateTime,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 90)),
+                        initialDate: AppointmentsBusinessRules.toBogota(selectedDateTime),
+                        firstDate: DateTime(
+                          bogotaNow.year,
+                          bogotaNow.month,
+                          bogotaNow.day,
+                        ),
+                        lastDate: DateTime(
+                          bogotaNow.year,
+                          bogotaNow.month,
+                          bogotaNow.day,
+                        ).add(const Duration(days: 90)),
                       );
                       if (pickedDate == null) return;
                       setDs(() {
-                        selectedDateTime = DateTime(
-                          pickedDate.year,
-                          pickedDate.month,
-                          pickedDate.day,
-                          AppointmentsBusinessRules.workdayStartHour,
-                          0,
+                        selectedDateTime = AppointmentsBusinessRules.fromBogotaComponents(
+                          year: pickedDate.year,
+                          month: pickedDate.month,
+                          day: pickedDate.day,
+                          hour: AppointmentsBusinessRules.workdayStartHour,
+                          minute: 0,
                         );
-                        selectedDayKey = _dayKey(selectedDateTime);
+                        selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(selectedDateTime);
                         availabilityStream = ref
                             .read(availabilityRepositoryProvider)
                             .watchAvailabilityByDay(selectedDayKey);
@@ -314,7 +305,9 @@ class _PatientAppointmentsScreenState
                         stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
                       ).toList()
                         ..sort((a, b) => a.start.compareTo(b.start));
-                      final allLabels = orderedSlots.map((s) => s.label).toList();
+                      final allLabels = orderedSlots
+                          .map((s) => AppointmentsBusinessRules.slotKeyFromDateTime(s.start))
+                          .toList();
 
                       const operationalMinutes =
                           30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
@@ -322,7 +315,7 @@ class _PatientAppointmentsScreenState
                       bool isStartAvailable(String label) {
                         if (snapshot.hasError) return false;
 
-                        final start = dateFromLabel(selectedDateTime, label);
+                        final start = dateFromSlotKey(selectedDateTime, label);
                         final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
                           start: start,
                         );
@@ -339,7 +332,7 @@ class _PatientAppointmentsScreenState
 
                         final end = start.add(const Duration(minutes: operationalMinutes));
                         for (final slotLabel in allLabels) {
-                          final slotStart = dateFromLabel(selectedDateTime, slotLabel);
+                          final slotStart = dateFromSlotKey(selectedDateTime, slotLabel);
                           final slotEnd = slotStart.add(
                             Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
                           );
@@ -363,22 +356,22 @@ class _PatientAppointmentsScreenState
 
                       final morningLabels = availableLabels
                           .where((label) {
-                            final d = dateFromLabel(selectedDateTime, label);
-                            return d.hour < 12;
+                            final d = dateFromSlotKey(selectedDateTime, label);
+                            return AppointmentsBusinessRules.toBogota(d).hour < 12;
                           })
                           .toList();
                       final afternoonLabels = availableLabels
                           .where((label) {
-                            final d = dateFromLabel(selectedDateTime, label);
-                            return d.hour >= 12;
+                            final d = dateFromSlotKey(selectedDateTime, label);
+                            return AppointmentsBusinessRules.toBogota(d).hour >= 12;
                           })
                           .toList();
 
                       Widget buildSlotChip(String label) {
-                        final slotDate = dateFromLabel(selectedDateTime, label);
+                        final slotDate = dateFromSlotKey(selectedDateTime, label);
                         return ChoiceChip(
                           label: Text(
-                            label,
+                            AppointmentsBusinessRules.displayLabelFromSlotKey(label),
                             style: const TextStyle(color: OcgColors.espresso),
                           ),
                           selected: slotDate == selectedDateTime,
@@ -549,7 +542,7 @@ class _PatientAppointmentsScreenState
                       try {
                         final availability = await ref
                             .read(availabilityRepositoryProvider)
-                            .getAvailabilityByDay(_dayKey(selectedDateTime));
+                            .getAvailabilityByDay(AppointmentsBusinessRules.dayKeyBogota(selectedDateTime));
 
                         if (availability != null) {
                           const operationalMinutes =
@@ -561,11 +554,11 @@ class _PatientAppointmentsScreenState
                           final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
                             day: selectedDateTime,
                             stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                          ).map((s) => s.label);
+                          ).map((s) => AppointmentsBusinessRules.slotKeyFromDateTime(s.start));
 
                           bool stillAvailable = true;
                           for (final label in allLabels) {
-                            final slotStart = dateFromLabel(selectedDateTime, label);
+                            final slotStart = dateFromSlotKey(selectedDateTime, label);
                             final slotEnd = slotStart.add(
                               Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
                             );

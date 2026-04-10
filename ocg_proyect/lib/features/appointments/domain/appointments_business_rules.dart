@@ -1,5 +1,7 @@
 import '../data/models/appointment_model.dart';
 
+const _bogotaUtcOffset = Duration(hours: 5);
+
 class AppointmentTimeSlot {
   const AppointmentTimeSlot({required this.start, required this.isAvailable});
 
@@ -7,9 +9,10 @@ class AppointmentTimeSlot {
   final bool isAvailable;
 
   String get label {
-    final hour12 = start.hour % 12 == 0 ? 12 : start.hour % 12;
-    final suffix = start.hour >= 12 ? 'PM' : 'AM';
-    return '$hour12:${start.minute.toString().padLeft(2, '0')} $suffix';
+    final b = (start.isUtc ? start : start.toUtc()).subtract(_bogotaUtcOffset);
+    final hour12 = b.hour % 12 == 0 ? 12 : b.hour % 12;
+    final suffix = b.hour >= 12 ? 'PM' : 'AM';
+    return '$hour12:${b.minute.toString().padLeft(2, '0')} $suffix';
   }
 }
 
@@ -26,6 +29,67 @@ class AppointmentsBusinessRules {
     AppointmentType.valoracion,
     AppointmentType.control,
   ];
+
+  static const int bogotaUtcOffsetHours = 5;
+
+  static DateTime toBogota(DateTime dateTime) {
+    final utc = dateTime.isUtc ? dateTime : dateTime.toUtc();
+    return utc.subtract(const Duration(hours: bogotaUtcOffsetHours));
+  }
+
+  static DateTime fromBogotaComponents({
+    required int year,
+    required int month,
+    required int day,
+    required int hour,
+    required int minute,
+  }) {
+    return DateTime.utc(year, month, day, hour + bogotaUtcOffsetHours, minute);
+  }
+
+  static String dayKeyBogota(DateTime dateTime) {
+    final b = toBogota(dateTime);
+    return '${b.year.toString().padLeft(4, '0')}'
+        '${b.month.toString().padLeft(2, '0')}'
+        '${b.day.toString().padLeft(2, '0')}';
+  }
+
+  static String slotKeyFromDateTime(DateTime dateTime) {
+    final b = toBogota(dateTime);
+    return '${b.hour.toString().padLeft(2, '0')}:${b.minute.toString().padLeft(2, '0')}';
+  }
+
+  static DateTime dateTimeFromDayAndSlotKeyBogota({
+    required DateTime dayReference,
+    required String slotKey,
+  }) {
+    final parts = slotKey.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final b = toBogota(dayReference);
+    return fromBogotaComponents(
+      year: b.year,
+      month: b.month,
+      day: b.day,
+      hour: hour,
+      minute: minute,
+    );
+  }
+
+  static bool isSameBogotaCalendarDay(DateTime a, DateTime b) {
+    final ba = toBogota(a);
+    final bb = toBogota(b);
+    return ba.year == bb.year && ba.month == bb.month && ba.day == bb.day;
+  }
+
+  static String displayLabelFromSlotKey(String slotKey) {
+    final parts = slotKey.split(':');
+    var hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final suffix = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 == 0 ? 12 : hour % 12;
+    return '$hour:${minute.toString().padLeft(2, '0')} $suffix';
+  }
 
   /// Hora de inicio laboral — usada como valor por defecto al seleccionar fecha.
   static const int workdayStartHour = 8;
@@ -93,7 +157,7 @@ class AppointmentsBusinessRules {
         return false;
       }
 
-      return _isSameCalendarDay(appointment.fechaHora, newAppointmentDateTime);
+      return isSameBogotaCalendarDay(appointment.fechaHora, newAppointmentDateTime);
     });
 
     if (!hasSameDayAppointment) return null;
@@ -218,16 +282,18 @@ class AppointmentsBusinessRules {
     required DateTime start,
     DateTime? now,
   }) {
-    final referenceNow = now ?? DateTime.now();
-    if (!start.isAfter(referenceNow)) {
+    final referenceNow = toBogota(now ?? DateTime.now());
+    final startBogota = toBogota(start);
+    if (!startBogota.isAfter(referenceNow)) {
       return 'No se pueden agendar citas en horarios que ya pasaron.';
     }
     return null;
   }
 
   static bool canCancelAppointment(DateTime appointmentDateTime, {DateTime? now}) {
-    final referenceNow = now ?? DateTime.now();
-    final horasRestantes = appointmentDateTime.difference(referenceNow).inHours;
+    final referenceNow = toBogota(now ?? DateTime.now());
+    final appointmentBogota = toBogota(appointmentDateTime);
+    final horasRestantes = appointmentBogota.difference(referenceNow).inHours;
     return horasRestantes >= 24;
   }
 
@@ -240,8 +306,8 @@ class AppointmentsBusinessRules {
       return false;
     }
 
-    final referenceNow = now ?? DateTime.now();
-    final endAt = appointment.fechaHora.add(
+    final referenceNow = toBogota(now ?? DateTime.now());
+    final endAt = toBogota(appointment.fechaHora).add(
       Duration(minutes: appointment.duracionMinutos),
     );
 

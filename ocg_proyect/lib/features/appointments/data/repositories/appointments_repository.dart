@@ -128,13 +128,14 @@ class AppointmentsRepository {
     }
 
     final callable = _functions.httpsCallable('reserveAppointment');
+    final slotBogota = AppointmentsBusinessRules.toBogota(appointment.fechaHora);
     final date =
-        '${appointment.fechaHora.year.toString().padLeft(4, '0')}-'
-        '${appointment.fechaHora.month.toString().padLeft(2, '0')}-'
-        '${appointment.fechaHora.day.toString().padLeft(2, '0')}';
+        '${slotBogota.year.toString().padLeft(4, '0')}-'
+        '${slotBogota.month.toString().padLeft(2, '0')}-'
+        '${slotBogota.day.toString().padLeft(2, '0')}';
     final time =
-        '${appointment.fechaHora.hour.toString().padLeft(2, '0')}:'
-        '${appointment.fechaHora.minute.toString().padLeft(2, '0')}';
+        '${slotBogota.hour.toString().padLeft(2, '0')}:'
+        '${slotBogota.minute.toString().padLeft(2, '0')}';
 
     try {
       final result = await callable.call(<String, dynamic>{
