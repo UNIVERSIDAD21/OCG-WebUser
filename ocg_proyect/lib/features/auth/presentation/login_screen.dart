@@ -74,7 +74,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authNotifierProvider.notifier).signIn(_email.trim(), _password);
+      await ref
+          .read(authNotifierProvider.notifier)
+          .signIn(_email.trim(), _password);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       if (e.code == 'wrong-password' ||
@@ -86,7 +88,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else if (e.code == 'network-request-failed') {
         _setTransientError('Sin conexión a internet. Verifica tu red.');
       } else {
-        _setTransientError('[${e.code}] ${e.message ?? 'No se pudo iniciar sesión.'}');
+        _setTransientError(
+          '[${e.code}] ${e.message ?? 'No se pudo iniciar sesión.'}',
+        );
       }
     } catch (_) {
       if (!mounted) return;
@@ -164,44 +168,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // MOBILE LAYOUT — reestructurado para distribución vertical equilibrada.
+  //
+  // Problema anterior: el Column dentro del SingleChildScrollView no tenía
+  // altura mínima garantizada → el contenido se apilaba arriba y dejaba un
+  // hueco enorme antes del footer fijo.
+  //
+  // Solución estructural:
+  //  • LayoutBuilder captura la altura real disponible para el área scrolleable.
+  //  • ConstrainedBox(minHeight: constraints.maxHeight) fuerza al área a
+  //    ocupar al menos toda esa altura.
+  //  • MainAxisAlignment.center dentro del Column scrolleable centra el bloque
+  //    de login verticalmente cuando hay espacio libre.
+  //  • Si el teclado aparece y el contenido ya no cabe, SingleChildScrollView
+  //    habilita el scroll sin romper nada.
+  //  • El footer está fuera del área scrolleable, siempre anclado abajo.
+  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildMobile(BuildContext context, bool isLoading) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
+      // resizeToAvoidBottomInset por defecto es true; el Scaffold sube el
+      // contenido cuando aparece el teclado, lo que permite que el
+      // LayoutBuilder recalcule la altura disponible correctamente.
       body: SafeArea(
         top: false,
         bottom: false,
         child: Stack(
           children: [
+            // Decoración superior — permanece fija en el Stack.
             const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 82),
-                          _buildLoginContent(
-                            context,
-                            isLoading,
-                            includeFooterIndicator: false,
-                            includeFooter: false,
+
+            // Columna raíz: área scrolleable + footer fijo.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Área scrolleable ──────────────────────────────────────
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        // ConstrainedBox garantiza que aunque el contenido
+                        // sea pequeño, el Column interno siempre intente
+                        // ocupar la altura completa disponible.
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
                           ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Espaciado superior para no quedar debajo
+                                // de la decoración _TopDeco (≈160 px alto).
+                                const SizedBox(height: 80),
+                                _buildLoginContent(
+                                  context,
+                                  isLoading,
+                                  includeFooterIndicator: false,
+                                  includeFooter: false,
+                                ),
+                                // Pequeño buffer inferior antes del footer.
+                                const SizedBox(height: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  SafeArea(
-                    top: false,
-                    minimum: const EdgeInsets.only(bottom: 6),
+                ),
+
+                // ── Footer fijo al fondo ───────────────────────────────────
+                SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: const _LoginFooter(showIndicator: true),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -241,7 +290,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 18),
         if (_showAccountCreatedBanner) ...[
-          _SuccessBanner(onClose: () => setState(() => _showAccountCreatedBanner = false)),
+          _SuccessBanner(
+            onClose: () => setState(() => _showAccountCreatedBanner = false),
+          ),
           const SizedBox(height: 14),
         ],
         if (_error != null) ...[
@@ -255,7 +306,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextFormField(
                 focusNode: _emailFocus,
                 keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(fontSize: 15, color: Color(0xFF2D1B0E), letterSpacing: 0.15),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF2D1B0E),
+                  letterSpacing: 0.15,
+                ),
                 decoration: _fieldDecoration(
                   hint: 'Correo electrónico',
                   icon: Icons.email_outlined,
@@ -272,7 +327,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextFormField(
                 focusNode: _passwordFocus,
                 obscureText: _obscure,
-                style: const TextStyle(fontSize: 15, color: Color(0xFF2D1B0E), letterSpacing: 0.15),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF2D1B0E),
+                  letterSpacing: 0.15,
+                ),
                 decoration: _fieldDecoration(
                   hint: 'Contraseña',
                   icon: Icons.lock_outline,
@@ -280,7 +339,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   hasValue: _password.isNotEmpty,
                   suffix: IconButton(
                     icon: Icon(
-                      _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                       size: 20,
                       color: (_passwordFocus.hasFocus || _password.isNotEmpty)
                           ? const Color(0xFF8C6239)
@@ -292,7 +353,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onChanged: (v) {
                   setState(() => _password = v);
                 },
-                validator: (v) => (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 14),
@@ -304,7 +366,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2D1B0E),
                     foregroundColor: const Color(0xFFF7F3EC),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                     shadowColor: const Color(0x302D1B0E),
                     textStyle: const TextStyle(
@@ -317,7 +381,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF7F3EC)),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFF7F3EC),
+                          ),
                         )
                       : const Text('INICIAR SESIÓN'),
                 ),
@@ -330,7 +397,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             TextButton(
               onPressed: () => context.push(RouteNames.forgotPassword),
-              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+              ),
               child: Text(
                 '¿Olvidaste tu contraseña?',
                 style: TextStyle(
@@ -343,7 +412,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const Spacer(),
             TextButton(
               onPressed: _openRegisterDialog,
-              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+              ),
               child: const Text(
                 'Crear cuenta',
                 style: TextStyle(
@@ -373,8 +444,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final borderColor = isFocused
         ? const Color(0xFF8C6239)
         : hasValue
-            ? const Color(0xFF5C4A3A)
-            : const Color(0xFFDDD0BC);
+        ? const Color(0xFF5C4A3A)
+        : const Color(0xFFDDD0BC);
 
     final baseBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
@@ -389,7 +460,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       prefixIcon: Icon(
         icon,
-        color: (isFocused || hasValue) ? const Color(0xFF8C6239) : const Color(0xFFDDD0BC),
+        color: (isFocused || hasValue)
+            ? const Color(0xFF8C6239)
+            : const Color(0xFFDDD0BC),
         size: 18,
       ),
       suffixIcon: suffix,
@@ -404,7 +477,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFFC0392B), width: 1.4),
       ),
-      errorStyle: const TextStyle(fontSize: 12, color: Color(0xFFC0392B), height: 1.2),
+      errorStyle: const TextStyle(
+        fontSize: 12,
+        color: Color(0xFFC0392B),
+        height: 1.2,
+      ),
     );
   }
 }
@@ -428,9 +505,21 @@ class _TopDeco extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(top: -85, right: -30, child: _DecoCircle(size: 240, color: Color(0x128C6239))),
-          Positioned(top: -55, right: 0, child: _DecoCircle(size: 180, color: Color(0x0D8C6239))),
-          Positioned(bottom: -20, left: -50, child: _DecoCircle(size: 160, color: Color(0x4ADDD0BC))),
+          Positioned(
+            top: -85,
+            right: -30,
+            child: _DecoCircle(size: 240, color: Color(0x128C6239)),
+          ),
+          Positioned(
+            top: -55,
+            right: 0,
+            child: _DecoCircle(size: 180, color: Color(0x0D8C6239)),
+          ),
+          Positioned(
+            bottom: -20,
+            left: -50,
+            child: _DecoCircle(size: 160, color: Color(0x4ADDD0BC)),
+          ),
           Positioned.fill(child: CustomPaint(painter: _TopWavePainter())),
           const Positioned(
             top: 28,
@@ -474,7 +563,12 @@ class _TopWavePainter extends CustomPainter {
 
     final path = Path()
       ..moveTo(20, size.height - 30)
-      ..quadraticBezierTo(size.width / 2, size.height - 80, size.width - 20, size.height - 30);
+      ..quadraticBezierTo(
+        size.width / 2,
+        size.height - 80,
+        size.width - 20,
+        size.height - 30,
+      );
 
     canvas.drawPath(path, paint);
   }
@@ -709,7 +803,9 @@ class _RegisterPatientDialogState
     });
 
     try {
-      await ref.read(authNotifierProvider.notifier).registerPatient(
+      await ref
+          .read(authNotifierProvider.notifier)
+          .registerPatient(
             email: _email.trim(),
             password: _pass,
             displayName: _name.trim(),
@@ -814,7 +910,9 @@ class _RegisterPatientDialogState
       ),
       actions: [
         TextButton(
-          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+          onPressed: _isSubmitting
+              ? null
+              : () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
