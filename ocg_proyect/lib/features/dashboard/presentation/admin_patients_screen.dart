@@ -14,10 +14,6 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
-import '../../admin/presentation/web/components/filter_bar.dart';
-import '../../admin/presentation/web/components/page_header.dart';
-import '../../admin/presentation/web/components/action_toolbar.dart';
-import '../../admin/presentation/web/components/section_panel.dart';
 import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -505,88 +501,136 @@ class AdminPatientsScreen extends ConsumerWidget {
         return created.year == now.year && created.month == now.month;
       }).length;
 
-      final desktopContent = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: 'Pacientes',
-            subtitle: 'Gestión clínica y financiera',
-            trailing: ActionToolbar(
-              actions: [
+      final desktopContent = Container(
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pacientes',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF2C2016),
+                          letterSpacing: -0.3,
+                          height: 1.05,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Gestión clínica y financiera',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF9A735C)),
+                      ),
+                    ],
+                  ),
+                ),
                 FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF2C2016),
+                    foregroundColor: OcgColors.ivory,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  ),
                   onPressed: () => _showAddPatientDialog(context, ref),
-                  icon: const Icon(Icons.person_add_outlined),
+                  icon: const Icon(Icons.person_add_outlined, size: 16, color: Color(0xFFC9A882)),
                   label: const Text('Nuevo paciente'),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 10),
-          _KpiRow(
-            totalPacientes: totalPacientes,
-            pacientesActivos: pacientesActivos,
-            citasHoy: citasHoy,
-            saldoPendienteTotal: saldoPendienteTotal,
-            nuevosMes: nuevosMes,
-            onTapTotal: () {
-              ref.read(patientsFilterProvider.notifier).setFilter('Todos');
-              context.go(RouteNames.adminPatients);
-            },
-            onTapActivos: () {
-              ref.read(patientsFilterProvider.notifier).setFilter('Activos');
-              context.go(RouteNames.adminPatients);
-            },
-            onTapCitasHoy: () => context.go(RouteNames.adminAppointments),
-            onTapSaldoPendiente: () => context.go(RouteNames.adminPayments),
-          ),
-          const SizedBox(height: 12),
-          FilterBar(
-            hintText: 'Buscar en pacientes…',
-            onSearch: (value) =>
-                ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _filters.map((filter) {
-              final selected = filter == selectedFilter;
-              return ChoiceChip(
-                label: Text(filter),
-                selected: selected,
-                onSelected: (_) =>
-                    ref.read(patientsFilterProvider.notifier).setFilter(filter),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 10),
-          SectionPanel(
-            title: 'Listado de pacientes',
-            child: filteredPatients.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('No hay pacientes para los filtros actuales.'),
-                  )
-                : Column(
-                    children: [
-                      for (var i = 0; i < filteredPatients.length; i++) ...[
-                        _DesktopPatientRow(
-                          patient: filteredPatients[i],
-                          selected: i == 0,
-                          onTap: () => context.go(
-                            RouteNames.adminPatientDetail.replaceFirst(
-                              ':patientId',
-                              filteredPatients[i].id,
+            const SizedBox(height: 16),
+            _KpiRow(
+              totalPacientes: totalPacientes,
+              pacientesActivos: pacientesActivos,
+              citasHoy: citasHoy,
+              saldoPendienteTotal: saldoPendienteTotal,
+              nuevosMes: nuevosMes,
+              onTapTotal: () {
+                ref.read(patientsFilterProvider.notifier).setFilter('Todos');
+                context.go(RouteNames.adminPatients);
+              },
+              onTapActivos: () {
+                ref.read(patientsFilterProvider.notifier).setFilter('Activos');
+                context.go(RouteNames.adminPatients);
+              },
+              onTapCitasHoy: () => context.go(RouteNames.adminAppointments),
+              onTapSaldoPendiente: () => context.go(RouteNames.adminPayments),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFDFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, size: 16, color: Color(0xFFC9A882)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      onChanged: (value) => ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'Buscar en pacientes...',
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _filters.map((filter) {
+                final selected = filter == selectedFilter;
+                return ChoiceChip(
+                  label: Text(filter),
+                  selected: selected,
+                  onSelected: (_) => ref.read(patientsFilterProvider.notifier).setFilter(filter),
+                  showCheckmark: selected,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFDFC),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              padding: const EdgeInsets.all(14),
+              child: filteredPatients.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: Text('No hay pacientes para los filtros actuales.'),
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < filteredPatients.length; i++) ...[
+                          _DesktopPatientRow(
+                            patient: filteredPatients[i],
+                            selected: i == 0,
+                            onTap: () => context.go(
+                              RouteNames.adminPatientDetail.replaceFirst(':patientId', filteredPatients[i].id),
                             ),
                           ),
-                        ),
-                        if (i != filteredPatients.length - 1)
-                          const SizedBox(height: 8),
+                          if (i != filteredPatients.length - 1) const SizedBox(height: 8),
+                        ],
                       ],
-                    ],
-                  ),
-          ),
-        ],
+                    ),
+            ),
+          ],
+        ),
       );
 
       return AdminWebShell(title: 'Pacientes', child: desktopContent);
