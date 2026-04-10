@@ -538,27 +538,45 @@ class _WebAdminDashboard extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  dateLabel,
-                  style: TextStyle(
-                    color: OcgColors.ivory.withOpacity(0.68),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.45,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dateLabel,
+                        style: TextStyle(
+                          color: OcgColors.ivory.withOpacity(0.68),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.45,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Dashboard',
+                        style: TextStyle(color: OcgColors.ivory, fontSize: 34, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Resumen operativo del día',
+                        style: TextStyle(color: OcgColors.ivory.withOpacity(0.8), fontSize: 14),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Buenos días, Admin',
-                  style: TextStyle(color: OcgColors.ivory, fontSize: 34, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Centro operativo del día',
-                  style: TextStyle(color: OcgColors.ivory.withOpacity(0.8), fontSize: 14),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OcgColors.ivory,
+                    side: BorderSide(color: OcgColors.ivory.withOpacity(0.35)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () => context.go(RouteNames.adminPayments),
+                  icon: const Icon(Icons.payments_outlined, size: 16),
+                  label: const Text('Pagos'),
                 ),
               ],
             ),

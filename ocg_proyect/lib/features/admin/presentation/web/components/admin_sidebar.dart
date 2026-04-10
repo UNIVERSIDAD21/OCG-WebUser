@@ -161,7 +161,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(18, 12, 18, 10),
+              padding: EdgeInsets.fromLTRB(18, 16, 18, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -181,7 +181,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
               child: TextField(
                 controller: _searchCtrl,
                 onSubmitted: (_) => _runSystemSearch(context, items),
@@ -227,12 +227,12 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                   final fgColor = active ? OcgColors.espresso : OcgColors.ivory;
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Material(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         onTap: () => context.go(item.route),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
