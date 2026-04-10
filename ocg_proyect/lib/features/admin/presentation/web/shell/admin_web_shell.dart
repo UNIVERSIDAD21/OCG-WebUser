@@ -33,18 +33,21 @@ class AdminWebShell extends StatelessWidget {
                 child: const AdminSidebar(), // ✅ Sin parámetros
               ),
               Expanded(
-                child: Column(
-                  children: [
-                    AdminTopbar(title: title),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: WebPageContainer(
-                          maxWidth: compactDesktop ? 1180 : 1400,
-                          child: child,
-                        ),
+                child: SingleChildScrollView(
+                  child: WebPageContainer(
+                    maxWidth: compactDesktop ? 1180 : 1400,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 14, 0, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AdminTopbar(title: title),
+                          const SizedBox(height: 12),
+                          child,
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],

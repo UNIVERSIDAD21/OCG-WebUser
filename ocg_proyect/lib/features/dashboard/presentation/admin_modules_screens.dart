@@ -157,7 +157,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
   }
 }
 
-class _WebPaymentsView extends StatelessWidget {
+class _WebPaymentsView extends StatefulWidget {
   const _WebPaymentsView({
     required this.withDebt,
     required this.overdue,
@@ -171,7 +171,16 @@ class _WebPaymentsView extends StatelessWidget {
   final DateTime today;
 
   @override
+  State<_WebPaymentsView> createState() => _WebPaymentsViewState();
+}
+
+class _WebPaymentsViewState extends State<_WebPaymentsView> {
+  bool showOnlyOverdue = false;
+
+  @override
   Widget build(BuildContext context) {
+    final list = showOnlyOverdue ? widget.overdue : widget.withDebt;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
       child: Column(
@@ -216,21 +225,21 @@ class _WebPaymentsView extends StatelessWidget {
                 childAspectRatio: cols == 3 ? 2.1 : 3.0,
                 children: [
                   _PayMiniKpi(
-                    value: '${withDebt.length}',
+                    value: '${widget.withDebt.length}',
                     title: 'Con saldo',
                     subtitle: 'pacientes activos',
                     bg: const Color(0xFFF6EFE7),
                     onTap: () => context.go(RouteNames.adminPatients),
                   ),
                   _PayMiniKpi(
-                    value: '${overdue.length}',
+                    value: '${widget.overdue.length}',
                     title: 'Vencidos',
                     subtitle: 'requieren atención',
                     bg: const Color(0xFFFFECEC),
                     onTap: () => context.go(RouteNames.adminPatients),
                   ),
                   _PayMiniKpi(
-                    value: '\$${formatCop(totalDebt)}',
+                    value: '\$${formatCop(widget.totalDebt)}',
                     title: 'Saldo pendiente',
                     subtitle: 'cartera total',
                     bg: const Color(0xFFFFF4D8),
@@ -241,12 +250,37 @@ class _WebPaymentsView extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-          const _MobileSectionHeader(title: 'Cartera activa'),
+          Row(
+            children: [
+              const Expanded(child: _MobileSectionHeader(title: 'Cartera activa')),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2EDE8),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  children: [
+                    _MiniToggle(
+                      label: 'Con saldo',
+                      active: !showOnlyOverdue,
+                      onTap: () => setState(() => showOnlyOverdue = false),
+                    ),
+                    _MiniToggle(
+                      label: 'Vencidos',
+                      active: showOnlyOverdue,
+                      onTap: () => setState(() => showOnlyOverdue = true),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
-          if (withDebt.isEmpty)
-            const Text('No hay saldos pendientes.')
+          if (list.isEmpty)
+            const Text('No hay pacientes en esta vista.')
           else
-            ...withDebt.map((p) {
+            ...list.map((p) {
               final due = p.fechaProximoPago;
               final dueText = due == null
                   ? 'Sin fecha de próximo pago'
@@ -256,7 +290,7 @@ class _WebPaymentsView extends StatelessWidget {
                 child: _PatientActionTile(
                   patient: p,
                   subtitle: 'Saldo: \$${formatCop(p.saldoPendiente)} · $dueText',
-                  critical: due != null && due.isBefore(today),
+                  critical: due != null && due.isBefore(widget.today),
                   onOpen: () => context.go(
                     RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id),
                   ),

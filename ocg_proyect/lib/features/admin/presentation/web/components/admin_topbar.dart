@@ -292,26 +292,18 @@ class _AdminTopbarState extends State<AdminTopbar> {
         final compact = constraints.maxWidth < 980;
 
         return Container(
-          height: compact ? 62 : 68,
-          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
-          decoration: const BoxDecoration(
-            color: OcgColors.ivory,
-            border: Border(bottom: BorderSide(color: Color(0x11000000))),
+          height: compact ? 58 : 62,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE7D6C6)),
           ),
           child: Row(
             children: [
+              const Icon(Icons.search, color: OcgColors.bronze, size: 18),
+              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  widget.title,
-                  style: TextStyle(
-                    fontSize: compact ? 18 : 20,
-                    fontWeight: FontWeight.w700,
-                    color: OcgColors.espresso,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: compact ? 220 : 360,
                 child: TextField(
                   controller: _searchCtrl,
                   onSubmitted: (_) => _runSearch(),
@@ -319,18 +311,12 @@ class _AdminTopbarState extends State<AdminTopbar> {
                   decoration: InputDecoration(
                     isDense: true,
                     hintText: 'Buscar en ${_areaLabel(_areaFromTitle())}...',
-                    prefixIcon: const Icon(Icons.search),
                     suffixIcon: IconButton(
                       tooltip: 'Buscar',
                       onPressed: _runSearch,
                       icon: const Icon(Icons.arrow_forward_rounded),
                     ),
-                    filled: true,
-                    fillColor: OcgColors.mist,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: InputBorder.none,
                   ),
                 ),
               ),
