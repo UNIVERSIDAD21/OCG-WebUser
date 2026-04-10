@@ -334,7 +334,7 @@ class AdminSimulatorScreen extends ConsumerWidget {
   }
 }
 
-class _UnifiedTreatmentsView extends StatelessWidget {
+class _UnifiedTreatmentsView extends StatefulWidget {
   const _UnifiedTreatmentsView({
     required this.patients,
     required this.byStage,
@@ -347,10 +347,28 @@ class _UnifiedTreatmentsView extends StatelessWidget {
   final List<PatientModel> activePatients;
 
   @override
+  State<_UnifiedTreatmentsView> createState() => _UnifiedTreatmentsViewState();
+}
+
+class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
+  TreatmentType? selectedType;
+
+  @override
   Widget build(BuildContext context) {
+    final filteredActivePatients = selectedType == null
+        ? widget.activePatients
+        : widget.activePatients
+            .where((p) => p.tipoTratamiento == selectedType)
+            .toList();
+
     final byType = <TreatmentType, int>{
       for (final t in TreatmentType.values)
-        t: patients.where((p) => p.tipoTratamiento == t).length,
+        t: filteredActivePatients.where((p) => p.tipoTratamiento == t).length,
+    };
+
+    final byStageFiltered = <TreatmentStage, int>{
+      for (final stage in TreatmentStage.values)
+        stage: filteredActivePatients.where((p) => p.etapaActual == stage).length,
     };
 
     return SingleChildScrollView(
@@ -400,7 +418,7 @@ class _UnifiedTreatmentsView extends StatelessWidget {
                 children: TreatmentStage.values.map((stage) {
                   final label = stageNames[stage] ?? stage.name;
                   return _MiniStageCard(
-                    value: '${byStage[stage] ?? 0}',
+                    value: '${byStageFiltered[stage] ?? 0}',
                     label: label,
                     bg: const Color(0xFFF6EFE7),
                     onTap: () => context.go(RouteNames.adminPatients),
@@ -408,6 +426,28 @@ class _UnifiedTreatmentsView extends StatelessWidget {
                 }).toList(),
               );
             },
+          ),
+          const SizedBox(height: 16),
+          const _MobileSectionHeader(title: 'Filtro por tipo de tratamiento'),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Todos'),
+                selected: selectedType == null,
+                onSelected: (_) => setState(() => selectedType = null),
+              ),
+              ...TreatmentType.values.map((t) {
+                final label = _tipoLabel(t);
+                return ChoiceChip(
+                  label: Text(label),
+                  selected: selectedType == t,
+                  onSelected: (_) => setState(() => selectedType = t),
+                );
+              }),
+            ],
           ),
           const SizedBox(height: 16),
           const _MobileSectionHeader(title: 'Por tipo de tratamiento'),
@@ -422,22 +462,22 @@ class _UnifiedTreatmentsView extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _TypeRow(type: TreatmentType.convencional, count: byType[TreatmentType.convencional] ?? 0, max: patients.length),
-                _TypeRow(type: TreatmentType.estetico, count: byType[TreatmentType.estetico] ?? 0, max: patients.length),
-                _TypeRow(type: TreatmentType.autoligado, count: byType[TreatmentType.autoligado] ?? 0, max: patients.length),
-                _TypeRow(type: TreatmentType.alineadores, count: byType[TreatmentType.alineadores] ?? 0, max: patients.length),
-                _TypeRow(type: TreatmentType.ortopedia, count: byType[TreatmentType.ortopedia] ?? 0, max: patients.length),
-                _TypeRow(type: TreatmentType.retenedores, count: byType[TreatmentType.retenedores] ?? 0, max: patients.length, isLast: true),
+                _TypeRow(type: TreatmentType.convencional, count: byType[TreatmentType.convencional] ?? 0, max: filteredActivePatients.length),
+                _TypeRow(type: TreatmentType.estetico, count: byType[TreatmentType.estetico] ?? 0, max: filteredActivePatients.length),
+                _TypeRow(type: TreatmentType.autoligado, count: byType[TreatmentType.autoligado] ?? 0, max: filteredActivePatients.length),
+                _TypeRow(type: TreatmentType.alineadores, count: byType[TreatmentType.alineadores] ?? 0, max: filteredActivePatients.length),
+                _TypeRow(type: TreatmentType.ortopedia, count: byType[TreatmentType.ortopedia] ?? 0, max: filteredActivePatients.length),
+                _TypeRow(type: TreatmentType.retenedores, count: byType[TreatmentType.retenedores] ?? 0, max: filteredActivePatients.length, isLast: true),
               ],
             ),
           ),
           const SizedBox(height: 18),
           const _MobileSectionHeader(title: 'Pacientes en tratamiento'),
           const SizedBox(height: 10),
-          if (activePatients.isEmpty)
-            const Text('No hay pacientes activos en este momento.')
+          if (filteredActivePatients.isEmpty)
+            const Text('No hay pacientes activos para este tipo de tratamiento.')
           else
-            ...activePatients.map(
+            ...filteredActivePatients.map(
               (p) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: _TreatmentPatientCard(
