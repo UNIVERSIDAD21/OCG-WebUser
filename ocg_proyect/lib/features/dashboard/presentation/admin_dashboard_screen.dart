@@ -558,6 +558,8 @@ class _WebAdminDashboard extends StatelessWidget {
                 ),
               );
 
+              final agendaItems = todaysAppointments.take(5).toList();
+
               final right = Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFDFC),
@@ -570,7 +572,30 @@ class _WebAdminDashboard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
+                              if (todaysAppointments.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF6EFE7),
+                                    borderRadius: BorderRadius.circular(99),
+                                    border: Border.all(color: const Color(0xFFE2D0BC)),
+                                  ),
+                                  child: Text(
+                                    '${agendaItems.length}/5',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF9A735C),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                         TextButton(
                           onPressed: () => context.go(RouteNames.adminAppointments),
                           child: const Text('Ver todo >', style: TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700, fontSize: 12.5)),
@@ -586,11 +611,20 @@ class _WebAdminDashboard extends StatelessWidget {
                       const Text('No se pudo cargar la agenda del día.')
                     else if (todaysAppointments.isEmpty)
                       const Text('No hay citas programadas para hoy.')
-                    else
-                      ...todaysAppointments.take(1).map((a) => Padding(
+                    else ...[
+                      ...agendaItems.map((a) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: _MobileAgendaCard(appointment: a, ref: ref),
                           )),
+                      if (todaysAppointments.length > 5)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Mostrando las primeras 5 citas del día.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF9A735C)),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               );
@@ -887,6 +921,20 @@ class _MobileAgendaCard extends StatelessWidget {
                         '${_TodayAgendaCard._fmtHour(appointment.fechaHora)} · ${_TodayAgendaCard._tipoLabel(appointment.tipo)}',
                         style: const TextStyle(fontSize: 12, color: Color(0xFF7B6654)),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${appointment.duracionMinutos} min · ${appointment.patientPhone.isEmpty ? 'Sin teléfono' : appointment.patientPhone}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF9A735C)),
+                      ),
+                      if ((appointment.notas ?? '').trim().isNotEmpty)
+                        Text(
+                          appointment.notas!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF9A735C), fontStyle: FontStyle.italic),
+                        ),
                     ],
                   ),
                 ),
