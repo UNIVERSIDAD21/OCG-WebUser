@@ -348,6 +348,11 @@ class _UnifiedTreatmentsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final byType = <TreatmentType, int>{
+      for (final t in TreatmentType.values)
+        t: patients.where((p) => p.tipoTratamiento == t).length,
+    };
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
       child: Column(
@@ -373,7 +378,7 @@ class _UnifiedTreatmentsView extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Seguimiento clínico por etapa y acceso rápido por paciente',
+                  'Seguimiento clínico por etapa, tipo de tratamiento y pacientes activos',
                   style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
                 ),
               ],
@@ -405,16 +410,26 @@ class _UnifiedTreatmentsView extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-          const _MobileSectionHeader(title: 'Acceso rápido'),
+          const _MobileSectionHeader(title: 'Por tipo de tratamiento'),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _ModuleQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
-              const SizedBox(width: 10),
-              Expanded(child: _ModuleQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
-              const SizedBox(width: 10),
-              Expanded(child: _ModuleQuickCard(icon: Icons.payments_outlined, label: 'Pagos', onTap: () => context.go(RouteNames.adminPayments), emphasized: true)),
-            ],
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE7D6C6)),
+            ),
+            child: Column(
+              children: [
+                _TypeRow(type: TreatmentType.convencional, count: byType[TreatmentType.convencional] ?? 0, max: patients.length),
+                _TypeRow(type: TreatmentType.estetico, count: byType[TreatmentType.estetico] ?? 0, max: patients.length),
+                _TypeRow(type: TreatmentType.autoligado, count: byType[TreatmentType.autoligado] ?? 0, max: patients.length),
+                _TypeRow(type: TreatmentType.alineadores, count: byType[TreatmentType.alineadores] ?? 0, max: patients.length),
+                _TypeRow(type: TreatmentType.ortopedia, count: byType[TreatmentType.ortopedia] ?? 0, max: patients.length),
+                _TypeRow(type: TreatmentType.retenedores, count: byType[TreatmentType.retenedores] ?? 0, max: patients.length, isLast: true),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           const _MobileSectionHeader(title: 'Pacientes en tratamiento'),
