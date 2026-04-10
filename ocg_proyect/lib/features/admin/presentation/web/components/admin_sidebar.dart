@@ -159,7 +159,8 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF1F140C), Color(0xFF2C2016)],
+          colors: [Color(0xFF1C1208), Color(0xFF21170F), Color(0xFF1A100A)],
+          stops: [0, 0.6, 1],
         ),
       ),
       child: SafeArea(
@@ -167,96 +168,126 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(18, 16, 18, 12),
+              padding: EdgeInsets.fromLTRB(20, 32, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'OCG',
                     style: TextStyle(
-                      color: OcgColors.bronze,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      color: OcgColors.ivory,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.8,
                     ),
                   ),
+                  SizedBox(height: 2),
                   Text(
-                    'Panel Clínico',
-                    style: TextStyle(color: OcgColors.ivory),
+                    'PANEL CLÍNICO',
+                    style: TextStyle(
+                      color: Color(0xFF6E5442),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.8,
+                    ),
                   ),
                 ],
               ),
             ),
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              height: 1,
+              color: const Color(0x0DFFFFFF),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: TextField(
                 controller: _searchCtrl,
                 onSubmitted: (_) => _runSystemSearch(context, items),
-                style: const TextStyle(color: OcgColors.ivory, fontSize: 13),
+                style: const TextStyle(color: Color(0xFFB09070), fontSize: 12),
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: 'Buscar pacientes o secciones...',
-                  hintStyle: const TextStyle(color: Color(0xCCFFFFFF)),
+                  hintText: 'Buscar pacientes o s...',
+                  hintStyle: const TextStyle(color: Color(0xFF6E5442), fontSize: 12),
                   prefixIcon: const Icon(
                     Icons.search,
-                    size: 18,
-                    color: OcgColors.ivory,
+                    size: 14,
+                    color: Color(0xFF6E5442),
                   ),
-                  suffixIcon: IconButton(
-                    onPressed: () => _runSystemSearch(context, items),
-                    icon: const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 18,
-                      color: OcgColors.ivory,
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: IconButton(
+                      onPressed: () => _runSystemSearch(context, items),
+                      icon: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0x12FFFFFF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 12,
+                          color: Color(0xFF7E6A5B),
+                        ),
+                      ),
                     ),
                   ),
                   filled: true,
-                  fillColor: OcgColors.ivory.withOpacity(0.12),
+                  fillColor: const Color(0x0DFFFFFF),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(999),
+                    borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    borderSide: const BorderSide(color: Color(0x25FFFFFF)),
                   ),
                 ),
               ),
             ),
-            const Divider(color: Color(0x33FFFFFF), height: 1),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
+                  horizontal: 12,
+                  vertical: 0,
                 ),
                 children: items.map((item) {
                   final active = currentRoute == item.route ||
                       currentRoute.startsWith('${item.route}/');
 
-                  final bgColor = active ? OcgColors.ivory : Colors.transparent;
-                  final fgColor = active ? OcgColors.espresso : OcgColors.ivory;
+                  final bgColor = active ? const Color(0xFFF5EDE0) : Colors.transparent;
+                  final fgColor = active ? const Color(0xFF2C2016) : const Color(0xFF7E6A5B);
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 1),
                     child: Material(
                       color: bgColor,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         onTap: () => context.go(item.route),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 13,
+                            horizontal: 12,
+                            vertical: 9,
                           ),
                           child: Row(
                             children: [
-                              Icon(item.icon, color: fgColor, size: 22),
-                              const SizedBox(width: 14),
+                              Icon(item.icon, color: fgColor, size: 15),
+                              const SizedBox(width: 10),
                               Text(
                                 item.label,
                                 style: TextStyle(
                                   color: fgColor,
-                                  fontSize: 14,
-                                  fontWeight: active
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                                  fontSize: 13,
+                                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                                  letterSpacing: 0.12,
                                 ),
                               ),
                             ],
@@ -268,9 +299,8 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                 }).toList(),
               ),
             ),
-            const Divider(color: Color(0x33FFFFFF), height: 1),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
               child: Material(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
@@ -303,17 +333,17 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                     }
                   },
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     child: Row(
                       children: [
-                        Icon(Icons.logout, color: OcgColors.ivory, size: 22),
-                        SizedBox(width: 14),
+                        Icon(Icons.logout, color: Color(0xFF6E5442), size: 15),
+                        SizedBox(width: 10),
                         Text(
                           'Cerrar sesión',
                           style: TextStyle(
-                            color: OcgColors.ivory,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6E5442),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
