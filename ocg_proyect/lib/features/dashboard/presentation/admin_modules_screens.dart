@@ -363,6 +363,18 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   )
                 : Column(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                        child: const Row(
+                          children: [
+                            Expanded(flex: 4, child: Text('Paciente / Concepto', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 2, child: Text('Fecha', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)))),
+                            Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Monto', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C))))),
+                            Expanded(flex: 2, child: Center(child: Text('Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C))))),
+                            Expanded(flex: 2, child: Center(child: Text('Método', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9A735C))))),
+                          ],
+                        ),
+                      ),
                       for (var i = 0; i < list.length && i < 8; i++) ...[
                         _PaymentsHistoryRow(patient: list[i], onOpen: () => context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', list[i].id))),
                         if (i < list.length - 1 && i < 7) const SizedBox(height: 8),
@@ -1481,6 +1493,7 @@ class _PaymentsHistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final recovered = (patient.totalTratamiento - patient.saldoPendiente).clamp(0, 999999999).toDouble();
     final date = patient.fechaProximoPago ?? patient.fechaInicio;
+    final statusPaid = patient.saldoPendiente <= 0;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -1512,37 +1525,40 @@ class _PaymentsHistoryRow extends StatelessWidget {
               flex: 2,
               child: Text('\$${formatCop(recovered)}', textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800, color: OcgColors.espresso)),
             ),
-            const SizedBox(width: 8),
             Expanded(
               flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: patient.saldoPendiente <= 0 ? const Color(0xFFEFF8F0) : const Color(0xFFFFF4D8),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  patient.saldoPendiente <= 0 ? 'Pagado' : 'Pendiente',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: patient.saldoPendiente <= 0 ? const Color(0xFF2E7D4C) : const Color(0xFF9A735C),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusPaid ? const Color(0xFFEFF8F0) : const Color(0xFFFFF4D8),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    statusPaid ? 'Pagado' : 'Pendiente',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: statusPaid ? const Color(0xFF2E7D4C) : const Color(0xFF9A735C),
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF2FA),
-                borderRadius: BorderRadius.circular(999),
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF2FA),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text('Transferencia', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF45669A))),
+                ),
               ),
-              child: const Text('Transferencia', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF45669A))),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.visibility_outlined, size: 16, color: Color(0xFF9A735C)),
           ],
         ),
       ),
