@@ -133,37 +133,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildDesktop(BuildContext context, bool isLoading) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE8E4DD),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7F3EC),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: const Color(0xFFC8BFB0)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x2E2D1B0E),
-                      blurRadius: 48,
-                      offset: Offset(0, 16),
+      backgroundColor: const Color(0xFFEDE8DC),
+      body: Stack(
+        children: [
+          const _DesktopGridBackground(),
+          const _DesktopBlob(top: -120, right: -80, size: 420, color: Color(0x59C8AF8C)),
+          const _DesktopBlob(bottom: -100, left: -60, size: 350, color: Color(0x40B49B78)),
+          const _DesktopCenterGlow(),
+          const _DesktopRing(delayMs: 0),
+          const _DesktopRing(delayMs: 1650),
+          const _DesktopRing(delayMs: 3300),
+          const _DesktopScanLine(),
+          const _DesktopViewportCorners(),
+          SafeArea(
+            child: Column(
+              children: [
+                const _DesktopStatusBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Column(
+                          children: [
+                            const _DesktopLogoHeader(),
+                            const SizedBox(height: 18),
+                            _DesktopGlassCard(
+                              child: _buildLoginContent(
+                                context,
+                                isLoading,
+                                includeFooterIndicator: false,
+                                includeFooter: true,
+                                showBrandHeader: false,
+                                centerWelcomeTitle: false,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-                child: _buildLoginContent(
-                  context,
-                  isLoading,
-                  includeFooterIndicator: false,
-                  includeFooter: true,
-                ),
-              ),
+                const _DesktopBottomBar(),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -227,6 +243,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   isLoading,
                                   includeFooterIndicator: false,
                                   includeFooter: false,
+                                  showBrandHeader: true,
+                                  centerWelcomeTitle: true,
                                 ),
                                 const SizedBox(height: 8),
                               ],
@@ -260,14 +278,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     bool isLoading, {
     required bool includeFooterIndicator,
     required bool includeFooter,
+    required bool showBrandHeader,
+    required bool centerWelcomeTitle,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
-        const SizedBox(height: 24),
+        if (showBrandHeader) ...[
+          _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
+          const SizedBox(height: 24),
+        ],
         RichText(
-          textAlign: TextAlign.center,
+          textAlign: centerWelcomeTitle ? TextAlign.center : TextAlign.left,
           text: const TextSpan(
             style: TextStyle(
               fontFamily: 'Cormorant Garamond',
@@ -490,6 +512,465 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         fontSize: 12,
         color: Color(0xFFC0392B),
         height: 1.2,
+      ),
+    );
+  }
+}
+
+class _DesktopGridBackground extends StatelessWidget {
+  const _DesktopGridBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: CustomPaint(
+        painter: _DesktopGridPainter(),
+      ),
+    );
+  }
+}
+
+class _DesktopGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const step = 56.0;
+    final paint = Paint()
+      ..color = const Color(0x128C6239)
+      ..strokeWidth = 1;
+
+    for (double y = 0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    for (double x = 0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _DesktopBlob extends StatelessWidget {
+  const _DesktopBlob({
+    required this.size,
+    required this.color,
+    this.top,
+    this.left,
+    this.right,
+    this.bottom,
+  });
+
+  final double size;
+  final Color color;
+  final double? top;
+  final double? left;
+  final double? right;
+  final double? bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top,
+      left: left,
+      right: right,
+      bottom: bottom,
+      child: IgnorePointer(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [color, color.withOpacity(0)],
+              stops: const [0, 0.72],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopCenterGlow extends StatelessWidget {
+  const _DesktopCenterGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: IgnorePointer(
+        child: Container(
+          width: 800,
+          height: 800,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [const Color(0x108C6239), const Color(0x008C6239)],
+              stops: const [0, 0.6],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopRing extends StatefulWidget {
+  const _DesktopRing({required this.delayMs});
+
+  final int delayMs;
+
+  @override
+  State<_DesktopRing> createState() => _DesktopRingState();
+}
+
+class _DesktopRingState extends State<_DesktopRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5000),
+    );
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
+      if (mounted) _controller.repeat();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (_, __) {
+            final t = Curves.easeOut.transform(_controller.value);
+            final scale = 0.85 + (0.95 * t);
+            final opacity = 0.45 * (1 - t);
+            return Transform.scale(
+              scale: scale,
+              child: Container(
+                width: 600,
+                height: 600,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0x1F8C6239).withOpacity(opacity),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopScanLine extends StatefulWidget {
+  const _DesktopScanLine();
+
+  @override
+  State<_DesktopScanLine> createState() => _DesktopScanLineState();
+}
+
+class _DesktopScanLineState extends State<_DesktopScanLine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 9000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (_, __) {
+          final h = MediaQuery.of(context).size.height;
+          final y = (h + 4) * _controller.value - 2;
+          return Positioned(
+            left: 0,
+            right: 0,
+            top: y,
+            child: Container(
+              height: 1,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.transparent, Color(0x668C6239), Colors.transparent],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DesktopViewportCorners extends StatelessWidget {
+  const _DesktopViewportCorners();
+
+  @override
+  Widget build(BuildContext context) {
+    const border = BorderSide(color: Color(0x4D8C6239), width: 1.5);
+    return IgnorePointer(
+      child: Stack(
+        children: const [
+          Positioned(top: 24, left: 24, child: _CornerBox(top: border, left: border)),
+          Positioned(top: 24, right: 24, child: _CornerBox(top: border, right: border)),
+          Positioned(bottom: 24, left: 24, child: _CornerBox(bottom: border, left: border)),
+          Positioned(bottom: 24, right: 24, child: _CornerBox(bottom: border, right: border)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CornerBox extends StatelessWidget {
+  const _CornerBox({this.top, this.right, this.bottom, this.left});
+
+  final BorderSide? top;
+  final BorderSide? right;
+  final BorderSide? bottom;
+  final BorderSide? left;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: top ?? BorderSide.none,
+            right: right ?? BorderSide.none,
+            bottom: bottom ?? BorderSide.none,
+            left: left ?? BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopStatusBar extends StatelessWidget {
+  const _DesktopStatusBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0x1A8C6239))),
+      ),
+      child: Row(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(color: Color(0xFF8C6239), shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'OCG',
+                style: TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 2.8,
+                  color: Color(0x733D230C),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          const Text(
+            'ACCESO SEGURO',
+            style: TextStyle(
+              fontSize: 9,
+              letterSpacing: 2.2,
+              color: Color(0x473D230C),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopLogoHeader extends StatelessWidget {
+  const _DesktopLogoHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Text(
+          'OCG',
+          style: TextStyle(
+            fontFamily: 'Cormorant Garamond',
+            fontSize: 66,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 13,
+            color: Color(0xFF2D1B0E),
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'CLÍNICA DENTAL',
+          style: TextStyle(
+            fontSize: 9,
+            letterSpacing: 4.0,
+            color: Color(0xFF8C6239),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 1,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.transparent, Color(0x738C6239), Colors.transparent],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopGlassCard extends StatelessWidget {
+  const _DesktopGlassCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(40, 32, 40, 28),
+      decoration: BoxDecoration(
+        color: const Color(0xE0FAF6EF),
+        border: Border.all(color: const Color(0x2E8C6239)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A8C6239), blurRadius: 6),
+          BoxShadow(color: Color(0x1F644119), blurRadius: 60, offset: Offset(0, 20)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: const RadialGradient(
+                    center: Alignment.topRight,
+                    radius: 1.2,
+                    colors: [Color(0x148C6239), Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Positioned(top: 0, left: 0, right: 0, child: _CardTopShimmer()),
+          const Positioned(top: 14, left: 14, child: _CardCorner(top: true, left: true)),
+          const Positioned(top: 14, right: 14, child: _CardCorner(top: true, right: true)),
+          const Positioned(bottom: 14, left: 14, child: _CardCorner(bottom: true, left: true)),
+          const Positioned(bottom: 14, right: 14, child: _CardCorner(bottom: true, right: true)),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _CardTopShimmer extends StatelessWidget {
+  const _CardTopShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 2,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.transparent, Color(0x808C6239), Colors.transparent],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardCorner extends StatelessWidget {
+  const _CardCorner({this.top = false, this.right = false, this.bottom = false, this.left = false});
+
+  final bool top;
+  final bool right;
+  final bool bottom;
+  final bool left;
+
+  @override
+  Widget build(BuildContext context) {
+    const side = BorderSide(color: Color(0x668C6239), width: 1.5);
+    return SizedBox(
+      width: 18,
+      height: 18,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: top ? side : BorderSide.none,
+            right: right ? side : BorderSide.none,
+            bottom: bottom ? side : BorderSide.none,
+            left: left ? side : BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopBottomBar extends StatelessWidget {
+  const _DesktopBottomBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0x1A8C6239))),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 64,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0x598C6239), width: 1.2)),
+            ),
+          ),
+        ),
       ),
     );
   }
