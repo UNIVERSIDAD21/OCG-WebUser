@@ -137,8 +137,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Stack(
         children: [
           const _DesktopGridBackground(),
-          const _DesktopBlob(top: -120, right: -80, size: 420, color: Color(0x59C8AF8C)),
-          const _DesktopBlob(bottom: -100, left: -60, size: 350, color: Color(0x40B49B78)),
+          const _DesktopBlob(
+            top: -120,
+            right: -80,
+            size: 420,
+            color: Color(0x59C8AF8C),
+          ),
+          const _DesktopBlob(
+            bottom: -100,
+            left: -60,
+            size: 350,
+            color: Color(0x40B49B78),
+          ),
           const _DesktopCenterGlow(),
           const _DesktopRing(delayMs: 0),
           const _DesktopRing(delayMs: 1650),
@@ -151,7 +161,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const _DesktopStatusBar(),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 420),
@@ -285,7 +298,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showBrandHeader) ...[
-          _LoginBrandHeader(shiftUp: includeFooter ? 0 : 28),
+          _LoginBrandHeader(shiftUp: includeFooter ? 0 : 36),
           const SizedBox(height: 24),
         ],
         RichText(
@@ -522,11 +535,7 @@ class _DesktopGridBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: CustomPaint(
-        painter: _DesktopGridPainter(),
-      ),
-    );
+    return Positioned.fill(child: CustomPaint(painter: _DesktopGridPainter()));
   }
 }
 
@@ -717,7 +726,11 @@ class _DesktopScanLineState extends State<_DesktopScanLine>
               height: 1,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.transparent, Color(0x668C6239), Colors.transparent],
+                  colors: [
+                    Colors.transparent,
+                    Color(0x668C6239),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
@@ -737,10 +750,26 @@ class _DesktopViewportCorners extends StatelessWidget {
     return IgnorePointer(
       child: Stack(
         children: const [
-          Positioned(top: 24, left: 24, child: _CornerBox(top: border, left: border)),
-          Positioned(top: 24, right: 24, child: _CornerBox(top: border, right: border)),
-          Positioned(bottom: 24, left: 24, child: _CornerBox(bottom: border, left: border)),
-          Positioned(bottom: 24, right: 24, child: _CornerBox(bottom: border, right: border)),
+          Positioned(
+            top: 24,
+            left: 24,
+            child: _CornerBox(top: border, left: border),
+          ),
+          Positioned(
+            top: 24,
+            right: 24,
+            child: _CornerBox(top: border, right: border),
+          ),
+          Positioned(
+            bottom: 24,
+            left: 24,
+            child: _CornerBox(bottom: border, left: border),
+          ),
+          Positioned(
+            bottom: 24,
+            right: 24,
+            child: _CornerBox(bottom: border, right: border),
+          ),
         ],
       ),
     );
@@ -791,7 +820,10 @@ class _DesktopStatusBar extends StatelessWidget {
               Container(
                 width: 6,
                 height: 6,
-                decoration: const BoxDecoration(color: Color(0xFF8C6239), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF8C6239),
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -853,7 +885,11 @@ class _DesktopLogoHeader extends StatelessWidget {
           height: 1,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.transparent, Color(0x738C6239), Colors.transparent],
+              colors: [
+                Colors.transparent,
+                Color(0x738C6239),
+                Colors.transparent,
+              ],
             ),
           ),
         ),
@@ -877,7 +913,11 @@ class _DesktopGlassCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(color: Color(0x0A8C6239), blurRadius: 6),
-          BoxShadow(color: Color(0x1F644119), blurRadius: 60, offset: Offset(0, 20)),
+          BoxShadow(
+            color: Color(0x1F644119),
+            blurRadius: 60,
+            offset: Offset(0, 20),
+          ),
         ],
       ),
       child: Stack(
@@ -897,10 +937,26 @@ class _DesktopGlassCard extends StatelessWidget {
             ),
           ),
           const Positioned(top: 0, left: 0, right: 0, child: _CardTopShimmer()),
-          const Positioned(top: 14, left: 14, child: _CardCorner(top: true, left: true)),
-          const Positioned(top: 14, right: 14, child: _CardCorner(top: true, right: true)),
-          const Positioned(bottom: 14, left: 14, child: _CardCorner(bottom: true, left: true)),
-          const Positioned(bottom: 14, right: 14, child: _CardCorner(bottom: true, right: true)),
+          const Positioned(
+            top: 14,
+            left: 14,
+            child: _CardCorner(top: true, left: true),
+          ),
+          const Positioned(
+            top: 14,
+            right: 14,
+            child: _CardCorner(top: true, right: true),
+          ),
+          const Positioned(
+            bottom: 14,
+            left: 14,
+            child: _CardCorner(bottom: true, left: true),
+          ),
+          const Positioned(
+            bottom: 14,
+            right: 14,
+            child: _CardCorner(bottom: true, right: true),
+          ),
           child,
         ],
       ),
@@ -925,7 +981,12 @@ class _CardTopShimmer extends StatelessWidget {
 }
 
 class _CardCorner extends StatelessWidget {
-  const _CardCorner({this.top = false, this.right = false, this.bottom = false, this.left = false});
+  const _CardCorner({
+    this.top = false,
+    this.right = false,
+    this.bottom = false,
+    this.left = false,
+  });
 
   final bool top;
   final bool right;
@@ -967,7 +1028,9 @@ class _DesktopBottomBar extends StatelessWidget {
           width: 64,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0x598C6239), width: 1.2)),
+              border: Border(
+                top: BorderSide(color: Color(0x598C6239), width: 1.2),
+              ),
             ),
           ),
         ),
