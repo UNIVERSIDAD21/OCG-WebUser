@@ -271,7 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _LoginBrandHeader(),
+        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 14),
         const SizedBox(height: 24),
         const Text(
           'Bienvenido de nuevo',
@@ -582,53 +582,58 @@ class _TopWavePainter extends CustomPainter {
 }
 
 class _LoginBrandHeader extends StatelessWidget {
-  const _LoginBrandHeader();
+  const _LoginBrandHeader({this.shiftUp = 0});
+
+  final double shiftUp;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            _DecoLine(),
-            SizedBox(width: 10),
-            _DecoDot(),
-            SizedBox(width: 10),
-            _DecoLine(),
-          ],
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'OCG',
-          style: TextStyle(
-            fontFamily: 'Cormorant Garamond',
-            fontSize: 56,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D1B0E),
-            letterSpacing: 10,
-            height: 1,
+    return Transform.translate(
+      offset: Offset(0, -shiftUp),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _DecoLine(),
+              SizedBox(width: 10),
+              _DecoDot(),
+              SizedBox(width: 10),
+              _DecoLine(),
+            ],
           ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'CLÍNICA DENTAL',
-          style: TextStyle(
-            fontSize: 10,
-            color: Color(0xFF8C6239),
-            letterSpacing: 3.5,
-            fontWeight: FontWeight.w400,
+          const SizedBox(height: 10),
+          const Text(
+            'OCG',
+            style: TextStyle(
+              fontFamily: 'Cormorant Garamond',
+              fontSize: 56,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2D1B0E),
+              letterSpacing: 10,
+              height: 1,
+            ),
           ),
-        ),
-        const SizedBox(height: 18),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            _SepLine(leftToRight: true),
-            _SepLine(leftToRight: false),
-          ],
-        ),
-      ],
+          const SizedBox(height: 8),
+          const Text(
+            'CLÍNICA DENTAL',
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFF8C6239),
+              letterSpacing: 3.5,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _SepLine(leftToRight: true),
+              _SepLine(leftToRight: false),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
