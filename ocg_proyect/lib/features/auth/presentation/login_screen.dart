@@ -274,7 +274,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _LoginBrandHeader(shiftUp: includeFooter ? 0 : 24),
         const SizedBox(height: 24),
         const Text(
-          'Bienvenido de nuevo',
+          'Estamos contigo\nen cada sonrisa',
           style: TextStyle(
             fontFamily: 'Cormorant Garamond',
             fontSize: 30,
@@ -285,7 +285,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Accede a tu cuenta para gestionar tus citas y tratamientos.',
+          'Consulta tus citas, avances y detalles de tu tratamiento desde tu cuenta.',
           style: TextStyle(
             fontSize: 13.5,
             color: const Color(0xFF5C4A3A).withOpacity(0.75),
