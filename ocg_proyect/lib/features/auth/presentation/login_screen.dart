@@ -957,7 +957,10 @@ class _DesktopGlassCard extends StatelessWidget {
             right: 14,
             child: _CardCorner(bottom: true, right: true),
           ),
-          child,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            child: child,
+          ),
         ],
       ),
     );
