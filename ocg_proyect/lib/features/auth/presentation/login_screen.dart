@@ -221,20 +221,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Con top SafeArea activo, dejamos una base
-                                // corta y elevamos el contenido para que el
-                                // wordmark OCG cruce la unión deco/contenido.
                                 const SizedBox(height: 24),
-                                Transform.translate(
-                                  offset: const Offset(0, -34),
-                                  child: _buildLoginContent(
-                                    context,
-                                    isLoading,
-                                    includeFooterIndicator: false,
-                                    includeFooter: false,
-                                  ),
+                                _buildLoginContent(
+                                  context,
+                                  isLoading,
+                                  includeFooterIndicator: false,
+                                  includeFooter: false,
                                 ),
-                                // Compensación inferior por el translate.
                                 const SizedBox(height: 8),
                               ],
                             ),
@@ -271,7 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _LoginBrandHeader(shiftUp: includeFooter ? 0 : 24),
+        const _LoginBrandHeader(shiftUp: 0),
         const SizedBox(height: 24),
         const Text(
           'Estamos contigo\nen cada sonrisa',
