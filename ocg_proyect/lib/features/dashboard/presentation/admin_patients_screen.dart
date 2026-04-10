@@ -608,11 +608,34 @@ class AdminPatientsScreen extends ConsumerWidget {
               runSpacing: 8,
               children: _filters.map((filter) {
                 final selected = filter == selectedFilter;
-                return ChoiceChip(
-                  label: Text(filter),
-                  selected: selected,
-                  onSelected: (_) => ref.read(patientsFilterProvider.notifier).setFilter(filter),
-                  showCheckmark: selected,
+                return InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => ref.read(patientsFilterProvider.notifier).setFilter(filter),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: selected ? const Color(0xFF2C2016) : const Color(0xFFF8F5F0),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: selected ? const Color(0xFF2C2016) : const Color(0xFFE8DDD2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (selected) ...[
+                          const Icon(Icons.check_circle, size: 12, color: OcgColors.ivory),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          filter,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected ? OcgColors.ivory : const Color(0xFF7E6A5B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               }).toList(),
             ),
@@ -777,24 +800,31 @@ class _KpiRow extends StatelessWidget {
               footer: '+$nuevosMes este mes',
               footerColor: const Color(0xFF2E7D32),
               footerBg: const Color(0xFFE8F5E9),
+              bgColor: const Color(0xFFF6EFE7),
               onTap: onTapTotal,
             ),
             _KpiCard(
               icon: Icons.timelapse_outlined,
               value: '$pacientesActivos',
               label: 'Activos',
+              footer: 'en tratamiento',
+              bgColor: const Color(0xFFEFF8F0),
               onTap: onTapActivos,
             ),
             _KpiCard(
               icon: Icons.calendar_month_outlined,
               value: '$citasHoy',
               label: 'Citas hoy',
+              footer: 'programadas',
+              bgColor: const Color(0xFFFFF4D8),
               onTap: onTapCitasHoy,
             ),
             _KpiCard(
               icon: Icons.attach_money,
               value: '\$${formatCop(saldoPendienteTotal)}',
               label: 'Saldo pendiente',
+              footer: 'por cobrar',
+              bgColor: const Color(0xFFFFECEC),
               onTap: onTapSaldoPendiente,
             ),
           ],
@@ -812,6 +842,7 @@ class _KpiCard extends StatelessWidget {
     this.footer,
     this.footerColor,
     this.footerBg,
+    this.bgColor,
     this.onTap,
   });
 
@@ -821,6 +852,7 @@ class _KpiCard extends StatelessWidget {
   final String? footer;
   final Color? footerColor;
   final Color? footerBg;
+  final Color? bgColor;
   final VoidCallback? onTap;
 
   @override
@@ -834,9 +866,9 @@ class _KpiCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           child: Container(
             decoration: BoxDecoration(
-              color: OcgColors.ivory,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: OcgColors.sand, width: .7),
+              color: bgColor ?? OcgColors.ivory,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8DDD2), width: .9),
             ),
             padding: EdgeInsets.all(compact ? 10 : 12),
             child: Column(
