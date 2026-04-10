@@ -866,17 +866,47 @@ class _MiniStageCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: OcgColors.espresso)),
-          ],
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tooShort = constraints.maxHeight < 56;
+          if (tooShort) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '$value · $label',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: OcgColors.ink, height: 1)),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: OcgColors.espresso),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
