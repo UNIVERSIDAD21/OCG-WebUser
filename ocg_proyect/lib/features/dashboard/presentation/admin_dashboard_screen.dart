@@ -561,6 +561,7 @@ class _WebAdminDashboard extends StatelessWidget {
               final agendaItems = todaysAppointments.take(5).toList();
 
               final right = Container(
+                height: 318,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFDFC),
                   borderRadius: BorderRadius.circular(28),
@@ -602,29 +603,47 @@ class _WebAdminDashboard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (loadingAppointments)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (appointmentsError)
-                      const Text('No se pudo cargar la agenda del día.')
-                    else if (todaysAppointments.isEmpty)
-                      const Text('No hay citas programadas para hoy.')
-                    else ...[
-                      ...agendaItems.map((a) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _MobileAgendaCard(appointment: a, ref: ref),
-                          )),
-                      if (todaysAppointments.length > 5)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Mostrando las primeras 5 citas del día.',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF9A735C)),
-                          ),
-                        ),
-                    ],
+                    const SizedBox(height: 4),
+                    Expanded(
+                      child: Builder(
+                        builder: (_) {
+                          if (loadingAppointments) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          if (appointmentsError) {
+                            return const Align(
+                              alignment: Alignment.topLeft,
+                              child: Text('No se pudo cargar la agenda del día.'),
+                            );
+                          }
+                          if (todaysAppointments.isEmpty) {
+                            return const Align(
+                              alignment: Alignment.topLeft,
+                              child: Text('No hay citas programadas para hoy.'),
+                            );
+                          }
+
+                          return SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                ...agendaItems.map((a) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: _MobileAgendaCard(appointment: a, ref: ref),
+                                    )),
+                                if (todaysAppointments.length > 5)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Mostrando las primeras 5 citas del día.',
+                                      style: TextStyle(fontSize: 11, color: Color(0xFF9A735C)),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               );
