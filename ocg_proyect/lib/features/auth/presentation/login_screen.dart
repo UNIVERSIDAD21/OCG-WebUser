@@ -183,7 +183,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 110),
+                          const SizedBox(height: 82),
                           _buildLoginContent(
                             context,
                             isLoading,
@@ -219,7 +219,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _LoginBrandHeader(),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         const Text(
           'Bienvenido de nuevo',
           style: TextStyle(
@@ -239,7 +239,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             height: 1.55,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         if (_showAccountCreatedBanner) ...[
           _SuccessBanner(onClose: () => setState(() => _showAccountCreatedBanner = false)),
           const SizedBox(height: 14),
@@ -268,7 +268,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 validator: Validators.email,
                 onFieldSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               TextFormField(
                 focusNode: _passwordFocus,
                 obscureText: _obscure,
@@ -295,7 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 validator: (v) => (v == null || v.isEmpty) ? 'Ingresa tu contraseña' : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: 58,
@@ -325,7 +325,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
         Row(
           children: [
             TextButton(
@@ -356,7 +356,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
         if (includeFooter) ...[
-          SizedBox(height: includeFooterIndicator ? 40 : 18),
+          SizedBox(height: includeFooterIndicator ? 32 : 14),
           _LoginFooter(showIndicator: includeFooterIndicator),
         ],
       ],
