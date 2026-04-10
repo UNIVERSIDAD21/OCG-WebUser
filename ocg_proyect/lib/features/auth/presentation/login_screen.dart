@@ -167,7 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
+                        constraints: const BoxConstraints(maxWidth: 520),
                         child: Column(
                           children: [
                             const _DesktopLogoHeader(),
@@ -906,7 +906,7 @@ class _DesktopGlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(40, 32, 40, 28),
+      padding: const EdgeInsets.fromLTRB(52, 38, 52, 34),
       decoration: BoxDecoration(
         color: const Color(0xE0FAF6EF),
         border: Border.all(color: const Color(0x2E8C6239)),
