@@ -6,11 +6,25 @@ import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 import '../../../../auth/providers/auth_providers.dart';
 
-class AdminSidebar extends ConsumerWidget {
+class AdminSidebar extends ConsumerStatefulWidget {
   const AdminSidebar({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminSidebar> createState() => _AdminSidebarState();
+}
+
+class _AdminSidebarState extends ConsumerState<AdminSidebar> {
+  final _searchCtrl = TextEditingController();
+  String _menuQuery = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
 
     final items = <({String label, IconData icon, String route})>[
@@ -47,6 +61,12 @@ class AdminSidebar extends ConsumerWidget {
 
     ];
 
+    final filteredItems = items.where((item) {
+      final q = _menuQuery.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return item.label.toLowerCase().contains(q);
+    }).toList();
+
     return Container(
       color: OcgColors.espresso,
       child: SafeArea(
@@ -54,7 +74,7 @@ class AdminSidebar extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(18, 16, 18, 20),
+              padding: EdgeInsets.fromLTRB(18, 12, 18, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -73,14 +93,34 @@ class AdminSidebar extends ConsumerWidget {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() => _menuQuery = v),
+                style: const TextStyle(color: OcgColors.ivory, fontSize: 13),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Buscar sección...',
+                  hintStyle: const TextStyle(color: Color(0xCCFFFFFF)),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: OcgColors.ivory),
+                  filled: true,
+                  fillColor: OcgColors.ivory.withOpacity(0.12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
             const Divider(color: Color(0x33FFFFFF), height: 1),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 10,
+                  vertical: 8,
                 ),
-                children: items.map((item) {
+                children: filteredItems.map((item) {
                   final active = currentRoute == item.route ||
                       currentRoute.startsWith('${item.route}/');
 

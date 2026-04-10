@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../../presentation/web/common/web_layout_context.dart';
 import '../../../../../presentation/web/common/web_page_container.dart';
 import '../components/admin_sidebar.dart';
-import '../components/admin_topbar.dart';
 
 class AdminWebShell extends StatelessWidget {
   const AdminWebShell({
@@ -36,17 +35,7 @@ class AdminWebShell extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: WebPageContainer(
                     maxWidth: compactDesktop ? 1180 : 1400,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 14, 0, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AdminTopbar(title: title),
-                          const SizedBox(height: 12),
-                          child,
-                        ],
-                      ),
-                    ),
+                    child: child,
                   ),
                 ),
               ),
