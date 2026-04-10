@@ -56,18 +56,10 @@ class AdminTreatmentsScreen extends ConsumerWidget {
         final activePatients = patients.where((p) => p.etapaActual != TreatmentStage.alta).toList()
           ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
 
-        if (!isDesktop) {
-          return _MobileTreatmentsView(
-            ref: ref,
-            patients: patients,
-            activePatients: activePatients,
-            byStage: byStage,
-          );
-        }
-
-        return _WebTreatmentsView(
-          byStage: byStage,
+        return _UnifiedTreatmentsView(
+          patients: patients,
           activePatients: activePatients,
+          byStage: byStage,
         );
       },
     );
@@ -342,11 +334,14 @@ class AdminSimulatorScreen extends ConsumerWidget {
   }
 }
 
-class _WebTreatmentsView extends StatelessWidget {
-  const _WebTreatmentsView({
+class _UnifiedTreatmentsView extends StatelessWidget {
+  const _UnifiedTreatmentsView({
+    required this.patients,
     required this.byStage,
     required this.activePatients,
   });
+
+  final List<PatientModel> patients;
 
   final Map<TreatmentStage, int> byStage;
   final List<PatientModel> activePatients;
