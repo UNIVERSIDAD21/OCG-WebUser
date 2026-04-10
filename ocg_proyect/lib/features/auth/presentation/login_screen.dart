@@ -712,16 +712,16 @@ class _DesktopScanLineState extends State<_DesktopScanLine>
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (_, __) {
-          final h = MediaQuery.of(context).size.height;
-          final y = (h + 4) * _controller.value - 2;
-          return Positioned(
-            left: 0,
-            right: 0,
-            top: y,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        final h = MediaQuery.of(context).size.height;
+        final y = (h + 4) * _controller.value - 2;
+        return Positioned(
+          left: 0,
+          right: 0,
+          top: y,
+          child: IgnorePointer(
             child: Container(
               height: 1,
               decoration: const BoxDecoration(
@@ -734,9 +734,9 @@ class _DesktopScanLineState extends State<_DesktopScanLine>
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
