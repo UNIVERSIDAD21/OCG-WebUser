@@ -271,6 +271,26 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Cerrar sesión'),
+                        content: const Text('¿Deseas cerrar tu sesión?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Cerrar sesión'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm != true) return;
+
                     await ref.read(authServiceProvider).signOut();
                     if (context.mounted) {
                       context.go(RouteNames.login);
