@@ -192,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // contenido cuando aparece el teclado, lo que permite que el
       // LayoutBuilder recalcule la altura disponible correctamente.
       body: SafeArea(
-        top: false,
+        top: true,
         bottom: false,
         child: Stack(
           children: [
@@ -221,9 +221,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Espaciado superior para no quedar debajo
-                                // de la decoración _TopDeco (≈160 px alto).
-                                const SizedBox(height: 80),
+                                // Con top SafeArea activo, solo se deja un
+                                // clearance leve para que respire el bloque.
+                                const SizedBox(height: 24),
                                 _buildLoginContent(
                                   context,
                                   isLoading,
