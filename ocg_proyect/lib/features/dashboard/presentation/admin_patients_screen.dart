@@ -764,77 +764,78 @@ class _KpiCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Container(
-                width: compact ? 26 : 28,
-                height: compact ? 26 : 28,
-                decoration: BoxDecoration(
-                  color: OcgColors.bronze.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(6),
+                Container(
+                  width: compact ? 26 : 28,
+                  height: compact ? 26 : 28,
+                  decoration: BoxDecoration(
+                    color: OcgColors.bronze.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: compact ? 15 : 16,
+                    color: OcgColors.bronze,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: compact ? 15 : 16,
-                  color: OcgColors.bronze,
-                ),
-              ),
-              SizedBox(height: compact ? 6 : 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: compact ? 18 : 21,
-                          fontWeight: FontWeight.w600,
-                          color: OcgColors.espresso,
-                          height: 1.05,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 10 : 11,
-                        color: OcgColors.ink.withOpacity(.58),
-                        height: 1.15,
-                      ),
-                    ),
-                    if (footer != null && footer!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: footerBg,
-                          borderRadius: BorderRadius.circular(40),
-                        ),
+                SizedBox(height: compact ? 6 : 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
                         child: Text(
-                          footer!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          value,
                           style: TextStyle(
-                            fontSize: compact ? 9 : 10,
-                            color: footerColor,
-                            fontWeight: FontWeight.w500,
-                            height: 1.1,
+                            fontSize: compact ? 18 : 21,
+                            fontWeight: FontWeight.w600,
+                            color: OcgColors.espresso,
+                            height: 1.05,
                           ),
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 10 : 11,
+                          color: OcgColors.ink.withOpacity(.58),
+                          height: 1.15,
+                        ),
+                      ),
+                      if (footer != null && footer!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: footerBg,
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: Text(
+                            footer!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: compact ? 9 : 10,
+                              color: footerColor,
+                              fontWeight: FontWeight.w500,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

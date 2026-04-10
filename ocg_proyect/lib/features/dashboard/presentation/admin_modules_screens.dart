@@ -380,11 +380,11 @@ class _WebTreatmentsView extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _MobileQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
+              Expanded(child: _ModuleQuickCard(icon: Icons.people_outline, label: 'Pacientes', onTap: () => context.go(RouteNames.adminPatients))),
               const SizedBox(width: 10),
-              Expanded(child: _MobileQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
+              Expanded(child: _ModuleQuickCard(icon: Icons.calendar_month_outlined, label: 'Agenda', onTap: () => context.go(RouteNames.adminAppointments))),
               const SizedBox(width: 10),
-              Expanded(child: _MobileQuickCard(icon: Icons.payments_outlined, label: 'Pagos', onTap: () => context.go(RouteNames.adminPayments), emphasized: true)),
+              Expanded(child: _ModuleQuickCard(icon: Icons.payments_outlined, label: 'Pagos', onTap: () => context.go(RouteNames.adminPayments), emphasized: true)),
             ],
           ),
           const SizedBox(height: 18),
@@ -709,6 +709,58 @@ class _MobileSectionHeader extends StatelessWidget {
         const SizedBox(width: 8),
         Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: OcgColors.espresso)),
       ],
+    );
+  }
+}
+
+class _ModuleQuickCard extends StatelessWidget {
+  const _ModuleQuickCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.emphasized = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = emphasized ? OcgColors.espresso : Colors.white;
+    final fg = emphasized ? OcgColors.ivory : OcgColors.espresso;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: emphasized ? OcgColors.espresso : const Color(0xFFE7D6C6)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: emphasized ? OcgColors.ivory.withOpacity(0.14) : const Color(0xFFF2EDE8),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 17, color: fg),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.2, fontWeight: FontWeight.w700, color: fg),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
