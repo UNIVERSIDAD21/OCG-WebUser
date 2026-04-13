@@ -215,7 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //  • El footer está fuera del área scrolleable, siempre anclado abajo.
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildMobile(BuildContext context, bool isLoading) {
-    const seamY = 160.0;
+    const seamY = 148.0;
     const ocgFontSize = 56.0;
     const ocgLineHeight = 1.0;
     final ocgHeight = ocgFontSize * ocgLineHeight;
@@ -237,16 +237,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               top: ocgTop,
               left: 28,
               right: 28,
-              child: const IgnorePointer(
-                child: _LoginBrandSeamLocked(),
-              ),
+              child: const IgnorePointer(child: _LoginBrandSeamLocked()),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, contentTopPadding, 28, 8),
+                    padding: const EdgeInsets.fromLTRB(
+                      28,
+                      contentTopPadding,
+                      28,
+                      8,
+                    ),
                     child: _buildLoginContent(
                       context,
                       isLoading,
