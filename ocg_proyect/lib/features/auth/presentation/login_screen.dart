@@ -215,7 +215,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //  • El footer está fuera del área scrolleable, siempre anclado abajo.
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildMobile(BuildContext context, bool isLoading) {
-    const headerTop = 78.0;
+    const seamY = 160.0;
+    const ocgFontSize = 56.0;
+    const ocgLineHeight = 1.0;
+    final ocgHeight = ocgFontSize * ocgLineHeight;
+    final ocgTop = seamY - (ocgHeight / 2);
+
+    // Mantiene el inicio del formulario debajo del branding fijo.
     const contentTopPadding = 246.0;
 
     return Scaffold(
@@ -227,12 +233,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Stack(
           children: [
             const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-            const Positioned(
-              top: headerTop,
+            Positioned(
+              top: ocgTop,
               left: 28,
               right: 28,
-              child: IgnorePointer(
-                child: _LoginBrandHeader(shiftUp: 0),
+              child: const IgnorePointer(
+                child: _LoginBrandSeamLocked(),
               ),
             ),
             Column(
@@ -1123,50 +1129,59 @@ class _LoginBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Transform.translate(
       offset: Offset(0, -shiftUp),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              _DecoLine(),
-              SizedBox(width: 10),
-              _DecoDot(),
-              SizedBox(width: 10),
-              _DecoLine(),
-            ],
+      child: const _LoginBrandSeamLocked(),
+    );
+  }
+}
+
+class _LoginBrandSeamLocked extends StatelessWidget {
+  const _LoginBrandSeamLocked();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            _DecoLine(),
+            SizedBox(width: 10),
+            _DecoDot(),
+            SizedBox(width: 10),
+            _DecoLine(),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'OCG',
+          style: TextStyle(
+            fontFamily: 'Cormorant Garamond',
+            fontSize: 56,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D1B0E),
+            letterSpacing: 10,
+            height: 1,
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'OCG',
-            style: TextStyle(
-              fontFamily: 'Cormorant Garamond',
-              fontSize: 56,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF2D1B0E),
-              letterSpacing: 10,
-              height: 1,
-            ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'CLÍNICA DENTAL',
+          style: TextStyle(
+            fontSize: 10,
+            color: Color(0xFF8C6239),
+            letterSpacing: 3.5,
+            fontWeight: FontWeight.w400,
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'CLÍNICA DENTAL',
-            style: TextStyle(
-              fontSize: 10,
-              color: Color(0xFF8C6239),
-              letterSpacing: 3.5,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              _SepLine(leftToRight: true),
-              _SepLine(leftToRight: false),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            _SepLine(leftToRight: true),
+            _SepLine(leftToRight: false),
+          ],
+        ),
+      ],
     );
   }
 }
