@@ -215,70 +215,108 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //  • El footer está fuera del área scrolleable, siempre anclado abajo.
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildMobile(BuildContext context, bool isLoading) {
-    const seamY = 148.0;
-    const ocgFontSize = 56.0;
-    const ocgLineHeight = 1.0;
-    final ocgHeight = ocgFontSize * ocgLineHeight;
-    final ocgTop = seamY - (ocgHeight / 2);
+    // Posición vertical donde OCG queda centrado sobre la costura decorativa.
+    const double seamY = 148.0;
+    const double ocgFontSize = 56.0;
+    final double ocgTop = seamY - (ocgFontSize / 2); // 120 px desde el top
 
-    // Mantiene el inicio del formulario debajo del branding fijo.
-    const contentTopPadding = 246.0;
+    // La zona decorativa (_TopDeco + OCG superpuesto) ocupa 246 px en total.
+    const double decoAreaHeight = 246.0;
+
+    // Cuando el teclado está abierto se agrega su altura como padding inferior
+    // para que el formulario pueda scrollear completamente sobre el teclado.
+    final double keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+
+    // Altura mínima del scroll = pantalla − safe-area superior,
+    // para que cuando no haya overflow el footer quede pegado abajo.
+    final double screenH = MediaQuery.of(context).size.height;
+    final double topPad = MediaQuery.of(context).padding.top;
+    final double minH = screenH - topPad;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
+      // false → el teclado NO redimensiona el layout; nosotros compensamos
+      // con padding inferior en el scroll.
       resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        top: true,
-        bottom: false,
-        child: Stack(
-          children: [
-            const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-            Positioned(
-              top: ocgTop,
-              left: 28,
-              right: 28,
-              child: const IgnorePointer(child: _LoginBrandSeamLocked()),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
-                      return SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics(),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          top: true,
+          bottom: false,
+          child: SingleChildScrollView(
+            // Todo (decoración + formulario + footer) scrollea JUNTO.
+            // No hay nada "Positioned fijo" fuera del scroll.
+            physics: const ClampingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+            child: ConstrainedBox(
+              // minHeight garantiza que el Column llene la pantalla cuando
+              // el contenido es corto (footer queda abajo sin gap raro).
+              constraints: BoxConstraints(minHeight: minH),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Zona decorativa ─────────────────────────────────────
+                  // Stack LOCAL de altura fija: _TopDeco + OCG se superponen
+                  // exactamente igual que antes, pero DENTRO del scroll.
+                  // Al scrollear, todo sube junto sin romperse.
+                  SizedBox(
+                    height: decoAreaHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: _TopDeco(),
                         ),
-                        padding: EdgeInsets.fromLTRB(
-                          28,
-                          contentTopPadding,
-                          28,
-                          16 + keyboardInset,
+                        Positioned(
+                          top: ocgTop,
+                          left: 28,
+                          right: 28,
+                          child: const IgnorePointer(
+                            child: _LoginBrandSeamLocked(),
+                          ),
                         ),
-                        child: _buildLoginContent(
-                          context,
-                          isLoading,
-                          includeFooterIndicator: false,
-                          includeFooter: false,
-                          showBrandHeader: false,
-                          centerWelcomeTitle: true,
-                        ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-                ),
-                SafeArea(
-                  top: false,
-                  minimum: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: const _LoginFooter(showIndicator: true),
+
+                  // ── Formulario ──────────────────────────────────────────
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      28,
+                      0,
+                      28,
+                      // padding inferior = base + altura del teclado abierto.
+                      16 + keyboardInset,
+                    ),
+                    child: _buildLoginContent(
+                      context,
+                      isLoading,
+                      includeFooterIndicator: false,
+                      includeFooter: false,
+                      showBrandHeader: false,
+                      centerWelcomeTitle: true,
+                    ),
                   ),
-                ),
-              ],
+
+                  // ── Footer ──────────────────────────────────────────────
+                  // Siempre al final del scroll; queda visible debajo del
+                  // formulario cuando no hay overflow.
+                  SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: const _LoginFooter(showIndicator: true),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
