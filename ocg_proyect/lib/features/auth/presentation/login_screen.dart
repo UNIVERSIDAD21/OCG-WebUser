@@ -243,21 +243,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
-                      28,
-                      contentTopPadding,
-                      28,
-                      8,
-                    ),
-                    child: _buildLoginContent(
-                      context,
-                      isLoading,
-                      includeFooterIndicator: false,
-                      includeFooter: false,
-                      showBrandHeader: false,
-                      centerWelcomeTitle: true,
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        padding: EdgeInsets.fromLTRB(
+                          28,
+                          contentTopPadding,
+                          28,
+                          16 + keyboardInset,
+                        ),
+                        child: _buildLoginContent(
+                          context,
+                          isLoading,
+                          includeFooterIndicator: false,
+                          includeFooter: false,
+                          showBrandHeader: false,
+                          centerWelcomeTitle: true,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 SafeArea(
