@@ -215,6 +215,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //  • El footer está fuera del área scrolleable, siempre anclado abajo.
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildMobile(BuildContext context, bool isLoading) {
+    const headerTop = 78.0;
+    const contentTopPadding = 246.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
       resizeToAvoidBottomInset: false,
@@ -223,51 +226,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         bottom: false,
         child: Stack(
           children: [
-            // Decoración superior — permanece fija en el Stack.
             const Positioned(top: 0, left: 0, right: 0, child: _TopDeco()),
-
-            // Columna raíz: área scrolleable + footer fijo.
+            const Positioned(
+              top: headerTop,
+              left: 28,
+              right: 28,
+              child: IgnorePointer(
+                child: _LoginBrandHeader(shiftUp: 0),
+              ),
+            ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── Área scrolleable ──────────────────────────────────────
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        // ConstrainedBox garantiza que aunque el contenido
-                        // sea pequeño, el Column interno siempre intente
-                        // ocupar la altura completa disponible.
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 28),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const SizedBox(height: 24),
-                                _buildLoginContent(
-                                  context,
-                                  isLoading,
-                                  includeFooterIndicator: false,
-                                  includeFooter: false,
-                                  showBrandHeader: true,
-                                  centerWelcomeTitle: true,
-                                ),
-                                const SizedBox(height: 8),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(28, contentTopPadding, 28, 8),
+                    child: _buildLoginContent(
+                      context,
+                      isLoading,
+                      includeFooterIndicator: false,
+                      includeFooter: false,
+                      showBrandHeader: false,
+                      centerWelcomeTitle: true,
+                    ),
                   ),
                 ),
-
-                // ── Footer fijo al fondo ───────────────────────────────────
                 SafeArea(
                   top: false,
                   minimum: const EdgeInsets.only(bottom: 8),
