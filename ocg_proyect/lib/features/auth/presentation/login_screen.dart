@@ -217,9 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildMobile(BuildContext context, bool isLoading) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F3EC),
-      // resizeToAvoidBottomInset por defecto es true; el Scaffold sube el
-      // contenido cuando aparece el teclado, lo que permite que el
-      // LayoutBuilder recalcule la altura disponible correctamente.
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         top: true,
         bottom: false,
