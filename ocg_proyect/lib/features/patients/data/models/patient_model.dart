@@ -19,6 +19,10 @@ enum TreatmentStage {
   alta,
 }
 
+enum TreatmentStatus { activo, enEspera, finalizado }
+
+enum NextSessionStatus { programada, vencida, sinAgendar }
+
 const Map<TreatmentStage, String> stageNames = {
   TreatmentStage.valoracionInicial: 'Valoración inicial',
   TreatmentStage.estudioPlaneacion: 'Estudio y planeación',
@@ -100,11 +104,89 @@ class PatientModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  static DateTime _normalizeDate(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  bool get isFinished => etapaActual == TreatmentStage.alta;
+
+  bool get isInitialAssessmentStage =>
+      etapaActual == TreatmentStage.valoracionInicial ||
+      etapaActual == TreatmentStage.estudioPlaneacion;
+
+  bool get hasScheduledNextAppointment {
+    final next = proximaCita;
+    if (next == null) return false;
+    return !next.isBefore(DateTime.now());
+  }
+
+  bool get hasOverdueNextAppointment {
+    final next = proximaCita;
+    if (next == null) {
+      return false;
+    }
+    return next.isBefore(DateTime.now());
+  }
+
+  TreatmentStatus get treatmentStatus {
+    if (isFinished) return TreatmentStatus.finalizado;
+
+    if (hasScheduledNextAppointment) return TreatmentStatus.activo;
+
+    if (!isInitialAssessmentStage) return TreatmentStatus.activo;
+
+    return TreatmentStatus.enEspera;
+  }
+
+  NextSessionStatus get nextSessionStatus {
+    final next = proximaCita;
+    if (next == null) {
+      return NextSessionStatus.sinAgendar;
+    }
+
+    final now = DateTime.now();
+    final today = _normalizeDate(now);
+    final nextDay = _normalizeDate(next);
+
+    if (nextDay.isBefore(today)) {
+      return NextSessionStatus.vencida;
+    }
+    if (next.isBefore(now) && nextDay == today) {
+      return NextSessionStatus.vencida;
+    }
+
+    return NextSessionStatus.programada;
+  }
+
+  String get treatmentStatusLabel => switch (treatmentStatus) {
+    TreatmentStatus.activo => 'Activo',
+    TreatmentStatus.enEspera => 'En espera',
+    TreatmentStatus.finalizado => 'Finalizado',
+  };
+
+  String get nextSessionLabel {
+    final next = proximaCita;
+    if (next == null) return 'Sin sesión agendada';
+
+    final formatted =
+        '${next.day.toString().padLeft(2, '0')}/${next.month.toString().padLeft(2, '0')}/${next.year}';
+
+    return switch (nextSessionStatus) {
+      NextSessionStatus.programada => 'Próxima sesión: $formatted',
+      NextSessionStatus.vencida => 'Sesión vencida: $formatted',
+      NextSessionStatus.sinAgendar => 'Sin sesión agendada',
+    };
+  }
+
+  double get totalPagado =>
+      (totalTratamiento - saldoPendiente).clamp(0, double.infinity).toDouble();
+
   static DateTime _parseDate(dynamic value, {DateTime? fallback}) {
     if (value == null) return fallback ?? DateTime.now();
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value) ?? (fallback ?? DateTime.now());
+    if (value is String) {
+      return DateTime.tryParse(value) ?? (fallback ?? DateTime.now());
+    }
     return fallback ?? DateTime.now();
   }
 
@@ -186,14 +268,22 @@ class PatientModel {
       'tipoTratamiento': tipoTratamiento?.name,
       'etapaActual': etapaActual.name,
       'fechaInicio': Timestamp.fromDate(fechaInicio),
-      'fechaEstimadaFin': fechaEstimadaFin == null ? null : Timestamp.fromDate(fechaEstimadaFin!),
+      'fechaEstimadaFin': fechaEstimadaFin == null
+          ? null
+          : Timestamp.fromDate(fechaEstimadaFin!),
       'notasClinicas': notasClinicas,
       'totalTratamiento': totalTratamiento,
       'saldoPendiente': saldoPendiente,
-      'fechaProximoPago': fechaProximoPago == null ? null : Timestamp.fromDate(fechaProximoPago!),
-      'proximaCita': proximaCita == null ? null : Timestamp.fromDate(proximaCita!),
+      'fechaProximoPago': fechaProximoPago == null
+          ? null
+          : Timestamp.fromDate(fechaProximoPago!),
+      'proximaCita': proximaCita == null
+          ? null
+          : Timestamp.fromDate(proximaCita!),
       'fcmToken': fcmToken,
-      'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
+      'createdAt': createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(createdAt!),
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
