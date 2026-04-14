@@ -922,7 +922,7 @@ class _WebAdminDashboard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    flex: 7,
+                    flex: 8,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [left, const SizedBox(height: 10), kpiGrid],
@@ -930,7 +930,7 @@ class _WebAdminDashboard extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    flex: 5,
+                    flex: 4,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [right, const SizedBox(height: 10), quick],
