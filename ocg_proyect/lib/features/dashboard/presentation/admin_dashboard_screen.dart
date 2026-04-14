@@ -750,6 +750,7 @@ class _WebAdminDashboard extends StatelessWidget {
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 1100;
               final left = Container(
+                width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [
