@@ -13,6 +13,9 @@ import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../payments/data/models/admin_payment_overview.dart';
+import '../../payments/data/models/payment_model.dart';
+import '../../payments/providers/payments_provider.dart';
 
 Future<void> _signOutAdminModules(BuildContext context, WidgetRef ref) async {
   await ref.read(authServiceProvider).signOut();
@@ -96,46 +99,32 @@ class AdminPaymentsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final patientsAsync = ref.watch(patientsStreamProvider);
+    final overviewAsync = ref.watch(adminPaymentsOverviewProvider);
     final isDesktop = WebLayoutContext.useDesktopShell(context);
 
-    Widget body = patientsAsync.when(
+    Widget body = overviewAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('No se pudieron cargar pagos: $e')),
-      data: (patients) {
+      data: (overview) {
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
 
-        final withDebt = patients.where((p) => p.saldoPendiente > 0).toList();
-        final overdue = withDebt
-            .where(
-              (p) =>
-                  p.fechaProximoPago != null &&
-                  p.fechaProximoPago!.isBefore(today),
-            )
-            .toList();
-
-        withDebt.sort((a, b) => b.saldoPendiente.compareTo(a.saldoPendiente));
-
-        final totalDebt = withDebt.fold<double>(
-          0,
-          (acc, p) => acc + p.saldoPendiente,
-        );
-
         if (!isDesktop) {
+          final withDebt = overview.entries
+              .where((entry) => entry.saldoPendiente > 0)
+              .map((entry) => entry.patient)
+              .toList();
+          final overdue = overview.overdueEntries
+              .map((entry) => entry.patient)
+              .toList();
           return _MobilePaymentsAdminView(
             withDebt: withDebt,
             overdue: overdue,
-            totalDebt: totalDebt,
+            totalDebt: overview.totalDebt,
           );
         }
 
-        return _WebPaymentsView(
-          withDebt: withDebt,
-          overdue: overdue,
-          totalDebt: totalDebt,
-          today: today,
-        );
+        return _WebPaymentsView(overview: overview, today: today);
       },
     );
 
@@ -162,16 +151,9 @@ class AdminPaymentsScreen extends ConsumerWidget {
 }
 
 class _WebPaymentsView extends StatefulWidget {
-  const _WebPaymentsView({
-    required this.withDebt,
-    required this.overdue,
-    required this.totalDebt,
-    required this.today,
-  });
+  const _WebPaymentsView({required this.overview, required this.today});
 
-  final List<PatientModel> withDebt;
-  final List<PatientModel> overdue;
-  final double totalDebt;
+  final AdminPaymentsOverview overview;
   final DateTime today;
 
   @override
@@ -179,29 +161,19 @@ class _WebPaymentsView extends StatefulWidget {
 }
 
 class _WebPaymentsViewState extends State<_WebPaymentsView> {
-  bool showOnlyOverdue = false;
+  AdminPaymentsFilter selectedFilter = AdminPaymentsFilter.todos;
 
   @override
   Widget build(BuildContext context) {
-    final list = showOnlyOverdue ? widget.overdue : widget.withDebt;
+    final list = widget.overview.entriesForFilter(selectedFilter);
 
-    final recoveredTotal = widget.withDebt.fold<double>(
+    final recoveredTotal = widget.overview.entries.fold<double>(
       0,
-      (sum, p) => sum + (p.totalTratamiento - p.saldoPendiente),
+      (sum, entry) => sum + entry.totalPaid,
     );
-    final paidThisMonth = widget.withDebt.where((p) {
-      final d = p.fechaProximoPago;
-      return d != null &&
-          d.month == widget.today.month &&
-          d.year == widget.today.year;
-    }).length;
+    final paidThisMonth = widget.overview.transactionsThisMonth;
 
-    final recentIncome = [...widget.withDebt]
-      ..sort(
-        (a, b) => (b.totalTratamiento - b.saldoPendiente).compareTo(
-          a.totalTratamiento - a.saldoPendiente,
-        ),
-      );
+    final recentIncome = widget.overview.recentIncomeEntries;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
@@ -264,7 +236,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
             childAspectRatio: 2.45,
             children: [
               _TreatmentKpiPremium(
-                value: '\$${formatCop(widget.totalDebt)}',
+                value: '\$${formatCop(widget.overview.totalDebt)}',
                 title: 'Saldo pendiente',
                 subtitle: 'por cobrar',
                 bg: const Color(0xFFFBEAED),
@@ -288,7 +260,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                 icon: Icons.receipt_long_outlined,
               ),
               _TreatmentKpiPremium(
-                value: '${widget.overdue.length}',
+                value: '${widget.overview.overdueEntries.length}',
                 title: 'Pagos vencidos',
                 subtitle: 'requieren seguimiento',
                 bg: const Color(0xFFFFF4D8),
@@ -313,23 +285,15 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   children: [
                     const _MobileSectionHeader(title: 'Ingresos recientes'),
                     const SizedBox(height: 10),
-                    ...recentIncome.take(3).map((p) {
-                      final amount = (p.totalTratamiento - p.saldoPendiente)
-                          .clamp(0, 999999999)
-                          .toDouble();
+                    ...recentIncome.take(3).map((entry) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _PaymentsCompactRow(
-                          patient: p,
-                          amountLabel: '+\$${formatCop(amount)}',
-                          trailingTag: p.tipoTratamiento == null
-                              ? 'Sin tipo'
-                              : _tipoLabel(p.tipoTratamiento!),
-                          positive: true,
+                          entry: entry,
                           onTap: () => context.go(
                             RouteNames.adminPatientDetail.replaceFirst(
                               ':patientId',
-                              p.id,
+                              entry.patient.id,
                             ),
                           ),
                         ),
@@ -351,20 +315,18 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   children: [
                     const _MobileSectionHeader(title: 'Alertas de cobro'),
                     const SizedBox(height: 10),
-                    ...widget.overdue
+                    ...widget.overview.overdueEntries
                         .take(3)
                         .map(
-                          (p) => Padding(
+                          (entry) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: _PaymentsCompactRow(
-                              patient: p,
-                              amountLabel: '\$${formatCop(p.saldoPendiente)}',
-                              trailingTag: 'Vencido',
-                              positive: false,
+                              entry: entry,
+                              emphasizeDebt: true,
                               onTap: () => context.go(
                                 RouteNames.adminPatientDetail.replaceFirst(
                                   ':patientId',
-                                  p.id,
+                                  entry.patient.id,
                                 ),
                               ),
                             ),
@@ -391,7 +353,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                           ),
                           const Spacer(),
                           Text(
-                            '\$${formatCop(widget.totalDebt)}',
+                            '\$${formatCop(widget.overview.totalDebt)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Color(0xFFB06A5A),
@@ -478,22 +440,30 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
             children: [
               _TreatmentChip(
                 label: 'Todos',
-                selected: !showOnlyOverdue,
-                onTap: () => setState(() => showOnlyOverdue = false),
+                selected: selectedFilter == AdminPaymentsFilter.todos,
+                onTap: () =>
+                    setState(() => selectedFilter = AdminPaymentsFilter.todos),
               ),
               _TreatmentChip(
                 label: 'Vencido',
-                selected: showOnlyOverdue,
-                onTap: () => setState(() => showOnlyOverdue = true),
+                selected: selectedFilter == AdminPaymentsFilter.vencido,
+                onTap: () => setState(
+                  () => selectedFilter = AdminPaymentsFilter.vencido,
+                ),
               ),
-              _TreatmentChip(label: 'Pagado', selected: false, onTap: () {}),
-              _TreatmentChip(label: 'Pendiente', selected: false, onTap: () {}),
               _TreatmentChip(
-                label: 'Transferencia',
-                selected: false,
-                onTap: () {},
+                label: 'Pagado',
+                selected: selectedFilter == AdminPaymentsFilter.pagado,
+                onTap: () =>
+                    setState(() => selectedFilter = AdminPaymentsFilter.pagado),
               ),
-              _TreatmentChip(label: 'Tarjeta', selected: false, onTap: () {}),
+              _TreatmentChip(
+                label: 'Pendiente',
+                selected: selectedFilter == AdminPaymentsFilter.pendiente,
+                onTap: () => setState(
+                  () => selectedFilter = AdminPaymentsFilter.pendiente,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -612,11 +582,11 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                       ),
                       for (var i = 0; i < list.length && i < 8; i++) ...[
                         _PaymentsHistoryRow(
-                          patient: list[i],
+                          entry: list[i],
                           onOpen: () => context.go(
                             RouteNames.adminPatientDetail.replaceFirst(
                               ':patientId',
-                              list[i].id,
+                              list[i].patient.id,
                             ),
                           ),
                         ),
@@ -2135,21 +2105,18 @@ String _tipoLabel(TreatmentType type) => switch (type) {
 
 class _PaymentsCompactRow extends StatelessWidget {
   const _PaymentsCompactRow({
-    required this.patient,
-    required this.amountLabel,
-    required this.trailingTag,
-    required this.positive,
+    required this.entry,
     required this.onTap,
+    this.emphasizeDebt = false,
   });
 
-  final PatientModel patient;
-  final String amountLabel;
-  final String trailingTag;
-  final bool positive;
+  final AdminPaymentEntry entry;
   final VoidCallback onTap;
+  final bool emphasizeDebt;
 
   @override
   Widget build(BuildContext context) {
+    final patient = entry.patient;
     final initials = patient.nombre.trim().isEmpty
         ? '?'
         : patient.nombre
@@ -2159,6 +2126,16 @@ class _PaymentsCompactRow extends StatelessWidget {
               .take(2)
               .map((e) => e[0].toUpperCase())
               .join();
+    final latestDate = entry.latestPaymentDate;
+    final primaryColor = emphasizeDebt
+        ? const Color(0xFFB06A5A)
+        : const Color(0xFF2E7D4C);
+    final chipBg = emphasizeDebt
+        ? const Color(0xFFFFF4D8)
+        : const Color(0xFFEFF8F0);
+    final chipTextColor = emphasizeDebt
+        ? const Color(0xFF9A735C)
+        : const Color(0xFF2E7D4C);
 
     return InkWell(
       onTap: onTap,
@@ -2199,12 +2176,23 @@ class _PaymentsCompactRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Cuota mensual — ${patient.tipoTratamiento == null ? 'Sin tipo' : _tipoLabel(patient.tipoTratamiento!)}',
+                    latestDate == null
+                        ? 'Último pago: sin registros'
+                        : 'Último pago: ${_fmtShortDate(latestDate)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF9A735C),
+                    ),
+                  ),
+                  Text(
+                    'Total pagado: \$${formatCop(entry.totalPaid)}${entry.saldoPendiente > 0 ? ' · Saldo: \$${formatCop(entry.saldoPendiente)}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF7E6A5B),
                     ),
                   ),
                 ],
@@ -2215,12 +2203,12 @@ class _PaymentsCompactRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  amountLabel,
+                  emphasizeDebt
+                      ? '\$${formatCop(entry.saldoPendiente)}'
+                      : '+\$${formatCop(entry.latestPaymentAmount)}',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: positive
-                        ? const Color(0xFF2E7D4C)
-                        : const Color(0xFFB06A5A),
+                    color: primaryColor,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -2230,19 +2218,19 @@ class _PaymentsCompactRow extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: positive
-                        ? const Color(0xFFEFF8F0)
-                        : const Color(0xFFFFF4D8),
+                    color: chipBg,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    trailingTag,
+                    emphasizeDebt
+                        ? entry.financialStatusLabel
+                        : (latestDate == null
+                              ? 'Sin pagos'
+                              : entry.latestPaymentMethodLabel),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: positive
-                          ? const Color(0xFF2E7D4C)
-                          : const Color(0xFF9A735C),
+                      color: chipTextColor,
                     ),
                   ),
                 ),
@@ -2256,18 +2244,25 @@ class _PaymentsCompactRow extends StatelessWidget {
 }
 
 class _PaymentsHistoryRow extends StatelessWidget {
-  const _PaymentsHistoryRow({required this.patient, required this.onOpen});
+  const _PaymentsHistoryRow({required this.entry, required this.onOpen});
 
-  final PatientModel patient;
+  final AdminPaymentEntry entry;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final recovered = (patient.totalTratamiento - patient.saldoPendiente)
-        .clamp(0, 999999999)
-        .toDouble();
-    final date = patient.fechaProximoPago ?? patient.fechaInicio;
-    final statusPaid = patient.saldoPendiente <= 0;
+    final patient = entry.patient;
+    final date = entry.latestPaymentDate;
+    final statusColor = switch (entry.financialStatus) {
+      PaymentStatus.pagadoTotal => const Color(0xFF2E7D4C),
+      PaymentStatus.vencido => const Color(0xFF9A735C),
+      PaymentStatus.pendiente || PaymentStatus.alDia => OcgColors.espresso,
+    };
+    final statusBg = switch (entry.financialStatus) {
+      PaymentStatus.pagadoTotal => const Color(0xFFEFF8F0),
+      PaymentStatus.vencido => const Color(0xFFFFF4D8),
+      PaymentStatus.pendiente || PaymentStatus.alDia => const Color(0xFFF6EFE7),
+    };
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -2296,7 +2291,7 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Cuota mensual — ${patient.tipoTratamiento == null ? 'Sin tipo' : _tipoLabel(patient.tipoTratamiento!)}',
+                    'Último pago: \$${formatCop(entry.latestPaymentAmount)} · Total pagado: \$${formatCop(entry.totalPaid)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -2310,14 +2305,16 @@ class _PaymentsHistoryRow extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Text(
-                _fmtShortDate(date),
+                date == null ? 'Sin pagos' : _fmtShortDate(date),
                 style: const TextStyle(fontSize: 12, color: OcgColors.ink),
               ),
             ),
             Expanded(
               flex: 2,
               child: Text(
-                '\$${formatCop(recovered)}',
+                date == null
+                    ? '—'
+                    : '\$${formatCop(entry.latestPaymentAmount)}',
                 textAlign: TextAlign.right,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
@@ -2334,20 +2331,16 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: statusPaid
-                        ? const Color(0xFFEFF8F0)
-                        : const Color(0xFFFFF4D8),
+                    color: statusBg,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    statusPaid ? 'Pagado' : 'Pendiente',
+                    entry.financialStatusLabel,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: statusPaid
-                          ? const Color(0xFF2E7D4C)
-                          : const Color(0xFF9A735C),
+                      color: statusColor,
                     ),
                   ),
                 ),
@@ -2365,9 +2358,9 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     color: const Color(0xFFEFF2FA),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text(
-                    'Transferencia',
-                    style: TextStyle(
+                  child: Text(
+                    entry.latestPaymentMethodLabel,
+                    style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF45669A),
