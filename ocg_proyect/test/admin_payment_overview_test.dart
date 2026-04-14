@@ -98,7 +98,24 @@ void main() {
       expect(paid.matchesFilter(AdminPaymentsFilter.pagado), isTrue);
       expect(overdue.matchesFilter(AdminPaymentsFilter.vencido), isTrue);
       expect(pending.matchesFilter(AdminPaymentsFilter.pendiente), isTrue);
+      final alDia = AdminPaymentEntry(
+        patient: _patient('p4', 'Al dia'),
+        payment: _payment(
+          id: 'p4',
+          montoPagado: 1500000,
+          saldoPendiente: 7500000,
+          fechaProximoPago: DateTime.now().add(const Duration(days: 15)),
+        ),
+        latestTransaction: _transaction(
+          id: 't4',
+          monto: 300000,
+          fecha: DateTime(2026, 4, 13),
+          metodo: PaymentMethod.efectivo,
+        ),
+      );
+
       expect(overdue.financialStatusLabel, 'Vencido');
+      expect(alDia.financialStatusLabel, 'Al día');
       expect(paid.latestPaymentMethodLabel, 'Transferencia');
       expect(pending.latestPaymentMethodLabel, 'Sin pagos');
     });
@@ -137,10 +154,19 @@ void main() {
         patient: _patient('p3', 'Carla'),
         payment: _payment(id: 'p3', montoPagado: 0, saldoPendiente: 9000000),
       );
+      final zeroLatestPayment = AdminPaymentEntry(
+        patient: _patient('p4', 'Diana'),
+        payment: _payment(id: 'p4', montoPagado: 0, saldoPendiente: 9000000),
+        latestTransaction: _transaction(
+          id: 't4',
+          monto: 0,
+          fecha: DateTime(2026, 4, 14),
+        ),
+      );
 
       final overview = AdminPaymentsOverview(
-        entries: [older, newer, noPayments],
-        totalDebt: 24000000,
+        entries: [older, newer, noPayments, zeroLatestPayment],
+        totalDebt: 33000000,
         transactionsThisMonth: 2,
       );
 
@@ -149,7 +175,7 @@ void main() {
         'p1',
       ]);
       expect(overview.entriesForFilter(AdminPaymentsFilter.pagado), isEmpty);
-      expect(overview.entriesForFilter(AdminPaymentsFilter.todos).length, 3);
+      expect(overview.entriesForFilter(AdminPaymentsFilter.todos).length, 4);
     });
   });
 }

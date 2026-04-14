@@ -32,37 +32,27 @@ final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
   ref,
 ) {
   final controller = StreamController<AdminPaymentsOverview>();
+  final repository = ref.watch(paymentsRepositoryProvider);
 
   List<PatientModel>? patients;
-  List<PaymentModel>? payments;
-  List<_PatientTransaction>? transactions;
+  final paymentByPatient = <String, PaymentModel>{};
+  final transactionsByPatient = <String, List<PaymentTransaction>>{};
+  final detailSubs = <StreamSubscription<dynamic>>[];
+  var detailGeneration = 0;
 
   void emitIfReady() {
-    if (patients == null || payments == null || transactions == null) {
-      return;
-    }
-
-    final patientById = {for (final patient in patients!) patient.id: patient};
-    final paymentById = {
-      for (final payment in payments!) payment.patientId: payment,
-    };
-
-    final latestTransactionByPatient = <String, PaymentTransaction>{};
-    for (final item in transactions!) {
-      latestTransactionByPatient.putIfAbsent(
-        item.patientId,
-        () => item.transaction,
-      );
-    }
+    if (patients == null) return;
 
     final entries =
-        patientById.values.map((patient) {
+        patients!.map((patient) {
           final payment =
-              paymentById[patient.id] ?? _paymentFromPatient(patient);
+              paymentByPatient[patient.id] ?? _paymentFromPatient(patient);
+          final transactions =
+              transactionsByPatient[patient.id] ?? const <PaymentTransaction>[];
           return AdminPaymentEntry(
             patient: patient,
             payment: payment,
-            latestTransaction: latestTransactionByPatient[patient.id],
+            latestTransaction: transactions.isEmpty ? null : transactions.first,
           );
         }).toList()..sort(
           (a, b) => a.patient.nombre.toLowerCase().compareTo(
@@ -71,11 +61,12 @@ final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
         );
 
     final now = DateTime.now();
-    final transactionsThisMonth = transactions!
+    final transactionsThisMonth = transactionsByPatient.values
+        .expand((items) => items)
         .where(
-          (item) =>
-              item.transaction.fecha.year == now.year &&
-              item.transaction.fecha.month == now.month,
+          (transaction) =>
+              transaction.fecha.year == now.year &&
+              transaction.fecha.month == now.month,
         )
         .length;
 
@@ -93,69 +84,82 @@ final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
     );
   }
 
+  Future<void> resetDetailSubscriptions(List<PatientModel> nextPatients) async {
+    detailGeneration++;
+    final generation = detailGeneration;
+
+    for (final sub in detailSubs) {
+      await sub.cancel();
+    }
+    detailSubs.clear();
+    paymentByPatient.clear();
+    transactionsByPatient.clear();
+
+    for (final patient in nextPatients) {
+      final patientId = patient.id;
+
+      final paymentSub = repository
+          .watchPatientPayments(patientId)
+          .listen(
+            (payment) {
+              if (generation != detailGeneration) return;
+              if (payment == null) {
+                paymentByPatient.remove(patientId);
+              } else {
+                paymentByPatient[patientId] = payment;
+              }
+              emitIfReady();
+            },
+            onError: (error) {
+              if (generation != detailGeneration) return;
+              if (_isPermissionDenied(error)) {
+                paymentByPatient.remove(patientId);
+                emitIfReady();
+                return;
+              }
+              controller.addError(error);
+            },
+          );
+      detailSubs.add(paymentSub);
+
+      final txSub = repository
+          .watchTransactions(patientId)
+          .listen(
+            (transactions) {
+              if (generation != detailGeneration) return;
+              transactionsByPatient[patientId] = transactions;
+              emitIfReady();
+            },
+            onError: (error) {
+              if (generation != detailGeneration) return;
+              if (_isPermissionDenied(error)) {
+                transactionsByPatient[patientId] = const <PaymentTransaction>[];
+                emitIfReady();
+                return;
+              }
+              controller.addError(error);
+            },
+          );
+      detailSubs.add(txSub);
+    }
+
+    emitIfReady();
+  }
+
   final patientsSub = ref
       .watch(patientsRepositoryProvider)
       .watchAllPatients()
       .listen((value) {
         patients = value;
-        emitIfReady();
+        resetDetailSubscriptions(value);
       }, onError: controller.addError);
 
-  final paymentsSub = FirebaseFirestore.instance
-      .collection(FirestorePaths.payments)
-      .snapshots()
-      .listen(
-        (snap) {
-          payments = snap.docs
-              .map((doc) => PaymentModel.fromJson(doc.data()))
-              .toList();
-          emitIfReady();
-        },
-        onError: (error, _) {
-          if (_isPermissionDenied(error)) {
-            payments = const <PaymentModel>[];
-            emitIfReady();
-            return;
-          }
-          controller.addError(error);
-        },
-      );
-
-  final transactionsSub = FirebaseFirestore.instance
-      .collectionGroup('transactions')
-      .orderBy('fecha', descending: true)
-      .snapshots()
-      .listen(
-        (snap) {
-          transactions = snap.docs
-              .map((doc) {
-                final patientId = doc.reference.parent.parent?.id;
-                if (patientId == null || patientId.isEmpty) {
-                  return null;
-                }
-                return _PatientTransaction(
-                  patientId: patientId,
-                  transaction: PaymentTransaction.fromJson(doc.data()),
-                );
-              })
-              .whereType<_PatientTransaction>()
-              .toList();
-          emitIfReady();
-        },
-        onError: (error, _) {
-          if (_isPermissionDenied(error)) {
-            transactions = const <_PatientTransaction>[];
-            emitIfReady();
-            return;
-          }
-          controller.addError(error);
-        },
-      );
-
   ref.onDispose(() async {
+    detailGeneration++;
     await patientsSub.cancel();
-    await paymentsSub.cancel();
-    await transactionsSub.cancel();
+    for (final sub in detailSubs) {
+      await sub.cancel();
+    }
     await controller.close();
   });
 
@@ -179,16 +183,6 @@ PaymentModel _paymentFromPatient(PatientModel patient) {
     createdAt: patient.createdAt ?? now,
     updatedAt: patient.updatedAt ?? now,
   );
-}
-
-class _PatientTransaction {
-  const _PatientTransaction({
-    required this.patientId,
-    required this.transaction,
-  });
-
-  final String patientId;
-  final PaymentTransaction transaction;
 }
 
 bool _isPermissionDenied(Object error) {

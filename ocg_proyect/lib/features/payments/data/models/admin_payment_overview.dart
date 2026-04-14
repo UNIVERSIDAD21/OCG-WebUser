@@ -47,8 +47,9 @@ class AdminPaymentEntry {
       case PaymentStatus.pagadoTotal:
         return 'Pagado';
       case PaymentStatus.pendiente:
-      case PaymentStatus.alDia:
         return 'Pendiente';
+      case PaymentStatus.alDia:
+        return 'Al día';
     }
   }
 
@@ -87,7 +88,14 @@ class AdminPaymentsOverview {
 
   List<AdminPaymentEntry> get recentIncomeEntries {
     final items =
-        entries.where((entry) => entry.latestPaymentDate != null).toList()
+        entries
+            .where(
+              (entry) =>
+                  entry.latestPaymentDate != null &&
+                  entry.latestPaymentAmount > 0 &&
+                  entry.totalPaid > 0,
+            )
+            .toList()
           ..sort(
             (a, b) => b.latestPaymentDate!.compareTo(a.latestPaymentDate!),
           );
