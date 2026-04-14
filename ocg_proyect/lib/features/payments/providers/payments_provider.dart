@@ -104,33 +104,53 @@ final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
   final paymentsSub = FirebaseFirestore.instance
       .collection(FirestorePaths.payments)
       .snapshots()
-      .listen((snap) {
-        payments = snap.docs
-            .map((doc) => PaymentModel.fromJson(doc.data()))
-            .toList();
-        emitIfReady();
-      }, onError: controller.addError);
+      .listen(
+        (snap) {
+          payments = snap.docs
+              .map((doc) => PaymentModel.fromJson(doc.data()))
+              .toList();
+          emitIfReady();
+        },
+        onError: (error, _) {
+          if (_isPermissionDenied(error)) {
+            payments = const <PaymentModel>[];
+            emitIfReady();
+            return;
+          }
+          controller.addError(error);
+        },
+      );
 
   final transactionsSub = FirebaseFirestore.instance
       .collectionGroup('transactions')
       .orderBy('fecha', descending: true)
       .snapshots()
-      .listen((snap) {
-        transactions = snap.docs
-            .map((doc) {
-              final patientId = doc.reference.parent.parent?.id;
-              if (patientId == null || patientId.isEmpty) {
-                return null;
-              }
-              return _PatientTransaction(
-                patientId: patientId,
-                transaction: PaymentTransaction.fromJson(doc.data()),
-              );
-            })
-            .whereType<_PatientTransaction>()
-            .toList();
-        emitIfReady();
-      }, onError: controller.addError);
+      .listen(
+        (snap) {
+          transactions = snap.docs
+              .map((doc) {
+                final patientId = doc.reference.parent.parent?.id;
+                if (patientId == null || patientId.isEmpty) {
+                  return null;
+                }
+                return _PatientTransaction(
+                  patientId: patientId,
+                  transaction: PaymentTransaction.fromJson(doc.data()),
+                );
+              })
+              .whereType<_PatientTransaction>()
+              .toList();
+          emitIfReady();
+        },
+        onError: (error, _) {
+          if (_isPermissionDenied(error)) {
+            transactions = const <_PatientTransaction>[];
+            emitIfReady();
+            return;
+          }
+          controller.addError(error);
+        },
+      );
 
   ref.onDispose(() async {
     await patientsSub.cancel();
@@ -169,6 +189,12 @@ class _PatientTransaction {
 
   final String patientId;
   final PaymentTransaction transaction;
+}
+
+bool _isPermissionDenied(Object error) {
+  return error is FirebaseException &&
+      error.plugin == 'cloud_firestore' &&
+      error.code == 'permission-denied';
 }
 
 class RegisterPaymentNotifier extends AsyncNotifier<void> {
