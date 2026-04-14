@@ -68,19 +68,59 @@ class AdminPaymentEntry {
   }
 }
 
+class AdminPaymentHistoryItem {
+  const AdminPaymentHistoryItem({
+    required this.patient,
+    required this.payment,
+    required this.transaction,
+  });
+
+  final PatientModel patient;
+  final PaymentModel payment;
+  final PaymentTransaction transaction;
+
+  bool matchesFilter(AdminPaymentsFilter filter) {
+    final entry = AdminPaymentEntry(
+      patient: patient,
+      payment: payment,
+      latestTransaction: transaction,
+    );
+    return entry.matchesFilter(filter);
+  }
+
+  String get statusLabel => 'Pagado';
+
+  String get paymentMethodLabel {
+    switch (transaction.metodo) {
+      case PaymentMethod.efectivo:
+        return 'Efectivo';
+      case PaymentMethod.transferencia:
+        return 'Transferencia';
+      case PaymentMethod.payu:
+        return 'PayU';
+    }
+  }
+}
+
 class AdminPaymentsOverview {
   const AdminPaymentsOverview({
     required this.entries,
     required this.totalDebt,
     required this.transactionsThisMonth,
+    required this.history,
   });
 
   final List<AdminPaymentEntry> entries;
   final double totalDebt;
   final int transactionsThisMonth;
+  final List<AdminPaymentHistoryItem> history;
 
   List<AdminPaymentEntry> entriesForFilter(AdminPaymentsFilter filter) {
     return entries.where((entry) => entry.matchesFilter(filter)).toList();
+  }
+
+  List<AdminPaymentHistoryItem> historyForFilter(AdminPaymentsFilter filter) {
+    return history.where((entry) => entry.matchesFilter(filter)).toList();
   }
 
   List<AdminPaymentEntry> get overdueEntries =>

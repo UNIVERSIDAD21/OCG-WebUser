@@ -164,16 +164,55 @@ void main() {
         ),
       );
 
+      final history = [
+        AdminPaymentHistoryItem(
+          patient: _patient('p2', 'Beto'),
+          payment: _payment(
+            id: 'p2',
+            montoPagado: 2000000,
+            saldoPendiente: 7000000,
+          ),
+          transaction: _transaction(
+            id: 't2',
+            monto: 750000,
+            fecha: DateTime(2026, 4, 12),
+            metodo: PaymentMethod.payu,
+          ),
+        ),
+        AdminPaymentHistoryItem(
+          patient: _patient('p1', 'Ana'),
+          payment: _payment(
+            id: 'p1',
+            montoPagado: 1000000,
+            saldoPendiente: 8000000,
+          ),
+          transaction: _transaction(
+            id: 't1',
+            monto: 500000,
+            fecha: DateTime(2026, 4, 1),
+          ),
+        ),
+      ];
+
       final overview = AdminPaymentsOverview(
         entries: [older, newer, noPayments, zeroLatestPayment],
         totalDebt: 33000000,
         transactionsThisMonth: 2,
+        history: history,
       );
 
       expect(overview.recentIncomeEntries.map((e) => e.patient.id), [
         'p2',
         'p1',
       ]);
+      expect(overview.historyForFilter(AdminPaymentsFilter.todos).length, 2);
+      expect(
+        overview
+            .historyForFilter(AdminPaymentsFilter.todos)
+            .map((e) => e.patient.id),
+        ['p2', 'p1'],
+      );
+      expect(overview.historyForFilter(AdminPaymentsFilter.pagado), isEmpty);
       expect(overview.entriesForFilter(AdminPaymentsFilter.pagado), isEmpty);
       expect(overview.entriesForFilter(AdminPaymentsFilter.todos).length, 4);
     });

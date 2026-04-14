@@ -165,7 +165,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
 
   @override
   Widget build(BuildContext context) {
-    final list = widget.overview.entriesForFilter(selectedFilter);
+    final history = widget.overview.historyForFilter(selectedFilter);
 
     final recoveredTotal = widget.overview.entries.fold<double>(
       0,
@@ -486,7 +486,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   border: Border.all(color: const Color(0xFFE2D0BC)),
                 ),
                 child: Text(
-                  '${list.length} transacciones',
+                  '${history.length} transacciones',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -504,7 +504,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
               border: Border.all(color: const Color(0xFFE8DDD2)),
             ),
             padding: const EdgeInsets.all(14),
-            child: list.isEmpty
+            child: history.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(18),
                     child: Text('No hay pagos para los filtros actuales.'),
@@ -580,17 +580,17 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                           ],
                         ),
                       ),
-                      for (var i = 0; i < list.length && i < 8; i++) ...[
+                      for (var i = 0; i < history.length && i < 8; i++) ...[
                         _PaymentsHistoryRow(
-                          entry: list[i],
+                          item: history[i],
                           onOpen: () => context.go(
                             RouteNames.adminPatientDetail.replaceFirst(
                               ':patientId',
-                              list[i].patient.id,
+                              history[i].patient.id,
                             ),
                           ),
                         ),
-                        if (i < list.length - 1 && i < 7)
+                        if (i < history.length - 1 && i < 7)
                           const SizedBox(height: 8),
                       ],
                     ],
@@ -2244,25 +2244,15 @@ class _PaymentsCompactRow extends StatelessWidget {
 }
 
 class _PaymentsHistoryRow extends StatelessWidget {
-  const _PaymentsHistoryRow({required this.entry, required this.onOpen});
+  const _PaymentsHistoryRow({required this.item, required this.onOpen});
 
-  final AdminPaymentEntry entry;
+  final AdminPaymentHistoryItem item;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final patient = entry.patient;
-    final date = entry.latestPaymentDate;
-    final statusColor = switch (entry.financialStatus) {
-      PaymentStatus.pagadoTotal => const Color(0xFF2E7D4C),
-      PaymentStatus.vencido => const Color(0xFF9A735C),
-      PaymentStatus.pendiente || PaymentStatus.alDia => OcgColors.espresso,
-    };
-    final statusBg = switch (entry.financialStatus) {
-      PaymentStatus.pagadoTotal => const Color(0xFFEFF8F0),
-      PaymentStatus.vencido => const Color(0xFFFFF4D8),
-      PaymentStatus.pendiente || PaymentStatus.alDia => const Color(0xFFF6EFE7),
-    };
+    final patient = item.patient;
+    final transaction = item.transaction;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -2291,7 +2281,7 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Último pago: \$${formatCop(entry.latestPaymentAmount)} · Total pagado: \$${formatCop(entry.totalPaid)}',
+                    'Pago registrado · Total pagado: \$${formatCop(item.payment.montoPagado)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -2305,16 +2295,14 @@ class _PaymentsHistoryRow extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Text(
-                date == null ? 'Sin pagos' : _fmtShortDate(date),
+                _fmtShortDate(transaction.fecha),
                 style: const TextStyle(fontSize: 12, color: OcgColors.ink),
               ),
             ),
             Expanded(
               flex: 2,
               child: Text(
-                date == null
-                    ? '—'
-                    : '\$${formatCop(entry.latestPaymentAmount)}',
+                '\$${formatCop(transaction.monto)}',
                 textAlign: TextAlign.right,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
@@ -2331,16 +2319,16 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: statusBg,
+                    color: const Color(0xFFEAF5EE),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    entry.financialStatusLabel,
+                    item.statusLabel,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: statusColor,
+                      color: Color(0xFF2E7D4C),
                     ),
                   ),
                 ),
@@ -2359,7 +2347,7 @@ class _PaymentsHistoryRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    entry.latestPaymentMethodLabel,
+                    item.paymentMethodLabel,
                     style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,

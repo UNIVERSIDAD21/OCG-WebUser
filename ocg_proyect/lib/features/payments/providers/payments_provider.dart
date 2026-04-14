@@ -75,11 +75,38 @@ final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
       (total, entry) => total + entry.saldoPendiente,
     );
 
+    final history =
+        patients!
+            .where((patient) {
+              final payment =
+                  paymentByPatient[patient.id] ?? _paymentFromPatient(patient);
+              return payment.montoPagado > 0;
+            })
+            .expand((patient) {
+              final payment =
+                  paymentByPatient[patient.id] ?? _paymentFromPatient(patient);
+              final transactions =
+                  transactionsByPatient[patient.id] ??
+                  const <PaymentTransaction>[];
+              return transactions
+                  .where((transaction) => transaction.monto > 0)
+                  .map(
+                    (transaction) => AdminPaymentHistoryItem(
+                      patient: patient,
+                      payment: payment,
+                      transaction: transaction,
+                    ),
+                  );
+            })
+            .toList()
+          ..sort((a, b) => b.transaction.fecha.compareTo(a.transaction.fecha));
+
     controller.add(
       AdminPaymentsOverview(
         entries: entries,
         totalDebt: totalDebt,
         transactionsThisMonth: transactionsThisMonth,
+        history: history,
       ),
     );
   }
