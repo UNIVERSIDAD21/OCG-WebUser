@@ -163,6 +163,10 @@ class _WebPaymentsView extends StatefulWidget {
 class _WebPaymentsViewState extends State<_WebPaymentsView> {
   AdminPaymentsFilter selectedFilter = AdminPaymentsFilter.todos;
 
+  void _goToRegisterPayment(BuildContext context) {
+    context.go(RouteNames.adminPatients);
+  }
+
   @override
   Widget build(BuildContext context) {
     final history = widget.overview.historyForFilter(selectedFilter);
@@ -203,19 +207,8 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   ],
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF7E6A5B),
-                  side: const BorderSide(color: Color(0xFFE8DDD2)),
-                  shape: const StadiumBorder(),
-                ),
-                icon: const Icon(Icons.download_outlined, size: 14),
-                label: const Text('Exportar'),
-              ),
-              const SizedBox(width: 10),
               FilledButton.icon(
-                onPressed: () => context.go(RouteNames.adminPatients),
+                onPressed: () => _goToRegisterPayment(context),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF2C2016),
                   foregroundColor: OcgColors.ivory,
