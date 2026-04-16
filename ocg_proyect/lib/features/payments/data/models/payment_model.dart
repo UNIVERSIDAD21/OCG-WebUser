@@ -136,6 +136,7 @@ class PaymentTransaction {
     this.reciboUrl,
     this.payuOrderId,
     this.payuTransactionId,
+    this.treatmentId,
   });
 
   final String id;
@@ -148,6 +149,7 @@ class PaymentTransaction {
   final String? reciboUrl;
   final String? payuOrderId;
   final String? payuTransactionId;
+  final String? treatmentId;
 
   factory PaymentTransaction.fromJson(Map<String, dynamic> json) {
     return PaymentTransaction(
@@ -164,6 +166,7 @@ class PaymentTransaction {
       reciboUrl: json['reciboUrl']?.toString(),
       payuOrderId: json['payuOrderId']?.toString(),
       payuTransactionId: json['payuTransactionId']?.toString(),
+      treatmentId: json['treatmentId']?.toString(),
     );
   }
 
@@ -178,5 +181,6 @@ class PaymentTransaction {
     'reciboUrl': reciboUrl,
     'payuOrderId': payuOrderId,
     'payuTransactionId': payuTransactionId,
+    'treatmentId': treatmentId,
   };
 }

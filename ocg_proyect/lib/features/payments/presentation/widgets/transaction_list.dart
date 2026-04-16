@@ -12,13 +12,16 @@ import '../../data/models/payment_model.dart';
 import '../../providers/payments_provider.dart';
 
 class TransactionList extends ConsumerWidget {
-  const TransactionList({super.key, required this.patientId});
+  const TransactionList({super.key, required this.patientId, this.treatmentId});
 
   final String patientId;
+  final String? treatmentId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncTx = ref.watch(patientTransactionsProvider(patientId));
+    final asyncTx = ref.watch(
+      patientTransactionsProvider((patientId: patientId, treatmentId: treatmentId)),
+    );
     final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
     final dateFmt = DateFormat("d 'de' MMM yyyy, hh:mm a", 'es_CO');
 

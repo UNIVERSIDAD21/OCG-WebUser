@@ -12,10 +12,12 @@ class RegisterPaymentDialog extends ConsumerStatefulWidget {
     super.key,
     required this.patientId,
     required this.saldoPendiente,
+    this.treatmentId,
   });
 
   final String patientId;
   final double saldoPendiente;
+  final String? treatmentId;
 
   @override
   ConsumerState<RegisterPaymentDialog> createState() => _RegisterPaymentDialogState();
@@ -219,6 +221,7 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
             monto: monto,
             metodo: _metodo,
             adminId: adminId,
+            treatmentId: widget.treatmentId,
             referencia: _referenciaController.text.trim().isEmpty
                 ? null
                 : _referenciaController.text.trim(),

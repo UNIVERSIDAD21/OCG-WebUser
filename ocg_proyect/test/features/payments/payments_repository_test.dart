@@ -134,6 +134,37 @@ void main() {
       expect(txSnap.docs.length, 1);
       expect(txSnap.docs.first.data()['registradoPor'], 'admin-1');
     });
+
+    test('si recibe treatmentId actualiza saldo del tratamiento y marca la transacción', () async {
+      await seedPatientAndPayment(patientId: 'p2', total: 1800, paid: 300, saldo: 1500);
+      await db.collection(FirestorePaths.patientTreatments('p2')).doc('tx-1').set({
+        'id': 'tx-1',
+        'nombre': 'Convencional',
+        'categoria': 'ortodoncia',
+        'tipoBase': 'convencional',
+        'estado': 'activo',
+        'etapaActual': 'valoracionInicial',
+        'fechaInicio': Timestamp.fromDate(DateTime(2026, 4, 1)),
+        'createdAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
+        'updatedAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
+        'isPrimary': true,
+        'totalTratamiento': 1800,
+        'saldoPendiente': 1500,
+      });
+
+      await repo.registerManualPayment(
+        patientId: 'p2',
+        treatmentId: 'tx-1',
+        monto: 200,
+        metodo: PaymentMethod.efectivo,
+        adminId: 'admin-1',
+      );
+
+      final treatmentDoc = await db.collection(FirestorePaths.patientTreatments('p2')).doc('tx-1').get();
+      final txSnap = await db.collection(FirestorePaths.transactions('p2')).get();
+      expect(treatmentDoc.data()!['saldoPendiente'], 1300);
+      expect(txSnap.docs.first.data()['treatmentId'], 'tx-1');
+    });
   });
 
   group('registerGatewayPayment', () {

@@ -24,8 +24,11 @@ final patientPaymentProvider = StreamProvider.family<PaymentModel?, String>((
 });
 
 final patientTransactionsProvider =
-    StreamProvider.family<List<PaymentTransaction>, String>((ref, patientId) {
-      return ref.watch(paymentsRepositoryProvider).watchTransactions(patientId);
+    StreamProvider.family<List<PaymentTransaction>, ({String patientId, String? treatmentId})>((ref, args) {
+      return ref.watch(paymentsRepositoryProvider).watchTransactions(
+            args.patientId,
+            treatmentId: args.treatmentId,
+          );
     });
 
 final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
@@ -227,6 +230,7 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
     required double monto,
     required PaymentMethod metodo,
     required String adminId,
+    String? treatmentId,
     String? referencia,
     String? notas,
   }) async {
@@ -238,12 +242,13 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
       monto: monto,
       metodo: metodo,
       adminId: adminId,
+      treatmentId: treatmentId,
       referencia: referencia,
       notas: notas,
     );
 
     try {
-      final tx = await repository.getLatestTransaction(patientId);
+      final tx = await repository.getLatestTransaction(patientId, treatmentId: treatmentId);
       final summary = await repository.getPatientPayment(patientId);
       final patientDoc = await FirebaseFirestore.instance
           .collection(FirestorePaths.patients)

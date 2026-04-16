@@ -58,7 +58,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     }
 
     final paymentAsync = ref.watch(patientPaymentProvider(effectivePatientId));
-    final txAsync = ref.watch(patientTransactionsProvider(effectivePatientId));
+    final txAsync = ref.watch(
+      patientTransactionsProvider((patientId: effectivePatientId, treatmentId: null)),
+    );
     final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
 
     final content = SingleChildScrollView(

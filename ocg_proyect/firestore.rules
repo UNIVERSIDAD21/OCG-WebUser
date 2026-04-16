@@ -54,6 +54,12 @@ service cloud.firestore {
           allow create: if isAdmin();
           allow update, delete: if false;
         }
+
+        match /financialItems/{itemId} {
+          allow read: if isAdmin() || isOwnPatient(patientId);
+          allow create, update: if isAdmin();
+          allow delete: if isAdmin();
+        }
       }
 
       // Subcolección simulations/ (Bloque 08)
