@@ -154,6 +154,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── scheduledNotifications/ ─────────────────────────────────────────────
+
+    match /scheduledNotifications/{notificationId} {
+      allow read: if isAdmin() ||
+                    (request.auth != null && resource.data.patientId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     // ─── availability/ ────────────────────────────────────────────────────────
     // Paciente y admin pueden leer disponibilidad agregada por día.
     // Escrituras solo por Admin SDK (Cloud Functions).

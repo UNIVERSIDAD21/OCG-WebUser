@@ -17,6 +17,7 @@ class AppointmentModel {
     required this.patientId,
     required this.patientName,
     required this.patientPhone,
+    this.treatmentId,
     required this.tipo,
     required this.estado,
     required this.fechaHora,
@@ -35,6 +36,7 @@ class AppointmentModel {
 
   /// telefono del paciente — para contacto rápido del admin
   final String patientPhone;
+  final String? treatmentId;
 
   final AppointmentType tipo;
   final AppointmentStatus estado;
@@ -86,6 +88,7 @@ class AppointmentModel {
       patientName: (json['patientName'] ?? '').toString(),
       // patientPhone — tolera documentos viejos sin el campo
       patientPhone: (json['patientPhone'] ?? '').toString(),
+      treatmentId: json['treatmentId']?.toString(),
       tipo: AppointmentType.values.firstWhere(
         (e) => e.name == tipoRaw,
         orElse: () => AppointmentType.control,
@@ -114,6 +117,7 @@ class AppointmentModel {
       'patientId': patientId,
       'patientName': patientName,
       'patientPhone': patientPhone,
+      'treatmentId': treatmentId,
       'tipo': tipo.name,
       'estado': estado.name,
       'fechaHora': Timestamp.fromDate(fechaHora),
@@ -134,6 +138,7 @@ class AppointmentModel {
     String? patientId,
     String? patientName,
     String? patientPhone,
+    String? treatmentId,
     AppointmentType? tipo,
     AppointmentStatus? estado,
     DateTime? fechaHora,
@@ -150,6 +155,7 @@ class AppointmentModel {
       patientId: patientId ?? this.patientId,
       patientName: patientName ?? this.patientName,
       patientPhone: patientPhone ?? this.patientPhone,
+      treatmentId: treatmentId ?? this.treatmentId,
       tipo: tipo ?? this.tipo,
       estado: estado ?? this.estado,
       fechaHora: fechaHora ?? this.fechaHora,

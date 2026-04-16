@@ -7,6 +7,7 @@ class FirestorePaths {
   static const String payments = 'payments';
   static const String simulations = 'simulations';
   static const String notifications = 'notifications';
+  static const String scheduledNotifications = 'scheduledNotifications';
   static const String availability = 'availability';
   static const String treatmentCatalog = 'treatmentCatalog';
 

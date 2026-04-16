@@ -1,6 +1,7 @@
 import {onDocumentWritten} from 'firebase-functions/v2/firestore';
 
 import {parseDayFromTimestamp, rebuildAvailabilityForDay} from './availability';
+import {syncAppointmentReminders} from './reminder_scheduler';
 
 export const onAppointmentWrite = onDocumentWritten('appointments/{appointmentId}', async (event) => {
   const beforeData = event.data?.before.data() as any;
@@ -17,4 +18,14 @@ export const onAppointmentWrite = onDocumentWritten('appointments/{appointmentId
   }
 
   await Promise.all(rebuilds);
+
+  if (afterData) {
+    await syncAppointmentReminders(afterData as any);
+  } else if (beforeData?.id && beforeData?.patientId) {
+    await syncAppointmentReminders({
+      id: beforeData.id,
+      patientId: beforeData.patientId,
+      estado: 'cancelada',
+    } as any);
+  }
 });
