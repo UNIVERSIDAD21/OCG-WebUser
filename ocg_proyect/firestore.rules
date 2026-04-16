@@ -62,6 +62,13 @@ service cloud.firestore {
         }
       }
 
+      // Subcolección clinicalFiles/
+      match /clinicalFiles/{fileId} {
+        allow read: if isAdmin() || (isOwnPatient(patientId) && resource.data.visibleToPatient == true);
+        allow create, update: if isAdmin();
+        allow delete: if false;
+      }
+
       // Subcolección simulations/ (Bloque 08)
       match /simulations/{simulationId} {
         // Admin ve todo. Paciente solo lo compartido explícitamente.

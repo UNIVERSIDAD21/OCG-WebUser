@@ -22,6 +22,7 @@ import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../providers/patients_provider.dart';
 import 'tabs/patient_appointments_tab.dart';
+import 'tabs/patient_clinical_history_tab.dart';
 import 'tabs/patient_payments_tab.dart';
 import 'tabs/patient_profile_tab.dart';
 import 'tabs/patient_simulator_tab.dart';
@@ -154,9 +155,10 @@ class _PatientDetailView extends ConsumerWidget {
     final initialMobileSection = switch (sectionParam) {
       'perfil' => 0,
       'tratamiento' => 1,
-      'citas' => 2,
-      'pagos' => 3,
-      'simulador' => 4,
+      'historial' => 2,
+      'citas' => 3,
+      'pagos' => 4,
+      'simulador' => 5,
       _ => 0,
     };
 
@@ -171,7 +173,7 @@ class _PatientDetailView extends ConsumerWidget {
 
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = DefaultTabController(
-        length: 5,
+        length: 6,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -258,6 +260,7 @@ class _PatientDetailView extends ConsumerWidget {
                 tabs: [
                   Tab(text: 'Perfil'),
                   Tab(text: 'Tratamiento'),
+                  Tab(text: 'Historial clínico'),
                   Tab(text: 'Citas'),
                   Tab(text: 'Pagos'),
                   Tab(text: 'Simulador'),
@@ -286,6 +289,7 @@ class _PatientDetailView extends ConsumerWidget {
                       patientId: patient.id,
                       patient: patient,
                     ),
+                    PatientClinicalHistoryTab(patientId: patient.id, patient: patient),
                     PatientAppointmentsTab(patient: patient),
                     PatientPaymentsTab(patientId: patient.id),
                     PatientSimulatorTab(patient: patient),
@@ -334,7 +338,7 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection.clamp(0, 4);
+    _section = widget.initialSection.clamp(0, 5);
   }
 
   @override
@@ -346,6 +350,7 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
         viewerMode: PatientViewerMode.adminViewer,
       ),
       _AdminTreatmentHost(patient: widget.patient),
+      PatientClinicalHistoryTab(patientId: widget.patient.id, patient: widget.patient),
       PatientAppointmentsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
@@ -388,9 +393,10 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
               children: [
                 _sectionChip('Perfil', 0),
                 _sectionChip('Tratamiento', 1),
-                _sectionChip('Citas', 2),
-                _sectionChip('Pagos', 3),
-                _sectionChip('Simulador', 4),
+                _sectionChip('Historial', 2),
+                _sectionChip('Citas', 3),
+                _sectionChip('Pagos', 4),
+                _sectionChip('Simulador', 5),
               ],
             ),
           ),

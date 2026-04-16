@@ -3,6 +3,18 @@ class StoragePaths {
 
   static String patientProfile(String id) => 'patients/$id/profile/profile.jpg';
   static String patientPhoto(String id, String name) => 'patients/$id/photos/$name';
+  static String patientClinicalFile(
+    String patientId,
+    String fileId,
+    String originalName, {
+    String? treatmentId,
+  }) {
+    final cleanName = originalName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    if (treatmentId != null && treatmentId.isNotEmpty) {
+      return 'patients/$patientId/treatments/$treatmentId/clinical-files/${fileId}_$cleanName';
+    }
+    return 'patients/$patientId/clinical-files/${fileId}_$cleanName';
+  }
   static String simulationOriginal(String patientId, String simulationId) =>
       'simulations/$patientId/$simulationId/original.jpg';
   static String simulationResult(String patientId, String simulationId) =>

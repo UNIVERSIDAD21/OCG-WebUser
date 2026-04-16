@@ -46,6 +46,16 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    match /patients/{patientId}/clinical-files/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /patients/{patientId}/treatments/{treatmentId}/clinical-files/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     // Simulador Bloque 08
     match /simulations/{patientId}/{simulationId}/{fileName} {
       // Admin ve todo; paciente solo si está compartida y en estado shared
