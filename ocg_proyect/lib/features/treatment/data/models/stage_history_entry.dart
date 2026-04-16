@@ -80,6 +80,36 @@ class StageHistoryEntry {
     );
   }
 
+  StageHistoryEntry copyWith({
+    String? id,
+    TreatmentStage? etapaAnterior,
+    TreatmentStage? etapaNueva,
+    bool? esRetroceso,
+    String? notas,
+    String? motivoCambio,
+    String? diagnosticoBreve,
+    String? planSiguienteEtapa,
+    String? adjuntosDescripcion,
+    DateTime? fechaEfectiva,
+    String? adminId,
+    DateTime? fechaCambio,
+  }) {
+    return StageHistoryEntry(
+      id: id ?? this.id,
+      etapaAnterior: etapaAnterior ?? this.etapaAnterior,
+      etapaNueva: etapaNueva ?? this.etapaNueva,
+      esRetroceso: esRetroceso ?? this.esRetroceso,
+      notas: notas ?? this.notas,
+      motivoCambio: motivoCambio ?? this.motivoCambio,
+      diagnosticoBreve: diagnosticoBreve ?? this.diagnosticoBreve,
+      planSiguienteEtapa: planSiguienteEtapa ?? this.planSiguienteEtapa,
+      adjuntosDescripcion: adjuntosDescripcion ?? this.adjuntosDescripcion,
+      fechaEfectiva: fechaEfectiva ?? this.fechaEfectiva,
+      adminId: adminId ?? this.adminId,
+      fechaCambio: fechaCambio ?? this.fechaCambio,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'etapaAnterior': etapaAnterior.name,
@@ -92,6 +122,6 @@ class StageHistoryEntry {
         'adjuntosDescripcion': adjuntosDescripcion,
         'fechaEfectiva': fechaEfectiva == null ? null : Timestamp.fromDate(fechaEfectiva!),
         'adminId': adminId,
-        'fechaCambio': Timestamp.now(),
+        'fechaCambio': Timestamp.fromDate(fechaCambio),
       };
 }

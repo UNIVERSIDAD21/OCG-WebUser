@@ -12,11 +12,13 @@ class UpdateStageDialog extends ConsumerStatefulWidget {
     required this.patientId,
     required this.etapaActual,
     required this.adminId,
+    this.treatmentId,
   });
 
   final String patientId;
   final TreatmentStage etapaActual;
   final String adminId;
+  final String? treatmentId;
 
   @override
   ConsumerState<UpdateStageDialog> createState() => _UpdateStageDialogState();
@@ -54,15 +56,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
     super.dispose();
   }
 
-  bool get _hasNotesError {
-    final value = _notasController.text.trim();
-    return value.isNotEmpty && value.length < 10;
-  }
-
-  bool get _isRetroceso {
-    if (_nuevaEtapa == null) return false;
-    return TreatmentStage.values.indexOf(_nuevaEtapa!) < TreatmentStage.values.indexOf(widget.etapaActual);
-  }
+  bool get _hasNotesError => _notasController.text.trim().length < 10;
 
   bool get _canSave => _nuevaEtapa != null && !_hasNotesError;
 
@@ -72,7 +66,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
     final isLoading = state.isLoading;
 
     return AlertDialog(
-      title: const Text('Cambiar etapa del tratamiento'),
+      title: const Text('Avanzar etapa del tratamiento'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -81,12 +75,25 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Etapa actual: ${stageNames[widget.etapaActual] ?? widget.etapaActual.name}'),
+              const SizedBox(height: 8),
+              Text(
+                _nuevaEtapa == null
+                    ? 'Selecciona la siguiente etapa'
+                    : '${stageNames[widget.etapaActual] ?? widget.etapaActual.name} → ${stageNames[_nuevaEtapa!] ?? _nuevaEtapa!.name}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: OcgColors.espresso,
+                    ),
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<TreatmentStage>(
                 value: _nuevaEtapa,
                 decoration: const InputDecoration(labelText: 'Nueva etapa'),
                 items: TreatmentStage.values
-                    .where((e) => e != widget.etapaActual)
+                    .where(
+                      (e) => TreatmentStage.values.indexOf(e) >
+                          TreatmentStage.values.indexOf(widget.etapaActual),
+                    )
                     .map(
                       (e) => DropdownMenuItem<TreatmentStage>(
                         value: e,
@@ -100,31 +107,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                         setState(() => _nuevaEtapa = value);
                       },
               ),
-              if (_isRetroceso) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: OcgColors.warning.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: OcgColors.warning.withOpacity(0.4)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.undo, color: OcgColors.warning, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Estás registrando un retroceso de etapa. Quedará registrado en el historial clínico.',
-                          style: TextStyle(color: OcgColors.warning, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 14),
-              const Text('Campos opcionales', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _notasController,
@@ -132,8 +115,8 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                 maxLines: 4,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  labelText: 'Nota clínica',
-                  errorText: _hasNotesError ? 'Si escribes nota, debe tener mínimo 10 caracteres.' : null,
+                  labelText: 'Notas clínicas',
+                  errorText: _hasNotesError ? 'Debes escribir al menos 10 caracteres.' : null,
                   helperText: '${_notasController.text.trim().length} / mín. 10 caracteres',
                 ),
               ),
@@ -193,7 +176,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                   border: Border.all(color: OcgColors.error.withOpacity(0.25)),
                 ),
                 child: const Text(
-                  'El historial de cambios quedará registrado y no puede eliminarse.',
+                  'Esta acción no se puede deshacer. El historial quedará registrado.',
                   style: TextStyle(color: OcgColors.error, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -208,7 +191,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
           onPressed: isLoading ? null : () => Navigator.of(context).pop(),
         ),
         OcgButton(
-          label: 'Guardar cambio',
+          label: 'Confirmar',
           isLoading: isLoading,
           onPressed: (!_canSave || isLoading) ? null : _submit,
         ),
@@ -242,6 +225,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
             nuevaEtapa: _nuevaEtapa!,
             notas: _notasController.text,
             adminId: widget.adminId,
+            treatmentId: widget.treatmentId,
             motivoCambio: _motivoController.text,
             diagnosticoBreve: _diagnosticoController.text,
             planSiguienteEtapa: _planController.text,

@@ -43,6 +43,19 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Subcolección treatments/
+      match /treatments/{treatmentId} {
+        allow read: if isAdmin() || isOwnPatient(patientId);
+        allow create, update: if isAdmin();
+        allow delete: if false;
+
+        match /stageHistory/{entryId} {
+          allow read: if isAdmin() || isOwnPatient(patientId);
+          allow create: if isAdmin();
+          allow update, delete: if false;
+        }
+      }
+
       // Subcolección simulations/ (Bloque 08)
       match /simulations/{simulationId} {
         // Admin ve todo. Paciente solo lo compartido explícitamente.
@@ -134,6 +147,13 @@ service cloud.firestore {
     match /availability/{dayKey} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // ─── treatmentCatalog/ ────────────────────────────────────────────────────
+    match /treatmentCatalog/{catalogTreatmentId} {
+      allow read: if request.auth != null;
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
   }
 }

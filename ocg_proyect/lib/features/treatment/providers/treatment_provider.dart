@@ -13,6 +13,15 @@ final stageHistoryProvider = StreamProvider.family<List<StageHistoryEntry>, Stri
   (ref, patientId) => ref.watch(treatmentRepositoryProvider).watchStageHistory(patientId),
 );
 
+typedef TreatmentStageHistoryArgs = ({String patientId, String treatmentId});
+
+final treatmentStageHistoryProvider =
+    StreamProvider.family<List<StageHistoryEntry>, TreatmentStageHistoryArgs>(
+  (ref, args) => ref
+      .watch(treatmentRepositoryProvider)
+      .watchTreatmentStageHistory(args.patientId, args.treatmentId),
+);
+
 class UpdateStageNotifier extends AsyncNotifier<void> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
@@ -23,6 +32,7 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
     required TreatmentStage nuevaEtapa,
     required String notas,
     required String adminId,
+    String? treatmentId,
     String? motivoCambio,
     String? diagnosticoBreve,
     String? planSiguienteEtapa,
@@ -37,6 +47,7 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
             nuevaEtapa: nuevaEtapa,
             notas: notas,
             adminId: adminId,
+            treatmentId: treatmentId,
             motivoCambio: motivoCambio,
             diagnosticoBreve: diagnosticoBreve,
             planSiguienteEtapa: planSiguienteEtapa,

@@ -19,12 +19,24 @@ class TreatmentRepository {
         .map((snap) => snap.docs.map((d) => StageHistoryEntry.fromJson(d.data())).toList());
   }
 
+  Stream<List<StageHistoryEntry>> watchTreatmentStageHistory(
+    String patientId,
+    String treatmentId,
+  ) {
+    return _db
+        .collection(FirestorePaths.treatmentStageHistory(patientId, treatmentId))
+        .orderBy('fechaCambio', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => StageHistoryEntry.fromJson(d.data())).toList());
+  }
+
   Future<void> updateStage({
     required String patientId,
     required TreatmentStage etapaActual,
     required TreatmentStage nuevaEtapa,
     required String notas,
     required String adminId,
+    String? treatmentId,
     String? motivoCambio,
     String? diagnosticoBreve,
     String? planSiguienteEtapa,
@@ -36,13 +48,16 @@ class TreatmentRepository {
     }
 
     final notasClean = notas.trim();
-    if (notasClean.isNotEmpty && notasClean.length < 10) {
+    if (notasClean.length < 10) {
       throw Exception('NOTES_TOO_SHORT');
     }
 
     final idxAnterior = _stageOrder.indexOf(etapaActual);
     final idxNueva = _stageOrder.indexOf(nuevaEtapa);
     final esRetroceso = idxNueva < idxAnterior;
+    if (esRetroceso) {
+      throw Exception('STAGE_REGRESSION');
+    }
 
     final batch = _db.batch();
     final patientRef = _db.collection(FirestorePaths.patients).doc(patientId);
@@ -63,11 +78,36 @@ class TreatmentRepository {
       fechaCambio: DateTime.now(),
     );
 
-    batch.update(patientRef, {
+    if (treatmentId == null || treatmentId.isEmpty) {
+      batch.update(patientRef, {
+        'etapaActual': nuevaEtapa.name,
+        'updatedAt': Timestamp.now(),
+      });
+      batch.set(historyRef, entry.toJson());
+      await batch.commit();
+      return;
+    }
+
+    final treatmentRef = _db.doc(FirestorePaths.patientTreatmentDoc(patientId, treatmentId));
+    final treatmentHistoryRef =
+        _db.collection(FirestorePaths.treatmentStageHistory(patientId, treatmentId)).doc();
+    final treatmentSnapshot = await treatmentRef.get();
+    final treatmentData = treatmentSnapshot.data() ?? <String, dynamic>{};
+    final isPrimary = (treatmentData['isPrimary'] as bool?) ?? false;
+
+    batch.update(treatmentRef, {
       'etapaActual': nuevaEtapa.name,
       'updatedAt': Timestamp.now(),
     });
-    batch.set(historyRef, entry.toJson());
+    batch.set(treatmentHistoryRef, entry.copyWith(id: treatmentHistoryRef.id).toJson());
+
+    if (isPrimary) {
+      batch.update(patientRef, {
+        'etapaActual': nuevaEtapa.name,
+        'updatedAt': Timestamp.now(),
+      });
+      batch.set(historyRef, entry.toJson());
+    }
 
     await batch.commit();
   }

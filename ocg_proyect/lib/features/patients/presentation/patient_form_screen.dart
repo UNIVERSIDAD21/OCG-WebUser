@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,8 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 
 class PatientFormScreen extends ConsumerStatefulWidget {
   const PatientFormScreen({super.key, this.patientId});
@@ -72,6 +75,13 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   Widget build(BuildContext context) {
     final isEdit = widget.isEdit;
 
+    final patientTreatmentsAsync = isEdit
+        ? ref.watch(patientTreatmentsProvider(widget.patientId!))
+        : const AsyncData<List<PatientTreatment>>(<PatientTreatment>[]);
+    final remoteTreatments = patientTreatmentsAsync.asData?.value ?? const <PatientTreatment>[];
+    final primaryTreatment = _resolvePrimaryTreatment(remoteTreatments);
+    final hasStructuredTreatments = remoteTreatments.isNotEmpty;
+
     if (isEdit) {
       final patientAsync = ref.watch(patientByIdProvider(widget.patientId!));
       patientAsync.whenData((patient) {
@@ -88,6 +98,18 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           _fechaEstimadaFin = patient.fechaEstimadaFin;
           _tipo = patient.tipoTratamiento ?? TreatmentType.convencional;
           _etapa = patient.etapaActual;
+
+          _initialName = patient.nombre;
+          _initialEmail = patient.email;
+          _initialPhone = patient.telefono;
+          _initialNotas = patient.notasClinicas;
+          _initialTotal = _formatCopInput(patient.totalTratamiento);
+          _initialSaldo = _formatCopInput(patient.saldoPendiente);
+          _initialFechaNacimiento = patient.fechaNacimiento;
+          _initialFechaInicio = patient.fechaInicio;
+          _initialFechaEstimadaFin = patient.fechaEstimadaFin;
+          _initialTipo = patient.tipoTratamiento ?? TreatmentType.convencional;
+          _initialEtapa = patient.etapaActual;
           _loadedInitialData = true;
         }
       });
@@ -130,103 +152,126 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isNarrow = constraints.maxWidth < 560;
+                    if (hasStructuredTreatments)
+                      _StructuredTreatmentBanner(
+                        treatment: primaryTreatment,
+                        onOpenTreatmentWorkspace: () => context.go(
+                          '${RouteNames.adminPatientDetail.replaceFirst(':patientId', widget.patientId!)}?section=tratamiento',
+                        ),
+                      )
+                    else ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: OcgColors.bronze.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.18)),
+                        ),
+                        child: const Text(
+                          'Este paciente aún usa el esquema legacy. Al guardar se creará automáticamente su tratamiento principal en la subcolección de tratamientos.',
+                          style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 560;
 
-                        Widget typeField = DropdownButtonFormField<TreatmentType>(
-                          initialValue: _tipo,
-                          isExpanded: true,
-                          items: TreatmentType.values
-                              .map(
-                                (e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(_treatmentTypeLabel(e)),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _tipo = value);
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Tipo tratamiento',
-                          ),
-                        );
+                          Widget typeField = DropdownButtonFormField<TreatmentType>(
+                            value: _tipo,
+                            isExpanded: true,
+                            items: TreatmentType.values
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(_treatmentTypeLabel(e)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _tipo = value);
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Tipo tratamiento principal',
+                            ),
+                          );
 
-                        Widget stageField = DropdownButtonFormField<TreatmentStage>(
-                          initialValue: _etapa,
-                          isExpanded: true,
-                          items: TreatmentStage.values
-                              .map(
-                                (e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text(formatTreatmentStage(e)),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _etapa = value);
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Etapa actual',
-                          ),
-                        );
+                          Widget stageField = DropdownButtonFormField<TreatmentStage>(
+                            value: _etapa,
+                            isExpanded: true,
+                            items: TreatmentStage.values
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(formatTreatmentStage(e)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _etapa = value);
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Etapa actual',
+                            ),
+                          );
 
-                        if (isNarrow) {
-                          return Column(
+                          if (isNarrow) {
+                            return Column(
+                              children: [
+                                typeField,
+                                const SizedBox(height: 10),
+                                stageField,
+                              ],
+                            );
+                          }
+
+                          return Row(
                             children: [
-                              typeField,
-                              const SizedBox(height: 10),
-                              stageField,
+                              Expanded(child: typeField),
+                              const SizedBox(width: 10),
+                              Expanded(child: stageField),
                             ],
                           );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: typeField),
-                            const SizedBox(width: 10),
-                            Expanded(child: stageField),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _totalCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Total tratamiento (COP)',
+                        },
                       ),
-                      onChanged: (value) => _applyCopMask(_totalCtrl, value),
-                      validator: (v) => Validators.requiredField(
-                        v,
-                        message: 'Ingresa total tratamiento',
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _totalCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Total tratamiento (COP)',
+                        ),
+                        onChanged: (value) => _applyCopMask(_totalCtrl, value),
+                        validator: (v) => Validators.requiredField(
+                          v,
+                          message: 'Ingresa total tratamiento',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _saldoCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Saldo pendiente (COP)',
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _saldoCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Saldo pendiente (COP)',
+                        ),
+                        onChanged: (value) => _applyCopMask(_saldoCtrl, value),
+                        validator: (v) => Validators.requiredField(
+                          v,
+                          message: 'Ingresa saldo pendiente',
+                        ),
                       ),
-                      onChanged: (value) => _applyCopMask(_saldoCtrl, value),
-                      validator: (v) => Validators.requiredField(
-                        v,
-                        message: 'Ingresa saldo pendiente',
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _notasCtrl,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Notas clínicas del tratamiento principal',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _notasCtrl,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Notas clínicas',
-                      ),
-                    ),
+                    ],
                     const SizedBox(height: 10),
                     _DatePickerRow(
                       label: 'Fecha nacimiento',
@@ -359,6 +404,14 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     TreatmentType.retenedores => 'Retenedores',
   };
 
+  PatientTreatment? _resolvePrimaryTreatment(List<PatientTreatment> items) {
+    if (items.isEmpty) return null;
+    for (final item in items) {
+      if (item.isPrimary) return item;
+    }
+    return items.first;
+  }
+
   String _formatCopInput(num value) {
     return formatCop(value);
   }
@@ -452,6 +505,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
 
     setState(() => _loading = true);
     final repo = ref.read(patientsRepositoryProvider);
+    final treatmentsAsync = ref.read(patientTreatmentsProvider(widget.patientId!));
+    final remoteTreatments = treatmentsAsync.asData?.value ?? const <PatientTreatment>[];
+    final hasStructuredTreatments = remoteTreatments.isNotEmpty;
 
     try {
       final patient = PatientModel(
@@ -469,12 +525,56 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
         saldoPendiente: _parseCopInput(_saldoCtrl.text),
       );
 
-      await repo.updatePatientBasicData(patient.id, patient.toJson());
+      final updatePayload = <String, dynamic>{
+        'id': patient.id,
+        'uid': patient.id,
+        'nombre': patient.nombre,
+        'email': patient.email,
+        'telefono': patient.telefono,
+        'fechaNacimiento': Timestamp.fromDate(patient.fechaNacimiento),
+        'fechaEstimadaFin': patient.fechaEstimadaFin == null
+            ? null
+            : Timestamp.fromDate(patient.fechaEstimadaFin!),
+      };
+
+      if (!hasStructuredTreatments) {
+        updatePayload.addAll(<String, dynamic>{
+          'tipoTratamiento': patient.tipoTratamiento?.name,
+          'etapaActual': patient.etapaActual.name,
+          'fechaInicio': Timestamp.fromDate(patient.fechaInicio),
+          'notasClinicas': patient.notasClinicas,
+          'totalTratamiento': patient.totalTratamiento,
+          'saldoPendiente': patient.saldoPendiente,
+        });
+      }
+
+      await repo.updatePatientBasicData(patient.id, updatePayload);
+
+      if (!hasStructuredTreatments) {
+        final treatmentRepo = ref.read(patientTreatmentsRepositoryProvider);
+        final initialTreatment = PatientTreatment.fromLegacyPatient(patient).copyWith(
+          id: 'treatment-${DateTime.now().millisecondsSinceEpoch}',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isPrimary: true,
+        );
+
+        await treatmentRepo.saveTreatment(
+          patientId: patient.id,
+          treatment: initialTreatment,
+        );
+      }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Paciente actualizado')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            hasStructuredTreatments
+                ? 'Paciente actualizado'
+                : 'Paciente actualizado y tratamiento principal creado',
+          ),
+        ),
+      );
       context.go(
         RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
       );
@@ -486,6 +586,57 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+}
+
+class _StructuredTreatmentBanner extends StatelessWidget {
+  const _StructuredTreatmentBanner({
+    required this.treatment,
+    required this.onOpenTreatmentWorkspace,
+  });
+
+  final PatientTreatment? treatment;
+  final VoidCallback onOpenTreatmentWorkspace;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OcgColors.mist,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tratamientos múltiples activos en este paciente',
+            style: theme.titleSmall?.copyWith(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            treatment == null
+                ? 'El tratamiento se gestiona desde la pestaña Tratamiento del expediente.'
+                : 'Tratamiento principal: ${treatment!.displayName}. Etapa actual: ${stageNames[treatment!.etapaActual] ?? treatment!.etapaActual.name}.',
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: onOpenTreatmentWorkspace,
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Gestionar tratamientos'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

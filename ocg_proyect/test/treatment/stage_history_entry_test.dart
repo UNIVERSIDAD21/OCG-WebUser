@@ -46,7 +46,7 @@ void main() {
   });
 
   group('TreatmentRepository.updateStage', () {
-    test('permite retroceso y lo guarda con esRetroceso=true', () async {
+    test('bloquea retrocesos de etapa', () async {
       final db = FakeFirebaseFirestore();
       final repo = TreatmentRepository(db);
       const patientId = 'p-1';
@@ -56,20 +56,20 @@ void main() {
         'etapaActual': TreatmentStage.controles.name,
       });
 
-      await repo.updateStage(
-        patientId: patientId,
-        etapaActual: TreatmentStage.controles,
-        nuevaEtapa: TreatmentStage.instalacion,
-        notas:
-            'Retroceso por pérdida de aparatología y nueva instalación clínica',
-        adminId: 'admin-3',
+      expect(
+        () => repo.updateStage(
+          patientId: patientId,
+          etapaActual: TreatmentStage.controles,
+          nuevaEtapa: TreatmentStage.instalacion,
+          notas: 'Retroceso por pérdida de aparatología y nueva instalación clínica',
+          adminId: 'admin-3',
+        ),
+        throwsA(
+          predicate(
+            (e) => e is Exception && e.toString().contains('STAGE_REGRESSION'),
+          ),
+        ),
       );
-
-      final historySnap = await db
-          .collection(FirestorePaths.stageHistory(patientId))
-          .get();
-      expect(historySnap.docs.length, 1);
-      expect(historySnap.docs.first.data()['esRetroceso'], true);
     });
 
     test('lanza STAGE_SAME cuando nueva etapa == etapa actual', () async {
@@ -79,7 +79,7 @@ void main() {
           patientId: 'p-2',
           etapaActual: TreatmentStage.controles,
           nuevaEtapa: TreatmentStage.controles,
-          notas: '',
+          notas: 'nota suficientemente larga',
           adminId: 'admin',
         ),
         throwsA(

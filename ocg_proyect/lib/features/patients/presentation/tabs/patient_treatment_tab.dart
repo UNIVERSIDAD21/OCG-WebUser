@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/providers/auth_providers.dart';
+import '../../../treatment/data/models/patient_treatment.dart';
+import '../../../treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
 import '../../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../../treatment/presentation/widgets/update_stage_dialog.dart';
+import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../../treatment/providers/treatment_provider.dart';
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/widgets/ocg_button.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../data/models/patient_model.dart';
 
-class PatientTreatmentTab extends ConsumerWidget {
+class PatientTreatmentTab extends ConsumerStatefulWidget {
   const PatientTreatmentTab({
     super.key,
     required this.patientId,
@@ -20,24 +24,12 @@ class PatientTreatmentTab extends ConsumerWidget {
   final String patientId;
   final PatientModel patient;
 
-  String _labelTipoTratamiento(TreatmentType type) {
-    switch (type) {
-      case TreatmentType.convencional:
-        return 'Convencional';
-      case TreatmentType.estetico:
-        return 'Estético';
-      case TreatmentType.autoligado:
-        return 'Autoligado';
-      case TreatmentType.alineadores:
-        return 'Alineadores';
-      case TreatmentType.ortopedia:
-        return 'Ortopedia';
-      case TreatmentType.interceptivo:
-        return 'Interceptivo';
-      case TreatmentType.retenedores:
-        return 'Retenedores';
-    }
-  }
+  @override
+  ConsumerState<PatientTreatmentTab> createState() => _PatientTreatmentTabState();
+}
+
+class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
+  String? _selectedTreatmentId;
 
   String _formatCop(double amount) {
     final value = amount.round().toString();
@@ -51,9 +43,21 @@ class PatientTreatmentTab extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final historyAsync = ref.watch(stageHistoryProvider(patientId));
+  Widget build(BuildContext context) {
+    final treatments = ref.watch(
+      effectivePatientTreatmentsProvider((patientId: widget.patientId, patient: widget.patient)),
+    );
+
+    final selectedTreatment = _resolveSelectedTreatment(treatments);
+    final historyAsync = selectedTreatment.id.startsWith('legacy-primary-')
+        ? ref.watch(stageHistoryProvider(widget.patientId))
+        : ref.watch(
+            treatmentStageHistoryProvider(
+              (patientId: widget.patientId, treatmentId: selectedTreatment.id),
+            ),
+          );
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    final saveState = ref.watch(savePatientTreatmentProvider);
 
     return historyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -69,47 +73,214 @@ class PatientTreatmentTab extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (patient.tipoTratamiento != null && patient.totalTratamiento > 0) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: OcgColors.success.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: OcgColors.success.withOpacity(0.35)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tratamientos del paciente',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.verified, color: OcgColors.success, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Definido en valoración inicial · ${_labelTipoTratamiento(patient.tipoTratamiento!)} · '
-                        'Monto: ${_formatCop(patient.totalTratamiento)}',
-                        style: const TextStyle(
-                          color: OcgColors.success,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Nuevo tratamiento',
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => ManagePatientTreatmentDialog(patientId: widget.patientId),
+                  ),
+                  icon: const Icon(Icons.add_circle_outline),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final treatment in treatments)
+                  ChoiceChip(
+                    selected: treatment.id == selectedTreatment.id,
+                    label: Text(treatment.displayName),
+                    avatar: treatment.isPrimary
+                        ? const Icon(Icons.star, size: 16, color: OcgColors.espresso)
+                        : null,
+                    selectedColor: OcgColors.bronze.withValues(alpha: 0.18),
+                    backgroundColor: treatment.isFinished ? OcgColors.mist : OcgColors.ivory,
+                    side: BorderSide(
+                      color: treatment.id == selectedTreatment.id
+                          ? OcgColors.bronze
+                          : OcgColors.espresso.withValues(alpha: 0.14),
+                    ),
+                    onSelected: (_) => setState(() => _selectedTreatmentId = treatment.id),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: OcgColors.mist,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          selectedTreatment.displayName,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: OcgColors.espresso,
+                              ),
                         ),
                       ),
+                      _StatusPill(label: selectedTreatment.statusLabel),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _MetaItem(
+                        icon: Icons.category_outlined,
+                        label: 'Categoría',
+                        value: PatientTreatment.labelForBaseTreatment(selectedTreatment.categoria),
+                      ),
+                      _MetaItem(
+                        icon: Icons.medical_services_outlined,
+                        label: 'Tipo base',
+                        value: PatientTreatment.labelForBaseTreatment(selectedTreatment.tipoBase),
+                      ),
+                      if (selectedTreatment.normalizedSubtypeLabel != null)
+                        _MetaItem(
+                          icon: Icons.style_outlined,
+                          label: 'Subtipo',
+                          value: selectedTreatment.normalizedSubtypeLabel!,
+                        ),
+                      _MetaItem(
+                        icon: Icons.timeline_outlined,
+                        label: 'Etapa',
+                        value: stageNames[selectedTreatment.etapaActual] ?? selectedTreatment.etapaActual.name,
+                      ),
+                      _MetaItem(
+                        icon: Icons.cleaning_services_outlined,
+                        label: 'Limpieza',
+                        value: 'Cada ${selectedTreatment.suggestedCleaningEveryMonths} meses',
+                      ),
+                      _MetaItem(
+                        icon: Icons.event_repeat_outlined,
+                        label: 'Control',
+                        value: 'Cada ${selectedTreatment.suggestedControlEveryMonths} meses',
+                      ),
+                    ],
+                  ),
+                  if (selectedTreatment.totalTratamiento != null || selectedTreatment.saldoPendiente != null) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        if (selectedTreatment.totalTratamiento != null)
+                          _MetaItem(
+                            icon: Icons.attach_money,
+                            label: 'Total',
+                            value: _formatCop(selectedTreatment.totalTratamiento!),
+                          ),
+                        if (selectedTreatment.saldoPendiente != null)
+                          _MetaItem(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: 'Saldo pendiente',
+                            value: _formatCop(selectedTreatment.saldoPendiente!),
+                          ),
+                      ],
                     ),
                   ],
-                ),
+                  if ((selectedTreatment.notas ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      selectedTreatment.notas!.trim(),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        child: OcgButton(
+                          label: 'Editar tratamiento',
+                          variant: OcgButtonVariant.outline,
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) => ManagePatientTreatmentDialog(
+                              patientId: widget.patientId,
+                              initialTreatment: selectedTreatment,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!selectedTreatment.isPrimary && !selectedTreatment.id.startsWith('legacy-primary-'))
+                        SizedBox(
+                          width: 180,
+                          child: OcgButton(
+                            label: 'Hacer principal',
+                            variant: OcgButtonVariant.ghost,
+                            isLoading: saveState.isLoading,
+                            onPressed: () async {
+                              await ref.read(savePatientTreatmentProvider.notifier).setPrimaryTreatment(
+                                    patientId: widget.patientId,
+                                    treatment: selectedTreatment.copyWith(isPrimary: true),
+                                  );
+                            },
+                          ),
+                        ),
+                      if (!selectedTreatment.id.startsWith('legacy-primary-'))
+                        SizedBox(
+                          width: 180,
+                          child: OcgButton(
+                            label: selectedTreatment.isFinished ? 'Reactivar' : 'Finalizar',
+                            variant: OcgButtonVariant.ghost,
+                            isLoading: saveState.isLoading,
+                            onPressed: () async {
+                              final newStatus = selectedTreatment.isFinished ? 'activo' : 'finalizado';
+                              await ref.read(savePatientTreatmentProvider.notifier).updateTreatmentStatus(
+                                    patientId: widget.patientId,
+                                    treatment: selectedTreatment,
+                                    newStatus: newStatus,
+                                  );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-            ],
+            ),
+            const SizedBox(height: 20),
             TreatmentTimeline(
-              etapaActual: patient.etapaActual,
+              etapaActual: selectedTreatment.etapaActual,
               historial: historial,
               isAdmin: true,
               onAdvanceStage: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => UpdateStageDialog(
-                      patientId: patientId,
-                      etapaActual: patient.etapaActual,
-                      adminId: adminId,
-                    ),
-                  ),
+                context: context,
+                builder: (_) => UpdateStageDialog(
+                  patientId: widget.patientId,
+                  treatmentId: selectedTreatment.id.startsWith('legacy-primary-')
+                      ? null
+                      : selectedTreatment.id,
+                  etapaActual: selectedTreatment.etapaActual,
+                  adminId: adminId,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -121,6 +292,96 @@ class PatientTreatmentTab extends ConsumerWidget {
             const SizedBox(height: 12),
             StageHistoryList(historial: historial, isAdmin: true),
           ],
+        ),
+      ),
+    );
+  }
+
+  PatientTreatment _resolveSelectedTreatment(List<PatientTreatment> treatments) {
+    if (_selectedTreatmentId != null) {
+      for (final treatment in treatments) {
+        if (treatment.id == _selectedTreatmentId) return treatment;
+      }
+    }
+    for (final treatment in treatments) {
+      if (treatment.isPrimary) return treatment;
+    }
+    return treatments.first;
+  }
+}
+
+class _MetaItem extends StatelessWidget {
+  const _MetaItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 170),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: OcgColors.bronze),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: OcgColors.bronze,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: OcgColors.bronze.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: OcgColors.espresso,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
       ),
     );
