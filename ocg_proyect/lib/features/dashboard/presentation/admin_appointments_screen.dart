@@ -8,6 +8,7 @@ import '../../appointments/data/models/availability_day_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
+import '../../notifications/providers/notifications_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
@@ -2894,6 +2895,93 @@ class _AdminAppointmentsScreenState
 
 // ─── AppointmentCard ──────────────────────────────────────────────────────────
 
+class _AppointmentReminderSummary extends ConsumerWidget {
+  const _AppointmentReminderSummary({required this.appointmentId});
+
+  final String appointmentId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final remindersAsync = ref.watch(appointmentRemindersProvider(appointmentId));
+
+    return remindersAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        Color colorFor(String status) {
+          switch (status) {
+            case 'sent':
+              return const Color(0xFF2E7D32);
+            case 'pending':
+              return const Color(0xFF1565C0);
+            case 'pending_provider':
+              return const Color(0xFFBA7517);
+            case 'failed':
+              return OcgColors.error;
+            case 'cancelled':
+            case 'obsolete':
+            case 'skipped':
+              return OcgColors.ink;
+            default:
+              return OcgColors.ink;
+          }
+        }
+
+        String labelFor(String kind) {
+          switch (kind) {
+            case 'day_before':
+              return '24h';
+            case 'hour_before':
+              return '1h';
+            default:
+              return kind;
+          }
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Recordatorios',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: OcgColors.espresso,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final item in items)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: colorFor(item.status).withOpacity(0.10),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: colorFor(item.status).withOpacity(0.25)),
+                    ),
+                    child: Text(
+                      '${item.channel} ${labelFor(item.kind)} · ${item.status}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colorFor(item.status),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class AppointmentCard extends StatelessWidget {
   const AppointmentCard({
     super.key,
@@ -2995,6 +3083,8 @@ class AppointmentCard extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 10),
+            _AppointmentReminderSummary(appointmentId: appointment.id),
 
             // ── Acciones ─────────────────────────────────────────────────
             if (onConfirmar != null ||

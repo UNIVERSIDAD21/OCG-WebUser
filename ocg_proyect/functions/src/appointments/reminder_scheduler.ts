@@ -12,7 +12,6 @@ const BLOCKING_APPOINTMENT_STATUSES = new Set([
 ]);
 
 const BOGOTA_TIME_ZONE = 'America/Bogota';
-const WHATSAPP_PROVIDER_READY = false;
 
 type ReminderChannel = 'app' | 'whatsapp';
 type ReminderKind = 'day_before' | 'hour_before';
@@ -33,12 +32,19 @@ type AppointmentLike = {
   fechaHora?: admin.firestore.Timestamp | Date | null;
   estado?: string;
   treatmentId?: string | null;
+  remindersEnabled?: boolean;
 };
 
 type PatientLike = {
   nombre?: string;
   telefono?: string;
   fcmToken?: string;
+  contactPreferences?: {
+    allowWhatsappReminders?: boolean;
+    allowPushReminders?: boolean;
+    preferredReminderPhone?: string;
+    guardianPhone?: string | null;
+  };
 };
 
 type ScheduledReminderDraft = {
@@ -53,6 +59,13 @@ type ScheduledReminderDraft = {
   payloadSnapshot: Record<string, unknown>;
   idempotencyKey: string;
   appointmentVersion: number;
+};
+
+type SendResult = {
+  ok: boolean;
+  providerMessageId?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 };
 
 function asDate(value: unknown): Date | null {
@@ -82,9 +95,48 @@ function buildReminderMessage(
   }).format(appointmentAt);
 
   if (kind === 'day_before') {
-    return `Hola ${patientName}, te recordamos tu cita de ortodoncia para mañana, ${when}.`;
+    return `Hola ${patientName}, te recordamos tu cita en OCG Clínica mañana, ${when}. Si necesitas reprogramar, contáctanos a tiempo.`;
   }
-  return `Hola ${patientName}, tu cita de ortodoncia es en aproximadamente 1 hora, ${when}.`;
+  return `Hola ${patientName}, tu cita en OCG Clínica es en aproximadamente 1 hora, ${when}. Te esperamos.`;
+}
+
+function whatsappProviderConfig(): {
+  configured: boolean;
+  provider: string;
+  accessToken?: string;
+  phoneNumberId?: string;
+} {
+  const provider = (process.env.WHATSAPP_PROVIDER ?? '').trim().toLowerCase();
+  if (provider !== 'meta') {
+    return {configured: false, provider};
+  }
+
+  const accessToken = (process.env.WHATSAPP_ACCESS_TOKEN ?? '').trim();
+  const phoneNumberId = (process.env.WHATSAPP_PHONE_NUMBER_ID ?? '').trim();
+
+  return {
+    configured: accessToken.length > 0 && phoneNumberId.length > 0,
+    provider,
+    accessToken,
+    phoneNumberId,
+  };
+}
+
+function resolveReminderPhone(
+  patient: PatientLike,
+  appointment: AppointmentLike,
+): string | null {
+  const preferred = patient.contactPreferences?.preferredReminderPhone ?? 'patient';
+  const patientPhone = normalizePhone(
+    (patient.telefono ?? appointment.patientPhone ?? '').toString(),
+  );
+  const guardianPhone = normalizePhone(
+    patient.contactPreferences?.guardianPhone?.toString(),
+  );
+
+  if (preferred == 'guardian' && guardianPhone) return guardianPhone;
+  if (preferred == 'both') return guardianPhone ?? patientPhone;
+  return patientPhone ?? guardianPhone;
 }
 
 function buildReminderDrafts(
@@ -93,17 +145,19 @@ function buildReminderDrafts(
 ): ScheduledReminderDraft[] {
   const appointmentAt = asDate(appointment.fechaHora);
   if (!appointmentAt) return [];
+  if (appointment.remindersEnabled == false) return [];
 
   const drafts: ScheduledReminderDraft[] = [];
   const patientName =
     (patient.nombre ?? appointment.patientName ?? '').toString().trim() ||
     'paciente';
-  const phone = normalizePhone(
-    (patient.telefono ?? appointment.patientPhone ?? '').toString(),
-  );
+  const phone = resolveReminderPhone(patient, appointment);
   const fcmToken = (patient.fcmToken ?? '').toString().trim();
+  const allowWhatsapp = patient.contactPreferences?.allowWhatsappReminders ?? true;
+  const allowPush = patient.contactPreferences?.allowPushReminders ?? true;
   const now = Date.now();
   const appointmentVersion = 1;
+  const whatsappConfig = whatsappProviderConfig();
   const definitions: Array<{kind: ReminderKind; offsetMs: number}> = [
     {kind: 'day_before', offsetMs: 24 * 60 * 60 * 1000},
     {kind: 'hour_before', offsetMs: 60 * 60 * 1000},
@@ -122,28 +176,30 @@ function buildReminderDrafts(
         dateStyle: 'short',
         timeStyle: 'short',
       }).format(appointmentAt),
+      message: buildReminderMessage(patientName, appointmentAt, def.kind),
     };
 
-    drafts.push({
-      id: `${appointment.id}_app_${def.kind}`,
-      appointmentId: appointment.id,
-      patientId: appointment.patientId,
-      treatmentId: appointment.treatmentId ?? null,
-      channel: 'app',
-      kind: def.kind,
-      scheduledFor,
-      status: 'pending',
-      idempotencyKey: `${appointment.id}_app_${def.kind}_v${appointmentVersion}`,
-      appointmentVersion,
-      payloadSnapshot: {
-        ...payloadBase,
-        phone: null,
-        hasFcmToken: fcmToken.length > 0,
-        message: buildReminderMessage(patientName, appointmentAt, def.kind),
-      },
-    });
+    if (allowPush) {
+      drafts.push({
+        id: `${appointment.id}_app_${def.kind}`,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId,
+        treatmentId: appointment.treatmentId ?? null,
+        channel: 'app',
+        kind: def.kind,
+        scheduledFor,
+        status: 'pending',
+        idempotencyKey: `${appointment.id}_app_${def.kind}_v${appointmentVersion}`,
+        appointmentVersion,
+        payloadSnapshot: {
+          ...payloadBase,
+          hasFcmToken: fcmToken.length > 0,
+          phone: null,
+        },
+      });
+    }
 
-    if (phone) {
+    if (allowWhatsapp && phone) {
       drafts.push({
         id: `${appointment.id}_whatsapp_${def.kind}`,
         appointmentId: appointment.id,
@@ -152,14 +208,13 @@ function buildReminderDrafts(
         channel: 'whatsapp',
         kind: def.kind,
         scheduledFor,
-        status: WHATSAPP_PROVIDER_READY ? 'pending' : 'pending_provider',
+        status: whatsappConfig.configured ? 'pending' : 'pending_provider',
         idempotencyKey: `${appointment.id}_whatsapp_${def.kind}_v${appointmentVersion}`,
         appointmentVersion,
         payloadSnapshot: {
           ...payloadBase,
           phone,
-          hasFcmToken: false,
-          message: buildReminderMessage(patientName, appointmentAt, def.kind),
+          provider: whatsappConfig.provider,
         },
       });
     }
@@ -185,6 +240,7 @@ async function markExistingReminders(
     batch.update(doc.ref, {
       status: nextStatus,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      errorCode: null,
       errorMessage: null,
     });
   }
@@ -246,11 +302,15 @@ export async function syncAppointmentReminders(
         payloadSnapshot: draft.payloadSnapshot,
         idempotencyKey: draft.idempotencyKey,
         appointmentVersion: draft.appointmentVersion,
+        attemptCount: 0,
+        lastAttemptAt: null,
+        providerMessageId: null,
+        errorCode: null,
+        errorMessage: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         sentAt: null,
         failedAt: null,
-        errorMessage: null,
       },
       {merge: true},
     );
@@ -263,23 +323,198 @@ async function sendPushIfPossible(
   patientId: string,
   title: string,
   body: string,
-): Promise<boolean> {
+): Promise<SendResult> {
   const patientSnap = await db.collection('patients').doc(patientId).get();
   const token = (patientSnap.data()?.fcmToken ?? '').toString().trim();
-  if (!token) return false;
 
   try {
-    await admin.messaging().send({
-      token,
-      notification: {title, body},
-      data: {
-        kind: 'appointment_reminder',
-      },
-    });
-    return true;
-  } catch {
-    return false;
+    if (token) {
+      const response = await admin.messaging().send({
+        token,
+        notification: {title, body},
+        data: {
+          kind: 'appointment_reminder',
+        },
+      });
+      return {ok: true, providerMessageId: response};
+    }
+
+    return {ok: true, providerMessageId: 'notifications-only'};
+  } catch (error) {
+    return {
+      ok: false,
+      errorCode: 'FCM_SEND_FAILED',
+      errorMessage: error instanceof Error ? error.message : 'No se pudo enviar push FCM.',
+    };
   }
+}
+
+async function sendAppReminder(
+  reminderId: string,
+  reminder: Record<string, unknown>,
+): Promise<SendResult> {
+  const title =
+    reminder.kind === 'day_before'
+      ? 'Recordatorio de cita mañana'
+      : 'Recordatorio de cita en 1 hora';
+  const body =
+    (reminder.payloadSnapshot as Record<string, unknown> | undefined)?.message?.toString() ??
+    'Tienes una cita próxima.';
+
+  await db.collection('notifications').doc(reminderId).set(
+    {
+      id: reminderId,
+      recipientId: reminder.patientId,
+      channel: 'app',
+      type: 'appointment_reminder',
+      title,
+      body,
+      appointmentId: reminder.appointmentId,
+      treatmentId: reminder.treatmentId ?? null,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    {merge: true},
+  );
+
+  return sendPushIfPossible((reminder.patientId ?? '').toString(), title, body);
+}
+
+async function sendWhatsappReminder(
+  reminder: Record<string, unknown>,
+): Promise<SendResult> {
+  const config = whatsappProviderConfig();
+  if (!config.configured || config.provider !== 'meta') {
+    return {
+      ok: false,
+      errorCode: 'WHATSAPP_PROVIDER_NOT_CONFIGURED',
+      errorMessage: 'Proveedor WhatsApp no configurado.',
+    };
+  }
+
+  const payload = (reminder.payloadSnapshot as Record<string, unknown> | undefined) ?? {};
+  const phone = (payload['phone'] ?? '').toString().trim();
+  const message = (payload['message'] ?? '').toString().trim();
+  if (!phone || !message) {
+    return {
+      ok: false,
+      errorCode: 'WHATSAPP_INVALID_PAYLOAD',
+      errorMessage: 'Payload de WhatsApp incompleto.',
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v23.0/${config.phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: phone,
+          type: 'text',
+          text: {body: message},
+        }),
+      },
+    );
+
+    const json = (await response.json()) as Record<string, unknown>;
+    if (!response.ok) {
+      const error = (json['error'] as Record<string, unknown> | undefined) ?? {};
+      return {
+        ok: false,
+        errorCode: (error['code'] ?? 'WHATSAPP_HTTP_ERROR').toString(),
+        errorMessage: (error['message'] ?? 'No se pudo enviar WhatsApp.').toString(),
+      };
+    }
+
+    const messages = (json['messages'] as Array<Record<string, unknown>> | undefined) ?? [];
+    return {
+      ok: true,
+      providerMessageId: messages.length > 0 ? (messages[0]['id'] ?? '').toString() : null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      errorCode: 'WHATSAPP_REQUEST_FAILED',
+      errorMessage: error instanceof Error ? error.message : 'No se pudo ejecutar la petición WhatsApp.',
+    };
+  }
+}
+
+async function processReminderDoc(doc: admin.firestore.QueryDocumentSnapshot): Promise<void> {
+  const reminder = doc.data() as Record<string, unknown>;
+  const appointmentRef = db.collection('appointments').doc((reminder.appointmentId ?? '').toString());
+  const appointmentSnap = await appointmentRef.get();
+  const appointment = appointmentSnap.data() as AppointmentLike | undefined;
+
+  if (
+    !appointmentSnap.exists ||
+    !appointment ||
+    !VALID_APPOINTMENT_STATUSES.has((appointment.estado ?? '').toString())
+  ) {
+    await doc.ref.update({
+      status: 'skipped',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+      attemptCount: admin.firestore.FieldValue.increment(1),
+      errorCode: 'APPOINTMENT_INVALID_STATE',
+      errorMessage: 'La cita ya no está en estado válido para recordatorio.',
+    });
+    return;
+  }
+
+  let result: SendResult;
+  if (reminder.channel === 'whatsapp') {
+    result = await sendWhatsappReminder(reminder);
+  } else {
+    result = await sendAppReminder(doc.id, reminder);
+  }
+
+  await doc.ref.update({
+    status: result.ok ? 'sent' : 'failed',
+    sentAt: result.ok ? admin.firestore.FieldValue.serverTimestamp() : null,
+    failedAt: result.ok ? null : admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+    attemptCount: admin.firestore.FieldValue.increment(1),
+    providerMessageId: result.providerMessageId ?? null,
+    errorCode: result.errorCode ?? null,
+    errorMessage: result.errorMessage ?? null,
+  });
+}
+
+async function dueReminderSnapshots(): Promise<admin.firestore.QueryDocumentSnapshot[]> {
+  const now = admin.firestore.Timestamp.now();
+  const scheduled = db.collection('scheduledNotifications');
+  const snapshots = [
+    await scheduled.where('status', '==', 'pending').where('scheduledFor', '<=', now).limit(50).get(),
+  ];
+
+  if (whatsappProviderConfig().configured) {
+    snapshots.push(
+      await scheduled
+        .where('status', '==', 'pending_provider')
+        .where('scheduledFor', '<=', now)
+        .limit(50)
+        .get(),
+    );
+  }
+
+  const seen = new Set<string>();
+  const docs: admin.firestore.QueryDocumentSnapshot[] = [];
+  for (const finalSnap of snapshots) {
+    for (const doc of finalSnap.docs) {
+      if (seen.has(doc.id)) continue;
+      seen.add(doc.id);
+      docs.push(doc);
+    }
+  }
+  return docs;
 }
 
 export const processScheduledNotifications = onSchedule(
@@ -290,86 +525,9 @@ export const processScheduledNotifications = onSchedule(
     memory: '256MiB',
   },
   async () => {
-    const now = admin.firestore.Timestamp.now();
-    const snapshot = await db
-      .collection('scheduledNotifications')
-      .where('status', '==', 'pending')
-      .where('scheduledFor', '<=', now)
-      .limit(50)
-      .get();
-
-    for (const doc of snapshot.docs) {
-      await db.runTransaction(async (tx) => {
-        const fresh = await tx.get(doc.ref);
-        if (!fresh.exists) return;
-
-        const reminder = fresh.data() as Record<string, unknown>;
-        if (reminder.status !== 'pending') return;
-
-        const appointmentRef = db
-          .collection('appointments')
-          .doc((reminder.appointmentId ?? '').toString());
-        const appointmentSnap = await tx.get(appointmentRef);
-        const appointment = appointmentSnap.data() as AppointmentLike | undefined;
-        if (
-          !appointmentSnap.exists ||
-          !appointment ||
-          !VALID_APPOINTMENT_STATUSES.has((appointment.estado ?? '').toString())
-        ) {
-          tx.update(doc.ref, {
-            status: 'skipped',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            errorMessage: 'La cita ya no está en estado válido para recordatorio.',
-          });
-          return;
-        }
-
-        const notificationRef = db.collection('notifications').doc(doc.id);
-        const title =
-          reminder.kind === 'day_before'
-            ? 'Recordatorio de cita mañana'
-            : 'Recordatorio de cita en 1 hora';
-        const body =
-          (reminder.payloadSnapshot as Record<string, unknown> | undefined)
-            ?.message
-            ?.toString() ?? 'Tienes una cita próxima.';
-
-        tx.set(
-          notificationRef,
-          {
-            id: doc.id,
-            recipientId: reminder.patientId,
-            channel: 'app',
-            type: 'appointment_reminder',
-            title,
-            body,
-            appointmentId: reminder.appointmentId,
-            treatmentId: reminder.treatmentId ?? null,
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          {merge: true},
-        );
-
-        tx.update(doc.ref, {
-          status: 'sent',
-          sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          errorMessage: null,
-        });
-      });
-
-      const data = doc.data() as Record<string, unknown>;
-      const title =
-        data.kind === 'day_before'
-          ? 'Recordatorio de cita mañana'
-          : 'Recordatorio de cita en 1 hora';
-      const body =
-        (data.payloadSnapshot as Record<string, unknown> | undefined)
-          ?.message
-          ?.toString() ?? 'Tienes una cita próxima.';
-      await sendPushIfPossible((data.patientId ?? '').toString(), title, body);
+    const docs = await dueReminderSnapshots();
+    for (const doc of docs) {
+      await processReminderDoc(doc);
     }
   },
 );

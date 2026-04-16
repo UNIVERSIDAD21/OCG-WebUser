@@ -13,6 +13,7 @@ import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
+import '../../notifications/presentation/patient_notifications_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
 import 'patient_appointments_screen.dart';
 import '../../treatment/presentation/widgets/stage_history_list.dart';
@@ -41,7 +42,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialSection.clamp(0, 5);
+    _selectedIndex = widget.initialSection.clamp(0, 6);
   }
 
   @override
@@ -56,7 +57,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final sections = [
       _InicioSection(
         userId: effectivePatientId,
-        onOpenProfile: () => setState(() => _selectedIndex = 5),
+        onOpenProfile: () => setState(() => _selectedIndex = 6),
         onOpenPayments: () => setState(() => _selectedIndex = 3),
       ),
       PatientAppointmentsScreen(
@@ -80,6 +81,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         viewerMode: widget.isAdminView
             ? PatientViewerMode.adminViewer
             : PatientViewerMode.patient,
+      ),
+      PatientNotificationsScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
       ),
       PatientProfileScreen(
         embedded: true,
@@ -150,6 +155,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             label: 'Simulación',
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome,
+          ),
+          PatientNavItem(
+            label: 'Alertas',
+            icon: Icons.notifications_none_outlined,
+            selectedIcon: Icons.notifications,
           ),
           PatientNavItem(
             label: 'Perfil',
@@ -332,7 +342,7 @@ class _InicioSection extends ConsumerWidget {
                           patient.etapaActual.name,
                       mesesTotal: mesesTotal,
                       mesesRestantes: mesesRestantes,
-                      citasRegistradas: appointmentsAsync.asData?.value?.length,
+                      citasRegistradas: appointmentsAsync.asData?.value.length,
                     ),
                   ],
                 ),
@@ -680,7 +690,7 @@ class _NextAppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fecha = cita?.fechaHora as DateTime? ?? fallback;
+    final fecha = cita?.fechaHora ?? fallback;
     if (fecha == null) {
       return Container(
         width: double.infinity,
@@ -823,7 +833,6 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pagado = (total - saldo).clamp(0, total);
     final percent = pagoPercent;
 
     return Container(
@@ -1093,7 +1102,7 @@ class _TratamientoSection extends ConsumerWidget {
             final phase = _phaseFromProgress(progress);
 
             final citasRealizadas = appointmentsAsync.asData?.value
-                ?.where((a) => a.estado == AppointmentStatus.completada)
+                .where((a) => a.estado == AppointmentStatus.completada)
                 .length;
 
             return SingleChildScrollView(
