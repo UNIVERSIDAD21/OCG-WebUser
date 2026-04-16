@@ -515,3 +515,315 @@ El bloque se considera terminado cuando:
 - Existe registro de estado por recordatorio.
 - App y WhatsApp quedan modelados correctamente.
 - WhatsApp no se marca como funcional sin proveedor real.
+# Bloque 04 — Recordatorios automáticos de citas por WhatsApp y app
+
+## 1) Problemática
+
+Borlty, el Bloque 04 tampoco está cumplido. El sistema no está enviando ni gestionando correctamente los recordatorios automáticos por WhatsApp y por app.
+
+### Hallazgos reales reportados
+
+- Los recordatorios de WhatsApp no funcionan.
+- Los recordatorios de la app tampoco funcionan.
+
+Aunque aquí no se reportó un checklist tan detallado como en Bloques 01 y 02, eso ya basta para concluir que el bloque no puede darse por implementado, porque su objetivo completo era precisamente programar y gestionar recordatorios automáticos por ambos canales.
+
+### Lo que este bloque debía lograr y no logró
+
+Este bloque debía:
+
+- programar recordatorios automáticos por dos canales,
+- hacerlo en dos momentos obligatorios:
+  - 1 día antes,
+  - 1 hora antes,
+- evitar duplicados,
+- invalidar recordatorios al reprogramar,
+- cancelarlos al cancelar cita,
+- validar el estado actual de la cita antes de enviar,
+- respetar zona horaria Colombia,
+- no fingir WhatsApp como funcional si no hay proveedor real,
+- dejar trazabilidad de envío y errores.
+
+Si hoy no funcionan ni WhatsApp ni app, entonces este bloque está incumplido.
+
+---
+
+## 2) Análisis Problemática
+
+### A. Se confundió “notificación” con “recordatorio programado”
+
+No basta con crear una notificación visual o una colección genérica de mensajes. El bloque exigía una entidad programada por recordatorio, con estado, canal, momento de envío e idempotencia.
+
+### B. No existe orquestación seria de eventos
+
+Este bloque dependía de reaccionar correctamente a:
+
+- crear cita,
+- reprogramar,
+- cancelar,
+- completar,
+- marcar no asistió.
+
+Si no existe una estructura que invalide o reprograme recordatorios, cualquier intento de envío será inconsistente.
+
+### C. Falta de backend responsable
+
+Este bloque no puede depender solo del cliente. Un usuario no debe enviar WhatsApp directamente ni marcar recordatorios como enviados. Si no hay backend responsable, no hay seguridad ni consistencia.
+
+### D. WhatsApp no puede “simularse” como listo
+
+Si no hay proveedor real configurado, no puedes presentar WhatsApp como funcional. En ese caso debes dejar modelado el canal, el payload, los estados y los logs, pero no venderlo como operativo.
+
+### E. Riesgo de duplicados y mensajes incorrectos
+
+Sin idempotencia y sin relectura de la cita antes de enviar, puedes terminar mandando recordatorios sobre citas:
+
+- canceladas,
+- reprogramadas,
+- completadas,
+- o ya inválidas.
+
+### F. Zona horaria y consentimiento no resueltos
+
+Si no controlas `America/Bogota`, ni validas teléfono, consentimiento y canal habilitado, este bloque queda técnicamente inseguro y funcionalmente poco confiable.
+
+---
+
+## 3) Solución Problemática
+
+Vas a implementar correctamente el Bloque 04 como sistema de recordatorios programados, no como notificaciones improvisadas.
+
+### A. Crear entidad real de recordatorio programado
+
+Debes implementar una colección global práctica como:
+
+```txt
+scheduledNotifications/{notificationId}
+```
+
+Cada documento debe tener al menos:
+
+- `appointmentId`
+- `patientId`
+- `treatmentId` opcional
+- `channel` (`app` / `whatsapp`)
+- `kind` (`day_before` / `hour_before`)
+- `scheduledFor`
+- `status`
+- `payloadSnapshot`
+- `idempotencyKey`
+- `appointmentVersion`
+- `createdAt`
+- `updatedAt`
+- `sentAt`
+- `failedAt`
+- `errorMessage`
+
+### B. Programar automáticamente al crear cita válida
+
+Al crear una cita válida en estado permitido, el sistema debe generar:
+
+- recordatorio T-1 día por app,
+- recordatorio T-1 día por WhatsApp,
+- recordatorio T-1 hora por app,
+- recordatorio T-1 hora por WhatsApp,
+
+solo si:
+
+- el canal está habilitado,
+- existen datos suficientes,
+- no se trata de un recordatorio retroactivo.
+
+### C. Validar estados de cita antes de crear y antes de enviar
+
+Solo se deben programar o enviar recordatorios para citas en estados válidos, por ejemplo:
+
+- `programada`
+- `confirmada`
+
+Y se deben bloquear o invalidar para:
+
+- `cancelada`
+- `noAsistio`
+- `reprogramada`
+- `completada`
+
+Antes de enviar cualquier recordatorio, el backend debe volver a leer la cita y validar su estado actual.
+
+### D. Reprogramación correcta
+
+Si la cita se reprograma, debes:
+
+- marcar recordatorios anteriores como `obsolete`,
+- crear nuevos recordatorios para la nueva fecha,
+- aumentar o registrar versión de la cita,
+- evitar que recordatorios viejos se envíen.
+
+### E. Cancelación correcta
+
+Si la cita se cancela, debes:
+
+- marcar pendientes como `cancelled`,
+- impedir cualquier envío posterior.
+
+### F. Manejo de completada y no asistió
+
+Si la cita se completa o se marca no asistió, debes:
+
+- evitar recordatorios posteriores,
+- marcar pendientes como `skipped` o `cancelled`.
+
+### G. No crear recordatorios absurdos o retroactivos
+
+#### Si faltan menos de 24 horas al crear la cita
+- no crear T-1 día,
+- sí crear T-1 hora si aplica.
+
+#### Si faltan menos de 1 hora
+- no crear recordatorios retroactivos,
+- no enviar mensajes tardíos absurdos.
+
+### H. Anti-duplicado obligatorio
+
+Cada recordatorio debe tener una llave idempotente, por ejemplo:
+
+```txt
+appointmentId_channel_kind_appointmentVersion
+```
+
+No debe existir más de un recordatorio pendiente con la misma llave.
+
+Antes de enviar, el backend debe:
+
+1. leer recordatorio,
+2. validar que siga `pending`,
+3. leer cita actual,
+4. validar estado,
+5. validar momento,
+6. enviar,
+7. marcar como `sent`.
+
+### I. Backend recomendado
+
+Para primera versión, implementa:
+
+- colección `scheduledNotifications`,
+- Cloud Scheduler,
+- Cloud Function procesadora de pendientes,
+- validación de estado y canal,
+- actualización de estado del recordatorio.
+
+Más adelante se puede evolucionar a Cloud Tasks, pero primero debes cerrar una versión simple y seria.
+
+### J. Canal app y canal WhatsApp
+
+#### App
+Debe implementarse mediante:
+
+- FCM push,
+- y/o registro en colección `notifications`.
+
+Idealmente:
+
+1. crear registro,
+2. enviar push si hay token activo,
+3. si no hay token, dejar registro interno.
+
+#### WhatsApp
+Debes definir proveedor real:
+
+- WhatsApp Cloud API,
+- Twilio,
+- u otro proveedor autorizado.
+
+Si aún no hay proveedor, debes dejar el canal preparado pero no marcarlo como funcional. En ese caso el estado debe reflejar una realidad como `pending_provider` o equivalente en logs / capa de servicio.
+
+### K. Consentimiento, teléfono y zona horaria
+
+Antes de enviar WhatsApp debes validar:
+
+- teléfono existente,
+- teléfono normalizado,
+- autorización para recibir mensajes,
+- si el destino es paciente, acudiente o ambos.
+
+Además, todo debe calcularse con zona horaria Colombia:
+
+- guardar timestamps en UTC,
+- mostrar y calcular con `America/Bogota`.
+
+### L. UI mínima y logging
+
+Como mínimo, en admin debe poder verse:
+
+- recordatorios activos,
+- canal,
+- fecha programada,
+- estado,
+- último intento,
+- error si falló,
+- opción de desactivar recordatorios de esa cita.
+
+También debes registrar:
+
+- `lastAttemptAt`
+- `attemptCount`
+- `providerMessageId`
+- `errorCode`
+- `errorMessage`
+
+### M. Seguridad obligatoria
+
+- solo backend debe marcar recordatorios como enviados,
+- admin puede consultar estados,
+- paciente solo consulta lo propio si aplica,
+- el cliente no puede falsificar `sent`,
+- el cliente no puede enviar WhatsApp directamente.
+
+### N. Entregables obligatorios
+
+No cierres este bloque hasta entregar de verdad:
+
+1. Modelo de recordatorio programado.
+2. Creación automática al crear cita.
+3. Invalidación al reprogramar.
+4. Cancelación al cancelar cita.
+5. Validación de estado antes de enviar.
+6. Envío o preparación real del canal app.
+7. Preparación realista de WhatsApp.
+8. Idempotencia anti-duplicados.
+9. Logs de intento y resultado.
+10. UI mínima de consulta admin.
+11. Seguridad para impedir envíos desde cliente.
+12. Validación manual real con:
+   - cita creada con más de 24h,
+   - cita creada con menos de 24h,
+   - cita creada con menos de 1h,
+   - cita reprogramada,
+   - cita cancelada,
+   - cita completada,
+   - duplicado bloqueado.
+
+### O. Criterio de aceptación real
+
+El Bloque 04 solo se considera terminado cuando:
+
+- al crear cita válida se programan recordatorios correctos,
+- al reprogramar se invalidan los anteriores y se crean nuevos,
+- al cancelar no se envían pendientes,
+- no se crean recordatorios retroactivos,
+- no se envían duplicados,
+- el backend valida el estado actual antes de enviar,
+- existe trazabilidad de cada recordatorio,
+- app y WhatsApp quedan modelados correctamente,
+- WhatsApp no se marca como funcional sin proveedor real.
+
+---
+
+## 4) Regaña al desarrollador
+
+Borlty, aquí no basta con decir “las notificaciones luego las conectamos”. Este bloque tenía un objetivo muy concreto y sensible: recordarle al paciente su cita por dos canales, en dos momentos, sin duplicados y sin errores de estado. Si hoy no funciona ni app ni WhatsApp, entonces no cumpliste nada de lo importante.
+
+No vuelvas a vender como “recordatorios automáticos” una implementación que no tiene programación real, ni idempotencia, ni backend responsable, ni control de estados, ni proveedor serio de WhatsApp. Eso no es automatización; eso es dejar una deuda técnica peligrosa en algo que afecta directamente la experiencia del paciente.
+
+Quiero trazabilidad real, programación real y seguridad real. Si el backend no puede demostrar cuándo creó, invalidó, envió o canceló un recordatorio, entonces este bloque sigue abierto.

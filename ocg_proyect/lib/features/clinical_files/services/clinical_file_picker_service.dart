@@ -20,7 +20,7 @@ class PickedClinicalFile {
 
 class ClinicalFilePickerService {
   Future<PickedClinicalFile?> pick() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: false,
       withData: true,
       type: FileType.custom,

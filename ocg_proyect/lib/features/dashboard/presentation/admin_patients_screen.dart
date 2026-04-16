@@ -1,6 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +13,6 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
-import '../../../shared/widgets/ocg_card.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -334,7 +332,11 @@ class AdminPatientsScreen extends ConsumerWidget {
                       color: OcgColors.ivory.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.menu, color: OcgColors.ivory, size: 20),
+                    child: const Icon(
+                      Icons.menu,
+                      color: OcgColors.ivory,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -356,7 +358,11 @@ class AdminPatientsScreen extends ConsumerWidget {
                   color: OcgColors.ivory.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.notifications_none, color: OcgColors.ivory, size: 18),
+                child: const Icon(
+                  Icons.notifications_none,
+                  color: OcgColors.ivory,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
@@ -367,7 +373,14 @@ class AdminPatientsScreen extends ConsumerWidget {
                   color: OcgColors.bronze,
                   shape: BoxShape.circle,
                 ),
-                child: const Text('AD', style: TextStyle(color: OcgColors.ivory, fontWeight: FontWeight.w700, fontSize: 11.5)),
+                child: const Text(
+                  'AD',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                  ),
+                ),
               ),
             ],
           ),
@@ -378,14 +391,20 @@ class AdminPatientsScreen extends ConsumerWidget {
             error: (error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Text('No se pudo cargar pacientes: $error', textAlign: TextAlign.center),
+                child: Text(
+                  'No se pudo cargar pacientes: $error',
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
             data: (_) => ListView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -393,11 +412,17 @@ class AdminPatientsScreen extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, color: Color(0xFF8A6F59), size: 19),
+                      const Icon(
+                        Icons.search,
+                        color: Color(0xFF8A6F59),
+                        size: 19,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
-                          onChanged: (value) => ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
+                          onChanged: (value) => ref
+                              .read(patientsSearchQueryProvider.notifier)
+                              .setQuery(value),
                           decoration: const InputDecoration(
                             isDense: true,
                             border: InputBorder.none,
@@ -412,7 +437,11 @@ class AdminPatientsScreen extends ConsumerWidget {
                           color: const Color(0xFFF2EDE8),
                           borderRadius: BorderRadius.circular(9),
                         ),
-                        child: const Icon(Icons.tune, size: 16, color: OcgColors.bronze),
+                        child: const Icon(
+                          Icons.tune,
+                          size: 16,
+                          color: OcgColors.bronze,
+                        ),
                       ),
                     ],
                   ),
@@ -429,18 +458,29 @@ class AdminPatientsScreen extends ConsumerWidget {
                       final selected = filter == selectedFilter;
                       return InkWell(
                         borderRadius: BorderRadius.circular(999),
-                        onTap: () => ref.read(patientsFilterProvider.notifier).setFilter(filter),
+                        onTap: () => ref
+                            .read(patientsFilterProvider.notifier)
+                            .setFilter(filter),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: selected ? OcgColors.espresso : Colors.white,
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: selected ? OcgColors.espresso : const Color(0xFFE5D4C4)),
+                            border: Border.all(
+                              color: selected
+                                  ? OcgColors.espresso
+                                  : const Color(0xFFE5D4C4),
+                            ),
                           ),
                           child: Text(
                             filter,
                             style: TextStyle(
-                              color: selected ? OcgColors.ivory : const Color(0xFF8A6F59),
+                              color: selected
+                                  ? OcgColors.ivory
+                                  : const Color(0xFF8A6F59),
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
@@ -453,24 +493,37 @@ class AdminPatientsScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Text(
                   '${filteredPatients.length} pacientes',
-                  style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 if (filteredPatients.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: Text('No hay pacientes para los filtros actuales.')),
+                    child: Center(
+                      child: Text(
+                        'No hay pacientes para los filtros actuales.',
+                      ),
+                    ),
                   )
                 else
-                  ...filteredPatients.map((patient) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _PatientCard(
-                          patient: patient,
-                          onTap: () => context.go(
-                            RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
+                  ...filteredPatients.map(
+                    (patient) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _PatientCard(
+                        patient: patient,
+                        onTap: () => context.go(
+                          RouteNames.adminPatientDetail.replaceFirst(
+                            ':patientId',
+                            patient.id,
                           ),
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -526,7 +579,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                       SizedBox(height: 6),
                       Text(
                         'Gestión clínica y financiera',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF9A735C)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF9A735C),
+                        ),
                       ),
                     ],
                   ),
@@ -536,10 +592,17 @@ class AdminPatientsScreen extends ConsumerWidget {
                     backgroundColor: const Color(0xFF2C2016),
                     foregroundColor: OcgColors.ivory,
                     shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
                   ),
                   onPressed: () => _showAddPatientDialog(context, ref),
-                  icon: const Icon(Icons.person_add_outlined, size: 16, color: Color(0xFFC9A882)),
+                  icon: const Icon(
+                    Icons.person_add_outlined,
+                    size: 16,
+                    color: Color(0xFFC9A882),
+                  ),
                   label: const Text('Nuevo paciente'),
                 ),
               ],
@@ -576,7 +639,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
-                      onChanged: (value) => ref.read(patientsSearchQueryProvider.notifier).setQuery(value),
+                      onChanged: (value) => ref
+                          .read(patientsSearchQueryProvider.notifier)
+                          .setQuery(value),
                       decoration: const InputDecoration(
                         isDense: true,
                         hintText: 'Buscar en pacientes ...',
@@ -585,7 +650,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8F5F0),
                       borderRadius: BorderRadius.circular(10),
@@ -595,7 +663,14 @@ class AdminPatientsScreen extends ConsumerWidget {
                       children: const [
                         Icon(Icons.tune, size: 14, color: Color(0xFF9A735C)),
                         SizedBox(width: 6),
-                        Text('Filtros', style: TextStyle(fontSize: 12, color: Color(0xFF9A735C), fontWeight: FontWeight.w600)),
+                        Text(
+                          'Filtros',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9A735C),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -610,27 +685,46 @@ class AdminPatientsScreen extends ConsumerWidget {
                 final selected = filter == selectedFilter;
                 return InkWell(
                   borderRadius: BorderRadius.circular(999),
-                  onTap: () => ref.read(patientsFilterProvider.notifier).setFilter(filter),
+                  onTap: () => ref
+                      .read(patientsFilterProvider.notifier)
+                      .setFilter(filter),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
-                      color: selected ? const Color(0xFF2C2016) : const Color(0xFFF8F5F0),
+                      color: selected
+                          ? const Color(0xFF2C2016)
+                          : const Color(0xFFF8F5F0),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: selected ? const Color(0xFF2C2016) : const Color(0xFFE8DDD2)),
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFF2C2016)
+                            : const Color(0xFFE8DDD2),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (selected) ...[
-                          const Icon(Icons.check_circle, size: 12, color: OcgColors.ivory),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 12,
+                            color: OcgColors.ivory,
+                          ),
                           const SizedBox(width: 6),
                         ],
                         Text(
                           filter,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                            color: selected ? OcgColors.ivory : const Color(0xFF7E6A5B),
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: selected
+                                ? OcgColors.ivory
+                                : const Color(0xFF7E6A5B),
                           ),
                         ),
                       ],
@@ -642,10 +736,20 @@ class AdminPatientsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text('Listado de pacientes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF2C2016))),
+                const Text(
+                  'Listado de pacientes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2C2016),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF6EFE7),
                     borderRadius: BorderRadius.circular(99),
@@ -653,7 +757,11 @@ class AdminPatientsScreen extends ConsumerWidget {
                   ),
                   child: Text(
                     '${filteredPatients.length} registros',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9A735C)),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF9A735C),
+                    ),
                   ),
                 ),
               ],
@@ -669,7 +777,9 @@ class AdminPatientsScreen extends ConsumerWidget {
               child: filteredPatients.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.all(18),
-                      child: Text('No hay pacientes para los filtros actuales.'),
+                      child: Text(
+                        'No hay pacientes para los filtros actuales.',
+                      ),
                     )
                   : Column(
                       children: [
@@ -678,10 +788,14 @@ class AdminPatientsScreen extends ConsumerWidget {
                             patient: filteredPatients[i],
                             selected: false,
                             onTap: () => context.go(
-                              RouteNames.adminPatientDetail.replaceFirst(':patientId', filteredPatients[i].id),
+                              RouteNames.adminPatientDetail.replaceFirst(
+                                ':patientId',
+                                filteredPatients[i].id,
+                              ),
                             ),
                           ),
-                          if (i != filteredPatients.length - 1) const SizedBox(height: 8),
+                          if (i != filteredPatients.length - 1)
+                            const SizedBox(height: 8),
                         ],
                       ],
                     ),
@@ -870,10 +984,7 @@ class _KpiCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  base,
-                  Color.lerp(base, Colors.white, 0.35)!,
-                ],
+                colors: [base, Color.lerp(base, Colors.white, 0.35)!],
               ),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
@@ -885,7 +996,12 @@ class _KpiCard extends StatelessWidget {
                 ),
               ],
             ),
-            padding: EdgeInsets.fromLTRB(compact ? 12 : 14, compact ? 10 : 12, compact ? 12 : 14, compact ? 10 : 12),
+            padding: EdgeInsets.fromLTRB(
+              compact ? 12 : 14,
+              compact ? 10 : 12,
+              compact ? 12 : 14,
+              compact ? 10 : 12,
+            ),
             child: Stack(
               children: [
                 Positioned(
@@ -913,7 +1029,11 @@ class _KpiCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(color: const Color(0x1A2C2016)),
                           ),
-                          child: Icon(icon, size: 12, color: const Color(0xFF9A735C)),
+                          child: Icon(
+                            icon,
+                            size: 12,
+                            color: const Color(0xFF9A735C),
+                          ),
                         ),
                         const Spacer(),
                         Container(
@@ -1064,9 +1184,14 @@ class _DesktopPatientRow extends StatelessWidget {
                     spacing: 4,
                     runSpacing: 4,
                     children: [
-                      OcgChip(label: patient.tipoTratamiento?.name ?? 'Pendiente'),
+                      OcgChip(
+                        label: patient.tipoTratamiento?.name ?? 'Pendiente',
+                      ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: stageBg,
                           borderRadius: BorderRadius.circular(20),
@@ -1097,7 +1222,9 @@ class _DesktopPatientRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  patient.proximaCita == null ? 'Sin cita' : _fmtDate(patient.proximaCita!),
+                  patient.proximaCita == null
+                      ? 'Sin cita'
+                      : _fmtDate(patient.proximaCita!),
                   style: TextStyle(
                     fontSize: 11,
                     color: OcgColors.ink.withOpacity(.5),
@@ -1114,7 +1241,11 @@ class _DesktopPatientRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(color: const Color(0xFFE8DDD2)),
               ),
-              child: const Icon(Icons.chevron_right, color: OcgColors.bronze, size: 14),
+              child: const Icon(
+                Icons.chevron_right,
+                color: OcgColors.bronze,
+                size: 14,
+              ),
             ),
           ],
         ),
@@ -1140,7 +1271,8 @@ class _PatientCard extends StatelessWidget {
       Color(0xFFF6EBD7),
       Color(0xFFE4EDF9),
     ];
-    final avatarBg = avatarTones[patient.id.hashCode.abs() % avatarTones.length];
+    final avatarBg =
+        avatarTones[patient.id.hashCode.abs() % avatarTones.length];
 
     final treatmentLabel = patient.tipoTratamiento == null
         ? 'Pendiente'
@@ -1157,7 +1289,11 @@ class _PatientCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFE7D6C6)),
           boxShadow: const [
-            BoxShadow(color: Color(0x122C2016), blurRadius: 10, offset: Offset(0, 2)),
+            BoxShadow(
+              color: Color(0x122C2016),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
           ],
         ),
         child: Row(
@@ -1198,7 +1334,10 @@ class _PatientCard extends StatelessWidget {
                     patient.email,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.2, color: Color(0xFF8A6F59)),
+                    style: const TextStyle(
+                      fontSize: 12.2,
+                      color: Color(0xFF8A6F59),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -1206,7 +1345,10 @@ class _PatientCard extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF2EDE8),
                           borderRadius: BorderRadius.circular(999),
@@ -1220,10 +1362,16 @@ class _PatientCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Text('·', style: TextStyle(color: Color(0xFF8A6F59))),
+                      const Text(
+                        '·',
+                        style: TextStyle(color: Color(0xFF8A6F59)),
+                      ),
                       Text(
                         stageLabel,
-                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59)),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF8A6F59),
+                        ),
                       ),
                     ],
                   ),
@@ -1239,11 +1387,11 @@ class _PatientCard extends StatelessWidget {
 }
 
 String _tipoTratamientoLabel(TreatmentType value) => switch (value) {
-      TreatmentType.convencional => 'Convencional',
-      TreatmentType.estetico => 'Brackets Estéticos',
-      TreatmentType.autoligado => 'Autoligado',
-      TreatmentType.alineadores => 'Alineadores',
-      TreatmentType.ortopedia => 'Ortopedia',
-      TreatmentType.retenedores => 'Retenedores',
-      TreatmentType.interceptivo => 'Interceptivo',
-    };
+  TreatmentType.convencional => 'Convencional',
+  TreatmentType.estetico => 'Brackets Estéticos',
+  TreatmentType.autoligado => 'Autoligado',
+  TreatmentType.alineadores => 'Alineadores',
+  TreatmentType.ortopedia => 'Ortopedia',
+  TreatmentType.retenedores => 'Retenedores',
+  TreatmentType.interceptivo => 'Interceptivo',
+};

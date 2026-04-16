@@ -444,3 +444,280 @@ Los tratamientos nuevos quedan disponibles en el catálogo.
 El admin puede cambiar el tratamiento visible en el tab Tratamiento.
 Los pacientes existentes no se rompen.
 El modelo queda preparado para pagos, archivos clínicos, citas y recordatorios.
+
+# Bloque 01 — Tratamientos múltiples y etapas por tratamiento
+
+## 1) Problemática
+
+Borlty, el Bloque 01 no está cumplido. Lo entregado no satisface el objetivo funcional del bloque y además está dejando una base incorrecta para los Bloques 02, 03 y 04.
+
+### Hallazgos reales reportados en pruebas
+
+- Al crear un paciente nuevo y seleccionar un tipo de tratamiento, la interfaz parece mostrar que el tratamiento fue creado, pero al entrar al paciente ese tratamiento ya no existe.
+- En base de datos tampoco quedó guardado el tratamiento creado. Es decir: hubo una ilusión de persistencia, no una persistencia real.
+- El sistema permite entrar a “Editar tratamiento” aun cuando el paciente no tiene un tratamiento realmente asignado.
+- Dentro de esa vista todavía aparece la lógica vieja de “Valor total del tratamiento” y “Saldo pendiente”, cuando este bloque debía centrarse en tratamiento como entidad clínica, no en un monto plano heredado.
+- Al intentar crear un nuevo tratamiento para un paciente existente, el sistema cae en error por `webview_flutter` / `payu_checkout_screen`. Eso no debía pasar en un flujo de tratamientos.
+- No permite varios tratamientos en un mismo paciente.
+- La regla de tratamiento principal está mal resuelta: en vez de soportar múltiples tratamientos con uno principal, el sistema termina comportándose como si solo pudiera existir uno.
+- El historial clínico ya muestra fallas desde este bloque: `permission-denied` y subida de archivos rota.
+- Validaciones, catálogo global, persistencia, recarga, seguridad y consistencia fueron reportadas como incorrectas.
+
+### Lo que este bloque debía lograr y no logró
+
+Este bloque no era simplemente “mostrar un tipo de tratamiento en un formulario”. Este bloque debía:
+
+- convertir el tratamiento en una entidad propia por paciente,
+- soportar múltiples tratamientos por paciente,
+- manejar subtipo obligatorio cuando aplique,
+- soportar tratamiento principal sin romper la coexistencia de otros,
+- crear historial de etapas por tratamiento,
+- dejar preparado `treatmentId` para pagos, archivos clínicos, citas y recordatorios,
+- crear o preparar catálogo global de tratamientos,
+- respetar pacientes existentes mediante migración o compatibilidad temporal.
+
+Nada de eso se puede dar por cerrado si el tratamiento desaparece, si no existe soporte real multi-tratamiento y si la UI sigue mezclando tratamiento con pagos viejos.
+
+---
+
+## 2) Análisis Problemática
+
+Aquí el problema no es estético. Es estructural.
+
+### A. Persistencia falsa
+
+Si la UI deja ver un tratamiento recién creado y después desaparece, entonces el flujo está mal diseñado en una de estas capas:
+
+- repositorio,
+- provider,
+- escritura a Firestore,
+- lectura al reconstruir pantalla,
+- o compatibilidad entre modelo nuevo y modelo viejo.
+
+En cualquier caso, no se puede cerrar el bloque porque el dato clínico principal no queda guardado.
+
+### B. Modelado incompleto
+
+El bloque exigía que el tratamiento dejara de vivir como campo plano en el paciente y pasara a ser una entidad propia. Si todavía todo gira alrededor de campos sueltos heredados o vistas que simulan edición sin subcolección real, el bloque no está implementado.
+
+### C. Flujo de creación mal resuelto
+
+Tu diseño actual está mezclando la creación del paciente con decisiones clínicas y financieras que deberían ocurrir después, dentro del perfil del paciente. Eso genera fricción, confusión y errores de estado.
+
+La observación funcional es válida: desde admin, la creación inicial del paciente debería enfocarse en datos mínimos; luego, dentro del perfil del paciente, se define el o los tratamientos y a partir de ahí se cuelgan pagos, archivos y demás.
+
+### D. Acoplamiento indebido con pagos / WebView
+
+Que un flujo de tratamiento termine explotando por `payu_checkout_screen` y `webview_flutter` demuestra que no separaste responsabilidades. El módulo de tratamiento no puede quedar condicionado por una pantalla de checkout ni disparar dependencias de WebView en web sin control.
+
+### E. Multi-tratamiento no implementado
+
+Este es el corazón del bloque. Si un paciente no puede tener varios tratamientos, entonces no cumpliste el objetivo principal. Y peor: sin eso, el Bloque 02 queda mal por diseño, porque sus conceptos financieros debían vivir por `treatmentId`.
+
+### F. Etapas e historial sin base estable
+
+Si el tratamiento no existe como entidad persistente, tampoco existe una base confiable para `stageHistory`. No se puede hablar de historial de etapas por tratamiento cuando aún no está cerrado el tratamiento como entidad principal.
+
+### G. Compatibilidad/migración no resuelta
+
+Los pacientes existentes no pueden romperse. Si el sistema nuevo no migra ni lee temporalmente el modelo viejo, se generan pantallas inconsistentes y flujos rotos.
+
+---
+
+## 3) Solución Problemática
+
+Vas a rehacer la implementación del Bloque 01 correctamente, respetando la especificación funcional y técnica.
+
+### A. Tratar el tratamiento como entidad propia
+
+Debes implementar de forma real y persistente la estructura recomendada:
+
+```txt
+patients/{patientId}
+patients/{patientId}/treatments/{treatmentId}
+patients/{patientId}/treatments/{treatmentId}/stageHistory/{stageId}
+```
+
+Cada tratamiento debe tener como mínimo:
+
+- `id`
+- `patientId`
+- `name`
+- `baseType`
+- `subtype`
+- `status`
+- `currentStageId`
+- `currentStageName`
+- `isPrimary`
+- `startDate`
+- `endDate`
+- `createdAt`
+- `updatedAt`
+- `createdBy`
+- `updatedBy`
+
+### B. Corregir el flujo admin de creación de paciente
+
+Debes separar claramente dos momentos:
+
+#### Crear paciente
+Pedir solo los datos mínimos y seguros:
+
+- nombre
+- correo
+- contraseña
+- datos básicos realmente necesarios
+
+#### Configurar tratamiento
+Una vez creado el paciente, entrar a su perfil y desde allí:
+
+- crear tratamiento,
+- editar tratamiento,
+- agregar segundo tratamiento,
+- definir principal,
+- configurar etapas,
+- dejar listo el `treatmentId` para el Bloque 02.
+
+### C. Soportar múltiples tratamientos reales
+
+Debes permitir que un paciente tenga más de un tratamiento, y cada uno debe conservar:
+
+- identidad propia,
+- subtipo propio cuando aplique,
+- estado propio,
+- etapa actual propia,
+- historial de etapas propio,
+- relación futura con pagos, citas, archivos y recordatorios.
+
+### D. Implementar correctamente `isPrimary`
+
+La regla correcta es:
+
+- sí puede haber varios tratamientos por paciente,
+- pero solo uno puede tener `isPrimary: true`,
+- al marcar uno como principal, el anterior debe pasar a `false`,
+- el principal debe ser el visible por defecto.
+
+### E. Validar subtipo obligatorio
+
+Si el admin elige:
+
+- Convencional
+- Autoligado
+
+entonces el sistema debe exigir obligatoriamente:
+
+- Estético
+- Metálico
+
+No se puede guardar sin subtipo en esos casos.
+
+### F. Crear historial de etapas por tratamiento
+
+Cada tratamiento debe tener su propia línea de tiempo en:
+
+```txt
+patients/{patientId}/treatments/{treatmentId}/stageHistory/{stageId}
+```
+
+Reglas obligatorias:
+
+- cambiar etapa en un tratamiento no afecta a otro,
+- no existe una sola etapa global del paciente,
+- el historial no se borra,
+- la UI muestra etapa actual e historial.
+
+### G. Corregir catálogo global de tratamientos
+
+Debes preparar o implementar:
+
+```txt
+treatmentCatalog/{catalogTreatmentId}
+```
+
+Con validaciones mínimas:
+
+- no nombres vacíos,
+- no duplicados por normalización,
+- confirmación antes de crear nuevo tratamiento global,
+- tratamientos base del sistema no se eliminan.
+
+### H. Corregir compatibilidad con pacientes existentes
+
+Debes detectar pacientes con campos antiguos como:
+
+- `treatmentType`
+- `treatmentStage`
+- `treatmentStatus`
+- `treatmentAmount`
+
+Y luego:
+
+1. crear tratamiento inicial en la nueva subcolección,
+2. copiar datos relevantes,
+3. marcarlo como principal,
+4. mantener lectura compatible temporal,
+5. no borrar campos antiguos hasta validar completamente la UI nueva.
+
+### I. Eliminar acoplamiento indebido con pagos y WebView
+
+El Bloque 01 no debe disparar WebView ni flujo PayU durante creación/edición de tratamientos. Debes revisar rutas, imports, navegación y dependencias para que tratamiento no quede contaminado por checkout.
+
+### J. Corregir permisos y consistencia básica
+
+Debes revisar:
+
+- modelos,
+- repositorios,
+- providers,
+- reglas de Firestore,
+- consultas,
+- persistencia tras recarga,
+- estado seleccionado en la UI,
+- operaciones críticas por rol admin.
+
+### K. Entregables obligatorios
+
+No cierres este bloque hasta entregar de verdad:
+
+1. Modelo nuevo de tratamiento por paciente.
+2. Modelo de historial de etapas por tratamiento.
+3. Soporte real multi-tratamiento.
+4. Selector de tratamiento visible en tab Tratamiento.
+5. Regla de tratamiento principal correcta.
+6. Subtipo obligatorio para Convencional y Autoligado.
+7. Catálogo global de tratamientos.
+8. Migración o compatibilidad con pacientes existentes.
+9. Configuración de seguimiento 3m / 6m lista.
+10. Reglas de Firestore revisadas.
+11. Validación manual real con:
+   - paciente nuevo,
+   - paciente existente,
+   - paciente con más de un tratamiento,
+   - tratamiento Convencional con subtipo,
+   - tratamiento Autoligado con subtipo,
+   - tratamiento nuevo creado por admin.
+
+### L. Criterio de aceptación real
+
+El Bloque 01 solo se considera terminado cuando:
+
+- un paciente puede tener más de un tratamiento,
+- cada tratamiento tiene etapa actual propia,
+- cada tratamiento tiene historial de etapas propio,
+- Convencional y Autoligado exigen subtipo,
+- el admin puede crear tratamiento nuevo desde el sistema,
+- los tratamientos nuevos quedan en catálogo,
+- el admin puede cambiar el tratamiento visible,
+- los pacientes existentes no se rompen,
+- el modelo queda listo para pagos, archivos clínicos, citas y recordatorios.
+
+---
+
+## 4) Regaña al desarrollador
+
+Borlty, aquí no falló un detalle; falló la base. No puedes decir que un bloque está implementado solo porque algo se ve unos segundos en pantalla. Si el tratamiento desaparece al volver a entrar, entonces no construiste un módulo, construiste una ilusión visual.
+
+Además, mezclaste responsabilidades que no tocaban: tratamiento, pagos, navegación y hasta WebView en un flujo que debía ser clínico y estructural. Eso es falta de criterio técnico. Este proyecto ya no está para maquetas disfrazadas de funcionalidad.
+
+Deja de cerrar bloques por apariencia. Quiero entidad persistente, multi-tratamiento real, etapas por tratamiento, compatibilidad con pacientes viejos y cero contaminación con flujos ajenos. Si no soporta recarga, permisos y casos reales, entonces no está hecho.

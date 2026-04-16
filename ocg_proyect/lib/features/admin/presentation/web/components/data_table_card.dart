@@ -3,11 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 
 class DataTableCard extends StatelessWidget {
-  const DataTableCard({
-    super.key,
-    required this.columns,
-    required this.rows,
-  });
+  const DataTableCard({super.key, required this.columns, required this.rows});
 
   final List<DataColumn> columns;
   final List<DataRow> rows;
