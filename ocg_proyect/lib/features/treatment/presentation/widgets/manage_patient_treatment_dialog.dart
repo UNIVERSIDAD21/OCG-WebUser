@@ -1099,7 +1099,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     String baseType, {
     List<_FinancialItemDraft>? previousItems,
   }) {
-    final previous = previousItems ?? _financialItems;
+    final previous = previousItems ?? const <_FinancialItemDraft>[];
     final previousById = {for (final item in previous) item.id: item};
     final previousByKind = {for (final item in previous) item.kind: item};
     final wantsOrthopedics = baseType == 'ortopedia';
