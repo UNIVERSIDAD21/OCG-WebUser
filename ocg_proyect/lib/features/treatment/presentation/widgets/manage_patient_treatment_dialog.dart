@@ -162,10 +162,15 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         ? widget.patientName!.trim()
         : widget.patientId;
 
+    final media = MediaQuery.of(context).size;
+    final dialogWidth = media.width > 1240 ? 1160.0 : media.width - 48;
+    final dialogHeight = media.height > 940 ? 900.0 : media.height - 48;
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1160, maxHeight: 900),
+      child: SizedBox(
+        width: dialogWidth.clamp(320.0, 1160.0),
+        height: dialogHeight.clamp(420.0, 900.0),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -186,6 +191,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                             Expanded(
                               flex: 5,
                               child: SingleChildScrollView(
+                                primary: false,
                                 child: _buildClinicalSection(context, visibleBaseOptions, isLoading),
                               ),
                             ),
@@ -193,6 +199,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                             Expanded(
                               flex: 7,
                               child: SingleChildScrollView(
+                                primary: false,
                                 child: _buildFinancialSection(context, isLoading, financialSummary),
                               ),
                             ),
@@ -200,6 +207,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                         );
                       }
                       return SingleChildScrollView(
+                        primary: false,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -213,15 +221,16 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                   ),
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
                     OcgButton(
                       label: 'Cancelar',
                       variant: OcgButtonVariant.outline,
                       onPressed: isLoading ? null : () => Navigator.of(context).pop(),
                     ),
-                    const SizedBox(width: 12),
                     OcgButton(
                       label: widget.initialTreatment == null ? 'Guardar tratamiento' : 'Guardar cambios',
                       isLoading: isLoading,
