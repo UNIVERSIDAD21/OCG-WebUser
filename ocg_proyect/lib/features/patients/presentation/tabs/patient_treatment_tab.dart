@@ -141,7 +141,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.08)),
               ),
               child: Text(
-                'Tratamiento visible: ${selectedTreatment.displayName} · ${treatments.length} total(es)',
+                'Tratamiento visible por defecto: ${selectedTreatment.displayName}${selectedTreatment.isPrimary ? ' (principal)' : ''} · ${treatments.length} total(es)',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: OcgColors.espresso,
                       fontWeight: FontWeight.w600,
@@ -222,6 +222,11 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                         icon: Icons.timeline_outlined,
                         label: 'Etapa',
                         value: stageNames[selectedTreatment.etapaActual] ?? selectedTreatment.etapaActual.name,
+                      ),
+                      _MetaItem(
+                        icon: selectedTreatment.isPrimary ? Icons.star : Icons.layers_outlined,
+                        label: 'Prioridad',
+                        value: selectedTreatment.isPrimary ? 'Principal' : 'Secundario',
                       ),
                       _MetaItem(
                         icon: Icons.cleaning_services_outlined,

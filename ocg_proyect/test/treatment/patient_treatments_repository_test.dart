@@ -103,6 +103,7 @@ void main() {
       expect(firstDoc.data()?['isPrimary'], isFalse);
       expect(secondDoc.data()?['isPrimary'], isTrue);
       expect(patientDoc.data()?['primaryTreatmentId'], 'tx-2');
+      expect(patientDoc.data()?['tipoTratamiento'], 'alineadores');
     });
 
     test('permite coexistencia de segundo y tercer tratamiento sin sobrescribir', () async {
