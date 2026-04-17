@@ -69,7 +69,11 @@ class PatientTreatmentsRepository {
 
     batch.set(
       docRef,
-      treatment.copyWith(updatedAt: now).toJson(),
+      treatment.copyWith(
+        patientId: patientId,
+        updatedAt: now,
+        updatedBy: treatment.updatedBy ?? treatment.createdBy,
+      ).toJson(),
       SetOptions(merge: true),
     );
 
@@ -127,8 +131,11 @@ class PatientTreatmentsRepository {
     }
 
     final updated = treatment.copyWith(
+      patientId: patientId,
       estado: newStatus,
       updatedAt: DateTime.now(),
+      fechaFin: (newStatus == 'finalizado' || newStatus == 'cancelado') ? DateTime.now() : null,
+      updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
 
     final batch = _db.batch();

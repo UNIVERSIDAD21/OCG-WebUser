@@ -316,9 +316,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         }
       }
 
+      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
       final treatment = (widget.initialTreatment ??
               PatientTreatment(
                 id: DateTime.now().microsecondsSinceEpoch.toString(),
+                patientId: widget.patientId,
                 nombre: effectiveName,
                 categoria: _category,
                 tipoBase: effectiveBaseType,
@@ -328,6 +330,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
                 isPrimary: _isPrimary,
+                createdBy: adminId,
+                updatedBy: adminId,
               ))
           .copyWith(
         nombre: effectiveName,
@@ -336,8 +340,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         subtipo: _requiresSubtype ? _subtype : null,
         estado: _status,
         etapaActual: _stage,
+        patientId: widget.patientId,
         fechaInicio: _fechaInicio,
+        fechaFin: (_status == 'finalizado' || _status == 'cancelado') ? DateTime.now() : null,
         isPrimary: _isPrimary,
+        updatedBy: adminId,
         totalTratamiento: _parseDouble(_totalController.text),
         saldoPendiente: _parseDouble(_balanceController.text),
         notas: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),

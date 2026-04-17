@@ -41,6 +41,7 @@ const List<String> kTreatmentStatusOptions = <String>[
 class PatientTreatment {
   const PatientTreatment({
     required this.id,
+    required this.patientId,
     required this.nombre,
     required this.categoria,
     required this.tipoBase,
@@ -48,9 +49,12 @@ class PatientTreatment {
     required this.estado,
     required this.etapaActual,
     required this.fechaInicio,
+    this.fechaFin,
     required this.createdAt,
     required this.updatedAt,
     required this.isPrimary,
+    this.createdBy,
+    this.updatedBy,
     this.suggestedCleaningEveryMonths = 3,
     this.suggestedControlEveryMonths = 6,
     this.totalTratamiento,
@@ -59,6 +63,7 @@ class PatientTreatment {
   });
 
   final String id;
+  final String patientId;
   final String nombre;
   final String categoria;
   final String tipoBase;
@@ -66,9 +71,12 @@ class PatientTreatment {
   final String estado;
   final TreatmentStage etapaActual;
   final DateTime fechaInicio;
+  final DateTime? fechaFin;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isPrimary;
+  final String? createdBy;
+  final String? updatedBy;
   final int suggestedCleaningEveryMonths;
   final int suggestedControlEveryMonths;
   final double? totalTratamiento;
@@ -78,6 +86,16 @@ class PatientTreatment {
   bool get isActive => estado == 'activo';
   bool get isFinished => estado == 'finalizado' || estado == 'cancelado';
   bool get requiresSubtype => kSubtypeRequiredBaseTreatments.contains(tipoBase);
+
+  String get currentStageId => etapaActual.name;
+  String get currentStageName => stageNames[etapaActual] ?? etapaActual.name;
+  String get name => nombre;
+  String get category => categoria;
+  String get baseType => tipoBase;
+  String? get subtype => subtipo;
+  String get status => estado;
+  DateTime get startDate => fechaInicio;
+  DateTime? get endDate => fechaFin;
 
   String get displayName {
     final base = _titleize(nombre);
@@ -115,6 +133,14 @@ class PatientTreatment {
     return fallback;
   }
 
+  static DateTime? _parseNullableDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
   static double? _parseNullableDouble(dynamic value) {
     if (value == null) return null;
     if (value is num) return value.toDouble();
@@ -123,18 +149,23 @@ class PatientTreatment {
 
   factory PatientTreatment.fromJson(Map<String, dynamic> json, {String? id}) {
     final now = DateTime.now();
+    final stageRaw = json['currentStageId'] ?? json['etapaActual'];
     return PatientTreatment(
       id: id ?? (json['id'] ?? '').toString(),
-      nombre: (json['nombre'] ?? json['tipoBase'] ?? '').toString(),
-      categoria: (json['categoria'] ?? 'ortodoncia').toString(),
-      tipoBase: (json['tipoBase'] ?? '').toString(),
-      subtipo: json['subtipo']?.toString(),
-      estado: (json['estado'] ?? 'activo').toString(),
-      etapaActual: PatientModel.fromJson(<String, dynamic>{'etapaActual': json['etapaActual']}).etapaActual,
-      fechaInicio: _parseDate(json['fechaInicio'], now),
+      patientId: (json['patientId'] ?? '').toString(),
+      nombre: (json['name'] ?? json['nombre'] ?? json['baseType'] ?? json['tipoBase'] ?? '').toString(),
+      categoria: (json['category'] ?? json['categoria'] ?? 'ortodoncia').toString(),
+      tipoBase: (json['baseType'] ?? json['tipoBase'] ?? '').toString(),
+      subtipo: (json['subtype'] ?? json['subtipo'])?.toString(),
+      estado: (json['status'] ?? json['estado'] ?? 'activo').toString(),
+      etapaActual: PatientModel.fromJson(<String, dynamic>{'etapaActual': stageRaw}).etapaActual,
+      fechaInicio: _parseDate(json['startDate'] ?? json['fechaInicio'], now),
+      fechaFin: _parseNullableDate(json['endDate'] ?? json['fechaFin']),
       createdAt: _parseDate(json['createdAt'], now),
       updatedAt: _parseDate(json['updatedAt'], now),
       isPrimary: (json['isPrimary'] as bool?) ?? false,
+      createdBy: json['createdBy']?.toString(),
+      updatedBy: json['updatedBy']?.toString(),
       suggestedCleaningEveryMonths: (json['suggestedCleaningEveryMonths'] as num?)?.toInt() ?? 3,
       suggestedControlEveryMonths: (json['suggestedControlEveryMonths'] as num?)?.toInt() ?? 6,
       totalTratamiento: _parseNullableDouble(json['totalTratamiento']),
@@ -161,6 +192,7 @@ class PatientTreatment {
 
     return PatientTreatment(
       id: 'legacy-primary-${patient.id}',
+      patientId: patient.id,
       nombre: nombre,
       categoria: 'ortodoncia',
       tipoBase: tipoBase,
@@ -168,6 +200,7 @@ class PatientTreatment {
       estado: patient.isFinished ? 'finalizado' : 'activo',
       etapaActual: patient.etapaActual,
       fechaInicio: patient.fechaInicio,
+      fechaFin: patient.isFinished ? (patient.updatedAt ?? patient.fechaEstimadaFin) : null,
       createdAt: patient.createdAt ?? patient.fechaInicio,
       updatedAt: patient.updatedAt ?? patient.fechaInicio,
       isPrimary: true,
@@ -182,13 +215,17 @@ class PatientTreatment {
     String? nombre,
     String? categoria,
     String? tipoBase,
+    String? patientId,
     String? subtipo,
     String? estado,
     TreatmentStage? etapaActual,
     DateTime? fechaInicio,
+    DateTime? fechaFin,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isPrimary,
+    String? createdBy,
+    String? updatedBy,
     int? suggestedCleaningEveryMonths,
     int? suggestedControlEveryMonths,
     double? totalTratamiento,
@@ -200,6 +237,7 @@ class PatientTreatment {
   }) {
     return PatientTreatment(
       id: id ?? this.id,
+      patientId: patientId ?? this.patientId,
       nombre: nombre ?? this.nombre,
       categoria: categoria ?? this.categoria,
       tipoBase: tipoBase ?? this.tipoBase,
@@ -207,9 +245,12 @@ class PatientTreatment {
       estado: estado ?? this.estado,
       etapaActual: etapaActual ?? this.etapaActual,
       fechaInicio: fechaInicio ?? this.fechaInicio,
+      fechaFin: fechaFin ?? this.fechaFin,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isPrimary: isPrimary ?? this.isPrimary,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
       suggestedCleaningEveryMonths:
           suggestedCleaningEveryMonths ?? this.suggestedCleaningEveryMonths,
       suggestedControlEveryMonths:
@@ -221,18 +262,38 @@ class PatientTreatment {
   }
 
   Map<String, dynamic> toJson() {
+    final cleanName = nombre.trim();
+    final cleanCategory = categoria.trim().isEmpty ? 'ortodoncia' : categoria.trim();
+    final cleanBaseType = tipoBase.trim();
+    final cleanSubtype = subtipo?.trim().isEmpty ?? true ? null : subtipo?.trim();
+    final cleanStatus = estado.trim();
+
     return <String, dynamic>{
       'id': id,
-      'nombre': nombre.trim(),
-      'categoria': categoria.trim().isEmpty ? 'ortodoncia' : categoria.trim(),
-      'tipoBase': tipoBase.trim(),
-      'subtipo': subtipo?.trim().isEmpty ?? true ? null : subtipo?.trim(),
-      'estado': estado.trim(),
-      'etapaActual': etapaActual.name,
-      'fechaInicio': Timestamp.fromDate(fechaInicio),
+      'patientId': patientId,
+      'name': cleanName,
+      'category': cleanCategory,
+      'baseType': cleanBaseType,
+      'subtype': cleanSubtype,
+      'status': cleanStatus,
+      'currentStageId': etapaActual.name,
+      'currentStageName': currentStageName,
+      'isPrimary': isPrimary,
+      'startDate': Timestamp.fromDate(fechaInicio),
+      'endDate': fechaFin == null ? null : Timestamp.fromDate(fechaFin!),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
-      'isPrimary': isPrimary,
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
+      // Compatibilidad temporal con pantallas/código legado del repo.
+      'nombre': cleanName,
+      'categoria': cleanCategory,
+      'tipoBase': cleanBaseType,
+      'subtipo': cleanSubtype,
+      'estado': cleanStatus,
+      'etapaActual': etapaActual.name,
+      'fechaInicio': Timestamp.fromDate(fechaInicio),
+      'fechaFin': fechaFin == null ? null : Timestamp.fromDate(fechaFin!),
       'suggestedCleaningEveryMonths': suggestedCleaningEveryMonths,
       'suggestedControlEveryMonths': suggestedControlEveryMonths,
       'totalTratamiento': totalTratamiento,

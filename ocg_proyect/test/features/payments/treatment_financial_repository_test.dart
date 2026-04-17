@@ -15,6 +15,7 @@ void main() {
       repo = TreatmentFinancialRepository(db);
       treatment = PatientTreatment(
         id: 'tx-1',
+        patientId: 'p1',
         nombre: 'Convencional',
         categoria: 'ortodoncia',
         tipoBase: 'convencional',
@@ -25,6 +26,8 @@ void main() {
         createdAt: DateTime(2026, 4, 1),
         updatedAt: DateTime(2026, 4, 1),
         isPrimary: true,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
         totalTratamiento: 1800000,
         saldoPendiente: 1500000,
       );

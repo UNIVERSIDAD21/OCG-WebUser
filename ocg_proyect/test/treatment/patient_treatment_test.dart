@@ -31,6 +31,7 @@ void main() {
     test('toJson serializa fechas y valores clínicos', () {
       final treatment = PatientTreatment(
         id: 't1',
+        patientId: 'p1',
         nombre: 'Convencional',
         categoria: 'ortodoncia',
         tipoBase: 'convencional',
@@ -41,6 +42,8 @@ void main() {
         createdAt: DateTime(2026, 4, 10, 8),
         updatedAt: DateTime(2026, 4, 10, 9),
         isPrimary: true,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
         totalTratamiento: 3000000,
         saldoPendiente: 1200000,
         notas: 'Control 3m/6m activo',
@@ -48,11 +51,14 @@ void main() {
 
       final json = treatment.toJson();
 
-      expect(json['fechaInicio'], isA<Timestamp>());
+      expect(json['patientId'], 'p1');
+      expect(json['startDate'], isA<Timestamp>());
       expect(json['createdAt'], isA<Timestamp>());
       expect(json['updatedAt'], isA<Timestamp>());
-      expect(json['subtipo'], 'metalico');
-      expect(json['estado'], 'activo');
+      expect(json['subtype'], 'metalico');
+      expect(json['status'], 'activo');
+      expect(json['currentStageId'], 'controles');
+      expect(json['currentStageName'], 'Controles');
     });
   });
 }

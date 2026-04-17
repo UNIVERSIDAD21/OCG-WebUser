@@ -17,6 +17,7 @@ void main() {
     test('guarda tratamiento principal y sincroniza paciente y payments', () async {
       final treatment = PatientTreatment(
         id: 'tx-1',
+        patientId: 'patient-1',
         nombre: 'Convencional',
         categoria: 'ortodoncia',
         tipoBase: 'convencional',
@@ -27,6 +28,8 @@ void main() {
         createdAt: DateTime(2026, 4, 16),
         updatedAt: DateTime(2026, 4, 16),
         isPrimary: true,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
         totalTratamiento: 2500000,
         saldoPendiente: 1500000,
         notas: 'Tratamiento principal del paciente',
@@ -39,6 +42,13 @@ void main() {
       final treatmentDoc = await db.collection('patients/patient-1/treatments').doc('tx-1').get();
 
       expect(treatmentDoc.exists, isTrue);
+      expect(treatmentDoc.data()?['id'], 'tx-1');
+      expect(treatmentDoc.data()?['patientId'], 'patient-1');
+      expect(treatmentDoc.data()?['name'], 'Convencional');
+      expect(treatmentDoc.data()?['baseType'], 'convencional');
+      expect(treatmentDoc.data()?['subtype'], 'metalico');
+      expect(treatmentDoc.data()?['currentStageId'], 'valoracionInicial');
+      expect(treatmentDoc.data()?['currentStageName'], 'Valoración inicial');
       expect(patientDoc.data()?['primaryTreatmentId'], 'tx-1');
       expect(patientDoc.data()?['tipoTratamiento'], 'convencional');
       expect(paymentDoc.data()?['totalTratamiento'], 2500000);
@@ -49,6 +59,7 @@ void main() {
     test('cambia tratamiento principal y desmarca el anterior', () async {
       final first = PatientTreatment(
         id: 'tx-1',
+        patientId: 'patient-1',
         nombre: 'Convencional',
         categoria: 'ortodoncia',
         tipoBase: 'convencional',
@@ -59,9 +70,12 @@ void main() {
         createdAt: DateTime(2026, 4, 16),
         updatedAt: DateTime(2026, 4, 16),
         isPrimary: true,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
       );
       final second = PatientTreatment(
         id: 'tx-2',
+        patientId: 'patient-1',
         nombre: 'Alineadores',
         categoria: 'ortodoncia',
         tipoBase: 'alineadores',
@@ -71,6 +85,8 @@ void main() {
         createdAt: DateTime(2026, 4, 20),
         updatedAt: DateTime(2026, 4, 20),
         isPrimary: false,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
       );
 
       await repo.saveTreatment(patientId: 'patient-1', treatment: first);
