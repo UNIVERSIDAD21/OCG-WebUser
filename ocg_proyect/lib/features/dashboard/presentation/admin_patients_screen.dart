@@ -79,8 +79,6 @@ class AdminPatientsScreen extends ConsumerWidget {
     String email = '';
     String password = '';
     String confirmPassword = '';
-    TreatmentType treatmentType = TreatmentType.convencional;
-    final totalTreatmentCtrl = TextEditingController();
     bool submitting = false;
     String? formError;
 
@@ -136,53 +134,13 @@ class AdminPatientsScreen extends ConsumerWidget {
                     onChanged: (v) => confirmPassword = v,
                     onSaved: (v) => confirmPassword = v ?? '',
                   ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<TreatmentType>(
-                    initialValue: treatmentType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de tratamiento',
-                      prefixIcon: Icon(Icons.medical_services_outlined),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'El tratamiento se configurará después desde el perfil del paciente.',
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
                     ),
-                    items: TreatmentType.values
-                        .map(
-                          (e) =>
-                              DropdownMenuItem(value: e, child: Text(e.name)),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDs(() => treatmentType = value);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: totalTreatmentCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Monto total del tratamiento (COP)',
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    validator: (v) {
-                      final raw = (v ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (raw.isEmpty) {
-                        return 'Ingresa el monto del tratamiento';
-                      }
-                      final amount = double.tryParse(raw) ?? 0;
-                      if (amount <= 0) return 'El monto debe ser mayor que 0';
-                      return null;
-                    },
-                    onChanged: (value) {
-                      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-                      if (digits.isEmpty) return;
-                      final formatted = formatCop(double.parse(digits));
-                      if (formatted == totalTreatmentCtrl.text) return;
-                      totalTreatmentCtrl.value = TextEditingValue(
-                        text: formatted,
-                        selection: TextSelection.collapsed(
-                          offset: formatted.length,
-                        ),
-                      );
-                    },
                   ),
                   if (formError != null) ...[
                     const SizedBox(height: 10),
@@ -217,12 +175,6 @@ class AdminPatientsScreen extends ConsumerWidget {
                         return;
                       }
 
-                      final amountRaw = totalTreatmentCtrl.text.replaceAll(
-                        RegExp(r'[^0-9]'),
-                        '',
-                      );
-                      final totalTreatment = double.tryParse(amountRaw) ?? 0;
-
                       setDs(() {
                         submitting = true;
                         formError = null;
@@ -235,8 +187,6 @@ class AdminPatientsScreen extends ConsumerWidget {
                               email: email,
                               password: password,
                               displayName: fullName,
-                              treatmentType: treatmentType.name,
-                              totalTreatment: totalTreatment,
                             );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

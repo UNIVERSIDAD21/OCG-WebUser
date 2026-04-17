@@ -47,6 +47,44 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final treatments = ref.watch(
       effectivePatientTreatmentsProvider((patientId: widget.patientId, patient: widget.patient)),
     );
+    final saveState = ref.watch(savePatientTreatmentProvider);
+
+    if (treatments.isEmpty) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tratamientos del paciente',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            OcgEmptyState(
+              icon: Icons.medical_services_outlined,
+              title: 'Este paciente todavía no tiene tratamiento',
+              subtitle:
+                  'Crea el primer tratamiento desde aquí para que quede persistido y visible al recargar.',
+              ctaLabel: saveState.isLoading ? null : 'Crear tratamiento',
+              onCta: saveState.isLoading
+                  ? null
+                  : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => ManagePatientTreatmentDialog(patientId: widget.patientId),
+                      ),
+            ),
+          ],
+        ),
+      );
+    }
 
     final selectedTreatment = _resolveSelectedTreatment(treatments);
     final historyAsync = selectedTreatment.id.startsWith('legacy-primary-')
@@ -57,7 +95,6 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             ),
           );
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
-    final saveState = ref.watch(savePatientTreatmentProvider);
 
     return historyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),

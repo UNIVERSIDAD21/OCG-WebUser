@@ -15,7 +15,6 @@ import '../../patients/providers/patients_provider.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
-import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
@@ -71,25 +70,6 @@ String _labelTipo(AppointmentType t) {
   }
 }
 
-String _labelTipoTratamiento(TreatmentType type) {
-  switch (type) {
-    case TreatmentType.convencional:
-      return 'Convencional';
-    case TreatmentType.estetico:
-      return 'Estético';
-    case TreatmentType.autoligado:
-      return 'Autoligado';
-    case TreatmentType.alineadores:
-      return 'Alineadores';
-    case TreatmentType.ortopedia:
-      return 'Ortopedia';
-    case TreatmentType.interceptivo:
-      return 'Interceptivo';
-    case TreatmentType.retenedores:
-      return 'Retenedores';
-  }
-}
-
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
@@ -133,8 +113,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     String name = '';
     String email = '';
     String pass = '';
-    TreatmentType treatmentType = TreatmentType.convencional;
-    final totalTreatmentCtrl = TextEditingController();
 
     await showDialog<void>(
       context: context,
@@ -184,59 +162,13 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                     onChanged: (v) => pass = v,
                     validator: Validators.passwordForRegister,
                   ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<TreatmentType>(
-                    initialValue: treatmentType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de tratamiento',
-                      prefixIcon: Icon(Icons.medical_services_outlined),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'El tratamiento se configurará después desde el perfil del paciente.',
+                      style: Theme.of(dialogCtx).textTheme.bodySmall,
                     ),
-                    items: TreatmentType.values
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(_labelTipoTratamiento(t)),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) {
-                      if (v == null) {
-                        return;
-                      }
-                      setDs(() => treatmentType = v);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: totalTreatmentCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Monto total del tratamiento (COP)',
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    validator: (v) {
-                      final digits = (v ?? '').replaceAll(
-                        RegExp(r'[^0-9]'),
-                        '',
-                      );
-                      final amount = double.tryParse(digits) ?? 0;
-                      if (amount <= 0) {
-                        return 'Ingresa un monto válido mayor que 0';
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-                      if (digits.isEmpty) return;
-                      final formatted = formatCop(double.parse(digits));
-                      if (formatted == totalTreatmentCtrl.text) return;
-                      totalTreatmentCtrl.value = TextEditingValue(
-                        text: formatted,
-                        selection: TextSelection.collapsed(
-                          offset: formatted.length,
-                        ),
-                      );
-                    },
                   ),
                   if (errorMsg != null) ...[
                     const SizedBox(height: 10),
@@ -280,12 +212,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                         isSubmitting = true;
                         errorMsg = null;
                       });
-                      final totalRaw = totalTreatmentCtrl.text.replaceAll(
-                        RegExp(r'[^0-9]'),
-                        '',
-                      );
-                      final totalTreatment = double.tryParse(totalRaw) ?? 0;
-
                       try {
                         await ref
                             .read(authNotifierProvider.notifier)
@@ -293,8 +219,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                               email: email.trim(),
                               password: pass,
                               displayName: name.trim(),
-                              treatmentType: treatmentType.name,
-                              totalTreatment: totalTreatment,
                             );
                         final nombre = name.trim();
                         popDialog(dialogCtx);
@@ -340,7 +264,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
       ),
     );
 
-    totalTreatmentCtrl.dispose();
   }
 
   @override

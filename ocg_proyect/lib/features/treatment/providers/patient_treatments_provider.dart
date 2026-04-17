@@ -75,5 +75,6 @@ final effectivePatientTreatmentsProvider = Provider.family<List<PatientTreatment
   final asyncTreatments = ref.watch(patientTreatmentsProvider(args.patientId));
   final remote = asyncTreatments.asData?.value ?? const <PatientTreatment>[];
   if (remote.isNotEmpty) return remote;
+  if (args.patient.tipoTratamiento == null) return const <PatientTreatment>[];
   return <PatientTreatment>[PatientTreatment.fromLegacyPatient(args.patient)];
 });

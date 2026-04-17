@@ -195,8 +195,6 @@ class AuthService {
       );
     }
     final cleanName = displayName?.trim() ?? '';
-    final cleanTreatment = treatmentType?.trim();
-    final cleanTotal = totalTreatment ?? 0;
 
     final HttpsCallableResult<dynamic> result;
     try {
@@ -204,8 +202,6 @@ class AuthService {
         'email': cleanEmail,
         'password': password,
         'displayName': cleanName,
-        'treatmentType': cleanTreatment,
-        'totalTreatment': cleanTotal,
       });
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'already-exists') {
@@ -229,8 +225,8 @@ class AuthService {
 
     final now = DateTime.now();
 
-    // Refuerzo local: dejamos el documento exactamente en el formato esperado
-    // por el módulo de pacientes (igual que registro/autocreación).
+    // Alta mínima: no preconfigurar tratamiento ni finanzas para evitar
+    // estados fantasma. El tratamiento real se crea luego desde el perfil.
     await _db.collection(FirestorePaths.patients).doc(uid).set({
       'id': uid,
       'uid': uid,
@@ -239,13 +235,13 @@ class AuthService {
       'telefono': '',
       'fechaNacimiento': Timestamp.fromDate(now),
       'fotoUrl': null,
-      'tipoTratamiento': cleanTreatment,
+      'tipoTratamiento': null,
       'etapaActual': 'valoracionInicial',
       'fechaInicio': Timestamp.fromDate(now),
       'fechaEstimadaFin': null,
       'notasClinicas': '',
-      'totalTratamiento': cleanTotal,
-      'saldoPendiente': cleanTotal,
+      'totalTratamiento': 0,
+      'saldoPendiente': 0,
       'fechaProximoPago': null,
       'proximaCita': null,
       'fcmToken': '',
@@ -253,16 +249,14 @@ class AuthService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    // Refuerzo financiero inicial para que el monto quede visible de inmediato
-    // en módulos que leen la colección de pagos.
     await _db.collection(FirestorePaths.payments).doc(uid).set({
       'id': uid,
       'patientId': uid,
-      'totalTratamiento': cleanTotal,
+      'totalTratamiento': 0,
       'montoPagado': 0,
-      'saldoPendiente': cleanTotal,
+      'saldoPendiente': 0,
       'fechaProximoPago': null,
-      'estado': cleanTotal > 0 ? 'pendiente' : 'alDia',
+      'estado': 'alDia',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
