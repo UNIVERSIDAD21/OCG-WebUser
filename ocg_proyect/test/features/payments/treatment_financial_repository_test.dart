@@ -44,6 +44,52 @@ void main() {
       expect(snap.docs.any((doc) => doc.id == 'legacy_total'), isTrue);
     });
 
+    test('compatibiliza paciente viejo creando concepto legado sin perder información previa', () async {
+      final legacyTreatment = treatment.copyWith(
+        patientId: 'legacy-patient',
+        id: 'legacy-tx-1',
+        totalTratamiento: 2500000,
+        saldoPendiente: 700000,
+      );
+
+      await db.collection('patients').doc('legacy-patient').set({
+        'id': 'legacy-patient',
+        'totalAmount': 2500000,
+        'treatmentAmount': 2500000,
+        'initialPayment': 500000,
+        'monthlyPayment': 300000,
+        'paymentSummary': {
+          'totalAmount': 2500000,
+          'pendingAmount': 700000,
+        },
+      });
+      await db.collection('payments').doc('legacy-patient').set({
+        'id': 'legacy-patient',
+        'patientId': 'legacy-patient',
+        'totalTratamiento': 2500000,
+        'saldoPendiente': 700000,
+        'createdAt': DateTime(2026, 4, 1),
+      });
+      await db.collection('patients/legacy-patient/treatments').doc('legacy-tx-1').set(legacyTreatment.toJson());
+
+      await repo.ensureBaseItems(patientId: 'legacy-patient', treatment: legacyTreatment);
+
+      final items = await db.collection('patients/legacy-patient/treatments/legacy-tx-1/financialItems').orderBy('order').get();
+      final legacyItem = items.docs.firstWhere((doc) => doc.id == 'legacy_total').data();
+      final patientDoc = await db.collection('patients').doc('legacy-patient').get();
+      final paymentDoc = await db.collection('payments').doc('legacy-patient').get();
+
+      expect(items.docs.map((doc) => doc.id).toList(), ['initial', 'controls', 'retainers', 'legacy_total']);
+      expect(legacyItem['name'], 'Valor tratamiento anterior');
+      expect(legacyItem['kind'], 'legacy');
+      expect(legacyItem['amount'], 2500000);
+      expect(patientDoc.data()?['totalAmount'], 2500000);
+      expect(patientDoc.data()?['treatmentAmount'], 2500000);
+      expect(patientDoc.data()?['paymentSummary']['pendingAmount'], 700000);
+      expect(paymentDoc.data()?['totalTratamiento'], 2500000);
+      expect(paymentDoc.data()?['saldoPendiente'], 700000);
+    });
+
     test('ensureBaseItems crea Inicial + Controles + Retenedores para tratamiento no Ortopedia', () async {
       final nonOrthopedics = treatment.copyWith(
         totalTratamiento: 0,
