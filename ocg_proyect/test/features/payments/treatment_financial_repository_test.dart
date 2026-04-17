@@ -44,6 +44,36 @@ void main() {
       expect(snap.docs.any((doc) => doc.id == 'legacy_total'), isTrue);
     });
 
+    test('ensureBaseItems crea Inicial + Controles + Retenedores para tratamiento no Ortopedia', () async {
+      final nonOrthopedics = treatment.copyWith(
+        totalTratamiento: 0,
+        saldoPendiente: 0,
+      );
+
+      await repo.ensureBaseItems(patientId: 'p1', treatment: nonOrthopedics);
+
+      final snap = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+      final ids = snap.docs.map((doc) => doc.id).toList();
+      final initial = snap.docs.firstWhere((doc) => doc.id == 'initial').data();
+      final controls = snap.docs.firstWhere((doc) => doc.id == 'controls').data();
+      final retainers = snap.docs.firstWhere((doc) => doc.id == 'retainers').data();
+
+      expect(snap.docs.length, 3);
+      expect(ids, ['initial', 'controls', 'retainers']);
+      expect(initial['patientId'], 'p1');
+      expect(initial['treatmentId'], 'tx-1');
+      expect(initial['name'], 'Inicial');
+      expect(initial['deletable'], isFalse);
+      expect(controls['name'], 'Controles');
+      expect(controls['deletable'], isFalse);
+      expect(retainers['name'], 'Retenedores');
+      expect(retainers['deletable'], isTrue);
+      expect(retainers['editableName'], isTrue);
+
+      final reloaded = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+      expect(reloaded.docs.map((doc) => doc.id).toList(), ['initial', 'controls', 'retainers']);
+    });
+
     test('recalculateSummary actualiza treatment y payments para tratamiento principal', () async {
       await db.collection('payments').doc('p1').set({
         'id': 'p1',
