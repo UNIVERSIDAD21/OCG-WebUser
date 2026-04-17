@@ -75,6 +75,56 @@ class TreatmentFinancialRepository {
     await recalculateSummary(patientId: patientId, treatment: treatment);
   }
 
+  Future<List<FinancialItemModel>> normalizeBaseItemsForTreatmentType({
+    required String patientId,
+    required PatientTreatment treatment,
+    bool preserveAmount = true,
+  }) async {
+    final snapshot = await _itemsRef(patientId, treatment.id).get();
+    final items = snapshot.docs
+        .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    final wantsOrthopedics = treatment.tipoBase == 'ortopedia';
+    final retainersIndex = items.indexWhere((item) => item.id == 'retainers');
+    final applianceIndex = items.indexWhere((item) => item.id == 'appliance_1');
+
+    if (wantsOrthopedics && retainersIndex != -1) {
+      final retainers = items[retainersIndex];
+      items[retainersIndex] = retainers.copyWith(
+        id: 'appliance_1',
+        name: 'Aparato 1',
+        normalizedName: 'aparato_1',
+        kind: 'appliance',
+        amount: preserveAmount ? retainers.amount : 0,
+        active: true,
+        updatedAt: DateTime.now(),
+      );
+      if (applianceIndex != -1 && applianceIndex != retainersIndex) {
+        items[applianceIndex] = items[applianceIndex].copyWith(active: false, updatedAt: DateTime.now());
+      }
+    }
+
+    if (!wantsOrthopedics && applianceIndex != -1) {
+      final appliance = items[applianceIndex];
+      items[applianceIndex] = appliance.copyWith(
+        id: 'retainers',
+        name: 'Retenedores',
+        normalizedName: 'retenedores',
+        kind: 'retainers',
+        amount: preserveAmount ? appliance.amount : 0,
+        active: true,
+        updatedAt: DateTime.now(),
+      );
+      if (retainersIndex != -1 && retainersIndex != applianceIndex) {
+        items[retainersIndex] = items[retainersIndex].copyWith(active: false, updatedAt: DateTime.now());
+      }
+    }
+
+    return items;
+  }
+
   Future<void> recalculateSummary({
     required String patientId,
     required PatientTreatment treatment,

@@ -566,5 +566,60 @@ void main() {
       expect(thirdSummary['totalAmount'], 500000);
       expect(thirdSummary['itemsCount'], 2);
     });
+
+    test('convierte Retenedores a Aparato 1 al pasar a Ortopedia sin perder el total', () async {
+      await db.collection('payments').doc('p1').set({'id': 'p1', 'patientId': 'p1', 'createdAt': DateTime(2026, 4, 1)});
+      await db.collection('patients').doc('p1').set({'id': 'p1'});
+      await db.collection('patients/p1/treatments').doc('tx-1').set(treatment.toJson());
+
+      final items = <FinancialItemModel>[
+        FinancialItemModel(id: 'initial', patientId: 'p1', treatmentId: 'tx-1', name: 'Inicial', normalizedName: 'inicial', kind: 'initial', amount: 100000, deletable: false, editableName: true, order: 1, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+        FinancialItemModel(id: 'controls', patientId: 'p1', treatmentId: 'tx-1', name: 'Controles', normalizedName: 'controles', kind: 'controls', amount: 200000, deletable: false, editableName: true, order: 2, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+        FinancialItemModel(id: 'retainers', patientId: 'p1', treatmentId: 'tx-1', name: 'Retenedores', normalizedName: 'retenedores', kind: 'retainers', amount: 300000, deletable: true, editableName: true, order: 3, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+      ];
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: items);
+
+      final orthopedicsTreatment = treatment.copyWith(tipoBase: 'ortopedia');
+      final converted = await repo.normalizeBaseItemsForTreatmentType(patientId: 'p1', treatment: orthopedicsTreatment);
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: orthopedicsTreatment, items: converted);
+
+      final snap = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+      final ids = snap.docs.map((d) => d.id).toList();
+      final appliance = snap.docs.firstWhere((d) => d.id == 'appliance_1').data();
+      final summary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+
+      expect(ids, ['initial', 'controls', 'appliance_1']);
+      expect(ids.contains('retainers'), isFalse);
+      expect(appliance['amount'], 300000);
+      expect(summary['totalAmount'], 600000);
+    });
+
+    test('convierte Aparato 1 a Retenedores al salir de Ortopedia sin perder el total', () async {
+      final orthopedicsTreatment = treatment.copyWith(tipoBase: 'ortopedia');
+      await db.collection('payments').doc('p1').set({'id': 'p1', 'patientId': 'p1', 'createdAt': DateTime(2026, 4, 1)});
+      await db.collection('patients').doc('p1').set({'id': 'p1'});
+      await db.collection('patients/p1/treatments').doc('tx-1').set(orthopedicsTreatment.toJson());
+
+      final items = <FinancialItemModel>[
+        FinancialItemModel(id: 'initial', patientId: 'p1', treatmentId: 'tx-1', name: 'Inicial', normalizedName: 'inicial', kind: 'initial', amount: 100000, deletable: false, editableName: true, order: 1, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+        FinancialItemModel(id: 'controls', patientId: 'p1', treatmentId: 'tx-1', name: 'Controles', normalizedName: 'controles', kind: 'controls', amount: 200000, deletable: false, editableName: true, order: 2, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+        FinancialItemModel(id: 'appliance_1', patientId: 'p1', treatmentId: 'tx-1', name: 'Aparato 1', normalizedName: 'aparato_1', kind: 'appliance', amount: 300000, deletable: true, editableName: true, order: 3, active: true, createdByAdmin: true, createdAt: DateTime(2026, 4, 1), updatedAt: DateTime(2026, 4, 1)),
+      ];
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: orthopedicsTreatment, items: items);
+
+      final nonOrthopedics = orthopedicsTreatment.copyWith(tipoBase: 'convencional');
+      final converted = await repo.normalizeBaseItemsForTreatmentType(patientId: 'p1', treatment: nonOrthopedics);
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: nonOrthopedics, items: converted);
+
+      final snap = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+      final ids = snap.docs.map((d) => d.id).toList();
+      final retainers = snap.docs.firstWhere((d) => d.id == 'retainers').data();
+      final summary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+
+      expect(ids, ['initial', 'controls', 'retainers']);
+      expect(ids.contains('appliance_1'), isFalse);
+      expect(retainers['amount'], 300000);
+      expect(summary['totalAmount'], 600000);
+    });
   });
 }
