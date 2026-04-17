@@ -4,6 +4,7 @@ import '../../../../shared/constants/firestore_paths.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../models/financial_item_model.dart';
 import '../models/payment_model.dart';
+import '../models/treatment_financial_summary_model.dart';
 
 class TreatmentFinancialRepository {
   TreatmentFinancialRepository(this._db);
@@ -95,22 +96,24 @@ class TreatmentFinancialRepository {
       fechaProximoPago: _parseNullableDate(nextPaymentDate),
     );
 
+    final summary = TreatmentFinancialSummaryModel(
+      currency: 'COP',
+      subtotalAmount: total,
+      discountAmount: 0.0,
+      totalAmount: total,
+      paidAmount: paidBefore,
+      pendingAmount: pending,
+      itemsCount: items.length,
+      lastPricingUpdateAt: DateTime.now(),
+    );
+
     final batch = _db.batch();
     batch.set(
       _treatmentRef(patientId, treatment.id),
       {
         'totalTratamiento': total,
         'saldoPendiente': pending,
-        'financialSummary': {
-          'currency': 'COP',
-          'subtotalAmount': total,
-          'discountAmount': 0.0,
-          'totalAmount': total,
-          'paidAmount': paidBefore,
-          'pendingAmount': pending,
-          'itemsCount': items.length,
-          'lastPricingUpdateAt': FieldValue.serverTimestamp(),
-        },
+        'financialSummary': summary.toJson(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
