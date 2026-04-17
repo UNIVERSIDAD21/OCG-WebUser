@@ -60,6 +60,7 @@ void main() {
 
       expect(snap.docs.length, 3);
       expect(ids, ['initial', 'controls', 'retainers']);
+      expect(ids.contains('appliance_1'), isFalse);
       expect(initial['patientId'], 'p1');
       expect(initial['treatmentId'], 'tx-1');
       expect(initial['name'], 'Inicial');
@@ -67,11 +68,38 @@ void main() {
       expect(controls['name'], 'Controles');
       expect(controls['deletable'], isFalse);
       expect(retainers['name'], 'Retenedores');
+      expect(retainers['kind'], 'retainers');
       expect(retainers['deletable'], isTrue);
       expect(retainers['editableName'], isTrue);
 
       final reloaded = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
       expect(reloaded.docs.map((doc) => doc.id).toList(), ['initial', 'controls', 'retainers']);
+    });
+
+    test('ensureBaseItems crea Inicial + Controles + Aparato 1 para tratamiento Ortopedia', () async {
+      final orthopedics = treatment.copyWith(
+        id: 'tx-ortopedia',
+        tipoBase: 'ortopedia',
+        nombre: 'Ortopedia',
+        totalTratamiento: 0,
+        saldoPendiente: 0,
+      );
+
+      await repo.ensureBaseItems(patientId: 'p1', treatment: orthopedics);
+
+      final snap = await db.collection('patients/p1/treatments/tx-ortopedia/financialItems').orderBy('order').get();
+      final ids = snap.docs.map((doc) => doc.id).toList();
+      final appliance = snap.docs.firstWhere((doc) => doc.id == 'appliance_1').data();
+
+      expect(snap.docs.length, 3);
+      expect(ids, ['initial', 'controls', 'appliance_1']);
+      expect(ids.contains('retainers'), isFalse);
+      expect(appliance['patientId'], 'p1');
+      expect(appliance['treatmentId'], 'tx-ortopedia');
+      expect(appliance['name'], 'Aparato 1');
+      expect(appliance['kind'], 'appliance');
+      expect(appliance['deletable'], isTrue);
+      expect(appliance['editableName'], isTrue);
     });
 
     test('recalculateSummary actualiza treatment y payments para tratamiento principal', () async {
