@@ -1088,10 +1088,12 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     return TreatmentCatalogRepository.normalizeHumanName(value);
   }
 
-  int get _nextOrder {
-    if (_financialItems.isEmpty) return 1;
-    return _financialItems.map((item) => item.order).reduce((a, b) => a > b ? a : b) + 1;
+  int _nextOrderFor(List<_FinancialItemDraft> items) {
+    if (items.isEmpty) return 1;
+    return items.map((item) => item.order).reduce((a, b) => a > b ? a : b) + 1;
   }
+
+  int get _nextOrder => _nextOrderFor(_financialItems);
 
   List<_FinancialItemDraft> _defaultDraftItemsForBaseTreatment(
     String baseType, {
@@ -1166,7 +1168,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
     final extras = previous
         .where((item) => !{'initial', 'controls', 'retainers', 'appliance_1'}.contains(item.id))
-        .map((item) => item.copyWith(order: item.order < 4 ? _nextOrder : item.order))
+        .map((item) => item.copyWith(order: item.order < 4 ? _nextOrderFor(previous) : item.order))
         .toList()
       ..sort((a, b) => a.order.compareTo(b.order));
 
