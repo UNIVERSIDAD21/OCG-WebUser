@@ -198,5 +198,91 @@ void main() {
       expect(summary['totalAmount'], 900000);
       expect(summary['pendingAmount'], 600000);
     });
+
+    test('financialSummary totalAmount se calcula desde conceptos activos y se actualiza al editar/desactivar', () async {
+      await db.collection('payments').doc('p1').set({
+        'id': 'p1',
+        'patientId': 'p1',
+        'createdAt': DateTime(2026, 4, 1),
+      });
+      await db.collection('patients').doc('p1').set({'id': 'p1'});
+      await db.collection('patients/p1/treatments').doc('tx-1').set(treatment.toJson());
+
+      final items = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'initial',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Inicial',
+          normalizedName: 'inicial',
+          kind: 'initial',
+          amount: 100000,
+          deletable: false,
+          editableName: true,
+          order: 1,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles',
+          normalizedName: 'controles',
+          kind: 'controls',
+          amount: 250000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'retainers',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Retenedores',
+          normalizedName: 'retenedores',
+          kind: 'retainers',
+          amount: 50000,
+          deletable: true,
+          editableName: true,
+          order: 3,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      ];
+
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: items);
+
+      final firstSummary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+      expect(firstSummary['totalAmount'], 400000);
+      expect(firstSummary['subtotalAmount'], 400000);
+      expect(firstSummary['itemsCount'], 3);
+
+      final updatedItems = <FinancialItemModel>[
+        items[0],
+        items[1].copyWith(amount: 300000, updatedAt: DateTime(2026, 4, 2)),
+        items[2].copyWith(active: false, updatedAt: DateTime(2026, 4, 2)),
+      ];
+
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: updatedItems);
+
+      final treatmentDoc = await db.collection('patients/p1/treatments').doc('tx-1').get();
+      final secondSummary = treatmentDoc.data()?['financialSummary'];
+      final reloadedItems = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+
+      expect(secondSummary['totalAmount'], 400000);
+      expect(secondSummary['subtotalAmount'], 400000);
+      expect(secondSummary['itemsCount'], 2);
+      expect(reloadedItems.docs.firstWhere((doc) => doc.id == 'controls').data()['amount'], 300000);
+      expect(reloadedItems.docs.firstWhere((doc) => doc.id == 'retainers').data()['active'], isFalse);
+    });
   });
 }
