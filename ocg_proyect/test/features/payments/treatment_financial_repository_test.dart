@@ -284,5 +284,186 @@ void main() {
       expect(reloadedItems.docs.firstWhere((doc) => doc.id == 'controls').data()['amount'], 300000);
       expect(reloadedItems.docs.firstWhere((doc) => doc.id == 'retainers').data()['active'], isFalse);
     });
+
+    test('permite editar nombre y monto de Inicial y Controles y recalcula el total', () async {
+      await db.collection('payments').doc('p1').set({
+        'id': 'p1',
+        'patientId': 'p1',
+        'createdAt': DateTime(2026, 4, 1),
+      });
+      await db.collection('patients').doc('p1').set({'id': 'p1'});
+      await db.collection('patients/p1/treatments').doc('tx-1').set(treatment.toJson());
+
+      final items = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'initial',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Inicial clínica',
+          normalizedName: 'inicial_clínica',
+          kind: 'initial',
+          amount: 350000,
+          deletable: false,
+          editableName: true,
+          order: 1,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 2),
+        ),
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles mensuales',
+          normalizedName: 'controles_mensuales',
+          kind: 'controls',
+          amount: 450000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 2),
+        ),
+        FinancialItemModel(
+          id: 'retainers',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Retenedores',
+          normalizedName: 'retenedores',
+          kind: 'retainers',
+          amount: 100000,
+          deletable: true,
+          editableName: true,
+          order: 3,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 2),
+        ),
+      ];
+
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: items);
+
+      final snapshot = await db.collection('patients/p1/treatments/tx-1/financialItems').orderBy('order').get();
+      final initial = snapshot.docs.firstWhere((doc) => doc.id == 'initial').data();
+      final controls = snapshot.docs.firstWhere((doc) => doc.id == 'controls').data();
+      final summary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+
+      expect(initial['name'], 'Inicial clínica');
+      expect(initial['amount'], 350000);
+      expect(controls['name'], 'Controles mensuales');
+      expect(controls['amount'], 450000);
+      expect(summary['totalAmount'], 900000);
+    });
+
+    test('bloquea eliminar Inicial y Controles por ausencia en la estructura final', () async {
+      final itemsWithoutInitial = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles',
+          normalizedName: 'controles',
+          kind: 'controls',
+          amount: 200000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      ];
+
+      expect(
+        () => repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: itemsWithoutInitial),
+        throwsA(predicate((e) => e is Exception && e.toString().contains('REQUIRED_FINANCIAL_ITEMS_MISSING'))),
+      );
+    });
+
+    test('bloquea nombre vacío y monto negativo en conceptos obligatorios', () async {
+      final itemsWithEmptyName = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'initial',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: ' ',
+          normalizedName: '',
+          kind: 'initial',
+          amount: 100000,
+          deletable: false,
+          editableName: true,
+          order: 1,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles',
+          normalizedName: 'controles',
+          kind: 'controls',
+          amount: 100000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      ];
+
+      final itemsWithNegativeAmount = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'initial',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Inicial',
+          normalizedName: 'inicial',
+          kind: 'initial',
+          amount: -1,
+          deletable: false,
+          editableName: true,
+          order: 1,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles',
+          normalizedName: 'controles',
+          kind: 'controls',
+          amount: 100000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      ];
+
+      expect(
+        () => repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: itemsWithEmptyName),
+        throwsA(predicate((e) => e is Exception && e.toString().contains('FINANCIAL_ITEM_NAME_REQUIRED'))),
+      );
+      expect(
+        () => repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: itemsWithNegativeAmount),
+        throwsA(predicate((e) => e is Exception && e.toString().contains('FINANCIAL_ITEM_NEGATIVE_AMOUNT'))),
+      );
+    });
   });
 }
