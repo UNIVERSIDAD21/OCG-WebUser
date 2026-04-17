@@ -18,6 +18,19 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
 
+  Future<void> migrateLegacyPatientIfNeeded({
+    required PatientModel patient,
+    String createdBy = 'system-migration',
+  }) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(patientTreatmentsRepositoryProvider).migrateLegacyPatientTreatmentIfNeeded(
+            patient: patient,
+            createdBy: createdBy,
+          );
+    });
+  }
+
   Future<void> saveTreatment({
     required String patientId,
     required PatientTreatment treatment,

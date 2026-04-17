@@ -49,6 +49,17 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     );
     final saveState = ref.watch(savePatientTreatmentProvider);
 
+    if (treatments.length == 1 &&
+        treatments.first.id.startsWith('legacy-primary-') &&
+        !saveState.isLoading) {
+      Future.microtask(() {
+        ref.read(savePatientTreatmentProvider.notifier).migrateLegacyPatientIfNeeded(
+              patient: widget.patient,
+              createdBy: ref.read(authStateProvider).asData?.value?.uid ?? 'system-migration',
+            );
+      });
+    }
+
     if (treatments.isEmpty) {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),

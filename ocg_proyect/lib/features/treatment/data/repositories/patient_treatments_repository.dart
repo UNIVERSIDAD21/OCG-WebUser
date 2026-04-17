@@ -121,6 +121,29 @@ class PatientTreatmentsRepository {
     await batch.commit();
   }
 
+  Future<bool> migrateLegacyPatientTreatmentIfNeeded({
+    required PatientModel patient,
+    String createdBy = 'system-migration',
+  }) async {
+    if (patient.tipoTratamiento == null) return false;
+
+    final existing = await _treatmentsRef(patient.id).limit(1).get();
+    if (existing.docs.isNotEmpty) return false;
+
+    final migratedTreatment = PatientTreatment.fromLegacyPatient(patient).copyWith(
+      id: 'migrated-primary-${patient.id}',
+      patientId: patient.id,
+      createdAt: patient.createdAt ?? patient.fechaInicio,
+      updatedAt: patient.updatedAt ?? patient.fechaInicio,
+      createdBy: createdBy,
+      updatedBy: createdBy,
+      isPrimary: true,
+    );
+
+    await saveTreatment(patientId: patient.id, treatment: migratedTreatment);
+    return true;
+  }
+
   Future<void> updateTreatmentStatus({
     required String patientId,
     required PatientTreatment treatment,

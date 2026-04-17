@@ -9,6 +9,7 @@ import '../../../../features/payments/presentation/widgets/transaction_list.dart
 import '../../../../features/payments/providers/treatment_financial_provider.dart';
 import '../../../../features/treatment/data/models/patient_treatment.dart';
 import '../../../../features/treatment/providers/patient_treatments_provider.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../providers/patients_provider.dart';
@@ -38,7 +39,16 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
           return const OcgEmptyState(icon: Icons.person_off, title: 'Paciente no encontrado');
         }
 
-        final treatments = treatmentsAsync.asData?.value ?? <PatientTreatment>[PatientTreatment.fromLegacyPatient(patient)];
+        final remoteTreatments = treatmentsAsync.asData?.value ?? const <PatientTreatment>[];
+        final treatments = remoteTreatments.isNotEmpty
+            ? remoteTreatments
+            : <PatientTreatment>[PatientTreatment.fromLegacyPatient(patient)];
+        if (remoteTreatments.isEmpty && patient.tipoTratamiento != null) {
+          Future.microtask(() => ref.read(savePatientTreatmentProvider.notifier).migrateLegacyPatientIfNeeded(
+                patient: patient,
+                createdBy: ref.read(authStateProvider).asData?.value?.uid ?? 'system-migration',
+              ));
+        }
         final selectedTreatment = _resolveSelectedTreatment(treatments);
         if (!selectedTreatment.id.startsWith('legacy-primary-')) {
           Future.microtask(() => ref.read(treatmentFinancialRepositoryProvider).ensureBaseItems(

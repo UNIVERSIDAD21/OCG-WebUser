@@ -106,6 +106,47 @@ void main() {
       expect(patientDoc.data()?['tipoTratamiento'], 'alineadores');
     });
 
+    test('migra paciente viejo con tratamiento plano a subcolección sin perder datos', () async {
+      final patient = PatientModel(
+        id: 'patient-legacy',
+        nombre: 'Paciente Viejo',
+        email: 'legacy@demo.com',
+        telefono: '3000000000',
+        fechaNacimiento: DateTime(2000, 1, 1),
+        tipoTratamiento: TreatmentType.estetico,
+        etapaActual: TreatmentStage.instalacion,
+        fechaInicio: DateTime(2026, 4, 1),
+        notasClinicas: 'Paciente legacy con datos planos',
+        totalTratamiento: 5000000,
+        saldoPendiente: 2200000,
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 2),
+      );
+
+      final migrated = await repo.migrateLegacyPatientTreatmentIfNeeded(
+        patient: patient,
+        createdBy: 'admin-migration',
+      );
+
+      final treatmentDoc = await db
+          .collection('patients/patient-legacy/treatments')
+          .doc('migrated-primary-patient-legacy')
+          .get();
+      final paymentDoc = await db.collection('payments').doc('patient-legacy').get();
+      final patientDoc = await db.collection('patients').doc('patient-legacy').get();
+
+      expect(migrated, isTrue);
+      expect(treatmentDoc.exists, isTrue);
+      expect(treatmentDoc.data()?['patientId'], 'patient-legacy');
+      expect(treatmentDoc.data()?['name'], 'Convencional');
+      expect(treatmentDoc.data()?['subtype'], 'estetico');
+      expect(treatmentDoc.data()?['isPrimary'], isTrue);
+      expect(patientDoc.data()?['primaryTreatmentId'], 'migrated-primary-patient-legacy');
+      expect(patientDoc.data()?['tipoTratamiento'], 'estetico');
+      expect(paymentDoc.data()?['totalTratamiento'], 5000000);
+      expect(paymentDoc.data()?['saldoPendiente'], 2200000);
+    });
+
     test('permite coexistencia de segundo y tercer tratamiento sin sobrescribir', () async {
       final first = PatientTreatment(
         id: 'tx-1',
@@ -169,6 +210,43 @@ void main() {
       expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-1').data()['isPrimary'], isTrue);
       expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-2').data()['isPrimary'], isFalse);
       expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-3').data()['isPrimary'], isFalse);
+    });
+
+    test('no remigra si el paciente viejo ya tiene tratamiento estructurado', () async {
+      final patient = PatientModel(
+        id: 'patient-legacy-2',
+        nombre: 'Paciente Viejo 2',
+        email: 'legacy2@demo.com',
+        telefono: '3000000000',
+        fechaNacimiento: DateTime(2000, 1, 1),
+        tipoTratamiento: TreatmentType.convencional,
+        etapaActual: TreatmentStage.valoracionInicial,
+        fechaInicio: DateTime(2026, 4, 1),
+        notasClinicas: 'legacy',
+        totalTratamiento: 1000000,
+        saldoPendiente: 500000,
+      );
+
+      await db.collection('patients/patient-legacy-2/treatments').doc('tx-existing').set({
+        'id': 'tx-existing',
+        'patientId': 'patient-legacy-2',
+        'name': 'Convencional',
+        'baseType': 'convencional',
+        'status': 'activo',
+        'currentStageId': 'valoracionInicial',
+        'currentStageName': 'Valoración inicial',
+        'isPrimary': true,
+        'startDate': DateTime(2026, 4, 1),
+        'createdAt': DateTime(2026, 4, 1),
+        'updatedAt': DateTime(2026, 4, 1),
+      });
+
+      final migrated = await repo.migrateLegacyPatientTreatmentIfNeeded(patient: patient);
+      final snapshot = await db.collection('patients/patient-legacy-2/treatments').get();
+
+      expect(migrated, isFalse);
+      expect(snapshot.docs.length, 1);
+      expect(snapshot.docs.first.id, 'tx-existing');
     });
   });
 }
