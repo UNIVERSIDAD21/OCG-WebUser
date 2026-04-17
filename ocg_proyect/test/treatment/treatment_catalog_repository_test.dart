@@ -44,5 +44,37 @@ void main() {
       final snapshot = await db.collection('treatmentCatalog').get();
       expect(snapshot.docs.length, 1);
     });
+
+    test('rechaza nombres vacíos o con solo espacios', () async {
+      expect(
+        () => repo.ensureCustomTreatmentExists(
+          displayName: '   ',
+          category: 'General',
+          createdBy: 'admin-1',
+        ),
+        throwsA(
+          predicate(
+            (e) => e is Exception && e.toString().contains('TREATMENT_CATALOG_NAME_REQUIRED'),
+          ),
+        ),
+      );
+    });
+
+    test('tratamiento nuevo queda disponible en el catálogo activo global', () async {
+      await repo.ensureCustomTreatmentExists(
+        displayName: '  Placa   neuromiorrelajante  ',
+        category: 'Oclusión',
+        createdBy: 'admin-7',
+      );
+
+      final items = await repo.watchActiveCatalog().first;
+      final created = items.firstWhere((item) => item.id == 'placa_neuromiorrelajante');
+
+      expect(created.name, 'Placa Neuromiorrelajante');
+      expect(created.normalizedName, 'placa_neuromiorrelajante');
+      expect(created.category, 'oclusión');
+      expect(created.active, isTrue);
+      expect(created.createdBy, 'admin-7');
+    });
   });
 }
