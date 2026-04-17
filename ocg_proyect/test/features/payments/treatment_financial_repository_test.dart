@@ -465,5 +465,106 @@ void main() {
         throwsA(predicate((e) => e is Exception && e.toString().contains('FINANCIAL_ITEM_NEGATIVE_AMOUNT'))),
       );
     });
+
+    test('permite conceptos extra, edición y desactivación lógica con impacto en total', () async {
+      await db.collection('payments').doc('p1').set({
+        'id': 'p1',
+        'patientId': 'p1',
+        'createdAt': DateTime(2026, 4, 1),
+      });
+      await db.collection('patients').doc('p1').set({'id': 'p1'});
+      await db.collection('patients/p1/treatments').doc('tx-1').set(treatment.toJson());
+
+      final baseWithExtra = <FinancialItemModel>[
+        FinancialItemModel(
+          id: 'initial',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Inicial',
+          normalizedName: 'inicial',
+          kind: 'initial',
+          amount: 200000,
+          deletable: false,
+          editableName: true,
+          order: 1,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'controls',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Controles',
+          normalizedName: 'controles',
+          kind: 'controls',
+          amount: 300000,
+          deletable: false,
+          editableName: true,
+          order: 2,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+        FinancialItemModel(
+          id: 'extra_lab',
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          name: 'Laboratorio extra',
+          normalizedName: 'laboratorio_extra',
+          kind: 'extra',
+          amount: 120000,
+          deletable: true,
+          editableName: true,
+          order: 3,
+          active: true,
+          createdByAdmin: true,
+          createdAt: DateTime(2026, 4, 1),
+          updatedAt: DateTime(2026, 4, 1),
+        ),
+      ];
+
+      await repo.replaceFinancialItems(patientId: 'p1', treatment: treatment, items: baseWithExtra);
+
+      final firstSummary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+      expect(firstSummary['totalAmount'], 620000);
+      expect(firstSummary['itemsCount'], 3);
+
+      final editedExtra = baseWithExtra[2].copyWith(
+        name: 'Laboratorio premium',
+        normalizedName: 'laboratorio_premium',
+        amount: 180000,
+        updatedAt: DateTime(2026, 4, 2),
+      );
+
+      await repo.replaceFinancialItems(
+        patientId: 'p1',
+        treatment: treatment,
+        items: <FinancialItemModel>[baseWithExtra[0], baseWithExtra[1], editedExtra],
+      );
+
+      final secondSummary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+      final editedDoc = await db.collection('patients/p1/treatments/tx-1/financialItems').doc('extra_lab').get();
+
+      expect(editedDoc.data()?['name'], 'Laboratorio premium');
+      expect(editedDoc.data()?['amount'], 180000);
+      expect(secondSummary['totalAmount'], 680000);
+
+      final disabledExtra = editedExtra.copyWith(active: false, updatedAt: DateTime(2026, 4, 3));
+      await repo.replaceFinancialItems(
+        patientId: 'p1',
+        treatment: treatment,
+        items: <FinancialItemModel>[baseWithExtra[0], baseWithExtra[1], disabledExtra],
+      );
+
+      final thirdSummary = (await db.collection('patients/p1/treatments').doc('tx-1').get()).data()?['financialSummary'];
+      final disabledDoc = await db.collection('patients/p1/treatments/tx-1/financialItems').doc('extra_lab').get();
+
+      expect(disabledDoc.data()?['active'], isFalse);
+      expect(thirdSummary['totalAmount'], 500000);
+      expect(thirdSummary['itemsCount'], 2);
+    });
   });
 }
