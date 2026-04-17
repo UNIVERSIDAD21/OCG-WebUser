@@ -936,6 +936,17 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     }
 
     try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = ref.read(authStateProvider).asData?.value;
+      final email = currentUser?.email?.trim();
+      if (email != null && email.isNotEmpty) {
+        await authService.bootstrapAdminByEmailIfAllowed(email);
+      }
+      final role = await authService.getUserRole();
+      if (role != 'admin') {
+        throw Exception('ADMIN_ROLE_REQUIRED');
+      }
+
       final catalogRepo = ref.read(treatmentCatalogRepositoryProvider);
       String effectiveBaseType = _effectiveBaseTreatment;
       String effectiveName = _effectiveName;
@@ -1232,6 +1243,12 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
   String _mapError(Object error) {
     final raw = error.toString();
+    if (raw.contains('ADMIN_ROLE_REQUIRED')) {
+      return 'La sesión actual no tiene rol admin activo en Firebase. Vuelve a iniciar sesión o refresca los permisos de administrador.';
+    }
+    if (raw.contains('permission-denied')) {
+      return 'Firebase rechazó la escritura por permisos. La sesión no está entrando con rol admin válido.';
+    }
     if (raw.contains('TREATMENT_SUBTYPE_REQUIRED')) {
       return 'Convencional y Autoligado requieren subtipo obligatorio.';
     }
