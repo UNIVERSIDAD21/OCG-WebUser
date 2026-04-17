@@ -39,6 +39,32 @@ class AuthService {
     return null;
   }
 
+  Future<Map<String, dynamic>> inspectCurrentSession() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return <String, dynamic>{
+        'authenticated': false,
+        'uid': null,
+        'email': null,
+        'cachedRole': null,
+        'refreshedRole': null,
+        'claims': const <String, dynamic>{},
+      };
+    }
+
+    final cached = await user.getIdTokenResult();
+    final refreshed = await user.getIdTokenResult(true);
+
+    return <String, dynamic>{
+      'authenticated': true,
+      'uid': user.uid,
+      'email': user.email,
+      'cachedRole': cached.claims?['role'],
+      'refreshedRole': refreshed.claims?['role'],
+      'claims': Map<String, dynamic>.from(refreshed.claims ?? const <String, dynamic>{}),
+    };
+  }
+
   Future<UserCredential> signIn(String email, String password) {
     return _auth.signInWithEmailAndPassword(
       email: email.trim(),

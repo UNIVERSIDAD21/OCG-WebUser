@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -935,17 +938,33 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       return;
     }
 
+    final diagnostics = <String, dynamic>{
+      'step': 'enter_submit',
+      'patientId': widget.patientId,
+      'initialTreatmentId': widget.initialTreatment?.id,
+      'baseTreatment': _effectiveBaseTreatment,
+      'subtype': _subtype,
+      'itemsDraftCount': _financialItems.length,
+      'activeItemsDraftCount': _financialItems.where((item) => item.active).length,
+    };
+
     try {
       final authService = ref.read(authServiceProvider);
       final currentUser = ref.read(authStateProvider).asData?.value;
-      final email = currentUser?.email?.trim();
+      diagnostics['currentUserUid'] = currentUser?.uid;
+      diagnostics['currentUserEmail'] = currentUser?.email;
+      if (currentUser == null) {
+        throw Exception('AUTH_USER_MISSING');
+      }
+
+      final email = currentUser.email?.trim();
       if (email != null && email.isNotEmpty) {
         await authService.bootstrapAdminByEmailIfAllowed(email);
       }
-      final role = await authService.getUserRole();
-      if (role != 'admin') {
-        throw Exception('ADMIN_ROLE_REQUIRED');
-      }
+      final session = await authService.inspectCurrentSession();
+      diagnostics['session'] = session;
+      diagnostics['resolvedRole'] = session['refreshedRole'] ?? session['cachedRole'];
+      _debugSave('session_resolved', diagnostics);
 
       final catalogRepo = ref.read(treatmentCatalogRepositoryProvider);
       String effectiveBaseType = _effectiveBaseTreatment;
@@ -1017,11 +1036,28 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         if (!confirmed) return;
       }
 
+      diagnostics['step'] = 'before_save_treatment';
+      diagnostics['treatmentId'] = treatment.id;
+      diagnostics['treatmentPayload'] = {
+        'id': treatment.id,
+        'patientId': treatment.patientId,
+        'name': treatment.nombre,
+        'baseType': treatment.tipoBase,
+        'subtype': treatment.subtipo,
+        'isPrimary': treatment.isPrimary,
+        'totalTratamiento': treatment.totalTratamiento,
+        'saldoPendiente': treatment.saldoPendiente,
+      };
+      _debugSave('before_save_treatment', diagnostics);
+
       await ref.read(savePatientTreatmentProvider.notifier).saveTreatment(
             patientId: widget.patientId,
             treatment: treatment,
             previousPrimaryId: widget.initialTreatment?.isPrimary == true ? widget.initialTreatment!.id : null,
           );
+
+      diagnostics['step'] = 'after_save_treatment';
+      _debugSave('after_save_treatment', diagnostics);
 
       final items = _financialItems
           .map(
@@ -1034,6 +1070,19 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
           .toList()
         ..sort((a, b) => a.order.compareTo(b.order));
 
+      diagnostics['step'] = 'before_replace_items';
+      diagnostics['financialItemsPayload'] = items
+          .map((item) => {
+                'id': item.id,
+                'name': item.name,
+                'kind': item.kind,
+                'amount': item.amount,
+                'active': item.active,
+                'order': item.order,
+              })
+          .toList();
+      _debugSave('before_replace_items', diagnostics);
+
       await ref.read(saveTreatmentFinancialItemsProvider.notifier).replaceItems(
             patientId: widget.patientId,
             treatment: treatment,
@@ -1041,11 +1090,27 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             updatedBy: adminId,
           );
 
+      diagnostics['step'] = 'save_completed';
+      _debugSave('save_completed', diagnostics);
+
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (e) {
+    } catch (e, st) {
+      diagnostics['step'] = 'save_failed';
+      diagnostics['error'] = e.toString();
+      diagnostics['errorType'] = e.runtimeType.toString();
+      if (e is FirebaseException) {
+        diagnostics['firebaseCode'] = e.code;
+        diagnostics['firebaseMessage'] = e.message;
+        diagnostics['plugin'] = e.plugin;
+      }
+      _debugSave('save_failed', diagnostics, stackTrace: st);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_mapError(e))));
+      final message = _mapError(e, diagnostics: diagnostics);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 8)),
+      );
+      await _showTechnicalErrorDialog(message, diagnostics);
     }
   }
 
@@ -1241,13 +1306,14 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     return null;
   }
 
-  String _mapError(Object error) {
+  String _mapError(Object error, {Map<String, dynamic>? diagnostics}) {
     final raw = error.toString();
-    if (raw.contains('ADMIN_ROLE_REQUIRED')) {
-      return 'La sesión actual no tiene rol admin activo en Firebase. Vuelve a iniciar sesión o refresca los permisos de administrador.';
+    if (raw.contains('AUTH_USER_MISSING')) {
+      return 'No hay usuario autenticado en la sesión actual al intentar guardar.';
     }
     if (raw.contains('permission-denied')) {
-      return 'Firebase rechazó la escritura por permisos. La sesión no está entrando con rol admin válido.';
+      final role = diagnostics?['resolvedRole'];
+      return 'Firebase rechazó la escritura por permisos (permission-denied). Rol resuelto: $role.';
     }
     if (raw.contains('TREATMENT_SUBTYPE_REQUIRED')) {
       return 'Convencional y Autoligado requieren subtipo obligatorio.';
@@ -1265,6 +1331,37 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       return 'Ningún concepto puede tener monto negativo.';
     }
     return raw;
+  }
+
+  void _debugSave(String stage, Map<String, dynamic> diagnostics, {StackTrace? stackTrace}) {
+    debugPrint('[ManagePatientTreatmentDialog][$stage] ${diagnostics.toString()}');
+    if (stackTrace != null) {
+      debugPrint(stackTrace.toString());
+    }
+  }
+
+  Future<void> _showTechnicalErrorDialog(String message, Map<String, dynamic> diagnostics) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error al guardar tratamiento'),
+        content: SizedBox(
+          width: 720,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              '$message\n\nDiagnóstico:\n${const JsonEncoder.withIndent('  ').convert(diagnostics)}',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
