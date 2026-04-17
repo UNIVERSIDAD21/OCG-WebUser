@@ -78,7 +78,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   ? null
                   : () => showDialog<void>(
                         context: context,
-                        builder: (_) => ManagePatientTreatmentDialog(patientId: widget.patientId),
+                        builder: (_) => ManagePatientTreatmentDialog(
+                          patientId: widget.patientId,
+                          patientName: widget.patient.nombre,
+                        ),
                       ),
             ),
           ],
@@ -125,7 +128,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   tooltip: 'Nuevo tratamiento',
                   onPressed: () => showDialog<void>(
                     context: context,
-                    builder: (_) => ManagePatientTreatmentDialog(patientId: widget.patientId),
+                    builder: (_) => ManagePatientTreatmentDialog(
+                      patientId: widget.patientId,
+                      patientName: widget.patient.nombre,
+                    ),
                   ),
                   icon: const Icon(Icons.add_circle_outline),
                 ),
@@ -275,6 +281,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                             context: context,
                             builder: (_) => ManagePatientTreatmentDialog(
                               patientId: widget.patientId,
+                              patientName: widget.patient.nombre,
                               initialTreatment: selectedTreatment,
                             ),
                           ),
