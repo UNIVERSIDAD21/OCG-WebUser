@@ -84,15 +84,23 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                 ],
               ),
               const SizedBox(height: 16),
-              _TreatmentFinanceSummary(treatment: selectedTreatment),
-              const SizedBox(height: 16),
               financialItemsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => Text('No se pudieron cargar conceptos: $error'),
-                data: (items) => _FinancialItemsSection(
-                  patientId: widget.patientId,
-                  treatment: selectedTreatment,
-                  items: items,
+                data: (items) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _TreatmentFinanceSummary(
+                      treatment: selectedTreatment,
+                      items: items,
+                    ),
+                    const SizedBox(height: 16),
+                    _FinancialItemsSection(
+                      patientId: widget.patientId,
+                      treatment: selectedTreatment,
+                      items: items,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -156,16 +164,19 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
 }
 
 class _TreatmentFinanceSummary extends StatelessWidget {
-  const _TreatmentFinanceSummary({required this.treatment});
+  const _TreatmentFinanceSummary({required this.treatment, required this.items});
 
   final PatientTreatment treatment;
+  final List<FinancialItemModel> items;
 
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
-    final total = treatment.totalTratamiento ?? 0;
+    final activeItems = items.where((item) => item.active).toList();
+    final total = activeItems.fold<double>(0, (sum, item) => sum + item.amount);
     final saldo = treatment.saldoPendiente ?? 0;
     final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
+    final conditionalBase = treatment.tipoBase == 'ortopedia' ? 'Aparato 1' : 'Retenedores';
 
     return Container(
       width: double.infinity,
@@ -175,14 +186,27 @@ class _TreatmentFinanceSummary extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
       ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SummaryItem(label: 'Tratamiento', value: treatment.displayName),
-          _SummaryItem(label: 'Total calculado', value: currency.format(total)),
-          _SummaryItem(label: 'Pagado', value: currency.format(pagado)),
-          _SummaryItem(label: 'Saldo pendiente', value: currency.format(saldo)),
+          Wrap(
+            spacing: 18,
+            runSpacing: 12,
+            children: [
+              _SummaryItem(label: 'Tratamiento', value: treatment.displayName),
+              _SummaryItem(label: 'Tipo', value: PatientTreatment.labelForBaseTreatment(treatment.tipoBase)),
+              if (treatment.normalizedSubtypeLabel != null)
+                _SummaryItem(label: 'Subtipo', value: treatment.normalizedSubtypeLabel!),
+              _SummaryItem(label: 'Total autocalculado', value: currency.format(total)),
+              _SummaryItem(label: 'Total pagado', value: currency.format(pagado)),
+              _SummaryItem(label: 'Saldo pendiente', value: currency.format(saldo)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Fuente principal: conceptos financieros del tratamiento. Base esperada: Inicial + Controles + $conditionalBase.',
+            style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -257,6 +281,14 @@ class _FinancialItemsSection extends ConsumerWidget {
                 label: const Text('Editar conceptos'),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Aquí defines el valor real del tratamiento por conceptos. Si editas montos o activas/desactivas conceptos, el saldo del tratamiento puede cambiar.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: OcgColors.bronze,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 12),
           if (activeItems.isEmpty)

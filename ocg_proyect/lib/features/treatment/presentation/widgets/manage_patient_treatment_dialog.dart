@@ -30,8 +30,6 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
   late final TextEditingController _customNameController;
   late final TextEditingController _notesController;
-  late final TextEditingController _totalController;
-  late final TextEditingController _balanceController;
 
   late String _baseTreatment;
   late String _category;
@@ -62,20 +60,12 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       text: isKnownBase ? '' : (initial?.nombre ?? ''),
     );
     _notesController = TextEditingController(text: initial?.notas ?? '');
-    _totalController = TextEditingController(
-      text: initial?.totalTratamiento?.toStringAsFixed(0) ?? '',
-    );
-    _balanceController = TextEditingController(
-      text: initial?.saldoPendiente?.toStringAsFixed(0) ?? '',
-    );
   }
 
   @override
   void dispose() {
     _customNameController.dispose();
     _notesController.dispose();
-    _totalController.dispose();
-    _balanceController.dispose();
     super.dispose();
   }
 
@@ -251,18 +241,18 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _totalController,
-              enabled: !isLoading,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Valor total del tratamiento'),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _balanceController,
-              enabled: !isLoading,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Saldo pendiente'),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
+              ),
+              child: const Text(
+                'La configuración financiera ya no nace de un valor total plano. Después de crear o editar el tratamiento, define Inicial, Controles y el tercer concepto base desde el constructor dinámico de pagos.',
+                style: TextStyle(color: OcgColors.espresso, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -379,8 +369,6 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         fechaFin: (_status == 'finalizado' || _status == 'cancelado') ? DateTime.now() : null,
         isPrimary: _isPrimary,
         updatedBy: adminId,
-        totalTratamiento: _parseDouble(_totalController.text),
-        saldoPendiente: _parseDouble(_balanceController.text),
         notas: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         clearSubtype: !_requiresSubtype,
       );
@@ -425,12 +413,6 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
   String _normalizeHumanName(String value) {
     return TreatmentCatalogRepository.normalizeHumanName(value);
-  }
-
-  double? _parseDouble(String value) {
-    final clean = value.trim().replaceAll('.', '').replaceAll(',', '.');
-    if (clean.isEmpty) return null;
-    return double.tryParse(clean);
   }
 
   String _mapError(Object error) {

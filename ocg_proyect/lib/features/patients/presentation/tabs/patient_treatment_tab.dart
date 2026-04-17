@@ -31,17 +31,6 @@ class PatientTreatmentTab extends ConsumerStatefulWidget {
 class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   String? _selectedTreatmentId;
 
-  String _formatCop(double amount) {
-    final value = amount.round().toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < value.length; i++) {
-      final posFromEnd = value.length - i;
-      buffer.write(value[i]);
-      if (posFromEnd > 1 && posFromEnd % 3 == 1) buffer.write('.');
-    }
-    return '\$${buffer.toString()} COP';
-  }
-
   @override
   Widget build(BuildContext context) {
     final treatments = ref.watch(
@@ -251,27 +240,20 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                       ),
                     ],
                   ),
-                  if (selectedTreatment.totalTratamiento != null || selectedTreatment.saldoPendiente != null) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        if (selectedTreatment.totalTratamiento != null)
-                          _MetaItem(
-                            icon: Icons.attach_money,
-                            label: 'Total',
-                            value: _formatCop(selectedTreatment.totalTratamiento!),
-                          ),
-                        if (selectedTreatment.saldoPendiente != null)
-                          _MetaItem(
-                            icon: Icons.account_balance_wallet_outlined,
-                            label: 'Saldo pendiente',
-                            value: _formatCop(selectedTreatment.saldoPendiente!),
-                          ),
-                      ],
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
                     ),
-                  ],
+                    child: const Text(
+                      'La parte financiera de este tratamiento se configura por conceptos en el constructor dinámico de pagos. El total y el saldo ya no deben tratarse como campos manuales independientes.',
+                      style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                   if ((selectedTreatment.notas ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
