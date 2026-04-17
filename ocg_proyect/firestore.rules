@@ -38,8 +38,9 @@ service cloud.firestore {
 
     match /patients/{patientId} {
       allow read: if isAdmin() || isOwnPatient(patientId);
-      // Permite create/update sin custom claims para el registro inicial
-      allow create: if request.auth != null && isOwnPatient(patientId);
+      // Permite create/update para admin y para el registro inicial del propio paciente.
+      allow create: if isAdmin() ||
+                      (request.auth != null && isOwnPatient(patientId));
       allow update: if isAdmin() ||
                       (request.auth != null && isOwnPatient(patientId));
       allow delete: if isAdmin();

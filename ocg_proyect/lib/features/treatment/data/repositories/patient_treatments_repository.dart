@@ -65,56 +65,80 @@ class PatientTreatmentsRepository {
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
 
-    await docRef.set(normalized.toJson(), SetOptions(merge: true));
+    try {
+      await docRef.set(normalized.toJson(), SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      throw Exception('SAVE_TREATMENT_DOC_FAILED|path=${docRef.path}|code=${e.code}|message=${e.message}');
+    }
 
     if (!treatment.isPrimary) {
       return;
     }
 
-    final batch = _db.batch();
-    final paymentSnapshot = await _paymentRef(patientId).get();
     final primaryRefs = await _treatmentsRef(patientId).where('isPrimary', isEqualTo: true).get();
-
     for (final doc in primaryRefs.docs) {
       if (doc.id == treatment.id) continue;
-      batch.set(
-        doc.reference,
-        {
-          'isPrimary': false,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      try {
+        await doc.reference.set(
+          {
+            'isPrimary': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      } on FirebaseException catch (e) {
+        throw Exception('DEMOTE_PRIMARY_FAILED|path=${doc.reference.path}|code=${e.code}|message=${e.message}');
+      }
     }
 
     if (previousPrimaryId != null && previousPrimaryId.isNotEmpty && previousPrimaryId != treatment.id) {
-      batch.set(
-        _treatmentsRef(patientId).doc(previousPrimaryId),
-        {
-          'isPrimary': false,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      final previousRef = _treatmentsRef(patientId).doc(previousPrimaryId);
+      try {
+        await previousRef.set(
+          {
+            'isPrimary': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      } on FirebaseException catch (e) {
+        throw Exception('DEMOTE_PREVIOUS_PRIMARY_FAILED|path=${previousRef.path}|code=${e.code}|message=${e.message}');
+      }
     }
 
-    batch.set(
-      docRef,
-      {'isPrimary': true, 'updatedAt': FieldValue.serverTimestamp()},
-      SetOptions(merge: true),
-    );
-    batch.set(
-      _patientRef(patientId),
-      _legacyPatientMirror(patientId, normalized),
-      SetOptions(merge: true),
-    );
-    batch.set(
-      _paymentRef(patientId),
-      _paymentMirror(patientId, normalized, paymentSnapshot.data()),
-      SetOptions(merge: true),
-    );
+    try {
+      await docRef.set(
+        {'isPrimary': true, 'updatedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+    } on FirebaseException catch (e) {
+      throw Exception('CONFIRM_PRIMARY_FLAG_FAILED|path=${docRef.path}|code=${e.code}|message=${e.message}');
+    }
 
-    await batch.commit();
+    final patientRef = _patientRef(patientId);
+    final patientSnapshot = await patientRef.get();
+    if (!patientSnapshot.exists) {
+      throw Exception('PATIENT_MIRROR_TARGET_MISSING|path=${patientRef.path}');
+    }
+    try {
+      await patientRef.set(
+        _legacyPatientMirror(patientId, normalized),
+        SetOptions(merge: true),
+      );
+    } on FirebaseException catch (e) {
+      throw Exception('SAVE_PATIENT_MIRROR_FAILED|path=${patientRef.path}|exists=${patientSnapshot.exists}|code=${e.code}|message=${e.message}');
+    }
+
+    final paymentRef = _paymentRef(patientId);
+    final paymentSnapshot = await paymentRef.get();
+    try {
+      await paymentRef.set(
+        _paymentMirror(patientId, normalized, paymentSnapshot.data()),
+        SetOptions(merge: true),
+      );
+    } on FirebaseException catch (e) {
+      throw Exception('SAVE_PAYMENT_MIRROR_FAILED|path=${paymentRef.path}|exists=${paymentSnapshot.exists}|code=${e.code}|message=${e.message}');
+    }
   }
 
   Future<void> setPrimaryTreatment({
