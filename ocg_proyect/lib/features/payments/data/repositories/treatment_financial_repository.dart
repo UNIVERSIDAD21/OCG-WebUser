@@ -33,6 +33,20 @@ class TreatmentFinancialRepository {
     });
   }
 
+  Future<Map<String, dynamic>> verifyFinancialItemsPersistence({
+    required String patientId,
+    required String treatmentId,
+  }) async {
+    final path = FirestorePaths.treatmentFinancialItems(patientId, treatmentId);
+    final snapshot = await _itemsRef(patientId, treatmentId).get();
+    return <String, dynamic>{
+      'path': path,
+      'count': snapshot.docs.length,
+      'ids': snapshot.docs.map((doc) => doc.id).toList(),
+      'items': snapshot.docs.map((doc) => doc.data()).toList(),
+    };
+  }
+
   Future<void> ensureBaseItems({
     required String patientId,
     required PatientTreatment treatment,

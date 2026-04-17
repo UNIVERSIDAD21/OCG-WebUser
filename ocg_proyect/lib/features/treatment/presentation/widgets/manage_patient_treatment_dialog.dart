@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../firebase_options.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_button.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -1057,6 +1058,19 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
           );
 
       diagnostics['step'] = 'after_save_treatment';
+      final treatmentRepo = ref.read(patientTreatmentsRepositoryProvider);
+      final treatmentVerification = await treatmentRepo.verifyTreatmentPersistence(
+        patientId: widget.patientId,
+        treatmentId: treatment.id,
+      );
+      diagnostics['treatmentVerification'] = {
+        ...treatmentVerification,
+        'projectId': DefaultFirebaseOptions.currentPlatform.projectId,
+        'firebaseAppName': Firebase.app().name,
+      };
+      if (treatmentVerification['exists'] != true) {
+        throw Exception('TREATMENT_DOC_NOT_FOUND_AFTER_WRITE');
+      }
       _debugSave('after_save_treatment', diagnostics);
 
       final items = _financialItems
@@ -1090,7 +1104,21 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             updatedBy: adminId,
           );
 
+      final financialRepo = ref.read(treatmentFinancialRepositoryProvider);
+      final itemsVerification = await financialRepo.verifyFinancialItemsPersistence(
+        patientId: widget.patientId,
+        treatmentId: treatment.id,
+      );
+      diagnostics['itemsVerification'] = itemsVerification;
+      if ((itemsVerification['count'] as int? ?? 0) <= 0) {
+        throw Exception('FINANCIAL_ITEMS_NOT_FOUND_AFTER_WRITE');
+      }
+
       diagnostics['step'] = 'save_completed';
+      diagnostics['projectIdConfirmed'] = DefaultFirebaseOptions.currentPlatform.projectId;
+      diagnostics['pathConfirmed'] = 'patients/${widget.patientId}/treatments/${treatment.id}';
+      diagnostics['doc_exists_after_write'] = true;
+      diagnostics['items_count_after_write'] = itemsVerification['count'];
       _debugSave('save_completed', diagnostics);
 
       if (!mounted) return;
@@ -1310,6 +1338,14 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     final raw = error.toString();
     if (raw.contains('AUTH_USER_MISSING')) {
       return 'No hay usuario autenticado en la sesión actual al intentar guardar.';
+    }
+    if (raw.contains('TREATMENT_DOC_NOT_FOUND_AFTER_WRITE')) {
+      final verification = diagnostics?['treatmentVerification'];
+      return 'El write reportó éxito local, pero el documento principal NO existe tras la verificación inmediata. Verificación: $verification';
+    }
+    if (raw.contains('FINANCIAL_ITEMS_NOT_FOUND_AFTER_WRITE')) {
+      final verification = diagnostics?['itemsVerification'];
+      return 'El tratamiento pudo haberse escrito, pero no existen financialItems tras la verificación inmediata. Verificación: $verification';
     }
     if (raw.contains('permission-denied')) {
       final role = diagnostics?['resolvedRole'];

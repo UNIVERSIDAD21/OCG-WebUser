@@ -37,6 +37,19 @@ class PatientTreatmentsRepository {
     });
   }
 
+  Future<Map<String, dynamic>> verifyTreatmentPersistence({
+    required String patientId,
+    required String treatmentId,
+  }) async {
+    final path = FirestorePaths.patientTreatmentDoc(patientId, treatmentId);
+    final doc = await _db.doc(path).get();
+    return <String, dynamic>{
+      'path': path,
+      'exists': doc.exists,
+      'data': doc.data(),
+    };
+  }
+
   Future<void> saveTreatment({
     required String patientId,
     required PatientTreatment treatment,
