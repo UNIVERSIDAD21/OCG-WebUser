@@ -58,30 +58,45 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
                 ),
               ),
               FilledButton.icon(
-                onPressed: () => _showUploadDialog(selectedTreatment),
+                onPressed: selectedTreatment == null ? null : () => _showUploadDialog(selectedTreatment),
                 icon: const Icon(Icons.upload_file),
                 label: const Text('Subir archivo'),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                selected: _selectedTreatmentId == '__all__' || _selectedTreatmentId == null,
-                label: const Text('Todos los tratamientos'),
-                onSelected: (_) => setState(() => _selectedTreatmentId = '__all__'),
+          if (treatments.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: OcgColors.mist,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.10)),
               ),
-              for (final treatment in treatments)
+              child: const Text(
+                'Todavía no hay tratamientos creados para asociar archivos clínicos.',
+                style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
                 ChoiceChip(
-                  selected: treatment.id == _selectedTreatmentId,
-                  label: Text(treatment.displayName),
-                  onSelected: (_) => setState(() => _selectedTreatmentId = treatment.id),
+                  selected: _selectedTreatmentId == '__all__' || _selectedTreatmentId == null,
+                  label: const Text('Todos los tratamientos'),
+                  onSelected: (_) => setState(() => _selectedTreatmentId = '__all__'),
                 ),
-            ],
-          ),
+                for (final treatment in treatments)
+                  ChoiceChip(
+                    selected: treatment.id == _selectedTreatmentId,
+                    label: Text(treatment.displayName),
+                    onSelected: (_) => setState(() => _selectedTreatmentId = treatment.id),
+                  ),
+              ],
+            ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -131,7 +146,7 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
     );
   }
 
-  PatientTreatment _resolveSelectedTreatment(List<PatientTreatment> treatments) {
+  PatientTreatment? _resolveSelectedTreatment(List<PatientTreatment> treatments) {
     if (_selectedTreatmentId != null && _selectedTreatmentId != '__all__') {
       for (final treatment in treatments) {
         if (treatment.id == _selectedTreatmentId) return treatment;
@@ -140,6 +155,7 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
     for (final treatment in treatments) {
       if (treatment.isPrimary) return treatment;
     }
+    if (treatments.isEmpty) return null;
     return treatments.first;
   }
 
