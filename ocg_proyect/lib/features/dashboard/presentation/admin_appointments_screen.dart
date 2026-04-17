@@ -220,6 +220,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
                               password: pass,
                               displayName: name.trim(),
                             );
+                        ref.invalidate(patientsStreamProvider);
+                        ref.invalidate(filteredPatientsProvider);
                         final nombre = name.trim();
                         popDialog(dialogCtx);
                         if (context.mounted) {

@@ -188,6 +188,8 @@ class AdminPatientsScreen extends ConsumerWidget {
                               password: password,
                               displayName: fullName,
                             );
+                        ref.invalidate(patientsStreamProvider);
+                        ref.invalidate(filteredPatientsProvider);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
