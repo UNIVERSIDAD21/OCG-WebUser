@@ -104,5 +104,70 @@ void main() {
       expect(secondDoc.data()?['isPrimary'], isTrue);
       expect(patientDoc.data()?['primaryTreatmentId'], 'tx-2');
     });
+
+    test('permite coexistencia de segundo y tercer tratamiento sin sobrescribir', () async {
+      final first = PatientTreatment(
+        id: 'tx-1',
+        patientId: 'patient-1',
+        nombre: 'Convencional',
+        categoria: 'ortodoncia',
+        tipoBase: 'convencional',
+        subtipo: 'metalico',
+        estado: 'activo',
+        etapaActual: TreatmentStage.valoracionInicial,
+        fechaInicio: DateTime(2026, 4, 16),
+        createdAt: DateTime(2026, 4, 16),
+        updatedAt: DateTime(2026, 4, 16),
+        isPrimary: true,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
+      );
+      final second = PatientTreatment(
+        id: 'tx-2',
+        patientId: 'patient-1',
+        nombre: 'Alineadores',
+        categoria: 'ortodoncia',
+        tipoBase: 'alineadores',
+        estado: 'activo',
+        etapaActual: TreatmentStage.estudioPlaneacion,
+        fechaInicio: DateTime(2026, 4, 20),
+        createdAt: DateTime(2026, 4, 20),
+        updatedAt: DateTime(2026, 4, 20),
+        isPrimary: false,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
+      );
+      final third = PatientTreatment(
+        id: 'tx-3',
+        patientId: 'patient-1',
+        nombre: 'Retenedores',
+        categoria: 'ortodoncia',
+        tipoBase: 'retenedores',
+        estado: 'pausado',
+        etapaActual: TreatmentStage.retencion,
+        fechaInicio: DateTime(2026, 4, 25),
+        createdAt: DateTime(2026, 4, 25),
+        updatedAt: DateTime(2026, 4, 25),
+        isPrimary: false,
+        createdBy: 'admin-1',
+        updatedBy: 'admin-1',
+      );
+
+      await repo.saveTreatment(patientId: 'patient-1', treatment: first);
+      await repo.saveTreatment(patientId: 'patient-1', treatment: second);
+      await repo.saveTreatment(patientId: 'patient-1', treatment: third);
+
+      final snapshot = await db.collection('patients/patient-1/treatments').get();
+      final ids = snapshot.docs.map((doc) => doc.id).toSet();
+
+      expect(snapshot.docs.length, 3);
+      expect(ids, containsAll(<String>{'tx-1', 'tx-2', 'tx-3'}));
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-1').data()['name'], 'Convencional');
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-2').data()['name'], 'Alineadores');
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-3').data()['name'], 'Retenedores');
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-1').data()['isPrimary'], isTrue);
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-2').data()['isPrimary'], isFalse);
+      expect(snapshot.docs.firstWhere((doc) => doc.id == 'tx-3').data()['isPrimary'], isFalse);
+    });
   });
 }

@@ -132,6 +132,23 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
               ],
             ),
             const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.08)),
+              ),
+              child: Text(
+                'Tratamiento visible: ${selectedTreatment.displayName} · ${treatments.length} total(es)',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: OcgColors.espresso,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
