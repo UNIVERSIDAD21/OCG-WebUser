@@ -20,6 +20,13 @@ service cloud.firestore {
       return !('treatmentId' in request.resource.data) || request.resource.data.treatmentId == treatmentId;
     }
 
+    function hasAuditFields() {
+      return ('createdAt' in request.resource.data) &&
+             ('updatedAt' in request.resource.data) &&
+             ('createdBy' in request.resource.data) &&
+             ('updatedBy' in request.resource.data);
+    }
+
     // ─── admins/ ──────────────────────────────────────────────────────────────
 
     match /admins/{adminId} {
@@ -74,7 +81,9 @@ service cloud.firestore {
           allow read: if isAdmin() || isOwnPatient(patientId);
           allow create, update: if isAdmin() &&
                                   incomingPatientMatches(patientId) &&
-                                  incomingTreatmentMatches(treatmentId);
+                                  incomingTreatmentMatches(treatmentId) &&
+                                  (!('id' in request.resource.data) || request.resource.data.id == itemId) &&
+                                  hasAuditFields();
           allow delete: if isAdmin();
         }
       }

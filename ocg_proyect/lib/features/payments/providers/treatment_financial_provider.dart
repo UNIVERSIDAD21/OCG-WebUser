@@ -24,12 +24,14 @@ class SaveTreatmentFinancialItemsNotifier extends AsyncNotifier<void> {
     required String patientId,
     required PatientTreatment treatment,
     required List<FinancialItemModel> items,
+    String updatedBy = 'system',
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => ref.read(treatmentFinancialRepositoryProvider).replaceFinancialItems(
           patientId: patientId,
           treatment: treatment,
           items: items,
+          updatedBy: updatedBy,
         ));
   }
 }

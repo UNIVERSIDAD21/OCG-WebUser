@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../data/models/financial_item_model.dart';
 import '../../providers/treatment_financial_provider.dart';
@@ -115,6 +116,7 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
         active: true,
         deletable: true,
         editableName: true,
+        createdAt: DateTime.now(),
       ),
     );
     setState(() {});
@@ -122,6 +124,7 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
 
   Future<void> _save() async {
     try {
+      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
       final models = <FinancialItemModel>[];
       for (int i = 0; i < _items.length; i++) {
         final item = _items[i];
@@ -142,7 +145,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
             order: i + 1,
             active: item.active,
             createdByAdmin: true,
-            createdAt: DateTime.now(),
+            createdBy: item.createdBy ?? adminId,
+            updatedBy: adminId,
+            createdAt: item.createdAt,
             updatedAt: DateTime.now(),
           ),
         );
@@ -152,6 +157,7 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
             patientId: widget.patientId,
             treatment: widget.treatment,
             items: models,
+            updatedBy: adminId,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -253,6 +259,8 @@ class _EditableFinancialItem {
     required this.active,
     required this.deletable,
     required this.editableName,
+    this.createdBy,
+    required this.createdAt,
   });
 
   final String id;
@@ -263,6 +271,8 @@ class _EditableFinancialItem {
   final bool active;
   final bool deletable;
   final bool editableName;
+  final String? createdBy;
+  final DateTime createdAt;
 
   bool get isRequired => kind == 'initial' || kind == 'controls';
 
@@ -276,6 +286,8 @@ class _EditableFinancialItem {
       active: item.active,
       deletable: item.deletable,
       editableName: item.editableName,
+      createdBy: item.createdBy,
+      createdAt: item.createdAt,
     );
   }
 
@@ -288,6 +300,8 @@ class _EditableFinancialItem {
     bool? active,
     bool? deletable,
     bool? editableName,
+    String? createdBy,
+    DateTime? createdAt,
   }) {
     return _EditableFinancialItem(
       id: id ?? this.id,
@@ -298,6 +312,8 @@ class _EditableFinancialItem {
       active: active ?? this.active,
       deletable: deletable ?? this.deletable,
       editableName: editableName ?? this.editableName,
+      createdBy: createdBy ?? this.createdBy,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

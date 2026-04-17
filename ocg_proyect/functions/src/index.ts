@@ -16,6 +16,7 @@ import {createPayuSession} from './payments/create_payu_session';
 import {payuWebhook} from './payments/payu_webhook';
 import {reconcilePatientBalances} from './payments/reconcile_balances';
 import {initializeAllPaymentDocuments} from './payments/initialize_all_payment_documents';
+import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_item_write';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -39,4 +40,5 @@ export {
   payuWebhook,
   reconcilePatientBalances,
   initializeAllPaymentDocuments,
+  onTreatmentFinancialItemWrite,
 };

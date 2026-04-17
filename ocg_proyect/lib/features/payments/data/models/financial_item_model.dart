@@ -15,6 +15,8 @@ class FinancialItemModel {
     required this.order,
     required this.active,
     required this.createdByAdmin,
+    this.createdBy,
+    this.updatedBy,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +34,8 @@ class FinancialItemModel {
   final int order;
   final bool active;
   final bool createdByAdmin;
+  final String? createdBy;
+  final String? updatedBy;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -53,6 +57,8 @@ class FinancialItemModel {
       order: (json['order'] as num?)?.toInt() ?? 0,
       active: (json['active'] as bool?) ?? true,
       createdByAdmin: (json['createdByAdmin'] as bool?) ?? true,
+      createdBy: json['createdBy']?.toString(),
+      updatedBy: json['updatedBy']?.toString(),
       createdAt: _parseDate(json['createdAt'], now),
       updatedAt: _parseDate(json['updatedAt'], now),
     );
@@ -72,6 +78,8 @@ class FinancialItemModel {
         'order': order,
         'active': active,
         'createdByAdmin': createdByAdmin,
+        'createdBy': createdBy,
+        'updatedBy': updatedBy,
         'createdAt': Timestamp.fromDate(createdAt),
         'updatedAt': Timestamp.fromDate(updatedAt),
       };
@@ -90,6 +98,8 @@ class FinancialItemModel {
     int? order,
     bool? active,
     bool? createdByAdmin,
+    String? createdBy,
+    String? updatedBy,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -107,6 +117,8 @@ class FinancialItemModel {
       order: order ?? this.order,
       active: active ?? this.active,
       createdByAdmin: createdByAdmin ?? this.createdByAdmin,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

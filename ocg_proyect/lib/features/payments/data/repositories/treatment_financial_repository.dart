@@ -36,12 +36,18 @@ class TreatmentFinancialRepository {
   Future<void> ensureBaseItems({
     required String patientId,
     required PatientTreatment treatment,
+    String createdBy = 'system',
   }) async {
     final snapshot = await _itemsRef(patientId, treatment.id).get();
     if (snapshot.docs.isNotEmpty) return;
 
     final now = DateTime.now();
-    final defaults = _defaultItems(patientId: patientId, treatment: treatment, now: now);
+    final defaults = _defaultItems(
+      patientId: patientId,
+      treatment: treatment,
+      now: now,
+      createdBy: createdBy,
+    );
     final batch = _db.batch();
     for (final item in defaults) {
       batch.set(_itemsRef(patientId, treatment.id).doc(item.id), item.toJson());
@@ -54,6 +60,7 @@ class TreatmentFinancialRepository {
     required String patientId,
     required PatientTreatment treatment,
     required List<FinancialItemModel> items,
+    String updatedBy = 'system',
   }) async {
     _validateItems(items);
 
@@ -68,7 +75,22 @@ class TreatmentFinancialRepository {
     }
 
     for (final item in items) {
-      batch.set(_itemsRef(patientId, treatment.id).doc(item.id), item.toJson(), SetOptions(merge: true));
+      Map<String, dynamic>? existingData;
+      for (final doc in existing.docs) {
+        if (doc.id == item.id) {
+          existingData = doc.data();
+          break;
+        }
+      }
+      final prepared = item.copyWith(
+        createdBy: item.createdBy ?? existingData?['createdBy']?.toString() ?? updatedBy,
+        updatedBy: updatedBy,
+        createdAt: existingData?['createdAt'] is Timestamp
+            ? (existingData!['createdAt'] as Timestamp).toDate()
+            : item.createdAt,
+        updatedAt: DateTime.now(),
+      );
+      batch.set(_itemsRef(patientId, treatment.id).doc(item.id), prepared.toJson(), SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -205,6 +227,7 @@ class TreatmentFinancialRepository {
     required String patientId,
     required PatientTreatment treatment,
     required DateTime now,
+    required String createdBy,
   }) {
     final isOrthopedics = treatment.tipoBase == 'ortopedia';
     final required = <FinancialItemModel>[
@@ -221,6 +244,8 @@ class TreatmentFinancialRepository {
         order: 1,
         active: true,
         createdByAdmin: true,
+        createdBy: createdBy,
+        updatedBy: createdBy,
         createdAt: now,
         updatedAt: now,
       ),
@@ -237,6 +262,8 @@ class TreatmentFinancialRepository {
         order: 2,
         active: true,
         createdByAdmin: true,
+        createdBy: createdBy,
+        updatedBy: createdBy,
         createdAt: now,
         updatedAt: now,
       ),
@@ -253,6 +280,8 @@ class TreatmentFinancialRepository {
         order: 3,
         active: true,
         createdByAdmin: true,
+        createdBy: createdBy,
+        updatedBy: createdBy,
         createdAt: now,
         updatedAt: now,
       ),
@@ -275,6 +304,8 @@ class TreatmentFinancialRepository {
           order: 4,
           active: true,
           createdByAdmin: true,
+          createdBy: createdBy,
+          updatedBy: createdBy,
           createdAt: now,
           updatedAt: now,
         ),
