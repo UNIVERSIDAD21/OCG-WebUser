@@ -26,6 +26,8 @@ class ManagePatientTreatmentDialog extends ConsumerStatefulWidget {
 }
 
 class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTreatmentDialog> {
+  final _formKey = GlobalKey<FormState>();
+
   late final TextEditingController _customNameController;
   late final TextEditingController _notesController;
   late final TextEditingController _totalController;
@@ -107,11 +109,13 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
     return AlertDialog(
       title: Text(widget.initialTreatment == null ? 'Nuevo tratamiento' : 'Editar tratamiento'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             DropdownButtonFormField<String>(
               value: _baseTreatment,
               decoration: const InputDecoration(labelText: 'Tipo base'),
@@ -161,7 +165,16 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _subtype,
-                decoration: const InputDecoration(labelText: 'Subtipo obligatorio'),
+                decoration: const InputDecoration(
+                  labelText: 'Subtipo obligatorio',
+                  helperText: 'Para Convencional y Autoligado debes elegir Estético o Metálico.',
+                ),
+                validator: (_) {
+                  if (_requiresSubtype && (_subtype == null || _subtype!.trim().isEmpty)) {
+                    return 'Debes elegir un subtipo (Estético o Metálico).';
+                  }
+                  return null;
+                },
                 items: kTreatmentSubtypes
                     .map(
                       (value) => DropdownMenuItem<String>(
@@ -170,8 +183,23 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                       ),
                     )
                     .toList(),
-                onChanged: isLoading ? null : (value) => setState(() => _subtype = value),
+                onChanged: isLoading
+                    ? null
+                    : (value) => setState(() {
+                          _subtype = value;
+                        }),
               ),
+              if (_subtype == null || _subtype!.trim().isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Debes elegir un subtipo (Estético o Metálico).',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: OcgColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
             ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -261,7 +289,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                 style: TextStyle(color: OcgColors.espresso, fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
-          ],
+                ],
+          ),
         ),
       ),
       actions: [
@@ -291,6 +320,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   }
 
   Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      setState(() {});
+      return;
+    }
+
     try {
       final catalogRepo = ref.read(treatmentCatalogRepositoryProvider);
       String effectiveBaseType = _effectiveBaseTreatment;
