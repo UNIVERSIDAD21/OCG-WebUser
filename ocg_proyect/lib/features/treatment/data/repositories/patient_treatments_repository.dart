@@ -45,50 +45,61 @@ class PatientTreatmentsRepository {
     _validateTreatment(treatment);
 
     final now = DateTime.now();
-    final batch = _db.batch();
     final docRef = _treatmentsRef(patientId).doc(treatment.id);
-    final paymentSnapshot = treatment.isPrimary ? await _paymentRef(patientId).get() : null;
+    final normalized = treatment.copyWith(
+      patientId: patientId,
+      updatedAt: now,
+      updatedBy: treatment.updatedBy ?? treatment.createdBy,
+    );
 
-    if (treatment.isPrimary) {
-      final primaryRefs = await _treatmentsRef(patientId).where('isPrimary', isEqualTo: true).get();
-      for (final doc in primaryRefs.docs) {
-        if (doc.id == treatment.id) continue;
-        batch.update(doc.reference, {
+    await docRef.set(normalized.toJson(), SetOptions(merge: true));
+
+    if (!treatment.isPrimary) {
+      return;
+    }
+
+    final batch = _db.batch();
+    final paymentSnapshot = await _paymentRef(patientId).get();
+    final primaryRefs = await _treatmentsRef(patientId).where('isPrimary', isEqualTo: true).get();
+
+    for (final doc in primaryRefs.docs) {
+      if (doc.id == treatment.id) continue;
+      batch.set(
+        doc.reference,
+        {
           'isPrimary': false,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+        },
+        SetOptions(merge: true),
+      );
+    }
 
-      if (previousPrimaryId != null && previousPrimaryId.isNotEmpty && previousPrimaryId != treatment.id) {
-        batch.update(_treatmentsRef(patientId).doc(previousPrimaryId), {
+    if (previousPrimaryId != null && previousPrimaryId.isNotEmpty && previousPrimaryId != treatment.id) {
+      batch.set(
+        _treatmentsRef(patientId).doc(previousPrimaryId),
+        {
           'isPrimary': false,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+        },
+        SetOptions(merge: true),
+      );
     }
 
     batch.set(
       docRef,
-      treatment.copyWith(
-        patientId: patientId,
-        updatedAt: now,
-        updatedBy: treatment.updatedBy ?? treatment.createdBy,
-      ).toJson(),
+      {'isPrimary': true, 'updatedAt': FieldValue.serverTimestamp()},
       SetOptions(merge: true),
     );
-
-    if (treatment.isPrimary) {
-      batch.set(
-        _patientRef(patientId),
-        _legacyPatientMirror(patientId, treatment),
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _paymentRef(patientId),
-        _paymentMirror(patientId, treatment, paymentSnapshot?.data()),
-        SetOptions(merge: true),
-      );
-    }
+    batch.set(
+      _patientRef(patientId),
+      _legacyPatientMirror(patientId, normalized),
+      SetOptions(merge: true),
+    );
+    batch.set(
+      _paymentRef(patientId),
+      _paymentMirror(patientId, normalized, paymentSnapshot.data()),
+      SetOptions(merge: true),
+    );
 
     await batch.commit();
   }

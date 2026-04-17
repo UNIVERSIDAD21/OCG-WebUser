@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../patients/data/models/patient_model.dart';
-import '../../payments/providers/treatment_financial_provider.dart';
 import '../data/models/patient_treatment.dart';
 import '../data/repositories/patient_treatments_repository.dart';
 
@@ -42,10 +41,6 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
             patientId: patientId,
             treatment: treatment,
             previousPrimaryId: previousPrimaryId,
-          );
-      await ref.read(treatmentFinancialRepositoryProvider).ensureBaseItems(
-            patientId: patientId,
-            treatment: treatment,
           );
     });
   }
