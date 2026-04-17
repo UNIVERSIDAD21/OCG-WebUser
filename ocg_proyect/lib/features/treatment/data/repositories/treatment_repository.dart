@@ -63,8 +63,11 @@ class TreatmentRepository {
     final patientRef = _db.collection(FirestorePaths.patients).doc(patientId);
     final historyRef = _db.collection(FirestorePaths.stageHistory(patientId)).doc();
 
+    final now = DateTime.now();
     final entry = StageHistoryEntry(
       id: historyRef.id,
+      patientId: patientId,
+      treatmentId: treatmentId ?? '',
       etapaAnterior: etapaActual,
       etapaNueva: nuevaEtapa,
       esRetroceso: esRetroceso,
@@ -75,7 +78,10 @@ class TreatmentRepository {
       adjuntosDescripcion: _nullableTrim(adjuntosDescripcion),
       fechaEfectiva: fechaEfectiva,
       adminId: adminId,
-      fechaCambio: DateTime.now(),
+      fechaCambio: now,
+      status: 'completed',
+      startedAt: fechaEfectiva ?? now,
+      completedAt: now,
     );
 
     if (treatmentId == null || treatmentId.isEmpty) {
@@ -97,9 +103,17 @@ class TreatmentRepository {
 
     batch.update(treatmentRef, {
       'etapaActual': nuevaEtapa.name,
+      'currentStageId': nuevaEtapa.name,
+      'currentStageName': stageNames[nuevaEtapa] ?? nuevaEtapa.name,
       'updatedAt': Timestamp.now(),
     });
-    batch.set(treatmentHistoryRef, entry.copyWith(id: treatmentHistoryRef.id).toJson());
+    batch.set(
+      treatmentHistoryRef,
+      entry.copyWith(
+        id: treatmentHistoryRef.id,
+        treatmentId: treatmentId,
+      ).toJson(),
+    );
 
     if (isPrimary) {
       batch.update(patientRef, {
