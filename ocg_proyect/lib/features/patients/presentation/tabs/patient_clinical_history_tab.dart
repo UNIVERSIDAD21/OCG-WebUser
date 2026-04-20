@@ -23,23 +23,30 @@ class PatientClinicalHistoryTab extends ConsumerStatefulWidget {
   final PatientModel patient;
 
   @override
-  ConsumerState<PatientClinicalHistoryTab> createState() => _PatientClinicalHistoryTabState();
+  ConsumerState<PatientClinicalHistoryTab> createState() =>
+      _PatientClinicalHistoryTabState();
 }
 
-class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHistoryTab> {
+class _PatientClinicalHistoryTabState
+    extends ConsumerState<PatientClinicalHistoryTab> {
   String? _selectedTreatmentId;
   String? _selectedCategory;
 
   @override
   Widget build(BuildContext context) {
     final treatments = ref.watch(
-      effectivePatientTreatmentsProvider((patientId: widget.patientId, patient: widget.patient)),
+      effectivePatientTreatmentsProvider((
+        patientId: widget.patientId,
+        patient: widget.patient,
+      )),
     );
     final selectedTreatment = _resolveSelectedTreatment(treatments);
     final filesAsync = ref.watch(
       patientClinicalFilesProvider((
         patientId: widget.patientId,
-        treatmentId: _selectedTreatmentId == '__all__' ? null : _selectedTreatmentId,
+        treatmentId: _selectedTreatmentId == '__all__'
+            ? null
+            : _selectedTreatmentId,
         onlyVisibleToPatient: false,
       )),
     );
@@ -54,11 +61,15 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
               Expanded(
                 child: Text(
                   'Historial clínico por archivos',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
               FilledButton.icon(
-                onPressed: selectedTreatment == null ? null : () => _showUploadDialog(selectedTreatment),
+                onPressed: selectedTreatment == null
+                    ? null
+                    : () => _showUploadDialog(selectedTreatment),
                 icon: const Icon(Icons.upload_file),
                 label: const Text('Subir archivo'),
               ),
@@ -72,11 +83,16 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
               decoration: BoxDecoration(
                 color: OcgColors.mist,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.10)),
+                border: Border.all(
+                  color: OcgColors.espresso.withValues(alpha: 0.10),
+                ),
               ),
               child: const Text(
                 'Todavía no hay tratamientos creados para asociar archivos clínicos.',
-                style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             )
           else
@@ -85,15 +101,19 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
               runSpacing: 8,
               children: [
                 ChoiceChip(
-                  selected: _selectedTreatmentId == '__all__' || _selectedTreatmentId == null,
+                  selected:
+                      _selectedTreatmentId == '__all__' ||
+                      _selectedTreatmentId == null,
                   label: const Text('Todos los tratamientos'),
-                  onSelected: (_) => setState(() => _selectedTreatmentId = '__all__'),
+                  onSelected: (_) =>
+                      setState(() => _selectedTreatmentId = '__all__'),
                 ),
                 for (final treatment in treatments)
                   ChoiceChip(
                     selected: treatment.id == _selectedTreatmentId,
                     label: Text(treatment.displayName),
-                    onSelected: (_) => setState(() => _selectedTreatmentId = treatment.id),
+                    onSelected: (_) =>
+                        setState(() => _selectedTreatmentId = treatment.id),
                   ),
               ],
             ),
@@ -111,7 +131,8 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
                 ChoiceChip(
                   selected: _selectedCategory == category,
                   label: Text(_categoryLabel(category)),
-                  onSelected: (_) => setState(() => _selectedCategory = category),
+                  onSelected: (_) =>
+                      setState(() => _selectedCategory = category),
                 ),
             ],
           ),
@@ -121,7 +142,10 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
             error: (error, _) => Text('No se pudieron cargar archivos: $error'),
             data: (files) {
               final filtered = files.where((file) {
-                if (_selectedCategory != null && file.category != _selectedCategory) return false;
+                if (_selectedCategory != null &&
+                    file.category != _selectedCategory) {
+                  return false;
+                }
                 return true;
               }).toList();
 
@@ -129,15 +153,20 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
                 return const OcgEmptyState(
                   icon: Icons.folder_open,
                   title: 'Todavía no hay archivos clínicos',
-                  subtitle: 'Sube PDFs, radiografías o imágenes clínicas desde este expediente.',
+                  subtitle:
+                      'Sube PDFs, radiografías o imágenes clínicas desde este expediente.',
                 );
               }
 
               return Column(
-                children: filtered.map((file) => _ClinicalFileTile(
-                  file: file,
-                  onDelete: () => _deleteFile(file),
-                )).toList(),
+                children: filtered
+                    .map(
+                      (file) => _ClinicalFileTile(
+                        file: file,
+                        onDelete: () => _deleteFile(file),
+                      ),
+                    )
+                    .toList(),
               );
             },
           ),
@@ -146,7 +175,9 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
     );
   }
 
-  PatientTreatment? _resolveSelectedTreatment(List<PatientTreatment> treatments) {
+  PatientTreatment? _resolveSelectedTreatment(
+    List<PatientTreatment> treatments,
+  ) {
     if (_selectedTreatmentId != null && _selectedTreatmentId != '__all__') {
       for (final treatment in treatments) {
         if (treatment.id == _selectedTreatmentId) return treatment;
@@ -177,21 +208,31 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
               children: [
                 TextFormField(
                   controller: displayCtrl,
-                  decoration: const InputDecoration(labelText: 'Nombre visible'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre visible',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: category,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   items: kClinicalFileCategories
-                      .map((item) => DropdownMenuItem(value: item, child: Text(_categoryLabel(item))))
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(_categoryLabel(item)),
+                        ),
+                      )
                       .toList(),
-                  onChanged: (value) => setModalState(() => category = value ?? category),
+                  onChanged: (value) =>
+                      setModalState(() => category = value ?? category),
                 ),
                 const SizedBox(height: 12),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Asociar al tratamiento ${selectedTreatment.displayName}'),
+                  title: Text(
+                    'Asociar al tratamiento ${selectedTreatment.displayName}',
+                  ),
                   value: linkToTreatment,
                   onChanged: selectedTreatment.id.startsWith('legacy-primary-')
                       ? null
@@ -201,7 +242,8 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Visible para el paciente'),
                   value: visibleToPatient,
-                  onChanged: (value) => setModalState(() => visibleToPatient = value),
+                  onChanged: (value) =>
+                      setModalState(() => visibleToPatient = value),
                 ),
                 TextFormField(
                   controller: notesCtrl,
@@ -212,8 +254,14 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Elegir archivo')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Elegir archivo'),
+            ),
           ],
         ),
       ),
@@ -224,44 +272,76 @@ class _PatientClinicalHistoryTabState extends ConsumerState<PatientClinicalHisto
     final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
     if (adminId.isEmpty) return;
 
-    await ref.read(uploadClinicalFileProvider.notifier).upload(
-          patientId: widget.patientId,
-          uploadedBy: adminId,
-          category: category,
-          displayName: displayCtrl.text,
-          notes: notesCtrl.text,
-          treatment: linkToTreatment ? selectedTreatment : null,
-          visibleToPatient: visibleToPatient,
-        );
-
-    if (!mounted) return;
-    final state = ref.read(uploadClinicalFileProvider);
-    if (state.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_mapError(state.error!))));
+    try {
+      await ref
+          .read(uploadClinicalFileProvider.notifier)
+          .upload(
+            patientId: widget.patientId,
+            uploadedBy: adminId,
+            category: category,
+            displayName: displayCtrl.text,
+            notes: notesCtrl.text,
+            treatment: linkToTreatment ? selectedTreatment : null,
+            visibleToPatient: visibleToPatient,
+          );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_mapError(error))));
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Archivo clínico subido correctamente.')));
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Archivo clínico subido correctamente.')),
+    );
   }
 
   Future<void> _deleteFile(ClinicalFileModel file) async {
     final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
     if (adminId.isEmpty) return;
-    await ref.read(uploadClinicalFileProvider.notifier).softDelete(
+    await ref
+        .read(uploadClinicalFileProvider.notifier)
+        .softDelete(
           patientId: widget.patientId,
           fileId: file.id,
           deletedBy: adminId,
         );
   }
 
-  String _categoryLabel(String category) => category.replaceAll('_', ' ').split(' ').map((word) {
-    if (word.isEmpty) return word;
-    return '${word[0].toUpperCase()}${word.substring(1)}';
-  }).join(' ');
+  String _categoryLabel(String category) => category
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((word) {
+        if (word.isEmpty) return word;
+        return '${word[0].toUpperCase()}${word.substring(1)}';
+      })
+      .join(' ');
 
   String _mapError(Object error) {
     final raw = error.toString();
-    if (raw.contains('CLINICAL_FILE_TOO_LARGE')) return 'El archivo supera el tamaño máximo permitido.';
-    if (raw.contains('CLINICAL_FILE_EXTENSION_NOT_ALLOWED')) return 'Tipo de archivo no permitido.';
+    if (raw.contains('CLINICAL_FILE_PICK_CANCELLED')) {
+      return 'No se seleccionó ningún archivo.';
+    }
+    if (raw.contains('CLINICAL_FILE_TOO_LARGE')) {
+      return 'El archivo supera el tamaño máximo permitido.';
+    }
+    if (raw.contains('CLINICAL_FILE_EXTENSION_NOT_ALLOWED')) {
+      return 'Tipo de archivo no permitido.';
+    }
+    if (raw.contains('CLINICAL_FILE_STORAGE_PERMISSION_DENIED')) {
+      return 'Falló la subida del archivo a Storage por permisos. Ruta de upload clínica revisada.';
+    }
+    if (raw.contains('CLINICAL_FILE_METADATA_PERMISSION_DENIED')) {
+      return 'El archivo pudo subirse, pero falló el guardado de metadata en Firestore por permisos.';
+    }
+    if (raw.contains('firebase_storage') || raw.contains('object-not-found')) {
+      return 'Falló la subida del archivo en Storage.';
+    }
+    if (raw.contains('cloud_firestore') || raw.contains('permission-denied')) {
+      return 'Falló la persistencia de metadata del archivo en Firestore.';
+    }
     return raw;
   }
 }
@@ -287,17 +367,31 @@ class _ClinicalFileTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(file.isPdf ? Icons.picture_as_pdf : Icons.image_outlined, color: OcgColors.bronze),
+          Icon(
+            file.isPdf ? Icons.picture_as_pdf : Icons.image_outlined,
+            color: OcgColors.bronze,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(file.displayName, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
+                Text(
+                  file.displayName,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(file.originalName, style: const TextStyle(color: OcgColors.ink)),
+                Text(
+                  file.originalName,
+                  style: const TextStyle(color: OcgColors.ink),
+                ),
                 const SizedBox(height: 4),
-                Text('Categoría: ${file.category.replaceAll('_', ' ')} • ${dateFmt.format(file.uploadedAt)}'),
+                Text(
+                  'Categoría: ${file.category.replaceAll('_', ' ')} • ${dateFmt.format(file.uploadedAt)}',
+                ),
                 if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
                   Text('Tratamiento: ${file.treatmentNameSnapshot}'),
                 if ((file.notes ?? '').trim().isNotEmpty)
@@ -326,14 +420,18 @@ class _ClinicalFileTile extends StatelessWidget {
 
   Future<void> _openFile(BuildContext context, String? url) async {
     if (url == null || url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Archivo sin URL disponible.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Archivo sin URL disponible.')),
+      );
       return;
     }
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir el archivo.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el archivo.')),
+      );
     }
   }
 }

@@ -8,6 +8,11 @@ class ClinicalFilesStorageService {
 
   final FirebaseStorage _storage;
 
+  void _trace(String action, Map<String, Object?> details) {
+    // ignore: avoid_print
+    print('[ClinicalFilesStorageService][$action] $details');
+  }
+
   Future<String> upload({
     required String patientId,
     String? treatmentId,
@@ -20,8 +25,40 @@ class ClinicalFilesStorageService {
       file.fileName,
       treatmentId: treatmentId,
     );
+    _trace('upload.start', {
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'path': path,
+      'fileName': file.fileName,
+      'mimeType': file.mimeType,
+      'sizeBytes': file.sizeBytes,
+    });
+
     final ref = _storage.ref(path);
-    await ref.putData(file.bytes, SettableMetadata(contentType: file.mimeType));
-    return ref.getDownloadURL();
+    try {
+      await ref.putData(
+        file.bytes,
+        SettableMetadata(contentType: file.mimeType),
+      );
+      final url = await ref.getDownloadURL();
+      _trace('upload.success', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'path': path,
+      });
+      return url;
+    } catch (error) {
+      _trace('upload.error', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'path': path,
+        'error': error.toString(),
+      });
+      rethrow;
+    }
+  }
+
+  Future<void> deleteByPath(String path) async {
+    await _storage.ref(path).delete();
   }
 }

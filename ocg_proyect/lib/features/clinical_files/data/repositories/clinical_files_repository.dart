@@ -11,19 +11,38 @@ class ClinicalFilesRepository {
   CollectionReference<Map<String, dynamic>> _filesRef(String patientId) =>
       _db.collection(FirestorePaths.patientClinicalFiles(patientId));
 
+  void _trace(String action, Map<String, Object?> details) {
+    // ignore: avoid_print
+    print('[ClinicalFilesRepository][$action] $details');
+  }
+
   Stream<List<ClinicalFileModel>> watchFiles(
     String patientId, {
     String? treatmentId,
     bool includeInactive = false,
     bool onlyVisibleToPatient = false,
   }) {
-    return _filesRef(patientId).orderBy('uploadedAt', descending: true).snapshots().map((snapshot) {
+    _trace('watchFiles', {
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'path': FirestorePaths.patientClinicalFiles(patientId),
+      'onlyVisibleToPatient': onlyVisibleToPatient,
+      'includeInactive': includeInactive,
+    });
+
+    return _filesRef(
+      patientId,
+    ).orderBy('uploadedAt', descending: true).snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) => ClinicalFileModel.fromJson(doc.data(), id: doc.id))
           .where((item) {
             if (!includeInactive && !item.active) return false;
             if (onlyVisibleToPatient && !item.visibleToPatient) return false;
-            if (treatmentId != null && treatmentId.isNotEmpty && item.treatmentId != treatmentId) return false;
+            if (treatmentId != null &&
+                treatmentId.isNotEmpty &&
+                item.treatmentId != treatmentId) {
+              return false;
+            }
             return true;
           })
           .toList();
@@ -31,7 +50,34 @@ class ClinicalFilesRepository {
   }
 
   Future<void> saveMetadata(ClinicalFileModel file) async {
-    await _filesRef(file.patientId).doc(file.id).set(file.toJson(), SetOptions(merge: true));
+    _trace('saveMetadata.start', {
+      'patientId': file.patientId,
+      'fileId': file.id,
+      'treatmentId': file.treatmentId,
+      'path':
+          '${FirestorePaths.patientClinicalFiles(file.patientId)}/${file.id}',
+      'storagePath': file.storagePath,
+    });
+    try {
+      await _filesRef(
+        file.patientId,
+      ).doc(file.id).set(file.toJson(), SetOptions(merge: true));
+      _trace('saveMetadata.success', {
+        'patientId': file.patientId,
+        'fileId': file.id,
+        'path':
+            '${FirestorePaths.patientClinicalFiles(file.patientId)}/${file.id}',
+      });
+    } catch (error) {
+      _trace('saveMetadata.error', {
+        'patientId': file.patientId,
+        'fileId': file.id,
+        'path':
+            '${FirestorePaths.patientClinicalFiles(file.patientId)}/${file.id}',
+        'error': error.toString(),
+      });
+      rethrow;
+    }
   }
 
   Future<void> softDelete({

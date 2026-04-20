@@ -7,12 +7,16 @@ service firebase.storage {
     }
 
     function isAdminByClaim() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.admin == true
+      );
     }
 
     function isAdminByDoc() {
       return isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isAdmin() {
@@ -35,7 +39,6 @@ service firebase.storage {
         && simulationDoc(patientId, simulationId).data.status == 'shared';
     }
 
-    // Perfil/fotos de paciente (alineado a uso actual)
     match /patients/{patientId}/profile/{fileName} {
       allow read: if isAdmin() || isOwnPatient(patientId);
       allow write: if isAdmin();
@@ -56,15 +59,11 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Simulador Bloque 08
     match /simulations/{patientId}/{simulationId}/{fileName} {
-      // Admin ve todo; paciente solo si está compartida y en estado shared
       allow read: if isAdmin() || canReadSharedSimulation(patientId, simulationId);
-      // Solo admin sube/edita/borra archivos de simulación
       allow write: if isAdmin();
     }
 
-    // Temporales del simulador: solo admin
     match /simulator_temp/{sessionId}/{fileName} {
       allow read, write: if isAdmin();
     }
