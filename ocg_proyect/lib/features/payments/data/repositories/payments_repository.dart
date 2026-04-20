@@ -9,6 +9,11 @@ class PaymentsRepository {
 
   final FirebaseFirestore _db;
 
+  void _trace(String action, Map<String, Object?> details) {
+    // ignore: avoid_print
+    print('[PaymentsRepository][$action] $details');
+  }
+
   DocumentReference<Map<String, dynamic>> _legacyPaymentRef(String patientId) =>
       _db.doc(FirestorePaths.paymentDoc(patientId));
 
@@ -55,6 +60,11 @@ class PaymentsRepository {
     String patientId,
     String treatmentId,
   ) {
+    _trace('watchTreatmentPayment', {
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'path': FirestorePaths.treatmentPaymentDoc(patientId, treatmentId),
+    });
     return _treatmentPaymentRef(patientId, treatmentId).snapshots().asyncMap((
       snap,
     ) async {
@@ -93,6 +103,11 @@ class PaymentsRepository {
     String patientId,
     String treatmentId,
   ) {
+    _trace('watchTreatmentTransactions', {
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'path': FirestorePaths.treatmentTransactions(patientId, treatmentId),
+    });
     return _db
         .collection(
           FirestorePaths.treatmentTransactions(patientId, treatmentId),
@@ -340,6 +355,21 @@ class PaymentsRepository {
     String? payuOrderId,
     String? payuTransactionId,
   }) async {
+    _trace('registerPayment.start', {
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'monto': monto,
+      'metodo': metodo.name,
+      'paymentPath': treatmentId == null
+          ? null
+          : FirestorePaths.treatmentPaymentDoc(patientId, treatmentId),
+      'transactionsPath': treatmentId == null
+          ? null
+          : FirestorePaths.treatmentTransactions(patientId, treatmentId),
+      'treatmentPath': treatmentId == null
+          ? null
+          : FirestorePaths.patientTreatmentDoc(patientId, treatmentId),
+    });
     if (monto <= 0) {
       throw Exception('PAYMENT_AMOUNT_INVALID');
     }
@@ -462,7 +492,36 @@ class PaymentsRepository {
       }, SetOptions(merge: true));
     }
 
-    await batch.commit();
+    try {
+      await batch.commit();
+      _trace('registerPayment.success', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'paymentPath': FirestorePaths.treatmentPaymentDoc(
+          patientId,
+          treatmentId,
+        ),
+        'transactionsPath': FirestorePaths.treatmentTransactions(
+          patientId,
+          treatmentId,
+        ),
+      });
+    } catch (error) {
+      _trace('registerPayment.error', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'paymentPath': FirestorePaths.treatmentPaymentDoc(
+          patientId,
+          treatmentId,
+        ),
+        'transactionsPath': FirestorePaths.treatmentTransactions(
+          patientId,
+          treatmentId,
+        ),
+        'error': error.toString(),
+      });
+      rethrow;
+    }
   }
 
   Future<void> updateTransactionReceiptUrl({

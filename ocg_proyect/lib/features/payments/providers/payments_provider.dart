@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/providers/auth_providers.dart';
+
 import '../../../shared/constants/firestore_paths.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
@@ -248,6 +250,12 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
   }) async {
     final repository = ref.read(paymentsRepositoryProvider);
     final pdfService = ref.read(pdfReceiptServiceProvider);
+    final authService = ref.read(authServiceProvider);
+    final currentUser = ref.read(authStateProvider).asData?.value;
+    final email = currentUser?.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      await authService.bootstrapAdminByEmailIfAllowed(email);
+    }
 
     await repository.registerManualPayment(
       patientId: patientId,
