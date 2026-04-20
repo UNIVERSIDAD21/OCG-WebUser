@@ -902,7 +902,9 @@ class _ManagePatientTreatmentDialogState
             children: [
               Expanded(
                 child: Text(
-                  'Valor: ${_currency.format(item.amount)} COP',
+                  item.kind == 'controls'
+                      ? 'Controles: ${_currency.format(item.effectiveUnitAmount)} × ${item.effectiveQuantity} = ${_currency.format(item.amount)} COP'
+                      : 'Valor: ${_currency.format(item.amount)} COP',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: OcgColors.espresso,
                     fontWeight: FontWeight.w700,
@@ -1775,6 +1777,8 @@ class _FinancialItemDraft {
     required this.name,
     required this.kind,
     required this.amount,
+    this.unitAmount,
+    this.quantity,
     required this.deletable,
     required this.editableName,
     required this.order,
@@ -1785,12 +1789,18 @@ class _FinancialItemDraft {
   final String name;
   final String kind;
   final double amount;
+  final double? unitAmount;
+  final int? quantity;
   final bool deletable;
   final bool editableName;
   final int order;
   final bool active;
 
   bool get isRequired => kind == 'initial' || kind == 'controls';
+  int get effectiveQuantity =>
+      kind == 'controls' ? ((quantity ?? 1) < 1 ? 1 : quantity!) : 1;
+  double get effectiveUnitAmount =>
+      kind == 'controls' ? (unitAmount ?? amount) : amount;
 
   factory _FinancialItemDraft.fromModel(FinancialItemModel model) {
     return _FinancialItemDraft(
@@ -1798,6 +1808,8 @@ class _FinancialItemDraft {
       name: model.name,
       kind: model.kind,
       amount: model.amount,
+      unitAmount: model.unitAmount,
+      quantity: model.quantity,
       deletable: model.deletable,
       editableName: model.editableName,
       order: model.order,
@@ -1810,16 +1822,32 @@ class _FinancialItemDraft {
     String? name,
     String? kind,
     double? amount,
+    double? unitAmount,
+    int? quantity,
     bool? deletable,
     bool? editableName,
     int? order,
     bool? active,
   }) {
+    final nextKind = kind ?? this.kind;
+    final nextQuantity = nextKind == 'controls'
+        ? ((quantity ?? this.quantity ?? 1) < 1
+              ? 1
+              : (quantity ?? this.quantity ?? 1))
+        : null;
+    final nextUnitAmount = nextKind == 'controls'
+        ? (unitAmount ?? this.unitAmount ?? amount ?? this.amount)
+        : null;
+    final nextAmount = nextKind == 'controls'
+        ? (nextUnitAmount ?? 0) * (nextQuantity ?? 1)
+        : (amount ?? this.amount);
     return _FinancialItemDraft(
       id: id ?? this.id,
       name: name ?? this.name,
-      kind: kind ?? this.kind,
-      amount: amount ?? this.amount,
+      kind: nextKind,
+      amount: nextAmount,
+      unitAmount: nextUnitAmount,
+      quantity: nextQuantity,
       deletable: deletable ?? this.deletable,
       editableName: editableName ?? this.editableName,
       order: order ?? this.order,
@@ -1841,6 +1869,8 @@ class _FinancialItemDraft {
       normalizedName: FinancialItemModel.normalizeName(name),
       kind: kind,
       amount: amount,
+      unitAmount: kind == 'controls' ? effectiveUnitAmount : null,
+      quantity: kind == 'controls' ? effectiveQuantity : null,
       deletable: deletable,
       editableName: editableName,
       order: order,

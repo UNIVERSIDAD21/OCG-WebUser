@@ -329,6 +329,8 @@ class TreatmentFinancialRepository {
         normalizedName: 'controles',
         kind: 'controls',
         amount: 0,
+        unitAmount: 0,
+        quantity: 1,
         deletable: false,
         editableName: true,
         order: 2,

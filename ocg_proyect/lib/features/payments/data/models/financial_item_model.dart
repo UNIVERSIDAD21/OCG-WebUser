@@ -9,6 +9,8 @@ class FinancialItemModel {
     required this.normalizedName,
     required this.kind,
     required this.amount,
+    this.unitAmount,
+    this.quantity,
     this.currency = 'COP',
     required this.deletable,
     required this.editableName,
@@ -28,6 +30,8 @@ class FinancialItemModel {
   final String normalizedName;
   final String kind;
   final double amount;
+  final double? unitAmount;
+  final int? quantity;
   final String currency;
   final bool deletable;
   final bool editableName;
@@ -40,17 +44,39 @@ class FinancialItemModel {
   final DateTime updatedAt;
 
   bool get isRequired => kind == 'initial' || kind == 'controls';
+  bool get supportsQuantity => kind == 'controls';
+  int get effectiveQuantity =>
+      supportsQuantity ? ((quantity ?? 1) < 1 ? 1 : quantity!) : 1;
+  double get effectiveUnitAmount =>
+      supportsQuantity ? (unitAmount ?? amount) : amount;
+  double get computedAmount =>
+      supportsQuantity ? effectiveUnitAmount * effectiveQuantity : amount;
 
   factory FinancialItemModel.fromJson(Map<String, dynamic> json, {String? id}) {
     final now = DateTime.now();
+    final kind = (json['kind'] ?? 'extra').toString();
+    final amount = _toDouble(json['amount']);
+    final parsedQuantity = (json['quantity'] as num?)?.toInt();
+    final parsedUnitAmount = _toDoubleNullable(json['unitAmount']);
+    final supportsQuantity = kind == 'controls';
+    final quantity = supportsQuantity
+        ? ((parsedQuantity ?? 1) < 1 ? 1 : (parsedQuantity ?? 1))
+        : null;
+    final unitAmount = supportsQuantity
+        ? (parsedUnitAmount ??
+              (quantity == null || quantity <= 0 ? amount : amount / quantity))
+        : null;
+
     return FinancialItemModel(
       id: id ?? (json['id'] ?? '').toString(),
       patientId: (json['patientId'] ?? '').toString(),
       treatmentId: (json['treatmentId'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       normalizedName: (json['normalizedName'] ?? '').toString(),
-      kind: (json['kind'] ?? 'extra').toString(),
-      amount: _toDouble(json['amount']),
+      kind: kind,
+      amount: supportsQuantity ? (unitAmount ?? 0) * (quantity ?? 1) : amount,
+      unitAmount: unitAmount,
+      quantity: quantity,
       currency: (json['currency'] ?? 'COP').toString(),
       deletable: (json['deletable'] as bool?) ?? true,
       editableName: (json['editableName'] as bool?) ?? true,
@@ -65,24 +91,26 @@ class FinancialItemModel {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'patientId': patientId,
-        'treatmentId': treatmentId,
-        'name': name.trim(),
-        'normalizedName': normalizedName.trim(),
-        'kind': kind,
-        'amount': amount,
-        'currency': currency,
-        'deletable': deletable,
-        'editableName': editableName,
-        'order': order,
-        'active': active,
-        'createdByAdmin': createdByAdmin,
-        'createdBy': createdBy,
-        'updatedBy': updatedBy,
-        'createdAt': Timestamp.fromDate(createdAt),
-        'updatedAt': Timestamp.fromDate(updatedAt),
-      };
+    'id': id,
+    'patientId': patientId,
+    'treatmentId': treatmentId,
+    'name': name.trim(),
+    'normalizedName': normalizedName.trim(),
+    'kind': kind,
+    'amount': computedAmount,
+    'unitAmount': supportsQuantity ? effectiveUnitAmount : null,
+    'quantity': supportsQuantity ? effectiveQuantity : null,
+    'currency': currency,
+    'deletable': deletable,
+    'editableName': editableName,
+    'order': order,
+    'active': active,
+    'createdByAdmin': createdByAdmin,
+    'createdBy': createdBy,
+    'updatedBy': updatedBy,
+    'createdAt': Timestamp.fromDate(createdAt),
+    'updatedAt': Timestamp.fromDate(updatedAt),
+  };
 
   FinancialItemModel copyWith({
     String? id,
@@ -92,6 +120,8 @@ class FinancialItemModel {
     String? normalizedName,
     String? kind,
     double? amount,
+    double? unitAmount,
+    int? quantity,
     String? currency,
     bool? deletable,
     bool? editableName,
@@ -103,14 +133,29 @@ class FinancialItemModel {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
+    final nextKind = kind ?? this.kind;
+    final nextSupportsQuantity = nextKind == 'controls';
+    final nextQuantity = nextSupportsQuantity
+        ? (quantity ?? this.quantity ?? 1)
+        : null;
+    final nextUnitAmount = nextSupportsQuantity
+        ? (unitAmount ?? this.unitAmount ?? amount ?? this.amount)
+        : null;
+    final nextAmount = nextSupportsQuantity
+        ? (nextUnitAmount ?? 0) *
+              ((nextQuantity ?? 1) < 1 ? 1 : (nextQuantity ?? 1))
+        : (amount ?? this.amount);
+
     return FinancialItemModel(
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       treatmentId: treatmentId ?? this.treatmentId,
       name: name ?? this.name,
       normalizedName: normalizedName ?? this.normalizedName,
-      kind: kind ?? this.kind,
-      amount: amount ?? this.amount,
+      kind: nextKind,
+      amount: nextAmount,
+      unitAmount: nextUnitAmount,
+      quantity: nextQuantity,
       currency: currency ?? this.currency,
       deletable: deletable ?? this.deletable,
       editableName: editableName ?? this.editableName,
@@ -138,7 +183,10 @@ class FinancialItemModel {
     return clean
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty)
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+        .map(
+          (word) =>
+              '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+        )
         .join(' ');
   }
 
@@ -146,6 +194,12 @@ class FinancialItemModel {
     if (value == null) return 0;
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString()) ?? 0;
+  }
+
+  static double? _toDoubleNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 
   static DateTime _parseDate(dynamic value, DateTime fallback) {
