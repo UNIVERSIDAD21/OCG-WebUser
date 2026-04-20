@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../presentation/web/common/web_breakpoints.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 
 class SectionPanel extends StatelessWidget {
@@ -16,7 +17,7 @@ class SectionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 980;
+    final compact = WebBreakpoints.isCompactDesktop(context);
 
     return Container(
       width: double.infinity,

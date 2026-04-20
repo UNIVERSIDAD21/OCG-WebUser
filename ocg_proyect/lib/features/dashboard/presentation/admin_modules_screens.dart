@@ -7,14 +7,11 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
-import '../../admin/presentation/web/components/page_header.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../payments/data/models/admin_payment_overview.dart';
-import '../../payments/data/models/payment_model.dart';
 import '../../payments/providers/payments_provider.dart';
 
 Future<void> _signOutAdminModules(BuildContext context, WidgetRef ref) async {
@@ -220,47 +217,55 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
             ],
           ),
           const SizedBox(height: 14),
-          GridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 2.45,
-            children: [
-              _TreatmentKpiPremium(
-                value: '\$${formatCop(widget.overview.totalDebt)}',
-                title: 'Saldo pendiente',
-                subtitle: 'por cobrar',
-                bg: const Color(0xFFFBEAED),
-                accent: const Color(0xFFB06A5A),
-                icon: Icons.payments_outlined,
-              ),
-              _TreatmentKpiPremium(
-                value: '\$${formatCop(recoveredTotal)}',
-                title: 'Recaudado',
-                subtitle: 'total acumulado',
-                bg: const Color(0xFFEAF5EE),
-                accent: const Color(0xFF2E7D4C),
-                icon: Icons.check_circle_outline,
-              ),
-              _TreatmentKpiPremium(
-                value: '$paidThisMonth',
-                title: 'Pagos este mes',
-                subtitle: 'transacciones',
-                bg: const Color(0xFFF8F3EC),
-                accent: const Color(0xFF9A735C),
-                icon: Icons.receipt_long_outlined,
-              ),
-              _TreatmentKpiPremium(
-                value: '${widget.overview.overdueEntries.length}',
-                title: 'Pagos vencidos',
-                subtitle: 'requieren seguimiento',
-                bg: const Color(0xFFFFF4D8),
-                accent: const Color(0xFFC99730),
-                icon: Icons.warning_amber_rounded,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 1120 ? 4 : 2;
+              final itemWidth =
+                  (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+              final compact = itemWidth < 220;
+              return GridView.count(
+                crossAxisCount: columns,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: compact ? 112 : 98,
+                children: [
+                  _TreatmentKpiPremium(
+                    value: '\$${formatCop(widget.overview.totalDebt)}',
+                    title: 'Saldo pendiente',
+                    subtitle: 'por cobrar',
+                    bg: const Color(0xFFFBEAED),
+                    accent: const Color(0xFFB06A5A),
+                    icon: Icons.payments_outlined,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '\$${formatCop(recoveredTotal)}',
+                    title: 'Recaudado',
+                    subtitle: 'total acumulado',
+                    bg: const Color(0xFFEAF5EE),
+                    accent: const Color(0xFF2E7D4C),
+                    icon: Icons.check_circle_outline,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '$paidThisMonth',
+                    title: 'Pagos este mes',
+                    subtitle: 'transacciones',
+                    bg: const Color(0xFFF8F3EC),
+                    accent: const Color(0xFF9A735C),
+                    icon: Icons.receipt_long_outlined,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '${widget.overview.overdueEntries.length}',
+                    title: 'Pagos vencidos',
+                    subtitle: 'requieren seguimiento',
+                    bg: const Color(0xFFFFF4D8),
+                    accent: const Color(0xFFC99730),
+                    icon: Icons.warning_amber_rounded,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -752,47 +757,55 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
             ],
           ),
           const SizedBox(height: 14),
-          GridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 2.45,
-            children: [
-              _TreatmentKpiPremium(
-                value: '$activeCount',
-                title: 'Tratamientos activos',
-                subtitle: '+2 este mes',
-                bg: const Color(0xFFF6EFE7),
-                accent: const Color(0xFF9A735C),
-                icon: Icons.monitor_heart_outlined,
-              ),
-              _TreatmentKpiPremium(
-                value: '$completedCount',
-                title: 'Completados',
-                subtitle: 'últimos 30 días',
-                bg: const Color(0xFFEFF8F0),
-                accent: const Color(0xFF2E7D4C),
-                icon: Icons.check_circle_outline,
-              ),
-              _TreatmentKpiPremium(
-                value: '$waitingCount',
-                title: 'En espera',
-                subtitle: 'pendientes inicio',
-                bg: const Color(0xFFFFF4D8),
-                accent: const Color(0xFFC99730),
-                icon: Icons.schedule_outlined,
-              ),
-              _TreatmentKpiPremium(
-                value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
-                title: 'Ingresos totales',
-                subtitle: 'tratamientos vigentes',
-                bg: const Color(0xFFFFECEC),
-                accent: const Color(0xFFB06A5A),
-                icon: Icons.payments_outlined,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 1120 ? 4 : 2;
+              final itemWidth =
+                  (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+              final compact = itemWidth < 220;
+              return GridView.count(
+                crossAxisCount: columns,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: compact ? 112 : 98,
+                children: [
+                  _TreatmentKpiPremium(
+                    value: '$activeCount',
+                    title: 'Tratamientos activos',
+                    subtitle: '+2 este mes',
+                    bg: const Color(0xFFF6EFE7),
+                    accent: const Color(0xFF9A735C),
+                    icon: Icons.monitor_heart_outlined,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '$completedCount',
+                    title: 'Completados',
+                    subtitle: 'últimos 30 días',
+                    bg: const Color(0xFFEFF8F0),
+                    accent: const Color(0xFF2E7D4C),
+                    icon: Icons.check_circle_outline,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '$waitingCount',
+                    title: 'En espera',
+                    subtitle: 'pendientes inicio',
+                    bg: const Color(0xFFFFF4D8),
+                    accent: const Color(0xFFC99730),
+                    icon: Icons.schedule_outlined,
+                  ),
+                  _TreatmentKpiPremium(
+                    value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
+                    title: 'Ingresos totales',
+                    subtitle: 'tratamientos vigentes',
+                    bg: const Color(0xFFFFECEC),
+                    accent: const Color(0xFFB06A5A),
+                    icon: Icons.payments_outlined,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
           Container(
@@ -1689,96 +1702,122 @@ class _TreatmentKpiPremium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [bg, Color.lerp(bg, Colors.white, 0.35)!],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x122C2016),
-            blurRadius: 14,
-            offset: Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 220;
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 12 : 14,
+            compact ? 10 : 12,
+            compact ? 12 : 14,
+            compact ? 10 : 12,
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -18,
-            right: -12,
-            child: Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.28),
-                shape: BoxShape.circle,
-              ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [bg, Color.lerp(bg, Colors.white, 0.35)!],
             ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x122C2016),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.65),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x1A2C2016)),
-                    ),
-                    child: Icon(icon, size: 12, color: accent),
+              Positioned(
+                top: -18,
+                right: -12,
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.28),
+                    shape: BoxShape.circle,
                   ),
-                  const Spacer(),
-                  Container(
-                    width: 18,
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: accent.withOpacity(0.45),
-                      borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: compact ? 20 : 22,
+                        height: compact ? 20 : 22,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.65),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x1A2C2016)),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: compact ? 11 : 12,
+                          color: accent,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        width: compact ? 16 : 18,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.45),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: compact ? 8 : 10),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: compact ? 22 : 24,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF2C2016),
+                        letterSpacing: -0.4,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 11.5 : 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C2016),
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 10 : 10.5,
+                      color: accent.withOpacity(0.9),
+                      fontWeight: FontWeight.w500,
+                      height: 1.15,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2C2016),
-                  letterSpacing: -0.4,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2C2016),
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: accent.withOpacity(0.9),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

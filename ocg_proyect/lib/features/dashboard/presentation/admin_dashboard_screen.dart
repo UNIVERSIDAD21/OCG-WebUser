@@ -250,7 +250,7 @@ class _DashboardBody extends StatelessWidget {
         )
         .length;
 
-    final isMobile = MediaQuery.of(context).size.width <= 800;
+    final isMobile = MediaQuery.of(context).size.width < 900;
 
     if (isMobile) {
       return _MobileAdminDashboard(

@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../presentation/web/common/web_breakpoints.dart';
 import '../../../../../presentation/web/common/web_layout_context.dart';
 import '../../../../../presentation/web/common/web_page_container.dart';
 import '../components/admin_sidebar.dart';
 
 class AdminWebShell extends StatelessWidget {
-  const AdminWebShell({
-    super.key,
-    required this.title, // ✅ Se elimina currentRoute
-    required this.child,
-  });
+  const AdminWebShell({super.key, required this.title, required this.child});
 
-  // ✅ Ya no existe currentRoute aquí
   final String title;
   final Widget child;
 
@@ -27,14 +23,14 @@ class AdminWebShell extends StatelessWidget {
         return Scaffold(
           body: Row(
             children: [
-              SizedBox(
-                width: sidebarWidth,
-                child: const AdminSidebar(), // ✅ Sin parámetros
-              ),
+              SizedBox(width: sidebarWidth, child: const AdminSidebar()),
               Expanded(
                 child: SingleChildScrollView(
                   child: WebPageContainer(
-                    maxWidth: compactDesktop ? 1180 : 1400,
+                    maxWidth: WebBreakpoints.shellMaxWidth(context),
+                    padding: EdgeInsets.all(
+                      WebBreakpoints.shellHorizontalPadding(context),
+                    ),
                     child: child,
                   ),
                 ),

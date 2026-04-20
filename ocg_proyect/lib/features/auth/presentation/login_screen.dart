@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
+import '../../../presentation/web/common/web_breakpoints.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
@@ -122,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
     }
 
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final isDesktop = WebBreakpoints.isDesktop(context);
 
     if (isDesktop) {
       return _buildDesktop(context, isLoading);
@@ -166,7 +167,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 520),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width >= 1440
+                              ? 520
+                              : 480,
+                        ),
                         child: Column(
                           children: [
                             const _DesktopLogoHeader(),
