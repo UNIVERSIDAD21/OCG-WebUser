@@ -1797,8 +1797,12 @@ class _FinancialItemDraft {
   final bool active;
 
   bool get isRequired => kind == 'initial' || kind == 'controls';
-  int get effectiveQuantity =>
-      kind == 'controls' ? ((quantity ?? 1) < 1 ? 1 : quantity!) : 1;
+  int get effectiveQuantity {
+    if (kind != 'controls') return 1;
+    final resolvedQuantity = quantity ?? 1;
+    return resolvedQuantity < 1 ? 1 : resolvedQuantity;
+  }
+
   double get effectiveUnitAmount =>
       kind == 'controls' ? (unitAmount ?? amount) : amount;
 
