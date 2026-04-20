@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../features/payments/data/models/financial_item_model.dart';
+import '../../../../features/payments/providers/payments_provider.dart';
 import '../../../../features/payments/presentation/widgets/manage_financial_items_dialog.dart';
 import '../../../../features/payments/presentation/widgets/register_payment_dialog.dart';
 import '../../../../features/payments/presentation/widgets/transaction_list.dart';
@@ -29,36 +30,61 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
   @override
   Widget build(BuildContext context) {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
-    final treatmentsAsync = ref.watch(patientTreatmentsProvider(widget.patientId));
+    final treatmentsAsync = ref.watch(
+      patientTreatmentsProvider(widget.patientId),
+    );
 
     return patientAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Text('No se pudo cargar paciente: $error'),
       data: (patient) {
         if (patient == null) {
-          return const OcgEmptyState(icon: Icons.person_off, title: 'Paciente no encontrado');
+          return const OcgEmptyState(
+            icon: Icons.person_off,
+            title: 'Paciente no encontrado',
+          );
         }
 
-        final remoteTreatments = treatmentsAsync.asData?.value ?? const <PatientTreatment>[];
+        final remoteTreatments =
+            treatmentsAsync.asData?.value ?? const <PatientTreatment>[];
         final treatments = remoteTreatments.isNotEmpty
             ? remoteTreatments
             : <PatientTreatment>[PatientTreatment.fromLegacyPatient(patient)];
         if (remoteTreatments.isEmpty && patient.tipoTratamiento != null) {
-          Future.microtask(() => ref.read(savePatientTreatmentProvider.notifier).migrateLegacyPatientIfNeeded(
-                patient: patient,
-                createdBy: ref.read(authStateProvider).asData?.value?.uid ?? 'system-migration',
-              ));
+          Future.microtask(
+            () => ref
+                .read(savePatientTreatmentProvider.notifier)
+                .migrateLegacyPatientIfNeeded(
+                  patient: patient,
+                  createdBy:
+                      ref.read(authStateProvider).asData?.value?.uid ??
+                      'system-migration',
+                ),
+          );
         }
         final selectedTreatment = _resolveSelectedTreatment(treatments);
         if (!selectedTreatment.id.startsWith('legacy-primary-')) {
-          Future.microtask(() => ref.read(treatmentFinancialRepositoryProvider).ensureBaseItems(
-                patientId: widget.patientId,
-                treatment: selectedTreatment,
-              ));
+          Future.microtask(
+            () => ref
+                .read(treatmentFinancialRepositoryProvider)
+                .ensureBaseItems(
+                  patientId: widget.patientId,
+                  treatment: selectedTreatment,
+                ),
+          );
         }
 
         final financialItemsAsync = ref.watch(
-          treatmentFinancialItemsProvider((patientId: widget.patientId, treatmentId: selectedTreatment.id)),
+          treatmentFinancialItemsProvider((
+            patientId: widget.patientId,
+            treatmentId: selectedTreatment.id,
+          )),
+        );
+        final treatmentPaymentAsync = ref.watch(
+          treatmentPaymentProvider((
+            patientId: widget.patientId,
+            treatmentId: selectedTreatment.id,
+          )),
         );
 
         return SingleChildScrollView(
@@ -68,7 +94,16 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
             children: [
               Text(
                 'Pagos por tratamiento',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Cada tratamiento administra su propia cuenta financiera. Lo que registres aquí afecta solo al tratamiento seleccionado.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: OcgColors.bronze),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -79,14 +114,26 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                     ChoiceChip(
                       selected: selectedTreatment.id == treatment.id,
                       label: Text(treatment.displayName),
-                      onSelected: (_) => setState(() => _selectedTreatmentId = treatment.id),
+                      onSelected: (_) =>
+                          setState(() => _selectedTreatmentId = treatment.id),
                     ),
                 ],
               ),
               const SizedBox(height: 16),
+              treatmentPaymentAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (error, _) =>
+                    Text('No se pudo cargar la cuenta del tratamiento: $error'),
+                data: (payment) => _PaymentAccountBanner(
+                  treatment: selectedTreatment,
+                  nextPaymentDate: payment?.fechaProximoPago,
+                ),
+              ),
+              const SizedBox(height: 16),
               financialItemsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Text('No se pudieron cargar conceptos: $error'),
+                error: (error, _) =>
+                    Text('No se pudieron cargar conceptos: $error'),
                 data: (items) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -104,22 +151,6 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Próximo pago',
-                      style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  Text(
-                    patient.fechaProximoPago == null
-                        ? 'No definido'
-                        : DateFormat('dd/MM/yyyy').format(patient.fechaProximoPago!),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: OcgColors.espresso,
@@ -134,15 +165,24 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   ),
                 ),
                 icon: const Icon(Icons.add),
-                label: const Text('Registrar pago'),
+                label: Text(
+                  'Registrar pago en ${selectedTreatment.displayName}',
+                ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Historial de transacciones',
-                style: TextStyle(color: OcgColors.espresso, fontSize: 16, fontWeight: FontWeight.w700),
+              Text(
+                'Historial de transacciones de ${selectedTreatment.displayName}',
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 8),
-              TransactionList(patientId: widget.patientId, treatmentId: selectedTreatment.id),
+              TransactionList(
+                patientId: widget.patientId,
+                treatmentId: selectedTreatment.id,
+              ),
             ],
           ),
         );
@@ -150,7 +190,9 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
     );
   }
 
-  PatientTreatment _resolveSelectedTreatment(List<PatientTreatment> treatments) {
+  PatientTreatment _resolveSelectedTreatment(
+    List<PatientTreatment> treatments,
+  ) {
     if (_selectedTreatmentId != null) {
       for (final treatment in treatments) {
         if (treatment.id == _selectedTreatmentId) return treatment;
@@ -163,20 +205,72 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
   }
 }
 
+class _PaymentAccountBanner extends StatelessWidget {
+  const _PaymentAccountBanner({
+    required this.treatment,
+    required this.nextPaymentDate,
+  });
+
+  final PatientTreatment treatment;
+  final DateTime? nextPaymentDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final formatter = DateFormat('dd/MM/yyyy');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cuenta financiera activa: ${treatment.displayName}',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            nextPaymentDate == null
+                ? 'Próximo pago no definido para este tratamiento.'
+                : 'Próximo pago de este tratamiento: ${formatter.format(nextPaymentDate!)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TreatmentFinanceSummary extends StatelessWidget {
-  const _TreatmentFinanceSummary({required this.treatment, required this.items});
+  const _TreatmentFinanceSummary({
+    required this.treatment,
+    required this.items,
+  });
 
   final PatientTreatment treatment;
   final List<FinancialItemModel> items;
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
     final activeItems = items.where((item) => item.active).toList();
     final total = activeItems.fold<double>(0, (sum, item) => sum + item.amount);
     final saldo = treatment.saldoPendiente ?? 0;
     final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
-    final conditionalBase = treatment.tipoBase == 'ortopedia' ? 'Aparato 1' : 'Retenedores';
+    final conditionalBase = treatment.tipoBase == 'ortopedia'
+        ? 'Aparato 1'
+        : 'Retenedores';
 
     return Container(
       width: double.infinity,
@@ -194,18 +288,38 @@ class _TreatmentFinanceSummary extends StatelessWidget {
             runSpacing: 12,
             children: [
               _SummaryItem(label: 'Tratamiento', value: treatment.displayName),
-              _SummaryItem(label: 'Tipo', value: PatientTreatment.labelForBaseTreatment(treatment.tipoBase)),
+              _SummaryItem(
+                label: 'Tipo',
+                value: PatientTreatment.labelForBaseTreatment(
+                  treatment.tipoBase,
+                ),
+              ),
               if (treatment.normalizedSubtypeLabel != null)
-                _SummaryItem(label: 'Subtipo', value: treatment.normalizedSubtypeLabel!),
-              _SummaryItem(label: 'Total autocalculado', value: currency.format(total)),
-              _SummaryItem(label: 'Total pagado', value: currency.format(pagado)),
-              _SummaryItem(label: 'Saldo pendiente', value: currency.format(saldo)),
+                _SummaryItem(
+                  label: 'Subtipo',
+                  value: treatment.normalizedSubtypeLabel!,
+                ),
+              _SummaryItem(
+                label: 'Total del tratamiento',
+                value: currency.format(total),
+              ),
+              _SummaryItem(
+                label: 'Pagado del tratamiento',
+                value: currency.format(pagado),
+              ),
+              _SummaryItem(
+                label: 'Pendiente del tratamiento',
+                value: currency.format(saldo),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Fuente principal: conceptos financieros del tratamiento. Base esperada: Inicial + Controles + $conditionalBase.',
-            style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+            'Fuente de verdad: conceptos financieros del tratamiento seleccionado. Base esperada: Inicial + Controles + $conditionalBase.',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -226,9 +340,21 @@ class _SummaryItem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -265,7 +391,11 @@ class _FinancialItemsSection extends ConsumerWidget {
               const Expanded(
                 child: Text(
                   'Constructor dinámico de pagos',
-                  style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700, fontSize: 16),
+                  style: TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               OutlinedButton.icon(
@@ -284,18 +414,19 @@ class _FinancialItemsSection extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Aquí defines el valor real del tratamiento por conceptos. Si editas montos o activas/desactivas conceptos, el saldo del tratamiento puede cambiar.',
+            'Aquí defines el valor real del tratamiento por conceptos. Si editas montos o activas/desactivas conceptos, solo cambia el saldo del tratamiento seleccionado.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: OcgColors.bronze,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: OcgColors.bronze,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           if (activeItems.isEmpty)
             const OcgEmptyState(
               icon: Icons.payments_outlined,
               title: 'Aún no hay conceptos activos',
-              subtitle: 'Edita el tratamiento para construir el desglose financiero.',
+              subtitle:
+                  'Edita el tratamiento para construir el desglose financiero.',
             )
           else
             for (final item in activeItems)
@@ -307,17 +438,34 @@ class _FinancialItemsSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.name, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: OcgColors.espresso,
+                            ),
+                          ),
                           Text(
                             item.isRequired ? 'Obligatorio' : 'Opcional',
-                            style: TextStyle(color: item.isRequired ? OcgColors.bronze : OcgColors.ink),
+                            style: TextStyle(
+                              color: item.isRequired
+                                  ? OcgColors.bronze
+                                  : OcgColors.ink,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Text(
-                      NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0).format(item.amount),
-                      style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700),
+                      NumberFormat.currency(
+                        locale: 'es_CO',
+                        symbol: r'$',
+                        decimalDigits: 0,
+                      ).format(item.amount),
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),

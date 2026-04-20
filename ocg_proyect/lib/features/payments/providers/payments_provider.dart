@@ -23,12 +23,24 @@ final patientPaymentProvider = StreamProvider.family<PaymentModel?, String>((
   return ref.watch(paymentsRepositoryProvider).watchPatientPayments(patientId);
 });
 
+final treatmentPaymentProvider =
+    StreamProvider.family<
+      PaymentModel?,
+      ({String patientId, String treatmentId})
+    >((ref, args) {
+      return ref
+          .watch(paymentsRepositoryProvider)
+          .watchPatientPayments(args.patientId, treatmentId: args.treatmentId);
+    });
+
 final patientTransactionsProvider =
-    StreamProvider.family<List<PaymentTransaction>, ({String patientId, String? treatmentId})>((ref, args) {
-      return ref.watch(paymentsRepositoryProvider).watchTransactions(
-            args.patientId,
-            treatmentId: args.treatmentId,
-          );
+    StreamProvider.family<
+      List<PaymentTransaction>,
+      ({String patientId, String? treatmentId})
+    >((ref, args) {
+      return ref
+          .watch(paymentsRepositoryProvider)
+          .watchTransactions(args.patientId, treatmentId: args.treatmentId);
     });
 
 final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((
@@ -248,8 +260,14 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      final tx = await repository.getLatestTransaction(patientId, treatmentId: treatmentId);
-      final summary = await repository.getPatientPayment(patientId);
+      final tx = await repository.getLatestTransaction(
+        patientId,
+        treatmentId: treatmentId,
+      );
+      final summary = await repository.getPatientPayment(
+        patientId,
+        treatmentId: treatmentId,
+      );
       final patientDoc = await FirebaseFirestore.instance
           .collection(FirestorePaths.patients)
           .doc(patientId)
@@ -269,6 +287,7 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
           paymentSummary: summary,
           patientName: patientName,
           patientDocument: patientDocument,
+          treatmentId: treatmentId,
         );
       }
     } catch (_) {

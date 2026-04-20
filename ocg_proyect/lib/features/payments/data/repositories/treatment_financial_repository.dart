@@ -11,20 +11,36 @@ class TreatmentFinancialRepository {
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> _itemsRef(String patientId, String treatmentId) =>
-      _db.collection(FirestorePaths.treatmentFinancialItems(patientId, treatmentId));
+  CollectionReference<Map<String, dynamic>> _itemsRef(
+    String patientId,
+    String treatmentId,
+  ) => _db.collection(
+    FirestorePaths.treatmentFinancialItems(patientId, treatmentId),
+  );
 
-  DocumentReference<Map<String, dynamic>> _treatmentRef(String patientId, String treatmentId) =>
-      _db.doc(FirestorePaths.patientTreatmentDoc(patientId, treatmentId));
+  DocumentReference<Map<String, dynamic>> _treatmentRef(
+    String patientId,
+    String treatmentId,
+  ) => _db.doc(FirestorePaths.patientTreatmentDoc(patientId, treatmentId));
 
-  DocumentReference<Map<String, dynamic>> _paymentRef(String patientId) =>
-      _db.collection(FirestorePaths.payments).doc(patientId);
+  DocumentReference<Map<String, dynamic>> _paymentRef(
+    String patientId,
+    String treatmentId,
+  ) => _db.doc(FirestorePaths.treatmentPaymentDoc(patientId, treatmentId));
+
+  DocumentReference<Map<String, dynamic>> _legacyPaymentRef(String patientId) =>
+      _db.doc(FirestorePaths.paymentDoc(patientId));
 
   DocumentReference<Map<String, dynamic>> _patientRef(String patientId) =>
       _db.collection(FirestorePaths.patients).doc(patientId);
 
-  Stream<List<FinancialItemModel>> watchFinancialItems(String patientId, String treatmentId) {
-    return _itemsRef(patientId, treatmentId).orderBy('order').snapshots().map((snapshot) {
+  Stream<List<FinancialItemModel>> watchFinancialItems(
+    String patientId,
+    String treatmentId,
+  ) {
+    return _itemsRef(patientId, treatmentId).orderBy('order').snapshots().map((
+      snapshot,
+    ) {
       final items = snapshot.docs
           .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
           .toList();
@@ -97,14 +113,21 @@ class TreatmentFinancialRepository {
         }
       }
       final prepared = item.copyWith(
-        createdBy: item.createdBy ?? existingData?['createdBy']?.toString() ?? updatedBy,
+        createdBy:
+            item.createdBy ??
+            existingData?['createdBy']?.toString() ??
+            updatedBy,
         updatedBy: updatedBy,
         createdAt: existingData?['createdAt'] is Timestamp
             ? (existingData!['createdAt'] as Timestamp).toDate()
             : item.createdAt,
         updatedAt: DateTime.now(),
       );
-      batch.set(_itemsRef(patientId, treatment.id).doc(item.id), prepared.toJson(), SetOptions(merge: true));
+      batch.set(
+        _itemsRef(patientId, treatment.id).doc(item.id),
+        prepared.toJson(),
+        SetOptions(merge: true),
+      );
     }
 
     await batch.commit();
@@ -117,10 +140,11 @@ class TreatmentFinancialRepository {
     bool preserveAmount = true,
   }) async {
     final snapshot = await _itemsRef(patientId, treatment.id).get();
-    final items = snapshot.docs
-        .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final items =
+        snapshot.docs
+            .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
     final wantsOrthopedics = treatment.tipoBase == 'ortopedia';
     final retainersIndex = items.indexWhere((item) => item.id == 'retainers');
@@ -138,7 +162,10 @@ class TreatmentFinancialRepository {
         updatedAt: DateTime.now(),
       );
       if (applianceIndex != -1 && applianceIndex != retainersIndex) {
-        items[applianceIndex] = items[applianceIndex].copyWith(active: false, updatedAt: DateTime.now());
+        items[applianceIndex] = items[applianceIndex].copyWith(
+          active: false,
+          updatedAt: DateTime.now(),
+        );
       }
     }
 
@@ -154,7 +181,10 @@ class TreatmentFinancialRepository {
         updatedAt: DateTime.now(),
       );
       if (retainersIndex != -1 && retainersIndex != applianceIndex) {
-        items[retainersIndex] = items[retainersIndex].copyWith(active: false, updatedAt: DateTime.now());
+        items[retainersIndex] = items[retainersIndex].copyWith(
+          active: false,
+          updatedAt: DateTime.now(),
+        );
       }
     }
 
@@ -166,17 +196,26 @@ class TreatmentFinancialRepository {
     required PatientTreatment treatment,
   }) async {
     final snapshot = await _itemsRef(patientId, treatment.id).get();
-    final items = snapshot.docs
-        .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
-        .where((item) => item.active)
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final items =
+        snapshot.docs
+            .map((doc) => FinancialItemModel.fromJson(doc.data(), id: doc.id))
+            .where((item) => item.active)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
-    final total = items.fold<double>(0, (totalSoFar, item) => totalSoFar + item.amount);
-    final paidBefore = ((treatment.totalTratamiento ?? 0) - (treatment.saldoPendiente ?? 0)).clamp(0, double.infinity).toDouble();
+    final total = items.fold<double>(
+      0,
+      (totalSoFar, item) => totalSoFar + item.amount,
+    );
+    final paymentDoc = await _paymentRef(patientId, treatment.id).get();
+    final paymentData = paymentDoc.data() ?? <String, dynamic>{};
+    final paidBefore =
+        (paymentData['montoPagado'] as num?)?.toDouble() ??
+        ((treatment.totalTratamiento ?? 0) - (treatment.saldoPendiente ?? 0))
+            .clamp(0, double.infinity)
+            .toDouble();
     final pending = (total - paidBefore).clamp(0, double.infinity).toDouble();
-    final paymentDoc = await _paymentRef(patientId).get();
-    final nextPaymentDate = paymentDoc.data()?['fechaProximoPago'];
+    final nextPaymentDate = paymentData['fechaProximoPago'];
     final paymentStatus = PaymentModel.calcularEstado(
       saldoPendiente: pending,
       fechaProximoPago: _parseNullableDate(nextPaymentDate),
@@ -194,44 +233,63 @@ class TreatmentFinancialRepository {
     );
 
     final batch = _db.batch();
-    batch.set(
-      _treatmentRef(patientId, treatment.id),
-      {
-        'totalTratamiento': total,
-        'saldoPendiente': pending,
-        'financialSummary': summary.toJson(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(_treatmentRef(patientId, treatment.id), {
+      'totalTratamiento': total,
+      'saldoPendiente': pending,
+      'financialSummary': summary.toJson(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    batch.set(_paymentRef(patientId, treatment.id), {
+      'id': treatment.id,
+      'patientId': patientId,
+      'treatmentId': treatment.id,
+      'totalTratamiento': total,
+      'montoPagado': paidBefore,
+      'saldoPendiente': pending,
+      'estado': paymentStatus.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': paymentData['createdAt'] ?? FieldValue.serverTimestamp(),
+      'fechaProximoPago': nextPaymentDate,
+      'schemaVersion': 2,
+    }, SetOptions(merge: true));
 
     if (treatment.isPrimary) {
-      batch.set(
-        _paymentRef(patientId),
-        {
-          'id': patientId,
-          'patientId': patientId,
+      batch.set(_legacyPaymentRef(patientId), {
+        'id': patientId,
+        'patientId': patientId,
+        'treatmentId': treatment.id,
+        'totalTratamiento': total,
+        'montoPagado': paidBefore,
+        'saldoPendiente': pending,
+        'estado': paymentStatus.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': paymentData['createdAt'] ?? FieldValue.serverTimestamp(),
+        'fechaProximoPago': nextPaymentDate,
+        'legacyMirror': true,
+        'schemaVersion': 1,
+      }, SetOptions(merge: true));
+      batch.set(_patientRef(patientId), {
+        'primaryTreatmentId': treatment.id,
+        'totalTratamiento': total,
+        'saldoPendiente': pending,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'treatmentOverview': {
+          'mode': 'primary-treatment',
           'treatmentId': treatment.id,
-          'totalTratamiento': total,
-          'montoPagado': paidBefore,
-          'saldoPendiente': pending,
-          'estado': paymentStatus.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'createdAt': paymentDoc.data()?['createdAt'] ?? FieldValue.serverTimestamp(),
-          'fechaProximoPago': nextPaymentDate,
-        },
-        SetOptions(merge: true),
-      );
-      batch.set(
-        _patientRef(patientId),
-        {
-          'primaryTreatmentId': treatment.id,
-          'totalTratamiento': total,
-          'saldoPendiente': pending,
+          'treatmentName': treatment.displayName,
+          'baseType': treatment.tipoBase,
+          'subtype': treatment.subtipo,
+          'currentStage': treatment.etapaActual.name,
+          'status': treatment.estado,
+          'financial': {
+            'totalTratamiento': total,
+            'montoPagado': paidBefore,
+            'saldoPendiente': pending,
+          },
           'updatedAt': FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
-      );
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -330,21 +388,29 @@ class TreatmentFinancialRepository {
   }
 
   void _validateItems(List<FinancialItemModel> items) {
-    if (items.isEmpty) throw Exception('FINANCIAL_ITEMS_REQUIRED');
+    if (items.isEmpty) {
+      throw Exception('FINANCIAL_ITEMS_REQUIRED');
+    }
     final active = items.where((item) => item.active).toList();
     final hasInitial = active.any((item) => item.kind == 'initial');
     final hasControls = active.any((item) => item.kind == 'controls');
-    if (!hasInitial || !hasControls) throw Exception('REQUIRED_FINANCIAL_ITEMS_MISSING');
+    if (!hasInitial || !hasControls) {
+      throw Exception('REQUIRED_FINANCIAL_ITEMS_MISSING');
+    }
 
     final seen = <String>{};
     for (final item in items) {
-      if (item.name.trim().isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+      if (item.name.trim().isEmpty) {
+        throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+      }
       if (item.amount < 0) throw Exception('FINANCIAL_ITEM_NEGATIVE_AMOUNT');
       final key = item.normalizedName.trim();
       if (key.isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
       if (seen.contains(key)) throw Exception('FINANCIAL_ITEM_DUPLICATE_NAME');
       seen.add(key);
-      if (item.isRequired && !item.active) throw Exception('REQUIRED_FINANCIAL_ITEM_CANNOT_BE_DISABLED');
+      if (item.isRequired && !item.active) {
+        throw Exception('REQUIRED_FINANCIAL_ITEM_CANNOT_BE_DISABLED');
+      }
     }
   }
 

@@ -17,8 +17,13 @@ class PdfReceiptService {
     required PaymentModel paymentSummary,
     required String patientName,
     required String patientDocument,
+    String? treatmentId,
   }) async {
-    final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
     final dateFmt = DateFormat("d 'de' MMMM 'de' y, hh:mm a", 'es_CO');
 
     final pdf = pw.Document();
@@ -31,7 +36,10 @@ class PdfReceiptService {
             children: [
               pw.Text(
                 'OCG Clínica Dental',
-                style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
               pw.SizedBox(height: 4),
               pw.Text('NIT: 901.234.567-8'),
@@ -41,19 +49,26 @@ class PdfReceiptService {
               pw.SizedBox(height: 8),
               pw.Text(
                 'RECIBO DE PAGO  #${transactionId.substring(0, transactionId.length >= 8 ? 8 : transactionId.length)}',
-                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
               pw.Text('Fecha: ${dateFmt.format(transaction.fecha)}'),
               pw.SizedBox(height: 8),
               pw.Divider(),
               pw.SizedBox(height: 8),
               pw.Text('Paciente: $patientName'),
-              pw.Text('Documento: ${patientDocument.isEmpty ? 'No registrado' : patientDocument}'),
+              pw.Text(
+                'Documento: ${patientDocument.isEmpty ? 'No registrado' : patientDocument}',
+              ),
               pw.SizedBox(height: 8),
               pw.Divider(),
               pw.SizedBox(height: 8),
               pw.Text('Concepto: Tratamiento de ortodoncia OCG Clínica'),
-              pw.Text('Método de pago: ${_paymentMethodLabel(transaction.metodo)}'),
+              pw.Text(
+                'Método de pago: ${_paymentMethodLabel(transaction.metodo)}',
+              ),
               if ((transaction.referencia ?? '').isNotEmpty)
                 pw.Text('Referencia: ${transaction.referencia}'),
               pw.SizedBox(height: 8),
@@ -79,7 +94,9 @@ class PdfReceiptService {
     );
 
     final bytes = await pdf.save();
-    final ref = FirebaseStorage.instance.ref('payments/$patientId/recibos/$transactionId.pdf');
+    final ref = FirebaseStorage.instance.ref(
+      'payments/$patientId/recibos/$transactionId.pdf',
+    );
     await ref.putData(bytes, SettableMetadata(contentType: 'application/pdf'));
     final url = await ref.getDownloadURL();
 
@@ -87,14 +104,15 @@ class PdfReceiptService {
       patientId: patientId,
       transactionId: transactionId,
       reciboUrl: url,
+      treatmentId: treatmentId ?? transaction.treatmentId,
     );
 
     return url;
   }
 
   String _paymentMethodLabel(PaymentMethod method) => switch (method) {
-        PaymentMethod.efectivo => 'Efectivo',
-        PaymentMethod.transferencia => 'Transferencia bancaria',
-        PaymentMethod.payu => 'PayU',
-      };
+    PaymentMethod.efectivo => 'Efectivo',
+    PaymentMethod.transferencia => 'Transferencia bancaria',
+    PaymentMethod.payu => 'PayU',
+  };
 }

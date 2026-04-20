@@ -16,6 +16,8 @@ import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
+import '../../treatment/data/models/patient_treatment.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
 import '../data/models/patient_model.dart';
@@ -34,7 +36,8 @@ class PatientDetailScreen extends ConsumerStatefulWidget {
   final String patientId;
 
   @override
-  ConsumerState<PatientDetailScreen> createState() => _PatientDetailScreenState();
+  ConsumerState<PatientDetailScreen> createState() =>
+      _PatientDetailScreenState();
 }
 
 class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
@@ -93,7 +96,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
 
     return patientAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Detalle de paciente')),
         body: Center(
@@ -150,8 +154,18 @@ class _PatientDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final existingAppointments = ref.watch(appointmentsProvider).asData?.value ?? const [];
-    final sectionParam = GoRouterState.of(context).uri.queryParameters['section'];
+    final existingAppointments =
+        ref.watch(appointmentsProvider).asData?.value ?? const [];
+    final treatments = ref.watch(
+      effectivePatientTreatmentsProvider((
+        patientId: patient.id,
+        patient: patient,
+      )),
+    );
+    final selectedTreatment = _resolveHeaderTreatment(patient, treatments);
+    final sectionParam = GoRouterState.of(
+      context,
+    ).uri.queryParameters['section'];
     final initialMobileSection = switch (sectionParam) {
       'perfil' => 0,
       'tratamiento' => 1,
@@ -210,16 +224,25 @@ class _PatientDetailView extends ConsumerWidget {
               children: [
                 Expanded(
                   child: SectionPanel(
-                    title: 'Resumen clínico',
+                    title: 'Resumen del tratamiento principal',
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         OcgChip(
-                          label: patient.tipoTratamiento?.name ?? 'Pendiente',
+                          label:
+                              selectedTreatment?.displayName ??
+                              'Sin tratamiento principal',
                         ),
+                        if (selectedTreatment != null)
+                          OcgChip(
+                            label: formatTreatmentStage(
+                              selectedTreatment.etapaActual,
+                            ),
+                          ),
                         OcgChip(
-                          label: formatTreatmentStage(patient.etapaActual),
+                          label:
+                              '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'}',
                         ),
                       ],
                     ),
@@ -228,18 +251,22 @@ class _PatientDetailView extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: SectionPanel(
-                    title: 'Resumen financiero',
+                    title: 'Resumen consolidado del paciente',
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         OcgChip(
                           label:
-                              'Saldo: ${formatCop(patient.saldoPendiente)} COP',
+                              'Saldo total: ${formatCop(_totalPending(treatments, patient))} COP',
                         ),
                         OcgChip(
                           label:
-                              'Total: ${formatCop(patient.totalTratamiento)} COP',
+                              'Total contratado: ${formatCop(_totalAmount(treatments, patient))} COP',
+                        ),
+                        OcgChip(
+                          label:
+                              'Pagado: ${formatCop(_paidAmount(treatments, patient))} COP',
                         ),
                       ],
                     ),
@@ -289,7 +316,10 @@ class _PatientDetailView extends ConsumerWidget {
                       patientId: patient.id,
                       patient: patient,
                     ),
-                    PatientClinicalHistoryTab(patientId: patient.id, patient: patient),
+                    PatientClinicalHistoryTab(
+                      patientId: patient.id,
+                      patient: patient,
+                    ),
                     PatientAppointmentsTab(patient: patient),
                     PatientPaymentsTab(patientId: patient.id),
                     PatientSimulatorTab(patient: patient),
@@ -312,6 +342,47 @@ class _PatientDetailView extends ConsumerWidget {
 
     return content;
   }
+
+  PatientTreatment? _resolveHeaderTreatment(
+    PatientModel patient,
+    List<PatientTreatment> treatments,
+  ) {
+    if (treatments.isEmpty) return null;
+
+    final preferredId = patient.id;
+    for (final treatment in treatments) {
+      if (treatment.isPrimary) return treatment;
+    }
+    for (final treatment in treatments) {
+      if (treatment.id == preferredId) return treatment;
+    }
+    return treatments.first;
+  }
+
+  double _totalAmount(List<PatientTreatment> treatments, PatientModel patient) {
+    if (treatments.isEmpty) return patient.totalTratamiento;
+    return treatments.fold<double>(
+      0,
+      (sum, item) => sum + (item.totalTratamiento ?? 0),
+    );
+  }
+
+  double _totalPending(
+    List<PatientTreatment> treatments,
+    PatientModel patient,
+  ) {
+    if (treatments.isEmpty) return patient.saldoPendiente;
+    return treatments.fold<double>(
+      0,
+      (sum, item) => sum + (item.saldoPendiente ?? 0),
+    );
+  }
+
+  double _paidAmount(List<PatientTreatment> treatments, PatientModel patient) {
+    final total = _totalAmount(treatments, patient);
+    final pending = _totalPending(treatments, patient);
+    return (total - pending).clamp(0, double.infinity).toDouble();
+  }
 }
 
 class _AdminPatientWorkspace extends ConsumerStatefulWidget {
@@ -332,7 +403,8 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
       _AdminPatientWorkspaceState();
 }
 
-class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> {
+class _AdminPatientWorkspaceState
+    extends ConsumerState<_AdminPatientWorkspace> {
   late int _section;
 
   @override
@@ -350,7 +422,10 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
         viewerMode: PatientViewerMode.adminViewer,
       ),
       _AdminTreatmentHost(patient: widget.patient),
-      PatientClinicalHistoryTab(patientId: widget.patient.id, patient: widget.patient),
+      PatientClinicalHistoryTab(
+        patientId: widget.patient.id,
+        patient: widget.patient,
+      ),
       PatientAppointmentsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
@@ -400,7 +475,9 @@ class _AdminPatientWorkspaceState extends ConsumerState<_AdminPatientWorkspace> 
               ],
             ),
           ),
-          Expanded(child: IndexedStack(index: _section, children: views)),
+          Expanded(
+            child: IndexedStack(index: _section, children: views),
+          ),
         ],
       ),
     );
@@ -462,7 +539,9 @@ class _AdminTreatmentHost extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(child: PatientTreatmentTab(patientId: patient.id, patient: patient)),
+        Expanded(
+          child: PatientTreatmentTab(patientId: patient.id, patient: patient),
+        ),
       ],
     );
   }

@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../../patients/data/models/patient_model.dart';
-import '../../../payments/data/models/payment_model.dart';
 import '../models/patient_treatment.dart';
 
 class PatientTreatmentsRepository {
@@ -16,14 +15,18 @@ class PatientTreatmentsRepository {
   DocumentReference<Map<String, dynamic>> _patientRef(String patientId) =>
       _db.collection(FirestorePaths.patients).doc(patientId);
 
-  DocumentReference<Map<String, dynamic>> _paymentRef(String patientId) =>
-      _db.collection(FirestorePaths.payments).doc(patientId);
+  DocumentReference<Map<String, dynamic>> _paymentRef(
+    String patientId,
+    String treatmentId,
+  ) => _db.doc(FirestorePaths.treatmentPaymentDoc(patientId, treatmentId));
+
+  DocumentReference<Map<String, dynamic>> _legacyPaymentRef(String patientId) =>
+      _db.doc(FirestorePaths.paymentDoc(patientId));
 
   Stream<List<PatientTreatment>> watchPatientTreatments(String patientId) {
-    return _treatmentsRef(patientId)
-        .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
+    return _treatmentsRef(
+      patientId,
+    ).orderBy('updatedAt', descending: true).snapshots().map((snapshot) {
       final items = snapshot.docs
           .map((doc) => PatientTreatment.fromJson(doc.data(), id: doc.id))
           .toList();
@@ -65,80 +68,59 @@ class PatientTreatmentsRepository {
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
 
-    try {
-      await docRef.set(normalized.toJson(), SetOptions(merge: true));
-    } on FirebaseException catch (e) {
-      throw Exception('SAVE_TREATMENT_DOC_FAILED|path=${docRef.path}|code=${e.code}|message=${e.message}');
-    }
+    await docRef.set(normalized.toJson(), SetOptions(merge: true));
 
-    if (!treatment.isPrimary) {
-      return;
-    }
+    final batch = _db.batch();
 
-    final primaryRefs = await _treatmentsRef(patientId).where('isPrimary', isEqualTo: true).get();
-    for (final doc in primaryRefs.docs) {
-      if (doc.id == treatment.id) continue;
-      try {
-        await doc.reference.set(
-          {
-            'isPrimary': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      } on FirebaseException catch (e) {
-        throw Exception('DEMOTE_PRIMARY_FAILED|path=${doc.reference.path}|code=${e.code}|message=${e.message}');
+    if (normalized.isPrimary) {
+      final primaryRefs = await _treatmentsRef(
+        patientId,
+      ).where('isPrimary', isEqualTo: true).get();
+      for (final doc in primaryRefs.docs) {
+        if (doc.id == normalized.id) continue;
+        batch.set(doc.reference, {
+          'isPrimary': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-    }
 
-    if (previousPrimaryId != null && previousPrimaryId.isNotEmpty && previousPrimaryId != treatment.id) {
-      final previousRef = _treatmentsRef(patientId).doc(previousPrimaryId);
-      try {
-        await previousRef.set(
-          {
-            'isPrimary': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      } on FirebaseException catch (e) {
-        throw Exception('DEMOTE_PREVIOUS_PRIMARY_FAILED|path=${previousRef.path}|code=${e.code}|message=${e.message}');
+      if (previousPrimaryId != null &&
+          previousPrimaryId.isNotEmpty &&
+          previousPrimaryId != normalized.id) {
+        final previousRef = _treatmentsRef(patientId).doc(previousPrimaryId);
+        batch.set(previousRef, {
+          'isPrimary': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
+
+      batch.set(docRef, {
+        'isPrimary': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
-    try {
-      await docRef.set(
-        {'isPrimary': true, 'updatedAt': FieldValue.serverTimestamp()},
+    batch.set(
+      _patientRef(patientId),
+      _patientProjection(normalized),
+      SetOptions(merge: true),
+    );
+
+    batch.set(
+      _paymentRef(patientId, normalized.id),
+      _treatmentPaymentProjection(patientId, normalized),
+      SetOptions(merge: true),
+    );
+
+    if (normalized.isPrimary) {
+      batch.set(
+        _legacyPaymentRef(patientId),
+        _legacyPaymentMirror(patientId, normalized),
         SetOptions(merge: true),
       );
-    } on FirebaseException catch (e) {
-      throw Exception('CONFIRM_PRIMARY_FLAG_FAILED|path=${docRef.path}|code=${e.code}|message=${e.message}');
     }
 
-    final patientRef = _patientRef(patientId);
-    final patientSnapshot = await patientRef.get();
-    if (!patientSnapshot.exists) {
-      throw Exception('PATIENT_MIRROR_TARGET_MISSING|path=${patientRef.path}');
-    }
-    try {
-      await patientRef.set(
-        _legacyPatientMirror(patientId, normalized),
-        SetOptions(merge: true),
-      );
-    } on FirebaseException catch (e) {
-      throw Exception('SAVE_PATIENT_MIRROR_FAILED|path=${patientRef.path}|exists=${patientSnapshot.exists}|code=${e.code}|message=${e.message}');
-    }
-
-    final paymentRef = _paymentRef(patientId);
-    final paymentSnapshot = await paymentRef.get();
-    try {
-      await paymentRef.set(
-        _paymentMirror(patientId, normalized, paymentSnapshot.data()),
-        SetOptions(merge: true),
-      );
-    } on FirebaseException catch (e) {
-      throw Exception('SAVE_PAYMENT_MIRROR_FAILED|path=${paymentRef.path}|exists=${paymentSnapshot.exists}|code=${e.code}|message=${e.message}');
-    }
+    await batch.commit();
   }
 
   Future<void> setPrimaryTreatment({
@@ -147,22 +129,21 @@ class PatientTreatmentsRepository {
   }) async {
     final batch = _db.batch();
     final snapshot = await _treatmentsRef(patientId).get();
-    final paymentSnapshot = await _paymentRef(patientId).get();
     for (final doc in snapshot.docs) {
-      batch.update(doc.reference, {
+      batch.set(doc.reference, {
         'isPrimary': doc.id == treatment.id,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     }
 
     batch.set(
       _patientRef(patientId),
-      _legacyPatientMirror(patientId, treatment),
+      _patientProjection(treatment.copyWith(isPrimary: true)),
       SetOptions(merge: true),
     );
     batch.set(
-      _paymentRef(patientId),
-      _paymentMirror(patientId, treatment, paymentSnapshot.data()),
+      _legacyPaymentRef(patientId),
+      _legacyPaymentMirror(patientId, treatment.copyWith(isPrimary: true)),
       SetOptions(merge: true),
     );
 
@@ -178,15 +159,16 @@ class PatientTreatmentsRepository {
     final existing = await _treatmentsRef(patient.id).limit(1).get();
     if (existing.docs.isNotEmpty) return false;
 
-    final migratedTreatment = PatientTreatment.fromLegacyPatient(patient).copyWith(
-      id: 'migrated-primary-${patient.id}',
-      patientId: patient.id,
-      createdAt: patient.createdAt ?? patient.fechaInicio,
-      updatedAt: patient.updatedAt ?? patient.fechaInicio,
-      createdBy: createdBy,
-      updatedBy: createdBy,
-      isPrimary: true,
-    );
+    final migratedTreatment = PatientTreatment.fromLegacyPatient(patient)
+        .copyWith(
+          id: 'migrated-primary-${patient.id}',
+          patientId: patient.id,
+          createdAt: patient.createdAt ?? patient.fechaInicio,
+          updatedAt: patient.updatedAt ?? patient.fechaInicio,
+          createdBy: createdBy,
+          updatedBy: createdBy,
+          isPrimary: true,
+        );
 
     await saveTreatment(patientId: patient.id, treatment: migratedTreatment);
     return true;
@@ -205,7 +187,9 @@ class PatientTreatmentsRepository {
       patientId: patientId,
       estado: newStatus,
       updatedAt: DateTime.now(),
-      fechaFin: (newStatus == 'finalizado' || newStatus == 'cancelado') ? DateTime.now() : null,
+      fechaFin: (newStatus == 'finalizado' || newStatus == 'cancelado')
+          ? DateTime.now()
+          : null,
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
 
@@ -217,15 +201,14 @@ class PatientTreatmentsRepository {
     );
 
     if (updated.isPrimary) {
-      final paymentSnapshot = await _paymentRef(patientId).get();
       batch.set(
         _patientRef(patientId),
-        _legacyPatientMirror(patientId, updated),
+        _patientProjection(updated),
         SetOptions(merge: true),
       );
       batch.set(
-        _paymentRef(patientId),
-        _paymentMirror(patientId, updated, paymentSnapshot.data()),
+        _legacyPaymentRef(patientId),
+        _legacyPaymentMirror(patientId, updated),
         SetOptions(merge: true),
       );
     }
@@ -252,63 +235,88 @@ class PatientTreatmentsRepository {
     }
   }
 
-  Map<String, dynamic> _legacyPatientMirror(String patientId, PatientTreatment treatment) {
+  Map<String, dynamic> _patientProjection(PatientTreatment treatment) {
+    final total = treatment.totalTratamiento ?? 0;
+    final saldo = treatment.saldoPendiente ?? total;
+    final paid = (total - saldo).clamp(0, double.infinity).toDouble();
     return <String, dynamic>{
-      'id': patientId,
-      'uid': patientId,
       'primaryTreatmentId': treatment.id,
+      'treatmentOverview': {
+        'mode': 'primary-treatment',
+        'treatmentId': treatment.id,
+        'treatmentName': treatment.displayName,
+        'baseType': treatment.tipoBase,
+        'subtype': treatment.subtipo,
+        'currentStage': treatment.etapaActual.name,
+        'status': treatment.estado,
+        'financial': {
+          'totalTratamiento': total,
+          'montoPagado': paid,
+          'saldoPendiente': saldo,
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      'updatedAt': FieldValue.serverTimestamp(),
+      'legacyProjection': {'primaryTreatmentId': treatment.id},
       'tipoTratamiento': _legacyTreatmentTypeName(treatment),
       'etapaActual': treatment.etapaActual.name,
       'fechaInicio': Timestamp.fromDate(treatment.fechaInicio),
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (treatment.totalTratamiento != null) 'totalTratamiento': treatment.totalTratamiento,
-      if (treatment.saldoPendiente != null) 'saldoPendiente': treatment.saldoPendiente,
+      'totalTratamiento': total,
+      'saldoPendiente': saldo,
       if (treatment.notas != null) 'notasClinicas': treatment.notas,
     };
   }
 
-  Map<String, dynamic> _paymentMirror(
+  Map<String, dynamic> _treatmentPaymentProjection(
     String patientId,
     PatientTreatment treatment,
-    Map<String, dynamic>? existingPayment,
   ) {
-    final totalCandidate = treatment.totalTratamiento ?? _toNullableDouble(existingPayment?['totalTratamiento']) ?? 0;
-    final existingPaid = _toNullableDouble(existingPayment?['montoPagado']) ?? 0;
-    final saldoCandidate = treatment.saldoPendiente ?? (totalCandidate - existingPaid);
-    final safeSaldo = saldoCandidate.clamp(0, totalCandidate).toDouble();
-    final paidCandidate = (totalCandidate - safeSaldo).clamp(0, totalCandidate).toDouble();
+    final total = treatment.totalTratamiento ?? 0;
+    final saldo = (treatment.saldoPendiente ?? total)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
 
     return <String, dynamic>{
-      'id': patientId,
+      'id': treatment.id,
       'patientId': patientId,
-      'totalTratamiento': totalCandidate,
-      'montoPagado': paidCandidate,
-      'saldoPendiente': safeSaldo,
-      'estado': PaymentModel.calcularEstado(
-        saldoPendiente: safeSaldo,
-        fechaProximoPago: _parseNullableDate(existingPayment?['fechaProximoPago']),
-      ).name,
-      'fechaProximoPago': existingPayment?['fechaProximoPago'],
+      'treatmentId': treatment.id,
+      'totalTratamiento': total,
+      'montoPagado': pagado,
+      'saldoPendiente': saldo,
+      'estado': saldo <= 0 ? 'pagadoTotal' : 'pendiente',
       'updatedAt': FieldValue.serverTimestamp(),
-      'createdAt': existingPayment?['createdAt'] ?? FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'schemaVersion': 2,
+      'legacyMigrated': false,
     };
   }
 
-  DateTime? _parseNullableDate(dynamic value) {
-    if (value == null) return null;
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return DateTime.tryParse(value.toString());
-  }
-
-  double? _toNullableDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString());
+  Map<String, dynamic> _legacyPaymentMirror(
+    String patientId,
+    PatientTreatment treatment,
+  ) {
+    final total = treatment.totalTratamiento ?? 0;
+    final saldo = (treatment.saldoPendiente ?? total)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
+    return <String, dynamic>{
+      'id': patientId,
+      'patientId': patientId,
+      'treatmentId': treatment.id,
+      'totalTratamiento': total,
+      'montoPagado': pagado,
+      'saldoPendiente': saldo,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'legacyMirror': true,
+      'schemaVersion': 1,
+    };
   }
 
   String _legacyTreatmentTypeName(PatientTreatment treatment) {
-    if (treatment.tipoBase == 'convencional' && treatment.subtipo == 'estetico') {
+    if (treatment.tipoBase == 'convencional' &&
+        treatment.subtipo == 'estetico') {
       return TreatmentType.estetico.name;
     }
 

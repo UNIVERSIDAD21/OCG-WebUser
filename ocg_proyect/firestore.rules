@@ -2,8 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
     function isAdmin() {
       return request.auth != null && request.auth.token.role == 'admin';
     }
@@ -27,32 +25,25 @@ service cloud.firestore {
              ('updatedBy' in request.resource.data);
     }
 
-    // ─── admins/ ──────────────────────────────────────────────────────────────
-
     match /admins/{adminId} {
       allow read: if isAdmin() || isOwnPatient(adminId);
       allow write: if isAdmin();
     }
 
-    // ─── patients/ ────────────────────────────────────────────────────────────
-
     match /patients/{patientId} {
       allow read: if isAdmin() || isOwnPatient(patientId);
-      // Permite create/update para admin y para el registro inicial del propio paciente.
       allow create: if isAdmin() ||
                       (request.auth != null && isOwnPatient(patientId));
       allow update: if isAdmin() ||
                       (request.auth != null && isOwnPatient(patientId));
       allow delete: if isAdmin();
 
-      // Subcolección photos/
       match /photos/{photoId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create, update: if isAdmin();
         allow delete: if isAdmin();
       }
 
-      // Subcolección stageHistory/
       match /stageHistory/{entryId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create: if isAdmin() &&
@@ -61,7 +52,6 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // Subcolección treatments/
       match /treatments/{treatmentId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create, update: if isAdmin() &&
@@ -89,7 +79,6 @@ service cloud.firestore {
         }
       }
 
-      // Subcolección clinicalFiles/
       match /clinicalFiles/{fileId} {
         allow read: if isAdmin() || (isOwnPatient(patientId) && resource.data.visibleToPatient == true);
         allow create, update: if isAdmin() &&
@@ -98,69 +87,57 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Subcolección simulations/ (Bloque 08)
       match /simulations/{simulationId} {
-        // Admin ve todo. Paciente solo lo compartido explícitamente.
         allow read: if isAdmin() ||
                       (
                         isOwnPatient(patientId) &&
                         resource.data.compartidaConPaciente == true &&
                         resource.data.status == 'shared'
                       );
-        // Solo admin crea/edita/elimina simulaciones.
         allow create, update, delete: if isAdmin();
       }
     }
-
-    // ─── appointments/ ────────────────────────────────────────────────────────
-    //
-    // ✅ CAMBIO: Se amplió `allow update` para que el paciente pueda
-    //    cancelar su propia cita. Condiciones:
-    //      1. Es el dueño de la cita (resource.data.patientId == uid)
-    //      2. El nuevo estado es exactamente 'cancelada'
-    //    Esto impide que el paciente cambie estado a confirmada/completada,
-    //    edite el tipo, la fecha, o cualquier otro campo sensible.
 
     match /appointments/{appointmentId} {
       allow read: if isAdmin() ||
                     (request.auth != null &&
                      resource.data.patientId == request.auth.uid);
-
-      // Create directo solo para admin. Paciente agenda vía Cloud Function.
       allow create: if isAdmin();
-
-      // Admin: puede actualizar cualquier campo.
-      // Paciente: SOLO puede cambiar estado a 'cancelada' en su propia cita.
       allow update: if isAdmin() ||
                       (request.auth != null &&
                        resource.data.patientId == request.auth.uid &&
                        request.resource.data.estado == 'cancelada');
-
       allow delete: if isAdmin();
     }
 
-    // ─── payments/ ────────────────────────────────────────────────────────────
-
     match /payments/{patientId} {
-      // Admin puede leer/escribir todo en payments.
-      // Paciente solo puede leer su propio resumen financiero.
       allow read: if isAdmin() || isOwnPatient(patientId);
       allow create, update, delete: if isAdmin();
 
       match /transactions/{txId} {
-        // Admin puede leer/escribir todas las transacciones.
-        // Paciente solo puede leer las suyas.
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create, update, delete: if isAdmin();
       }
+
+      match /treatments/{treatmentId} {
+        allow read: if isAdmin() || isOwnPatient(patientId);
+        allow create, update, delete: if isAdmin() &&
+                                        incomingPatientMatches(patientId) &&
+                                        incomingTreatmentMatches(treatmentId);
+
+        match /transactions/{txId} {
+          allow read: if isAdmin() || isOwnPatient(patientId);
+          allow create, update, delete: if isAdmin() &&
+                                          incomingPatientMatches(patientId) &&
+                                          incomingTreatmentMatches(treatmentId) &&
+                                          (!('id' in request.resource.data) || request.resource.data.id == txId);
+        }
+      }
     }
 
-    // No exponer sesiones PayU al cliente (ni admin ni paciente en cliente SDK).
     match /payu_sessions/{sessionId} {
       allow read, write: if false;
     }
-
-    // ─── simulations/ ─────────────────────────────────────────────────────────
 
     match /simulations/{simId} {
       allow read: if isAdmin() ||
@@ -172,8 +149,6 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // ─── notifications/ ───────────────────────────────────────────────────────
-
     match /notifications/{notifId} {
       allow read: if request.auth != null &&
                     resource.data.recipientId == request.auth.uid;
@@ -183,23 +158,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── scheduledNotifications/ ─────────────────────────────────────────────
-
     match /scheduledNotifications/{notificationId} {
       allow read: if isAdmin() ||
                     (request.auth != null && resource.data.patientId == request.auth.uid);
       allow create, update, delete: if false;
     }
 
-    // ─── availability/ ────────────────────────────────────────────────────────
-    // Paciente y admin pueden leer disponibilidad agregada por día.
-    // Escrituras solo por Admin SDK (Cloud Functions).
     match /availability/{dayKey} {
       allow read: if request.auth != null;
       allow write: if false;
     }
 
-    // ─── treatmentCatalog/ ────────────────────────────────────────────────────
     match /treatmentCatalog/{catalogTreatmentId} {
       allow read: if request.auth != null;
       allow create, update: if isAdmin();
