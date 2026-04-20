@@ -193,7 +193,7 @@ class _PatientDetailView extends ConsumerWidget {
           children: [
             DetailHeader(
               title: patient.nombre,
-              subtitle: 'Expediente clínico y financiero del paciente',
+              subtitle: _headerSubtitle(selectedTreatment, treatments),
               trailing: ActionToolbar(
                 actions: [
                   OutlinedButton.icon(
@@ -220,53 +220,139 @@ class _PatientDetailView extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Row(
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 420,
                   child: SectionPanel(
-                    title: 'Resumen del tratamiento principal',
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    title: 'Tratamiento principal visible en cabecera',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        OcgChip(
-                          label:
-                              selectedTreatment?.displayName ??
-                              'Sin tratamiento principal',
-                        ),
-                        if (selectedTreatment != null)
-                          OcgChip(
-                            label: formatTreatmentStage(
-                              selectedTreatment.etapaActual,
-                            ),
+                        const Text(
+                          'Este bloque resume solo el tratamiento foco del paciente.',
+                          style: TextStyle(
+                            color: OcgColors.bronze,
+                            fontWeight: FontWeight.w600,
                           ),
-                        OcgChip(
-                          label:
-                              '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'}',
                         ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OcgChip(
+                              label:
+                                  selectedTreatment?.displayName ??
+                                  'Sin tratamiento principal',
+                              backgroundColor: const Color(0xFFF4EFE7),
+                              textColor: OcgColors.espresso,
+                            ),
+                            OcgChip(
+                              label: selectedTreatment == null
+                                  ? 'Principal no definido'
+                                  : 'Tratamiento principal',
+                              backgroundColor: const Color(0xFFEAF5EE),
+                              textColor: const Color(0xFF2E7D4C),
+                            ),
+                            OcgChip(
+                              label:
+                                  '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} registrados',
+                              backgroundColor: const Color(0xFFFFF4D8),
+                              textColor: const Color(0xFFC99730),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          selectedTreatment == null
+                              ? 'La cabecera no tiene un tratamiento principal definido todavía.'
+                              : 'Principal actual: ${selectedTreatment.displayName}. Los tratamientos secundarios se administran abajo en la pestaña Tratamiento.',
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (selectedTreatment != null) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OcgChip(
+                                label:
+                                    'Etapa: ${formatTreatmentStage(selectedTreatment.etapaActual)}',
+                                backgroundColor: const Color(0xFFF2F4F7),
+                                textColor: OcgColors.espresso,
+                              ),
+                              OcgChip(
+                                label: 'Estado: ${selectedTreatment.estado}',
+                                backgroundColor: const Color(0xFFFBEAED),
+                                textColor: const Color(0xFFB06A5A),
+                              ),
+                              OcgChip(
+                                label:
+                                    'Saldo principal: ${formatCop(selectedTreatment.saldoPendiente ?? 0)} COP',
+                                backgroundColor: const Color(0xFFF8F3EC),
+                                textColor: OcgColors.espresso,
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
+                SizedBox(
+                  width: 420,
                   child: SectionPanel(
                     title: 'Resumen consolidado del paciente',
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        OcgChip(
-                          label:
-                              'Saldo total: ${formatCop(_totalPending(treatments, patient))} COP',
+                        const Text(
+                          'Este bloque suma todos los tratamientos del paciente, no solo el principal.',
+                          style: TextStyle(
+                            color: OcgColors.bronze,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        OcgChip(
-                          label:
-                              'Total contratado: ${formatCop(_totalAmount(treatments, patient))} COP',
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OcgChip(
+                              label:
+                                  'Saldo total: ${formatCop(_totalPending(treatments, patient))} COP',
+                              backgroundColor: const Color(0xFFFBEAED),
+                              textColor: const Color(0xFFB06A5A),
+                            ),
+                            OcgChip(
+                              label:
+                                  'Total contratado: ${formatCop(_totalAmount(treatments, patient))} COP',
+                              backgroundColor: const Color(0xFFF4EFE7),
+                              textColor: OcgColors.espresso,
+                            ),
+                            OcgChip(
+                              label:
+                                  'Pagado consolidado: ${formatCop(_paidAmount(treatments, patient))} COP',
+                              backgroundColor: const Color(0xFFEAF5EE),
+                              textColor: const Color(0xFF2E7D4C),
+                            ),
+                          ],
                         ),
-                        OcgChip(
-                          label:
-                              'Pagado: ${formatCop(_paidAmount(treatments, patient))} COP',
+                        const SizedBox(height: 10),
+                        Text(
+                          treatments.length <= 1
+                              ? 'Este paciente tiene una sola línea de tratamiento activa o histórica.'
+                              : 'Este paciente maneja múltiples tratamientos. El resumen principal está a la izquierda y el consolidado total está aquí.',
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -341,6 +427,21 @@ class _PatientDetailView extends ConsumerWidget {
     }
 
     return content;
+  }
+
+  String _headerSubtitle(
+    PatientTreatment? selectedTreatment,
+    List<PatientTreatment> treatments,
+  ) {
+    if (selectedTreatment == null) {
+      return treatments.isEmpty
+          ? 'Expediente clínico y financiero del paciente · sin tratamientos registrados todavía'
+          : 'Expediente clínico y financiero del paciente · múltiples tratamientos sin principal definido';
+    }
+    final countLabel = treatments.length == 1
+        ? '1 tratamiento'
+        : '${treatments.length} tratamientos';
+    return 'Cabecera enfocada en el tratamiento principal (${selectedTreatment.displayName}) · $countLabel en total';
   }
 
   PatientTreatment? _resolveHeaderTreatment(
