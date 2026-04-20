@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/currency_input_formatter.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/payment_model.dart';
 import '../../providers/payments_provider.dart';
@@ -20,7 +21,8 @@ class RegisterPaymentDialog extends ConsumerStatefulWidget {
   final String? treatmentId;
 
   @override
-  ConsumerState<RegisterPaymentDialog> createState() => _RegisterPaymentDialogState();
+  ConsumerState<RegisterPaymentDialog> createState() =>
+      _RegisterPaymentDialogState();
 }
 
 class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
@@ -62,23 +64,17 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
               TextFormField(
                 controller: _montoController,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  CurrencyInputFormatter(),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Monto',
                   prefixText: r'$ ',
                   hintText: 'Ej: 250.000',
                 ),
                 validator: _validateMonto,
-                onChanged: (value) {
-                  final formatted = _formatMontoInput(value);
-                  if (formatted != value) {
-                    _montoController.value = TextEditingValue(
-                      text: formatted,
-                      selection: TextSelection.collapsed(offset: formatted.length),
-                    );
-                  }
-                  setState(() {});
-                },
+                onChanged: (_) => setState(() {}),
               ),
               if (saldaDeuda) ...[
                 const SizedBox(height: 8),
@@ -139,7 +135,9 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
                 controller: _notasController,
                 maxLines: 3,
                 maxLength: 300,
-                decoration: const InputDecoration(labelText: 'Notas internas (opcional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Notas internas (opcional)',
+                ),
               ),
             ],
           ),
@@ -160,7 +158,10 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: OcgColors.ivory),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: OcgColors.ivory,
+                  ),
                 )
               : const Text('Registrar pago'),
         ),
@@ -181,22 +182,7 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
   }
 
   double? _parseMonto(String raw) {
-    final digits = raw.replaceAll('.', '').replaceAll(',', '').trim();
-    if (digits.isEmpty) return null;
-    return double.tryParse(digits);
-  }
-
-  String _formatMontoInput(String raw) {
-    final digits = raw.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return '';
-
-    final chars = digits.split('').reversed.toList();
-    final buffer = StringBuffer();
-    for (var i = 0; i < chars.length; i++) {
-      if (i > 0 && i % 3 == 0) buffer.write('.');
-      buffer.write(chars[i]);
-    }
-    return buffer.toString().split('').reversed.join();
+    return CurrencyInputFormatter.parseToDouble(raw);
   }
 
   Future<void> _submit() async {
@@ -206,7 +192,9 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
     final adminId = user?.uid ?? '';
     if (adminId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo identificar al administrador actual.')),
+        const SnackBar(
+          content: Text('No se pudo identificar al administrador actual.'),
+        ),
       );
       return;
     }
@@ -216,7 +204,9 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
     setState(() => _saving = true);
 
     try {
-      await ref.read(registerPaymentProvider.notifier).registerManual(
+      await ref
+          .read(registerPaymentProvider.notifier)
+          .registerManual(
             patientId: widget.patientId,
             monto: monto,
             metodo: _metodo,
@@ -225,7 +215,9 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
             referencia: _referenciaController.text.trim().isEmpty
                 ? null
                 : _referenciaController.text.trim(),
-            notas: _notasController.text.trim().isEmpty ? null : _notasController.text.trim(),
+            notas: _notasController.text.trim().isEmpty
+                ? null
+                : _notasController.text.trim(),
           );
 
       if (!mounted) return;
@@ -239,9 +231,9 @@ class _RegisterPaymentDialogState extends ConsumerState<RegisterPaymentDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 }

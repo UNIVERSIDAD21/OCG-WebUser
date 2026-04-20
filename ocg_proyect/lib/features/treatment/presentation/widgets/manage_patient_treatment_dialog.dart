@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../firebase_options.dart';
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/currency_input_formatter.dart';
 import '../../../../shared/widgets/ocg_button.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
@@ -1008,9 +1010,13 @@ class _ManagePatientTreatmentDialogState
               TextField(
                 controller: amountController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  CurrencyInputFormatter(),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Monto en COP',
-                  hintText: 'Ej. 200000',
+                  hintText: 'Ej. 200.000',
                 ),
               ),
             ],
@@ -1024,7 +1030,10 @@ class _ManagePatientTreatmentDialogState
               onPressed: () {
                 final name = nameController.text.trim();
                 final amount =
-                    double.tryParse(amountController.text.trim()) ?? 0;
+                    CurrencyInputFormatter.parseToDouble(
+                      amountController.text,
+                    ) ??
+                    0;
                 if (name.isEmpty || amount < 0) return;
                 Navigator.of(context).pop(
                   _FinancialItemDraft(
@@ -1098,7 +1107,7 @@ class _ManagePatientTreatmentDialogState
 
   Future<void> _showAmountDialog(_FinancialItemDraft item) async {
     final controller = TextEditingController(
-      text: item.amount.toInt().toString(),
+      text: CurrencyInputFormatter.formatDigits(item.amount.toInt().toString()),
     );
     try {
       final updated = await showDialog<double>(
@@ -1108,6 +1117,10 @@ class _ManagePatientTreatmentDialogState
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
+            ],
             decoration: const InputDecoration(labelText: 'Monto en COP'),
           ),
           actions: [
@@ -1117,7 +1130,9 @@ class _ManagePatientTreatmentDialogState
             ),
             FilledButton(
               onPressed: () {
-                final amount = double.tryParse(controller.text.trim());
+                final amount = CurrencyInputFormatter.parseToDouble(
+                  controller.text,
+                );
                 if (amount == null || amount < 0) return;
                 Navigator.of(context).pop(amount);
               },

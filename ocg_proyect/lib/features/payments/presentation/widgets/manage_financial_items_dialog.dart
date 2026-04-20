@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/currency_input_formatter.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../data/models/financial_item_model.dart';
@@ -20,10 +22,12 @@ class ManageFinancialItemsDialog extends ConsumerStatefulWidget {
   final List<FinancialItemModel> initialItems;
 
   @override
-  ConsumerState<ManageFinancialItemsDialog> createState() => _ManageFinancialItemsDialogState();
+  ConsumerState<ManageFinancialItemsDialog> createState() =>
+      _ManageFinancialItemsDialogState();
 }
 
-class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItemsDialog> {
+class _ManageFinancialItemsDialogState
+    extends ConsumerState<ManageFinancialItemsDialog> {
   late List<_EditableFinancialItem> _items;
 
   @override
@@ -37,7 +41,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
   @override
   Widget build(BuildContext context) {
     final saveState = ref.watch(saveTreatmentFinancialItemsProvider);
-    final total = _items.where((item) => item.active).fold<double>(0, (sum, item) => sum + item.amount);
+    final total = _items
+        .where((item) => item.active)
+        .fold<double>(0, (sum, item) => sum + item.amount);
 
     return AlertDialog(
       title: Text('Conceptos financieros · ${widget.treatment.displayName}'),
@@ -52,7 +58,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
                 _FinancialItemEditorRow(
                   item: _items[i],
                   onChanged: (next) => setState(() => _items[i] = next),
-                  onRemove: _items[i].isRequired ? null : () => setState(() => _items.removeAt(i)),
+                  onRemove: _items[i].isRequired
+                      ? null
+                      : () => setState(() => _items.removeAt(i)),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -83,7 +91,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
       ),
       actions: [
         OutlinedButton(
-          onPressed: saveState.isLoading ? null : () => Navigator.of(context).pop(),
+          onPressed: saveState.isLoading
+              ? null
+              : () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
@@ -96,7 +106,10 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: OcgColors.ivory),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: OcgColors.ivory,
+                  ),
                 )
               : const Text('Guardar conceptos'),
         ),
@@ -153,7 +166,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
         );
       }
 
-      await ref.read(saveTreatmentFinancialItemsProvider.notifier).replaceItems(
+      await ref
+          .read(saveTreatmentFinancialItemsProvider.notifier)
+          .replaceItems(
             patientId: widget.patientId,
             treatment: widget.treatment,
             items: models,
@@ -163,7 +178,9 @@ class _ManageFinancialItemsDialogState extends ConsumerState<ManageFinancialItem
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_mapError(e))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_mapError(e))));
     }
   }
 
@@ -210,7 +227,11 @@ class _FinancialItemEditorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nameController = TextEditingController(text: item.name);
-    final amountController = TextEditingController(text: item.amount == 0 ? '' : item.amount.toStringAsFixed(0));
+    final amountController = TextEditingController(
+      text: item.amount == 0
+          ? ''
+          : CurrencyInputFormatter.formatDigits(item.amount.toStringAsFixed(0)),
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -220,7 +241,9 @@ class _FinancialItemEditorRow extends StatelessWidget {
             controller: nameController,
             enabled: item.editableName,
             decoration: InputDecoration(
-              labelText: item.isRequired ? '${item.kind == 'initial' ? 'Inicial' : 'Controles'} (obligatorio)' : 'Concepto',
+              labelText: item.isRequired
+                  ? '${item.kind == 'initial' ? 'Inicial' : 'Controles'} (obligatorio)'
+                  : 'Concepto',
             ),
             onChanged: (value) => onChanged(item.copyWith(name: value)),
           ),
@@ -231,19 +254,26 @@ class _FinancialItemEditorRow extends StatelessWidget {
           child: TextFormField(
             controller: amountController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
+            ],
             decoration: const InputDecoration(labelText: 'Monto COP'),
-            onChanged: (value) => onChanged(item.copyWith(amount: double.tryParse(value.replaceAll('.', '').trim()) ?? 0)),
+            onChanged: (value) => onChanged(
+              item.copyWith(
+                amount: CurrencyInputFormatter.parseToDouble(value) ?? 0,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Switch(
           value: item.active,
-          onChanged: item.isRequired ? null : (value) => onChanged(item.copyWith(active: value)),
+          onChanged: item.isRequired
+              ? null
+              : (value) => onChanged(item.copyWith(active: value)),
         ),
-        IconButton(
-          onPressed: onRemove,
-          icon: const Icon(Icons.delete_outline),
-        ),
+        IconButton(onPressed: onRemove, icon: const Icon(Icons.delete_outline)),
       ],
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/currency_input_formatter.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
@@ -23,7 +25,8 @@ class PatientPaymentsScreen extends ConsumerStatefulWidget {
   final PatientViewerMode viewerMode;
 
   @override
-  ConsumerState<PatientPaymentsScreen> createState() => _PatientPaymentsScreenState();
+  ConsumerState<PatientPaymentsScreen> createState() =>
+      _PatientPaymentsScreenState();
 }
 
 class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
@@ -31,17 +34,22 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<String?>>(initiatePayuPaymentProvider, (previous, next) {
+    ref.listen<AsyncValue<String?>>(initiatePayuPaymentProvider, (
+      previous,
+      next,
+    ) {
       if (!mounted) return;
       next.whenOrNull(
         data: (url) {
           if (url == null || url.isEmpty) return;
-          context.push('${RouteNames.patientPayuCheckout}?checkoutUrl=${Uri.encodeComponent(url)}');
+          context.push(
+            '${RouteNames.patientPayuCheckout}?checkoutUrl=${Uri.encodeComponent(url)}',
+          );
         },
         error: (error, _) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error.toString())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.toString())));
         },
       );
     });
@@ -59,9 +67,16 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
 
     final paymentAsync = ref.watch(patientPaymentProvider(effectivePatientId));
     final txAsync = ref.watch(
-      patientTransactionsProvider((patientId: effectivePatientId, treatmentId: null)),
+      patientTransactionsProvider((
+        patientId: effectivePatientId,
+        treatmentId: null,
+      )),
     );
-    final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
 
     final content = SingleChildScrollView(
       child: Column(
@@ -95,11 +110,10 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  isAdminViewer ? 'Gestión financiera y movimientos' : 'Estado de cuenta y movimientos',
-                  style: TextStyle(
-                    color: Color(0xCCF8F5F0),
-                    fontSize: 13,
-                  ),
+                  isAdminViewer
+                      ? 'Gestión financiera y movimientos'
+                      : 'Estado de cuenta y movimientos',
+                  style: TextStyle(color: Color(0xCCF8F5F0), fontSize: 13),
                 ),
               ],
             ),
@@ -111,16 +125,24 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
               children: [
                 paymentAsync.when(
                   loading: () => const _LoadingCard(),
-                  error: (error, _) => _ErrorCard(message: 'No se pudo cargar pagos: $error'),
+                  error: (error, _) =>
+                      _ErrorCard(message: 'No se pudo cargar pagos: $error'),
                   data: (payment) {
                     if (payment == null) {
-                      return const _ErrorCard(message: 'No existe resumen financiero para este paciente.');
+                      return const _ErrorCard(
+                        message:
+                            'No existe resumen financiero para este paciente.',
+                      );
                     }
 
                     final total = payment.totalTratamiento;
                     final saldo = payment.saldoPendiente;
-                    final pagado = (total > 0) ? (total - saldo).clamp(0, total) : payment.montoPagado;
-                    final progress = (total > 0) ? ((pagado / total) * 100).round().clamp(0, 100) : null;
+                    final pagado = (total > 0)
+                        ? (total - saldo).clamp(0, total)
+                        : payment.montoPagado;
+                    final progress = (total > 0)
+                        ? ((pagado / total) * 100).round().clamp(0, 100)
+                        : null;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,6 +169,41 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                             ),
                             onPressed: saldo > 0
                                 ? () => isAdminViewer
+                                      ? _showRegisterManualPaymentDialog(
+                                          context,
+                                          effectivePatientId,
+                                          saldo,
+                                        )
+                                      : _confirmAndPayu(
+                                          context,
+                                          effectivePatientId,
+                                          saldo,
+                                          user?.email ?? '',
+                                          user?.displayName ?? 'Paciente',
+                                        )
+                                : null,
+                            icon: Icon(
+                              isAdminViewer
+                                  ? Icons.add_card_outlined
+                                  : Icons.lock_outline,
+                              size: 18,
+                            ),
+                            label: Text(
+                              saldo > 0
+                                  ? isAdminViewer
+                                        ? 'Registrar pago'
+                                        : 'Pagar con PayU'
+                                  : 'Tratamiento pagado',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _NextPaymentCard(
+                          fechaProximoPago: payment.fechaProximoPago,
+                          saldoPendiente: saldo,
+                          currency: currency,
+                          onGoToPay: saldo > 0
+                              ? () => isAdminViewer
                                     ? _showRegisterManualPaymentDialog(
                                         context,
                                         effectivePatientId,
@@ -159,41 +216,6 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                                         user?.email ?? '',
                                         user?.displayName ?? 'Paciente',
                                       )
-                                : null,
-                            icon: Icon(
-                              isAdminViewer
-                                  ? Icons.add_card_outlined
-                                  : Icons.lock_outline,
-                              size: 18,
-                            ),
-                            label: Text(
-                              saldo > 0
-                                  ? isAdminViewer
-                                      ? 'Registrar pago'
-                                      : 'Pagar con PayU'
-                                  : 'Tratamiento pagado',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _NextPaymentCard(
-                          fechaProximoPago: payment.fechaProximoPago,
-                          saldoPendiente: saldo,
-                          currency: currency,
-                          onGoToPay: saldo > 0
-                              ? () => isAdminViewer
-                                  ? _showRegisterManualPaymentDialog(
-                                      context,
-                                      effectivePatientId,
-                                      saldo,
-                                    )
-                                  : _confirmAndPayu(
-                                      context,
-                                      effectivePatientId,
-                                      saldo,
-                                      user?.email ?? '',
-                                      user?.displayName ?? 'Paciente',
-                                    )
                               : null,
                         ),
                       ],
@@ -217,7 +239,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 const SizedBox(height: 10),
                 txAsync.when(
                   loading: () => const _LoadingCard(),
-                  error: (error, _) => _ErrorCard(message: 'No se pudo cargar transacciones: $error'),
+                  error: (error, _) => _ErrorCard(
+                    message: 'No se pudo cargar transacciones: $error',
+                  ),
                   data: (transactions) {
                     final payment = paymentAsync.asData?.value;
                     final hasPending = (payment?.saldoPendiente ?? 0) > 0;
@@ -225,12 +249,15 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                     final filtered = switch (_filter) {
                       _PaymentsFilter.todos => transactions,
                       _PaymentsFilter.pagados => transactions,
-                      _PaymentsFilter.pendientes => const <PaymentTransaction>[],
+                      _PaymentsFilter.pendientes =>
+                        const <PaymentTransaction>[],
                     };
 
                     if (_filter == _PaymentsFilter.pendientes) {
                       if (!hasPending) {
-                        return const _EmptyCard(message: 'No tienes pendientes por pagar.');
+                        return const _EmptyCard(
+                          message: 'No tienes pendientes por pagar.',
+                        );
                       }
                       return _PendingCard(
                         saldoPendiente: payment!.saldoPendiente,
@@ -240,15 +267,22 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                     }
 
                     if (filtered.isEmpty) {
-                      return const _EmptyCard(message: 'No hay pagos registrados todavía.');
+                      return const _EmptyCard(
+                        message: 'No hay pagos registrados todavía.',
+                      );
                     }
 
                     return Column(
                       children: filtered
-                          .map((tx) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _TransactionCard(tx: tx, currency: currency),
-                              ))
+                          .map(
+                            (tx) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _TransactionCard(
+                                tx: tx,
+                                currency: currency,
+                              ),
+                            ),
+                          )
                           .toList(),
                     );
                   },
@@ -263,7 +297,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     if (widget.embedded) return content;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isAdminViewer ? 'Pagos del paciente' : 'Mis pagos')),
+      appBar: AppBar(
+        title: Text(isAdminViewer ? 'Pagos del paciente' : 'Mis pagos'),
+      ),
       body: content,
     );
   }
@@ -273,7 +309,11 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     String patientId,
     double suggestedAmount,
   ) async {
-    final amountCtrl = TextEditingController(text: suggestedAmount.toStringAsFixed(0));
+    final amountCtrl = TextEditingController(
+      text: CurrencyInputFormatter.formatDigits(
+        suggestedAmount.toStringAsFixed(0),
+      ),
+    );
     final notesCtrl = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -286,29 +326,43 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
             TextField(
               controller: amountCtrl,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                CurrencyInputFormatter(),
+              ],
               decoration: const InputDecoration(labelText: 'Monto (COP)'),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: notesCtrl,
-              decoration: const InputDecoration(labelText: 'Observación (opcional)'),
+              decoration: const InputDecoration(
+                labelText: 'Observación (opcional)',
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Registrar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Registrar'),
+          ),
         ],
       ),
     );
 
     if (confirmed != true) return;
 
-    final monto = double.tryParse(amountCtrl.text.trim()) ?? 0;
+    final monto = CurrencyInputFormatter.parseToDouble(amountCtrl.text) ?? 0;
     if (monto <= 0) return;
 
     final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
-    await ref.read(registerPaymentProvider.notifier).registerManual(
+    await ref
+        .read(registerPaymentProvider.notifier)
+        .registerManual(
           patientId: patientId,
           monto: monto,
           metodo: PaymentMethod.efectivo,
@@ -328,7 +382,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Confirmar pago'),
-        content: Text('¿Deseas continuar con el pago por ${monto.toStringAsFixed(0)} COP?'),
+        content: Text(
+          '¿Deseas continuar con el pago por ${monto.toStringAsFixed(0)} COP?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -344,7 +400,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
 
     if (ok != true) return;
 
-    await ref.read(initiatePayuPaymentProvider.notifier).initiate(
+    await ref
+        .read(initiatePayuPaymentProvider.notifier)
+        .initiate(
           patientId: patientId,
           monto: monto,
           patientEmail: patientEmail,
@@ -360,14 +418,14 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        height: 110,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFECD9C6)),
-        ),
-      );
+    width: double.infinity,
+    height: 110,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFECD9C6)),
+    ),
+  );
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -376,15 +434,15 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF1F1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFFFD2D2)),
-        ),
-        child: Text(message, style: const TextStyle(color: OcgColors.error)),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF1F1),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFFFD2D2)),
+    ),
+    child: Text(message, style: const TextStyle(color: OcgColors.error)),
+  );
 }
 
 class _EmptyCard extends StatelessWidget {
@@ -393,15 +451,15 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFECD9C6)),
-        ),
-        child: Text(message, style: const TextStyle(color: Color(0xFF8A6F59))),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFECD9C6)),
+    ),
+    child: Text(message, style: const TextStyle(color: Color(0xFF8A6F59))),
+  );
 }
 
 class _FinancialSummaryCard extends StatelessWidget {
@@ -429,7 +487,11 @@ class _FinancialSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFECD9C6)),
         boxShadow: const [
-          BoxShadow(color: Color(0x122C2016), blurRadius: 12, offset: Offset(0, 2)),
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -437,16 +499,34 @@ class _FinancialSummaryCard extends StatelessWidget {
         children: [
           const Text(
             'Resumen financiero',
-            style: TextStyle(color: Color(0xFF1A1410), fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Color(0xFF1A1410),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _money('Total tratamiento', currency.format(total))),
+              Expanded(
+                child: _money('Total tratamiento', currency.format(total)),
+              ),
               const SizedBox(width: 6),
-              Expanded(child: _money('Pagado', currency.format(pagado), valueColor: const Color(0xFF166534))),
+              Expanded(
+                child: _money(
+                  'Pagado',
+                  currency.format(pagado),
+                  valueColor: const Color(0xFF166534),
+                ),
+              ),
               const SizedBox(width: 6),
-              Expanded(child: _money('Pendiente', currency.format(pendiente), valueColor: const Color(0xFF92400E))),
+              Expanded(
+                child: _money(
+                  'Pendiente',
+                  currency.format(pendiente),
+                  valueColor: const Color(0xFF92400E),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -454,8 +534,17 @@ class _FinancialSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Avance de pago', style: TextStyle(fontSize: 11, color: Color(0xFF8A6F59))),
-                Text('$progressPercent%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                const Text(
+                  'Avance de pago',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8A6F59)),
+                ),
+                Text(
+                  '$progressPercent%',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 5),
@@ -465,7 +554,9 @@ class _FinancialSummaryCard extends StatelessWidget {
                 minHeight: 6,
                 value: progressPercent! / 100,
                 backgroundColor: const Color(0xFFF2EDE8),
-                valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.espresso),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  OcgColors.espresso,
+                ),
               ),
             ),
           ] else ...[
@@ -479,7 +570,11 @@ class _FinancialSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _money(String label, String value, {Color valueColor = const Color(0xFF1A1410)}) {
+  Widget _money(
+    String label,
+    String value, {
+    Color valueColor = const Color(0xFF1A1410),
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -489,9 +584,23 @@ class _FinancialSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 10.5, color: Color(0xFF8A6F59), fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: Color(0xFF8A6F59),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 3),
-          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w700, fontSize: 13.5)),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+            ),
+          ),
         ],
       ),
     );
@@ -534,18 +643,40 @@ class _NextPaymentCard extends StatelessWidget {
               color: const Color(0xFFF2EDE8),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.calendar_today, size: 17, color: OcgColors.espresso),
+            child: const Icon(
+              Icons.calendar_today,
+              size: 17,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Próximo pago', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A1410))),
+                const Text(
+                  'Próximo pago',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1410),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(dateLabel, style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5)),
+                Text(
+                  dateLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontSize: 12.5,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('Saldo actual: ${currency.format(saldoPendiente)}', style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 12)),
+                Text(
+                  'Saldo actual: ${currency.format(saldoPendiente)}',
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -604,7 +735,11 @@ class _FilterRow extends StatelessWidget {
 }
 
 class _PendingCard extends StatelessWidget {
-  const _PendingCard({required this.saldoPendiente, required this.fechaProximoPago, required this.currency});
+  const _PendingCard({
+    required this.saldoPendiente,
+    required this.fechaProximoPago,
+    required this.currency,
+  });
 
   final double saldoPendiente;
   final DateTime? fechaProximoPago;
@@ -632,12 +767,27 @@ class _PendingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Pago pendiente', style: TextStyle(fontWeight: FontWeight.w700)),
-                Text('Vencimiento: $fecha', style: const TextStyle(fontSize: 12, color: Color(0xFF8A6F59))),
+                const Text(
+                  'Pago pendiente',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Vencimiento: $fecha',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8A6F59),
+                  ),
+                ),
               ],
             ),
           ),
-          Text(currency.format(saldoPendiente), style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.w700)),
+          Text(
+            currency.format(saldoPendiente),
+            style: const TextStyle(
+              color: Color(0xFF92400E),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -673,25 +823,53 @@ class _TransactionCard extends StatelessWidget {
               color: const Color(0xFFEFFAF2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.check_circle, size: 18, color: Color(0xFF166534)),
+            child: const Icon(
+              Icons.check_circle,
+              size: 18,
+              color: Color(0xFF166534),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_methodLabel(tx.metodo), style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A1410))),
+                Text(
+                  _methodLabel(tx.metodo),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1410),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(dateFmt.format(tx.fecha), style: const TextStyle(fontSize: 12, color: Color(0xFF8A6F59))),
+                Text(
+                  dateFmt.format(tx.fecha),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8A6F59),
+                  ),
+                ),
                 if ((tx.referencia ?? '').trim().isNotEmpty)
-                  Text('Ref: ${tx.referencia}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6F59))),
+                  Text(
+                    'Ref: ${tx.referencia}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF8A6F59),
+                    ),
+                  ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(currency.format(tx.monto), style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+              Text(
+                currency.format(tx.monto),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: OcgColors.espresso,
+                ),
+              ),
               const SizedBox(height: 3),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -699,7 +877,14 @@ class _TransactionCard extends StatelessWidget {
                   color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(statusLabel, style: TextStyle(fontSize: 10.5, color: statusColor, fontWeight: FontWeight.w700)),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),
@@ -709,8 +894,8 @@ class _TransactionCard extends StatelessWidget {
   }
 
   String _methodLabel(PaymentMethod method) => switch (method) {
-        PaymentMethod.efectivo => 'Efectivo',
-        PaymentMethod.transferencia => 'Transferencia',
-        PaymentMethod.payu => 'PayU',
-      };
+    PaymentMethod.efectivo => 'Efectivo',
+    PaymentMethod.transferencia => 'Transferencia',
+    PaymentMethod.payu => 'PayU',
+  };
 }
