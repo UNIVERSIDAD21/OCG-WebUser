@@ -29,6 +29,7 @@ class FirestorePaths {
   static String paymentDoc(String patientId) => 'payments/$patientId';
   static String legacyTransactions(String patientId) =>
       'payments/$patientId/transactions';
+  static String transactions(String patientId) => legacyTransactions(patientId);
   static String treatmentPayments(String patientId) =>
       'payments/$patientId/treatments';
   static String treatmentPaymentDoc(String patientId, String treatmentId) =>
