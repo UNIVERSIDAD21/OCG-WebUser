@@ -215,15 +215,11 @@ PaymentModel _paymentFromPatient(PatientModel patient) {
   return PaymentModel(
     id: patient.id,
     patientId: patient.id,
-    totalTratamiento: patient.totalTratamiento,
-    montoPagado: patient.totalPagado,
-    saldoPendiente: patient.saldoPendiente,
+    totalTratamiento: 0,
+    montoPagado: 0,
+    saldoPendiente: 0,
     fechaProximoPago: patient.fechaProximoPago,
-    estado: PaymentModel.calcularEstado(
-      saldoPendiente: patient.saldoPendiente,
-      fechaProximoPago: patient.fechaProximoPago,
-      now: now,
-    ),
+    estado: PaymentStatus.pendiente,
     createdAt: patient.createdAt ?? now,
     updatedAt: patient.updatedAt ?? now,
   );

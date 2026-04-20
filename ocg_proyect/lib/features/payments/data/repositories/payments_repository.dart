@@ -38,22 +38,24 @@ class PaymentsRepository {
       return _watchTreatmentPayment(patientId, treatmentId);
     }
 
-    return _legacyPaymentRef(patientId).snapshots().asyncMap((snap) async {
-      final data = snap.data();
-      if (snap.exists && data != null) {
-        return PaymentModel.fromJson(data);
-      }
+    return _db
+        .collection(FirestorePaths.treatmentPayments(patientId))
+        .snapshots()
+        .asyncMap((snap) async {
+          if (snap.docs.isNotEmpty) {
+            final payments = snap.docs
+                .map((doc) => PaymentModel.fromJson(doc.data()))
+                .toList();
+            return _buildAggregatePayment(patientId, payments);
+          }
 
-      final treatmentsSnap = await _db
-          .collection(FirestorePaths.treatmentPayments(patientId))
-          .get();
-      if (treatmentsSnap.docs.isEmpty) return null;
-
-      final payments = treatmentsSnap.docs
-          .map((doc) => PaymentModel.fromJson(doc.data()))
-          .toList();
-      return _buildAggregatePayment(patientId, payments);
-    });
+          final legacy = await _legacyPaymentRef(patientId).get();
+          final legacyData = legacy.data();
+          if (legacy.exists && legacyData != null) {
+            return PaymentModel.fromJson(legacyData);
+          }
+          return null;
+        });
   }
 
   Stream<PaymentModel?> _watchTreatmentPayment(
@@ -89,7 +91,8 @@ class PaymentsRepository {
     }
 
     return _db
-        .collection(FirestorePaths.legacyTransactions(patientId))
+        .collectionGroup('transactions')
+        .where('patientId', isEqualTo: patientId)
         .orderBy('fecha', descending: true)
         .snapshots()
         .map(
@@ -156,22 +159,24 @@ class PaymentsRepository {
       );
     }
 
+    final treatmentsSnap = await _db
+        .collection(FirestorePaths.treatmentPayments(patientId))
+        .get();
+    if (treatmentsSnap.docs.isNotEmpty) {
+      return _buildAggregatePayment(
+        patientId,
+        treatmentsSnap.docs
+            .map((doc) => PaymentModel.fromJson(doc.data()))
+            .toList(),
+      );
+    }
+
     final snap = await _legacyPaymentRef(patientId).get();
     final data = snap.data();
     if (snap.exists && data != null) {
       return PaymentModel.fromJson(data);
     }
-
-    final treatmentsSnap = await _db
-        .collection(FirestorePaths.treatmentPayments(patientId))
-        .get();
-    if (treatmentsSnap.docs.isEmpty) return null;
-    return _buildAggregatePayment(
-      patientId,
-      treatmentsSnap.docs
-          .map((doc) => PaymentModel.fromJson(doc.data()))
-          .toList(),
-    );
+    return null;
   }
 
   Future<PaymentTransaction?> getLatestTransaction(
@@ -486,9 +491,12 @@ class PaymentsRepository {
 
       batch.set(_patientRef(patientId), {
         'primaryTreatmentId': treatmentId,
-        'saldoPendiente': nuevoSaldo,
-        'totalTratamiento': targetTotal,
         'updatedAt': FieldValue.serverTimestamp(),
+        'treatmentOverview.financial.totalTratamiento': targetTotal,
+        'treatmentOverview.financial.montoPagado': nuevoPagado,
+        'treatmentOverview.financial.saldoPendiente': nuevoSaldo,
+        'treatmentOverview.source': 'treatment-truth',
+        'legacyProjection.financialSource': 'compatibility-only',
       }, SetOptions(merge: true));
     }
 

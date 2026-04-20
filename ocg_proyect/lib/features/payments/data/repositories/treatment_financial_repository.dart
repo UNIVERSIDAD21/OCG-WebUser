@@ -271,11 +271,10 @@ class TreatmentFinancialRepository {
       }, SetOptions(merge: true));
       batch.set(_patientRef(patientId), {
         'primaryTreatmentId': treatment.id,
-        'totalTratamiento': total,
-        'saldoPendiente': pending,
         'updatedAt': FieldValue.serverTimestamp(),
         'treatmentOverview': {
           'mode': 'primary-treatment',
+          'source': 'treatment-truth',
           'treatmentId': treatment.id,
           'treatmentName': treatment.displayName,
           'baseType': treatment.tipoBase,
@@ -289,6 +288,7 @@ class TreatmentFinancialRepository {
           },
           'updatedAt': FieldValue.serverTimestamp(),
         },
+        'legacyProjection.financialSource': 'compatibility-only',
       }, SetOptions(merge: true));
     }
 
