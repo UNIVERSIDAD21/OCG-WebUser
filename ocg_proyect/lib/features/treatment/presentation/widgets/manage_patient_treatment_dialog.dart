@@ -32,12 +32,18 @@ class ManagePatientTreatmentDialog extends ConsumerStatefulWidget {
   final PatientTreatment? initialTreatment;
 
   @override
-  ConsumerState<ManagePatientTreatmentDialog> createState() => _ManagePatientTreatmentDialogState();
+  ConsumerState<ManagePatientTreatmentDialog> createState() =>
+      _ManagePatientTreatmentDialogState();
 }
 
-class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTreatmentDialog> {
+class _ManagePatientTreatmentDialogState
+    extends ConsumerState<ManagePatientTreatmentDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$ ', decimalDigits: 0);
+  final _currency = NumberFormat.currency(
+    locale: 'es_CO',
+    symbol: r'$ ',
+    decimalDigits: 0,
+  );
 
   late final TextEditingController _customNameController;
   late final TextEditingController _notesController;
@@ -52,6 +58,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   late bool _isPrimary;
   late DateTime _fechaInicio;
   late List<_FinancialItemDraft> _financialItems;
+  bool _primarySelectionLocked = false;
 
   bool get _isCustomBase => _baseTreatment == '__custom__';
 
@@ -67,7 +74,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     _status = initial?.estado ?? 'activo';
     _subtype = initial?.subtipo;
     _stage = initial?.etapaActual ?? TreatmentStage.valoracionInicial;
-    _isPrimary = initial?.isPrimary ?? true;
+    _isPrimary = initial?.isPrimary ?? false;
     _fechaInicio = initial?.fechaInicio ?? DateTime.now();
 
     _customNameController = TextEditingController(
@@ -91,14 +98,15 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       final treatment = widget.initialTreatment;
       if (treatment == null) return;
       final itemsAsync = ref.read(
-        treatmentFinancialItemsProvider((patientId: widget.patientId, treatmentId: treatment.id)),
+        treatmentFinancialItemsProvider((
+          patientId: widget.patientId,
+          treatmentId: treatment.id,
+        )),
       );
       itemsAsync.whenData((items) {
         if (!mounted || items.isEmpty) return;
         setState(() {
-          _financialItems = items
-              .map(_FinancialItemDraft.fromModel)
-              .toList()
+          _financialItems = items.map(_FinancialItemDraft.fromModel).toList()
             ..sort((a, b) => a.order.compareTo(b.order));
         });
       });
@@ -114,7 +122,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     super.dispose();
   }
 
-  bool get _requiresSubtype => kSubtypeRequiredBaseTreatments.contains(_effectiveBaseTreatment);
+  bool get _requiresSubtype =>
+      kSubtypeRequiredBaseTreatments.contains(_effectiveBaseTreatment);
 
   String get _effectiveBaseTreatment => _isCustomBase
       ? _normalizeValue(_customNameController.text)
@@ -133,11 +142,19 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   bool get _isValid {
     if (_effectiveName.trim().isEmpty) return false;
     if (_effectiveBaseTreatment.trim().isEmpty) return false;
-    if (_requiresSubtype && (_subtype == null || _subtype!.trim().isEmpty)) return false;
+    if (_requiresSubtype && (_subtype == null || _subtype!.trim().isEmpty)) {
+      return false;
+    }
     if (_cleaningMonths <= 0 || _controlMonths <= 0) return false;
     if (_financialItems.isEmpty) return false;
-    if (!_financialItems.any((item) => item.active && item.kind == 'initial')) return false;
-    if (!_financialItems.any((item) => item.active && item.kind == 'controls')) return false;
+    if (!_financialItems.any((item) => item.active && item.kind == 'initial')) {
+      return false;
+    }
+    if (!_financialItems.any(
+      (item) => item.active && item.kind == 'controls',
+    )) {
+      return false;
+    }
     for (final item in _financialItems) {
       if (item.name.trim().isEmpty) return false;
       if (item.amount < 0) return false;
@@ -157,9 +174,44 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     final saveState = ref.watch(savePatientTreatmentProvider);
     final saveFinancialState = ref.watch(saveTreatmentFinancialItemsProvider);
     final isLoading = saveState.isLoading || saveFinancialState.isLoading;
-    final catalogItems = ref.watch(treatmentCatalogProvider).asData?.value ?? const <TreatmentCatalogItem>[];
-    final visibleBaseOptions = <String>{...kBaseTreatmentOptions, ...catalogItems.map((item) => item.baseType)}.toList()
-      ..sort((a, b) => PatientTreatment.labelForBaseTreatment(a).compareTo(PatientTreatment.labelForBaseTreatment(b)));
+    final treatments =
+        ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
+        const <PatientTreatment>[];
+    final otherTreatments = treatments
+        .where((item) => item.id != widget.initialTreatment?.id)
+        .toList();
+    final existingPrimary = otherTreatments
+        .cast<PatientTreatment?>()
+        .firstWhere((item) => item?.isPrimary == true, orElse: () => null);
+    final isFirstTreatment =
+        widget.initialTreatment == null && treatments.isEmpty;
+    final editingCurrentPrimary = widget.initialTreatment?.isPrimary == true;
+    final shouldLockPrimary = editingCurrentPrimary && existingPrimary == null;
+    final resolvedIsPrimary = isFirstTreatment || shouldLockPrimary
+        ? true
+        : _isPrimary;
+    if (resolvedIsPrimary != _isPrimary ||
+        shouldLockPrimary != _primarySelectionLocked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _isPrimary = resolvedIsPrimary;
+          _primarySelectionLocked = shouldLockPrimary;
+        });
+      });
+    }
+    final catalogItems =
+        ref.watch(treatmentCatalogProvider).asData?.value ??
+        const <TreatmentCatalogItem>[];
+    final visibleBaseOptions =
+        <String>{
+          ...kBaseTreatmentOptions,
+          ...catalogItems.map((item) => item.baseType),
+        }.toList()..sort(
+          (a, b) => PatientTreatment.labelForBaseTreatment(
+            a,
+          ).compareTo(PatientTreatment.labelForBaseTreatment(b)),
+        );
 
     final financialSummary = _buildFinancialSummary();
     final patientLabel = widget.patientName?.trim().isNotEmpty == true
@@ -196,7 +248,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                               flex: 5,
                               child: SingleChildScrollView(
                                 primary: false,
-                                child: _buildClinicalSection(context, visibleBaseOptions, isLoading),
+                                child: _buildClinicalSection(
+                                  context,
+                                  visibleBaseOptions,
+                                  isLoading,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 20),
@@ -204,7 +260,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                               flex: 7,
                               child: SingleChildScrollView(
                                 primary: false,
-                                child: _buildFinancialSection(context, isLoading, financialSummary),
+                                child: _buildFinancialSection(
+                                  context,
+                                  isLoading,
+                                  financialSummary,
+                                ),
                               ),
                             ),
                           ],
@@ -215,9 +275,17 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildClinicalSection(context, visibleBaseOptions, isLoading),
+                            _buildClinicalSection(
+                              context,
+                              visibleBaseOptions,
+                              isLoading,
+                            ),
                             const SizedBox(height: 18),
-                            _buildFinancialSection(context, isLoading, financialSummary),
+                            _buildFinancialSection(
+                              context,
+                              isLoading,
+                              financialSummary,
+                            ),
                           ],
                         ),
                       );
@@ -233,10 +301,14 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                     OcgButton(
                       label: 'Cancelar',
                       variant: OcgButtonVariant.outline,
-                      onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                      onPressed: isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                     ),
                     OcgButton(
-                      label: widget.initialTreatment == null ? 'Guardar tratamiento' : 'Guardar cambios',
+                      label: widget.initialTreatment == null
+                          ? 'Guardar tratamiento'
+                          : 'Guardar cambios',
                       isLoading: isLoading,
                       onPressed: !_isValid || isLoading ? null : _submit,
                     ),
@@ -251,10 +323,26 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   }
 
   Widget _buildHeader(BuildContext context, String patientLabel) {
-    final firstTreatment = widget.initialTreatment == null;
+    final treatments =
+        ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
+        const <PatientTreatment>[];
+    final otherTreatments = treatments
+        .where((item) => item.id != widget.initialTreatment?.id)
+        .toList();
+    final existingPrimary = otherTreatments
+        .cast<PatientTreatment?>()
+        .firstWhere((item) => item?.isPrimary == true, orElse: () => null);
+    final firstTreatment =
+        widget.initialTreatment == null && treatments.isEmpty;
     final principalLabel = firstTreatment
-        ? 'Este tratamiento quedará como principal si es el primero del paciente.'
-        : (_isPrimary ? 'Tratamiento principal activo.' : 'Tratamiento secundario.');
+        ? 'Este tratamiento quedará como principal automáticamente porque es el primero del paciente.'
+        : existingPrimary != null && _isPrimary
+        ? 'Este tratamiento reemplazará automáticamente a ${existingPrimary.displayName} como principal.'
+        : existingPrimary != null
+        ? 'Ya existe un tratamiento principal: ${existingPrimary.displayName}. Este quedará como secundario salvo que actives el cambio.'
+        : (_isPrimary
+              ? 'Tratamiento principal activo.'
+              : 'Tratamiento secundario.');
 
     return Container(
       width: double.infinity,
@@ -268,26 +356,28 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.initialTreatment == null ? 'Crear tratamiento' : 'Editar tratamiento',
+            widget.initialTreatment == null
+                ? 'Crear tratamiento'
+                : 'Editar tratamiento',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: OcgColors.espresso,
-                ),
+              fontWeight: FontWeight.w800,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Paciente: $patientLabel',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: OcgColors.espresso,
-                ),
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Configura el tratamiento clínico y su estructura de costos.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: OcgColors.espresso.withValues(alpha: 0.82),
-                ),
+              color: OcgColors.espresso.withValues(alpha: 0.82),
+            ),
           ),
           const SizedBox(height: 10),
           Container(
@@ -298,7 +388,11 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             ),
             child: Row(
               children: [
-                Icon(_isPrimary ? Icons.star : Icons.layers_outlined, color: OcgColors.bronze, size: 18),
+                Icon(
+                  _isPrimary ? Icons.star : Icons.layers_outlined,
+                  color: OcgColors.bronze,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -324,7 +418,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   ) {
     return _SectionCard(
       title: 'Configuración clínica',
-      subtitle: 'Tipo, subtipo, estado, seguimiento y prioridad del tratamiento.',
+      subtitle:
+          'Tipo, subtipo, estado, seguimiento y prioridad del tratamiento.',
       child: Column(
         children: [
           Row(
@@ -334,12 +429,16 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                 flex: 3,
                 child: DropdownButtonFormField<String>(
                   value: _baseTreatment,
-                  decoration: const InputDecoration(labelText: 'Tipo de tratamiento'),
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de tratamiento',
+                  ),
                   items: [
                     ...visibleBaseOptions.map(
                       (value) => DropdownMenuItem<String>(
                         value: value,
-                        child: Text(PatientTreatment.labelForBaseTreatment(value)),
+                        child: Text(
+                          PatientTreatment.labelForBaseTreatment(value),
+                        ),
                       ),
                     ),
                     const DropdownMenuItem<String>(
@@ -351,14 +450,17 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                       ? null
                       : (value) {
                           if (value == null) return;
-                          final previousItems = List<_FinancialItemDraft>.from(_financialItems);
+                          final previousItems = List<_FinancialItemDraft>.from(
+                            _financialItems,
+                          );
                           setState(() {
                             _baseTreatment = value;
                             if (!_requiresSubtype) _subtype = null;
-                            _financialItems = _defaultDraftItemsForBaseTreatment(
-                              _effectiveBaseTreatment,
-                              previousItems: previousItems,
-                            );
+                            _financialItems =
+                                _defaultDraftItemsForBaseTreatment(
+                                  _effectiveBaseTreatment,
+                                  previousItems: previousItems,
+                                );
                           });
                         },
                 ),
@@ -408,23 +510,31 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                   enabled: !isLoading,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   onChanged: (value) =>
-                      _category = _normalizeValue(value).isEmpty ? 'ortodoncia' : _normalizeValue(value),
+                      _category = _normalizeValue(value).isEmpty
+                      ? 'ortodoncia'
+                      : _normalizeValue(value),
                 ),
               ),
               SizedBox(
                 width: 260,
                 child: DropdownButtonFormField<String>(
                   value: _status,
-                  decoration: const InputDecoration(labelText: 'Estado inicial'),
+                  decoration: const InputDecoration(
+                    labelText: 'Estado inicial',
+                  ),
                   items: kTreatmentStatusOptions
                       .map(
                         (value) => DropdownMenuItem<String>(
                           value: value,
-                          child: Text(PatientTreatment.labelForBaseTreatment(value)),
+                          child: Text(
+                            PatientTreatment.labelForBaseTreatment(value),
+                          ),
                         ),
                       )
                       .toList(),
-                  onChanged: isLoading ? null : (value) => setState(() => _status = value ?? 'activo'),
+                  onChanged: isLoading
+                      ? null
+                      : (value) => setState(() => _status = value ?? 'activo'),
                 ),
               ),
               SizedBox(
@@ -440,7 +550,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                         ),
                       )
                       .toList(),
-                  onChanged: isLoading ? null : (value) => setState(() => _stage = value ?? _stage),
+                  onChanged: isLoading
+                      ? null
+                      : (value) => setState(() => _stage = value ?? _stage),
                 ),
               ),
             ],
@@ -451,10 +563,12 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
               value: _subtype,
               decoration: const InputDecoration(
                 labelText: 'Subtipo obligatorio',
-                helperText: 'Para Convencional y Autoligado debes elegir Estético o Metálico.',
+                helperText:
+                    'Para Convencional y Autoligado debes elegir Estético o Metálico.',
               ),
               validator: (_) {
-                if (_requiresSubtype && (_subtype == null || _subtype!.trim().isEmpty)) {
+                if (_requiresSubtype &&
+                    (_subtype == null || _subtype!.trim().isEmpty)) {
                   return 'Debes elegir un subtipo.';
                 }
                 return null;
@@ -463,11 +577,15 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                   .map(
                     (value) => DropdownMenuItem<String>(
                       value: value,
-                      child: Text(PatientTreatment.labelForBaseTreatment(value)),
+                      child: Text(
+                        PatientTreatment.labelForBaseTreatment(value),
+                      ),
                     ),
                   )
                   .toList(),
-              onChanged: isLoading ? null : (value) => setState(() => _subtype = value),
+              onChanged: isLoading
+                  ? null
+                  : (value) => setState(() => _subtype = value),
             ),
           ],
           const SizedBox(height: 12),
@@ -527,12 +645,47 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             ],
           ),
           const SizedBox(height: 12),
-          SwitchListTile.adaptive(
-            value: _isPrimary,
-            onChanged: isLoading ? null : (value) => setState(() => _isPrimary = value),
-            title: const Text('Indicador de tratamiento principal'),
-            subtitle: const Text('Si es el primer tratamiento del paciente, debe quedar marcado como principal.'),
-            contentPadding: EdgeInsets.zero,
+          Builder(
+            builder: (context) {
+              final treatments =
+                  ref
+                      .watch(patientTreatmentsProvider(widget.patientId))
+                      .asData
+                      ?.value ??
+                  const <PatientTreatment>[];
+              final otherTreatments = treatments
+                  .where((item) => item.id != widget.initialTreatment?.id)
+                  .toList();
+              final existingPrimary = otherTreatments
+                  .cast<PatientTreatment?>()
+                  .firstWhere(
+                    (item) => item?.isPrimary == true,
+                    orElse: () => null,
+                  );
+              final firstTreatment =
+                  widget.initialTreatment == null && treatments.isEmpty;
+              final editingCurrentPrimary =
+                  widget.initialTreatment?.isPrimary == true;
+              final lockPrimary =
+                  editingCurrentPrimary && existingPrimary == null;
+              return SwitchListTile.adaptive(
+                value: firstTreatment || lockPrimary ? true : _isPrimary,
+                onChanged: isLoading || firstTreatment || lockPrimary
+                    ? null
+                    : (value) => setState(() => _isPrimary = value),
+                title: const Text('Indicador de tratamiento principal'),
+                subtitle: Text(
+                  firstTreatment
+                      ? 'Es el primer tratamiento del paciente, así que quedará principal automáticamente.'
+                      : lockPrimary
+                      ? 'Este es el único tratamiento principal actual. Para cambiarlo, marca otro tratamiento como principal.'
+                      : existingPrimary != null
+                      ? 'Ya existe un principal (${existingPrimary.displayName}). Esta opción viene desmarcada por defecto para evitar duplicados; si la activas, el sistema quitará el principal anterior automáticamente.'
+                      : 'No hay tratamiento principal actual. Este quedará principal al guardarse.',
+                ),
+                contentPadding: EdgeInsets.zero,
+              );
+            },
           ),
           const SizedBox(height: 12),
           TextFormField(
@@ -542,7 +695,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Notas clínicas',
-              hintText: 'Ej. Seguimiento sugerido, observaciones del caso, restricciones o contexto clínico.',
+              hintText:
+                  'Ej. Seguimiento sugerido, observaciones del caso, restricciones o contexto clínico.',
             ),
           ),
         ],
@@ -559,14 +713,21 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       children: [
         _SectionCard(
           title: 'Conceptos financieros base',
-          subtitle: 'El total del tratamiento se calcula con la suma de conceptos activos.',
+          subtitle:
+              'El total del tratamiento se calcula con la suma de conceptos activos.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ..._financialItems.asMap().entries.map(
                 (entry) => Padding(
-                  padding: EdgeInsets.only(bottom: entry.key == _financialItems.length - 1 ? 0 : 12),
-                  child: _buildFinancialItemCard(context, entry.value, isLoading),
+                  padding: EdgeInsets.only(
+                    bottom: entry.key == _financialItems.length - 1 ? 0 : 12,
+                  ),
+                  child: _buildFinancialItemCard(
+                    context,
+                    entry.value,
+                    isLoading,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -612,21 +773,25 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         const SizedBox(height: 16),
         _SectionCard(
           title: 'Monto total del tratamiento',
-          subtitle: 'Resultado autocalculado con Inicial + Controles + concepto base + extras activos.',
+          subtitle:
+              'Resultado autocalculado con Inicial + Controles + concepto base + extras activos.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 _currency.format(summary.totalAmount),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: OcgColors.espresso,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: OcgColors.espresso,
+                ),
               ),
               const SizedBox(height: 6),
               const Text(
                 'Este valor no se edita manualmente. Se genera a partir de los conceptos financieros activos.',
-                style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -634,15 +799,27 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         const SizedBox(height: 16),
         _SectionCard(
           title: 'Resumen financiero',
-          subtitle: 'Snapshot antes de guardar, separado de los pagos reales del paciente.',
+          subtitle:
+              'Snapshot antes de guardar, separado de los pagos reales del paciente.',
           child: Column(
             children: [
               _summaryRow('Moneda', summary.currency),
               _summaryRow('Subtotal', _currency.format(summary.subtotalAmount)),
-              _summaryRow('Descuento', _currency.format(summary.discountAmount)),
-              _summaryRow('Total', _currency.format(summary.totalAmount), emphasize: true),
+              _summaryRow(
+                'Descuento',
+                _currency.format(summary.discountAmount),
+              ),
+              _summaryRow(
+                'Total',
+                _currency.format(summary.totalAmount),
+                emphasize: true,
+              ),
               _summaryRow('Pagado', _currency.format(summary.paidAmount)),
-              _summaryRow('Saldo pendiente', _currency.format(summary.pendingAmount), emphasize: true),
+              _summaryRow(
+                'Saldo pendiente',
+                _currency.format(summary.pendingAmount),
+                emphasize: true,
+              ),
               _summaryRow('Conceptos activos', '${summary.itemsCount}'),
             ],
           ),
@@ -666,7 +843,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
         color: item.active ? Colors.white : const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: required ? OcgColors.bronze.withValues(alpha: 0.42) : OcgColors.espresso.withValues(alpha: 0.12),
+          color: required
+              ? OcgColors.bronze.withValues(alpha: 0.42)
+              : OcgColors.espresso.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -678,30 +857,41 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                 child: Text(
                   item.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: OcgColors.espresso,
-                        decoration: item.active ? null : TextDecoration.lineThrough,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    color: OcgColors.espresso,
+                    decoration: item.active ? null : TextDecoration.lineThrough,
+                  ),
                 ),
               ),
               IconButton(
                 tooltip: 'Renombrar concepto',
-                onPressed: isLoading ? null : () => _showRenameConceptDialog(item),
+                onPressed: isLoading
+                    ? null
+                    : () => _showRenameConceptDialog(item),
                 icon: const Icon(Icons.edit_outlined),
               ),
               if (effectiveDeleteAllowed)
                 IconButton(
-                  tooltip: item.active ? 'Desactivar concepto' : 'Activar concepto',
+                  tooltip: item.active
+                      ? 'Desactivar concepto'
+                      : 'Activar concepto',
                   onPressed: isLoading
                       ? null
                       : () {
                           setState(() {
-                            final index = _financialItems.indexWhere((draft) => draft.id == item.id);
+                            final index = _financialItems.indexWhere(
+                              (draft) => draft.id == item.id,
+                            );
                             if (index == -1) return;
-                            _financialItems[index] = _financialItems[index].copyWith(active: !item.active);
+                            _financialItems[index] = _financialItems[index]
+                                .copyWith(active: !item.active);
                           });
                         },
-                  icon: Icon(item.active ? Icons.delete_outline : Icons.restore_from_trash_outlined),
+                  icon: Icon(
+                    item.active
+                        ? Icons.delete_outline
+                        : Icons.restore_from_trash_outlined,
+                  ),
                 ),
             ],
           ),
@@ -712,9 +902,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
                 child: Text(
                   'Valor: ${_currency.format(item.amount)} COP',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: OcgColors.espresso,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               TextButton.icon(
@@ -731,13 +921,19 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             children: [
               _PillLabel(
                 text: required ? 'Obligatorio' : 'Opcional',
-                background: required ? const Color(0xFFFFF2DB) : const Color(0xFFF2F4F7),
+                background: required
+                    ? const Color(0xFFFFF2DB)
+                    : const Color(0xFFF2F4F7),
                 foreground: OcgColors.espresso,
               ),
               _PillLabel(
                 text: item.active ? 'Activo' : 'Inactivo',
-                background: item.active ? const Color(0xFFEAF7EE) : const Color(0xFFF0F0F0),
-                foreground: item.active ? const Color(0xFF2E7D4C) : const Color(0xFF666666),
+                background: item.active
+                    ? const Color(0xFFEAF7EE)
+                    : const Color(0xFFF0F0F0),
+                foreground: item.active
+                    ? const Color(0xFF2E7D4C)
+                    : const Color(0xFF666666),
               ),
               _PillLabel(
                 text: 'Orden ${item.order}',
@@ -750,7 +946,10 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             const SizedBox(height: 8),
             const Text(
               'Este concepto no se puede eliminar ni dejar vacío.',
-              style: TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ],
@@ -824,7 +1023,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
             FilledButton(
               onPressed: () {
                 final name = nameController.text.trim();
-                final amount = double.tryParse(amountController.text.trim()) ?? 0;
+                final amount =
+                    double.tryParse(amountController.text.trim()) ?? 0;
                 if (name.isEmpty || amount < 0) return;
                 Navigator.of(context).pop(
                   _FinancialItemDraft(
@@ -847,7 +1047,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
 
       if (created == null) return;
       setState(() {
-        _financialItems = [..._financialItems, created]..sort((a, b) => a.order.compareTo(b.order));
+        _financialItems = [..._financialItems, created]
+          ..sort((a, b) => a.order.compareTo(b.order));
       });
     } finally {
       nameController.dispose();
@@ -873,7 +1074,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: const Text('Guardar'),
             ),
           ],
@@ -881,7 +1083,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       );
       if (renamed == null || renamed.trim().isEmpty) return;
       setState(() {
-        final index = _financialItems.indexWhere((draft) => draft.id == item.id);
+        final index = _financialItems.indexWhere(
+          (draft) => draft.id == item.id,
+        );
         if (index == -1) return;
         _financialItems[index] = _financialItems[index].copyWith(
           name: FinancialItemModel.humanize(renamed),
@@ -893,7 +1097,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
   }
 
   Future<void> _showAmountDialog(_FinancialItemDraft item) async {
-    final controller = TextEditingController(text: item.amount.toInt().toString());
+    final controller = TextEditingController(
+      text: item.amount.toInt().toString(),
+    );
     try {
       final updated = await showDialog<double>(
         context: context,
@@ -902,9 +1108,7 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Monto en COP',
-            ),
+            decoration: const InputDecoration(labelText: 'Monto en COP'),
           ),
           actions: [
             TextButton(
@@ -924,9 +1128,13 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       );
       if (updated == null) return;
       setState(() {
-        final index = _financialItems.indexWhere((draft) => draft.id == item.id);
+        final index = _financialItems.indexWhere(
+          (draft) => draft.id == item.id,
+        );
         if (index == -1) return;
-        _financialItems[index] = _financialItems[index].copyWith(amount: updated);
+        _financialItems[index] = _financialItems[index].copyWith(
+          amount: updated,
+        );
       });
     } finally {
       controller.dispose();
@@ -946,7 +1154,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       'baseTreatment': _effectiveBaseTreatment,
       'subtype': _subtype,
       'itemsDraftCount': _financialItems.length,
-      'activeItemsDraftCount': _financialItems.where((item) => item.active).length,
+      'activeItemsDraftCount': _financialItems
+          .where((item) => item.active)
+          .length,
     };
 
     try {
@@ -964,7 +1174,8 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       }
       final session = await authService.inspectCurrentSession();
       diagnostics['session'] = session;
-      diagnostics['resolvedRole'] = session['refreshedRole'] ?? session['cachedRole'];
+      diagnostics['resolvedRole'] =
+          session['refreshedRole'] ?? session['cachedRole'];
       _debugSave('session_resolved', diagnostics);
 
       final catalogRepo = ref.read(treatmentCatalogRepositoryProvider);
@@ -972,12 +1183,17 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       String effectiveName = _effectiveName;
 
       if (_isCustomBase) {
-        final normalizedName = TreatmentCatalogRepository.normalizeCatalogName(_customNameController.text);
+        final normalizedName = TreatmentCatalogRepository.normalizeCatalogName(
+          _customNameController.text,
+        );
         final existing = await catalogRepo.findByNormalizedName(normalizedName);
         if (existing == null) {
-          final confirmed = await _confirmCreateCatalogTreatment(_normalizeHumanName(_customNameController.text));
+          final confirmed = await _confirmCreateCatalogTreatment(
+            _normalizeHumanName(_customNameController.text),
+          );
           if (!confirmed) return;
-          final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+          final adminId =
+              ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
           final created = await catalogRepo.ensureCustomTreatmentExists(
             displayName: _customNameController.text,
             category: _category,
@@ -992,48 +1208,58 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       }
 
       final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
-      final treatmentId = widget.initialTreatment?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
+      final treatmentId =
+          widget.initialTreatment?.id ??
+          DateTime.now().microsecondsSinceEpoch.toString();
       final summary = _buildFinancialSummary();
-      final treatment = (widget.initialTreatment ??
-              PatientTreatment(
+      final treatment =
+          (widget.initialTreatment ??
+                  PatientTreatment(
+                    id: treatmentId,
+                    patientId: widget.patientId,
+                    nombre: effectiveName,
+                    categoria: _category,
+                    tipoBase: effectiveBaseType,
+                    estado: _status,
+                    etapaActual: _stage,
+                    fechaInicio: _fechaInicio,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                    isPrimary: _isPrimary,
+                    createdBy: adminId,
+                    updatedBy: adminId,
+                  ))
+              .copyWith(
                 id: treatmentId,
-                patientId: widget.patientId,
                 nombre: effectiveName,
                 categoria: _category,
                 tipoBase: effectiveBaseType,
+                subtipo: _requiresSubtype ? _subtype : null,
                 estado: _status,
                 etapaActual: _stage,
+                patientId: widget.patientId,
                 fechaInicio: _fechaInicio,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
+                fechaFin: (_status == 'finalizado' || _status == 'cancelado')
+                    ? DateTime.now()
+                    : null,
                 isPrimary: _isPrimary,
-                createdBy: adminId,
                 updatedBy: adminId,
-              ))
-          .copyWith(
-        id: treatmentId,
-        nombre: effectiveName,
-        categoria: _category,
-        tipoBase: effectiveBaseType,
-        subtipo: _requiresSubtype ? _subtype : null,
-        estado: _status,
-        etapaActual: _stage,
-        patientId: widget.patientId,
-        fechaInicio: _fechaInicio,
-        fechaFin: (_status == 'finalizado' || _status == 'cancelado') ? DateTime.now() : null,
-        isPrimary: _isPrimary,
-        updatedBy: adminId,
-        notas: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        suggestedCleaningEveryMonths: _cleaningMonths,
-        suggestedControlEveryMonths: _controlMonths,
-        totalTratamiento: summary.totalAmount,
-        saldoPendiente: summary.pendingAmount,
-        clearSubtype: !_requiresSubtype,
-      );
+                notas: _notesController.text.trim().isEmpty
+                    ? null
+                    : _notesController.text.trim(),
+                suggestedCleaningEveryMonths: _cleaningMonths,
+                suggestedControlEveryMonths: _controlMonths,
+                totalTratamiento: summary.totalAmount,
+                saldoPendiente: summary.pendingAmount,
+                clearSubtype: !_requiresSubtype,
+              );
 
       final previousBaseType = widget.initialTreatment?.tipoBase;
       if (previousBaseType != null && previousBaseType != treatment.tipoBase) {
-        final confirmed = await _confirmBaseTypeChange(previousBaseType, treatment.tipoBase);
+        final confirmed = await _confirmBaseTypeChange(
+          previousBaseType,
+          treatment.tipoBase,
+        );
         if (!confirmed) return;
       }
 
@@ -1051,18 +1277,23 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       };
       _debugSave('before_save_treatment', diagnostics);
 
-      await ref.read(savePatientTreatmentProvider.notifier).saveTreatment(
+      await ref
+          .read(savePatientTreatmentProvider.notifier)
+          .saveTreatment(
             patientId: widget.patientId,
             treatment: treatment,
-            previousPrimaryId: widget.initialTreatment?.isPrimary == true ? widget.initialTreatment!.id : null,
+            previousPrimaryId: widget.initialTreatment?.isPrimary == true
+                ? widget.initialTreatment!.id
+                : null,
           );
 
       diagnostics['step'] = 'after_save_treatment';
       final treatmentRepo = ref.read(patientTreatmentsRepositoryProvider);
-      final treatmentVerification = await treatmentRepo.verifyTreatmentPersistence(
-        patientId: widget.patientId,
-        treatmentId: treatment.id,
-      );
+      final treatmentVerification = await treatmentRepo
+          .verifyTreatmentPersistence(
+            patientId: widget.patientId,
+            treatmentId: treatment.id,
+          );
       diagnostics['treatmentVerification'] = {
         ...treatmentVerification,
         'projectId': DefaultFirebaseOptions.currentPlatform.projectId,
@@ -1073,31 +1304,36 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       }
       _debugSave('after_save_treatment', diagnostics);
 
-      final items = _financialItems
-          .map(
-            (draft) => draft.toModel(
-              patientId: widget.patientId,
-              treatmentId: treatment.id,
-              updatedBy: adminId,
-            ),
-          )
-          .toList()
-        ..sort((a, b) => a.order.compareTo(b.order));
+      final items =
+          _financialItems
+              .map(
+                (draft) => draft.toModel(
+                  patientId: widget.patientId,
+                  treatmentId: treatment.id,
+                  updatedBy: adminId,
+                ),
+              )
+              .toList()
+            ..sort((a, b) => a.order.compareTo(b.order));
 
       diagnostics['step'] = 'before_replace_items';
       diagnostics['financialItemsPayload'] = items
-          .map((item) => {
-                'id': item.id,
-                'name': item.name,
-                'kind': item.kind,
-                'amount': item.amount,
-                'active': item.active,
-                'order': item.order,
-              })
+          .map(
+            (item) => {
+              'id': item.id,
+              'name': item.name,
+              'kind': item.kind,
+              'amount': item.amount,
+              'active': item.active,
+              'order': item.order,
+            },
+          )
           .toList();
       _debugSave('before_replace_items', diagnostics);
 
-      await ref.read(saveTreatmentFinancialItemsProvider.notifier).replaceItems(
+      await ref
+          .read(saveTreatmentFinancialItemsProvider.notifier)
+          .replaceItems(
             patientId: widget.patientId,
             treatment: treatment,
             items: items,
@@ -1105,18 +1341,21 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
           );
 
       final financialRepo = ref.read(treatmentFinancialRepositoryProvider);
-      final itemsVerification = await financialRepo.verifyFinancialItemsPersistence(
-        patientId: widget.patientId,
-        treatmentId: treatment.id,
-      );
+      final itemsVerification = await financialRepo
+          .verifyFinancialItemsPersistence(
+            patientId: widget.patientId,
+            treatmentId: treatment.id,
+          );
       diagnostics['itemsVerification'] = itemsVerification;
       if ((itemsVerification['count'] as int? ?? 0) <= 0) {
         throw Exception('FINANCIAL_ITEMS_NOT_FOUND_AFTER_WRITE');
       }
 
       diagnostics['step'] = 'save_completed';
-      diagnostics['projectIdConfirmed'] = DefaultFirebaseOptions.currentPlatform.projectId;
-      diagnostics['pathConfirmed'] = 'patients/${widget.patientId}/treatments/${treatment.id}';
+      diagnostics['projectIdConfirmed'] =
+          DefaultFirebaseOptions.currentPlatform.projectId;
+      diagnostics['pathConfirmed'] =
+          'patients/${widget.patientId}/treatments/${treatment.id}';
       diagnostics['doc_exists_after_write'] = true;
       diagnostics['items_count_after_write'] = itemsVerification['count'];
       _debugSave('save_completed', diagnostics);
@@ -1177,7 +1416,9 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar nuevo tratamiento'),
-        content: Text('¿Confirmas crear este tratamiento global con el nombre "$treatmentName"?'),
+        content: Text(
+          '¿Confirmas crear este tratamiento global con el nombre "$treatmentName"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1226,7 +1467,12 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     }) {
       final existing = previousById[id] ?? previousByKind[kind];
       if (existing != null) {
-        return existing.copyWith(id: id, kind: kind, name: existing.name.isEmpty ? name : existing.name, order: order);
+        return existing.copyWith(
+          id: id,
+          kind: kind,
+          name: existing.name.isEmpty ? name : existing.name,
+          order: order,
+        );
       }
 
       final transformed = wantsOrthopedics
@@ -1279,23 +1525,37 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
       ),
     ];
 
-    final extras = previous
-        .where((item) => !{'initial', 'controls', 'retainers', 'appliance_1'}.contains(item.id))
-        .map((item) => item.copyWith(order: item.order < 4 ? _nextOrderFor(previous) : item.order))
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final extras =
+        previous
+            .where(
+              (item) => !{
+                'initial',
+                'controls',
+                'retainers',
+                'appliance_1',
+              }.contains(item.id),
+            )
+            .map(
+              (item) => item.copyWith(
+                order: item.order < 4 ? _nextOrderFor(previous) : item.order,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
 
     return [...requiredItems, ...extras];
   }
 
   TreatmentFinancialSummaryModel _buildFinancialSummary() {
-    final active = _financialItems.where((item) => item.active).toList()..sort((a, b) => a.order.compareTo(b.order));
+    final active = _financialItems.where((item) => item.active).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
     final total = active.fold<double>(0, (sum, item) => sum + item.amount);
     final previousPaid = widget.initialTreatment == null
         ? 0.0
-        : ((widget.initialTreatment!.totalTratamiento ?? 0) - (widget.initialTreatment!.saldoPendiente ?? 0))
-            .clamp(0, double.infinity)
-            .toDouble();
+        : ((widget.initialTreatment!.totalTratamiento ?? 0) -
+                  (widget.initialTreatment!.saldoPendiente ?? 0))
+              .clamp(0, double.infinity)
+              .toDouble();
     final pending = (total - previousPaid).clamp(0, double.infinity).toDouble();
     return TreatmentFinancialSummaryModel(
       currency: 'COP',
@@ -1369,14 +1629,23 @@ class _ManagePatientTreatmentDialogState extends ConsumerState<ManagePatientTrea
     return raw;
   }
 
-  void _debugSave(String stage, Map<String, dynamic> diagnostics, {StackTrace? stackTrace}) {
-    debugPrint('[ManagePatientTreatmentDialog][$stage] ${diagnostics.toString()}');
+  void _debugSave(
+    String stage,
+    Map<String, dynamic> diagnostics, {
+    StackTrace? stackTrace,
+  }) {
+    debugPrint(
+      '[ManagePatientTreatmentDialog][$stage] ${diagnostics.toString()}',
+    );
     if (stackTrace != null) {
       debugPrint(stackTrace.toString());
     }
   }
 
-  Future<void> _showTechnicalErrorDialog(String message, Map<String, dynamic> diagnostics) async {
+  Future<void> _showTechnicalErrorDialog(
+    String message,
+    Map<String, dynamic> diagnostics,
+  ) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -1435,16 +1704,16 @@ class _SectionCard extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: OcgColors.espresso,
-                ),
+              fontWeight: FontWeight.w800,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: OcgColors.espresso.withValues(alpha: 0.78),
-                ),
+              color: OcgColors.espresso.withValues(alpha: 0.78),
+            ),
           ),
           const SizedBox(height: 16),
           child,

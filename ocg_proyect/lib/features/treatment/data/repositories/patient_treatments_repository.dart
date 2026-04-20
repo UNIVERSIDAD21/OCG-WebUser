@@ -62,8 +62,23 @@ class PatientTreatmentsRepository {
 
     final now = DateTime.now();
     final docRef = _treatmentsRef(patientId).doc(treatment.id);
+    final treatmentsSnapshot = await _treatmentsRef(patientId).get();
+    final siblingTreatments = treatmentsSnapshot.docs
+        .where((doc) => doc.id != treatment.id)
+        .map((doc) => PatientTreatment.fromJson(doc.data(), id: doc.id))
+        .toList();
+
+    final currentPrimary = siblingTreatments
+        .cast<PatientTreatment?>()
+        .firstWhere((item) => item?.isPrimary == true, orElse: () => null);
+    final isFirstTreatment =
+        siblingTreatments.isEmpty &&
+        !treatmentsSnapshot.docs.any((doc) => doc.id == treatment.id);
+    final mustBePrimary = isFirstTreatment || currentPrimary == null;
+
     final normalized = treatment.copyWith(
       patientId: patientId,
+      isPrimary: mustBePrimary ? true : treatment.isPrimary,
       updatedAt: now,
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
@@ -98,27 +113,29 @@ class PatientTreatmentsRepository {
         'isPrimary': true,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    }
 
-    batch.set(
-      _patientRef(patientId),
-      _patientProjection(normalized),
-      SetOptions(merge: true),
-    );
+      batch.set(
+        _patientRef(patientId),
+        _patientProjection(normalized),
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _legacyPaymentRef(patientId),
+        _legacyPaymentMirror(patientId, normalized),
+        SetOptions(merge: true),
+      );
+    } else {
+      batch.set(docRef, {
+        'isPrimary': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
 
     batch.set(
       _paymentRef(patientId, normalized.id),
       _treatmentPaymentProjection(patientId, normalized),
       SetOptions(merge: true),
     );
-
-    if (normalized.isPrimary) {
-      batch.set(
-        _legacyPaymentRef(patientId),
-        _legacyPaymentMirror(patientId, normalized),
-        SetOptions(merge: true),
-      );
-    }
 
     await batch.commit();
   }
