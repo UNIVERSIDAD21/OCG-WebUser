@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../features/admin/presentation/web/layout/admin_desktop_layout.dart';
 import 'web_breakpoints.dart';
 
 class WebLayoutContext {
@@ -13,4 +14,8 @@ class WebLayoutContext {
 
   static bool useCompactDesktop(BuildContext context) =>
       WebBreakpoints.isCompactDesktop(context);
+
+  static AdminDesktopLayoutData? maybeAdminDesktopLayout(
+    BuildContext context,
+  ) => AdminDesktopLayoutScope.maybeOf(context);
 }

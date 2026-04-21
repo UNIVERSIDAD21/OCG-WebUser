@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../presentation/web/common/web_breakpoints.dart';
 import '../../../../../presentation/web/common/web_layout_context.dart';
 import '../../../../../presentation/web/common/web_page_container.dart';
 import '../components/admin_sidebar.dart';
+import '../layout/admin_desktop_layout.dart';
 
 class AdminWebShell extends StatelessWidget {
   const AdminWebShell({super.key, required this.title, required this.child});
@@ -17,25 +17,36 @@ class AdminWebShell extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compactDesktop = constraints.maxWidth < 1320;
-        final sidebarWidth = compactDesktop ? 220.0 : 250.0;
+        final layout = AdminDesktopLayoutData.fromViewport(
+          Size(constraints.maxWidth, constraints.maxHeight),
+        );
 
-        return Scaffold(
-          body: Row(
-            children: [
-              SizedBox(width: sidebarWidth, child: const AdminSidebar()),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: WebPageContainer(
-                    maxWidth: WebBreakpoints.shellMaxWidth(context),
-                    padding: EdgeInsets.all(
-                      WebBreakpoints.shellHorizontalPadding(context),
-                    ),
-                    child: child,
+        return AdminDesktopLayoutScope(
+          layout: layout,
+          child: Scaffold(
+            body: Row(
+              children: [
+                SizedBox(
+                  width: layout.sidebarWidth,
+                  child: AdminSidebar(
+                    collapsed: layout.sidebarMode == AdminSidebarMode.collapsed,
                   ),
                 ),
-              ),
-            ],
+                SizedBox(width: layout.shellGap),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: WebPageContainer(
+                      maxWidth: layout.contentMaxWidth,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: layout.pageHorizontalPadding,
+                        vertical: layout.sectionSpacing,
+                      ),
+                      child: child,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

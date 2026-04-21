@@ -9,7 +9,9 @@ import '../../../../../shared/theme/ocg_colors.dart';
 import '../../../../auth/providers/auth_providers.dart';
 
 class AdminSidebar extends ConsumerStatefulWidget {
-  const AdminSidebar({super.key});
+  const AdminSidebar({super.key, this.collapsed = false});
+
+  final bool collapsed;
 
   @override
   ConsumerState<AdminSidebar> createState() => _AdminSidebarState();
@@ -57,7 +59,8 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
         final name = (data['nombre'] ?? '').toString();
         final email = (data['email'] ?? '').toString();
 
-        final match = name.toLowerCase().contains(query) ||
+        final match =
+            name.toLowerCase().contains(query) ||
             email.toLowerCase().contains(query);
         if (!match) continue;
 
@@ -120,6 +123,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
   @override
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
+    final collapsed = widget.collapsed;
 
     final items = <({String label, IconData icon, String route})>[
       (
@@ -167,130 +171,196 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 32, 20, 24),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                collapsed ? 12 : 20,
+                32,
+                collapsed ? 12 : 20,
+                24,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: collapsed
+                    ? CrossAxisAlignment.center
+                    : CrossAxisAlignment.start,
                 children: [
                   Text(
                     'OCG',
                     style: TextStyle(
                       color: OcgColors.ivory,
-                      fontSize: 24,
+                      fontSize: collapsed ? 18 : 24,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 2.8,
+                      letterSpacing: collapsed ? 1.4 : 2.8,
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'PANEL CLÍNICO',
-                    style: TextStyle(
-                      color: Color(0xFF6E5442),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 1.8,
+                  if (!collapsed) ...[
+                    const SizedBox(height: 2),
+                    const Text(
+                      'PANEL CLÍNICO',
+                      style: TextStyle(
+                        color: Color(0xFF6E5442),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.8,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
             Container(
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              margin: EdgeInsets.fromLTRB(
+                collapsed ? 16 : 20,
+                0,
+                collapsed ? 16 : 20,
+                20,
+              ),
               height: 1,
               color: const Color(0x0DFFFFFF),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: TextField(
-                controller: _searchCtrl,
-                onSubmitted: (_) => _runSystemSearch(context, items),
-                style: const TextStyle(color: Color(0xFFB09070), fontSize: 12),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Buscar pacientes o s...',
-                  hintStyle: const TextStyle(color: Color(0xFF6E5442), fontSize: 12),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    size: 14,
-                    color: Color(0xFF6E5442),
-                  ),
-                  suffixIcon: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: IconButton(
-                      onPressed: () => _runSystemSearch(context, items),
-                      icon: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: const Color(0x12FFFFFF),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 12,
-                          color: Color(0xFF7E6A5B),
+            if (collapsed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: Tooltip(
+                  message: 'Buscar en el sistema',
+                  child: Material(
+                    color: const Color(0x0DFFFFFF),
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => _runSystemSearch(context, items),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Icon(
+                          Icons.search,
+                          size: 18,
+                          color: Color(0xFF6E5442),
                         ),
                       ),
                     ),
                   ),
-                  filled: true,
-                  fillColor: const Color(0x0DFFFFFF),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(999),
-                    borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onSubmitted: (_) => _runSystemSearch(context, items),
+                  style: const TextStyle(
+                    color: Color(0xFFB09070),
+                    fontSize: 12,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(999),
-                    borderSide: const BorderSide(color: Color(0x12FFFFFF)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(999),
-                    borderSide: const BorderSide(color: Color(0x25FFFFFF)),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Buscar pacientes o secciones...',
+                    hintStyle: const TextStyle(
+                      color: Color(0xFF6E5442),
+                      fontSize: 12,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      size: 14,
+                      color: Color(0xFF6E5442),
+                    ),
+                    suffixIcon: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: IconButton(
+                        onPressed: () => _runSystemSearch(context, items),
+                        icon: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: const Color(0x12FFFFFF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: Color(0xFF7E6A5B),
+                          ),
+                        ),
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0x0DFFFFFF),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 9,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Color(0x25FFFFFF)),
+                    ),
                   ),
                 ),
               ),
-            ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                padding: EdgeInsets.symmetric(
+                  horizontal: collapsed ? 10 : 12,
                   vertical: 0,
                 ),
                 children: items.map((item) {
-                  final active = currentRoute == item.route ||
+                  final active =
+                      currentRoute == item.route ||
                       currentRoute.startsWith('${item.route}/');
 
-                  final bgColor = active ? const Color(0xFFF5EDE0) : Colors.transparent;
-                  final fgColor = active ? const Color(0xFF2C2016) : const Color(0xFF7E6A5B);
+                  final bgColor = active
+                      ? const Color(0xFFF5EDE0)
+                      : Colors.transparent;
+                  final fgColor = active
+                      ? const Color(0xFF2C2016)
+                      : const Color(0xFF7E6A5B);
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 1),
-                    child: Material(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Tooltip(
+                      message: item.label,
+                      child: Material(
+                        color: bgColor,
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => context.go(item.route),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 9,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(item.icon, color: fgColor, size: 15),
-                              const SizedBox(width: 10),
-                              Text(
-                                item.label,
-                                style: TextStyle(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => context.go(item.route),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: collapsed ? 0 : 12,
+                              vertical: collapsed ? 12 : 9,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: collapsed
+                                  ? MainAxisAlignment.center
+                                  : MainAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  item.icon,
                                   color: fgColor,
-                                  fontSize: 13,
-                                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                                  letterSpacing: 0.12,
+                                  size: collapsed ? 18 : 15,
                                 ),
-                              ),
-                            ],
+                                if (!collapsed) ...[
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    item.label,
+                                    style: TextStyle(
+                                      color: fgColor,
+                                      fontSize: 13,
+                                      fontWeight: active
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      letterSpacing: 0.12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -300,53 +370,68 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 24),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
+              padding: EdgeInsets.fromLTRB(12, 16, 12, collapsed ? 16 : 24),
+              child: Tooltip(
+                message: 'Cerrar sesión',
+                child: Material(
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Cerrar sesión'),
-                        content: const Text('¿Deseas cerrar tu sesión?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancelar'),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Cerrar sesión'),
+                          content: const Text('¿Deseas cerrar tu sesión?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Cerrar sesión'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm != true) return;
+
+                      await ref.read(authServiceProvider).signOut();
+                      if (context.mounted) {
+                        context.go(RouteNames.login);
+                      }
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: collapsed ? 0 : 12,
+                        vertical: collapsed ? 12 : 9,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: collapsed
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.logout,
+                            color: Color(0xFF6E5442),
+                            size: 15,
                           ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Cerrar sesión'),
-                          ),
+                          if (!collapsed) ...[
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Cerrar sesión',
+                              style: TextStyle(
+                                color: Color(0xFF6E5442),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                    );
-
-                    if (confirm != true) return;
-
-                    await ref.read(authServiceProvider).signOut();
-                    if (context.mounted) {
-                      context.go(RouteNames.login);
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Color(0xFF6E5442), size: 15),
-                        SizedBox(width: 10),
-                        Text(
-                          'Cerrar sesión',
-                          style: TextStyle(
-                            color: Color(0xFF6E5442),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
