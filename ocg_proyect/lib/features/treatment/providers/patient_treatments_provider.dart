@@ -1,17 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../patients/data/models/patient_data_resolution.dart';
 import '../../patients/data/models/patient_model.dart';
+import '../../patients/data/services/patient_data_resolution_service.dart';
 import '../data/models/patient_treatment.dart';
 import '../data/repositories/patient_treatments_repository.dart';
 
-final patientTreatmentsRepositoryProvider = Provider<PatientTreatmentsRepository>((ref) {
-  return PatientTreatmentsRepository(FirebaseFirestore.instance);
-});
+final patientTreatmentsRepositoryProvider =
+    Provider<PatientTreatmentsRepository>((ref) {
+      return PatientTreatmentsRepository(FirebaseFirestore.instance);
+    });
 
-final patientTreatmentsProvider = StreamProvider.family<List<PatientTreatment>, String>((ref, patientId) {
-  return ref.watch(patientTreatmentsRepositoryProvider).watchPatientTreatments(patientId);
-});
+final patientDataResolutionServiceProvider =
+    Provider<PatientDataResolutionService>((ref) {
+      return const PatientDataResolutionService();
+    });
+
+final patientTreatmentsProvider =
+    StreamProvider.family<List<PatientTreatment>, String>((ref, patientId) {
+      return ref
+          .watch(patientTreatmentsRepositoryProvider)
+          .watchPatientTreatments(patientId);
+    });
 
 class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   @override
@@ -23,7 +34,9 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(patientTreatmentsRepositoryProvider).migrateLegacyPatientTreatmentIfNeeded(
+      await ref
+          .read(patientTreatmentsRepositoryProvider)
+          .migrateLegacyPatientTreatmentIfNeeded(
             patient: patient,
             createdBy: createdBy,
           );
@@ -37,7 +50,9 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(patientTreatmentsRepositoryProvider).saveTreatment(
+      await ref
+          .read(patientTreatmentsRepositoryProvider)
+          .saveTreatment(
             patientId: patientId,
             treatment: treatment,
             previousPrimaryId: previousPrimaryId,
@@ -51,10 +66,9 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(patientTreatmentsRepositoryProvider).setPrimaryTreatment(
-            patientId: patientId,
-            treatment: treatment,
-          ),
+      () => ref
+          .read(patientTreatmentsRepositoryProvider)
+          .setPrimaryTreatment(patientId: patientId, treatment: treatment),
     );
   }
 
@@ -65,7 +79,9 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(patientTreatmentsRepositoryProvider).updateTreatmentStatus(
+      () => ref
+          .read(patientTreatmentsRepositoryProvider)
+          .updateTreatmentStatus(
             patientId: patientId,
             treatment: treatment,
             newStatus: newStatus,
@@ -76,13 +92,51 @@ class SavePatientTreatmentNotifier extends AsyncNotifier<void> {
 
 final savePatientTreatmentProvider =
     AsyncNotifierProvider.autoDispose<SavePatientTreatmentNotifier, void>(
-  SavePatientTreatmentNotifier.new,
-);
+      SavePatientTreatmentNotifier.new,
+    );
 
-final effectivePatientTreatmentsProvider = Provider.family<List<PatientTreatment>, ({String patientId, PatientModel patient})>((ref, args) {
-  final asyncTreatments = ref.watch(patientTreatmentsProvider(args.patientId));
-  final remote = asyncTreatments.asData?.value ?? const <PatientTreatment>[];
-  if (remote.isNotEmpty) return remote;
-  if (args.patient.tipoTratamiento == null) return const <PatientTreatment>[];
-  return <PatientTreatment>[PatientTreatment.fromLegacyPatient(args.patient)];
-});
+final effectivePatientTreatmentsProvider =
+    Provider.family<
+      List<PatientTreatment>,
+      ({String patientId, PatientModel patient})
+    >((ref, args) {
+      final asyncTreatments = ref.watch(
+        patientTreatmentsProvider(args.patientId),
+      );
+      final remote =
+          asyncTreatments.asData?.value ?? const <PatientTreatment>[];
+      final resolved = ref
+          .watch(patientDataResolutionServiceProvider)
+          .resolve(
+            patient: args.patient,
+            newTreatments: remote,
+            legacyPayment: null,
+            treatmentPayments: const [],
+            legacyTransactions: const [],
+            treatmentTransactions: const [],
+          );
+      return resolved.treatments;
+    });
+
+final patientDataModeProvider =
+    Provider.family<
+      PatientDataMode,
+      ({String patientId, PatientModel patient})
+    >((ref, args) {
+      final asyncTreatments = ref.watch(
+        patientTreatmentsProvider(args.patientId),
+      );
+      final remote =
+          asyncTreatments.asData?.value ?? const <PatientTreatment>[];
+      final resolved = ref
+          .watch(patientDataResolutionServiceProvider)
+          .resolve(
+            patient: args.patient,
+            newTreatments: remote,
+            legacyPayment: null,
+            treatmentPayments: const [],
+            legacyTransactions: const [],
+            treatmentTransactions: const [],
+          );
+      return resolved.mode;
+    });
