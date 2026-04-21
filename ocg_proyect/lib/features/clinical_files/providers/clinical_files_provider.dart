@@ -44,6 +44,19 @@ final patientClinicalFilesProvider =
           );
     });
 
+class ClinicalFileUploadProgressNotifier extends Notifier<double?> {
+  @override
+  double? build() => null;
+
+  void setProgress(double? value) => state = value;
+  void reset() => state = null;
+}
+
+final clinicalFileUploadProgressProvider =
+    NotifierProvider<ClinicalFileUploadProgressNotifier, double?>(
+      ClinicalFileUploadProgressNotifier.new,
+    );
+
 class UploadClinicalFileNotifier extends AsyncNotifier<void> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
@@ -62,7 +75,10 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
     final storage = ref.read(clinicalFilesStorageProvider);
     final repository = ref.read(clinicalFilesRepositoryProvider);
 
-    state = const AsyncLoading();
+    final progressState = ref.read(clinicalFileUploadProgressProvider.notifier);
+
+    state = const AsyncLoading(progress: 0);
+    progressState.setProgress(0);
     state = await AsyncValue.guard(() async {
       final picked = await picker.pick();
       if (picked == null) {
@@ -84,6 +100,10 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
           treatmentId: treatment?.id,
           fileId: fileId,
           file: picked,
+          onProgress: (progress) {
+            progressState.setProgress(progress);
+            state = AsyncLoading(progress: progress);
+          },
         );
 
         final now = DateTime.now();
@@ -111,6 +131,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
         );
 
         await repository.saveMetadata(model);
+        progressState.setProgress(1);
       } on FirebaseException catch (error) {
         if (error.plugin == 'firebase_storage' ||
             error.code == 'unauthorized') {
@@ -135,6 +156,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
         rethrow;
       }
     });
+    progressState.reset();
   }
 
   Future<void> softDelete({

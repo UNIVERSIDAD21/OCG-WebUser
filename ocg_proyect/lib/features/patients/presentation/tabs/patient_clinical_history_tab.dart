@@ -40,6 +40,8 @@ class _PatientClinicalHistoryTabState
         patient: widget.patient,
       )),
     );
+    final uploadState = ref.watch(uploadClinicalFileProvider);
+    final uploadProgress = ref.watch(clinicalFileUploadProgressProvider);
     final selectedTreatment = _resolveSelectedTreatment(treatments);
     final filesAsync = ref.watch(
       patientClinicalFilesProvider((
@@ -67,15 +69,22 @@ class _PatientClinicalHistoryTabState
                 ),
               ),
               FilledButton.icon(
-                onPressed: selectedTreatment == null
+                onPressed: selectedTreatment == null || uploadState.isLoading
                     ? null
                     : () => _showUploadDialog(selectedTreatment),
                 icon: const Icon(Icons.upload_file),
-                label: const Text('Subir archivo'),
+                label: Text(
+                  uploadState.isLoading
+                      ? 'Subiendo archivo...'
+                      : 'Subir archivo',
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+          if (uploadState.isLoading)
+            _ClinicalUploadProgressCard(progress: uploadProgress ?? 0),
+          if (uploadState.isLoading) const SizedBox(height: 12),
           if (treatments.isEmpty)
             Container(
               width: double.infinity,
@@ -343,6 +352,78 @@ class _PatientClinicalHistoryTabState
       return 'Falló la persistencia de metadata del archivo en Firestore.';
     }
     return raw;
+  }
+}
+
+class _ClinicalUploadProgressCard extends StatelessWidget {
+  const _ClinicalUploadProgressCard({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = progress.clamp(0, 1).toDouble();
+    final percent = (clamped * 100).round();
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OcgColors.mist,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.cloud_upload_outlined,
+                color: OcgColors.espresso,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Subiendo archivo clínico... $percent%',
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: clamped),
+            duration: const Duration(milliseconds: 250),
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 10,
+                value: value,
+                backgroundColor: OcgColors.ivory,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  OcgColors.espresso,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            clamped >= 1
+                ? 'Finalizando guardado de metadata...'
+                : 'No cierres esta pantalla mientras termina la subida.',
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

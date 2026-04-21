@@ -18,6 +18,7 @@ class ClinicalFilesStorageService {
     String? treatmentId,
     required String fileId,
     required PickedClinicalFile file,
+    void Function(double progress)? onProgress,
   }) async {
     final path = StoragePaths.patientClinicalFile(
       patientId,
@@ -36,10 +37,21 @@ class ClinicalFilesStorageService {
 
     final ref = _storage.ref(path);
     try {
-      await ref.putData(
+      final task = ref.putData(
         file.bytes,
         SettableMetadata(contentType: file.mimeType),
       );
+      onProgress?.call(0);
+      task.snapshotEvents.listen((snapshot) {
+        final total = snapshot.totalBytes;
+        if (total <= 0) return;
+        final progress = (snapshot.bytesTransferred / total)
+            .clamp(0, 1)
+            .toDouble();
+        onProgress?.call(progress);
+      });
+      await task;
+      onProgress?.call(1);
       final url = await ref.getDownloadURL();
       _trace('upload.success', {
         'patientId': patientId,
