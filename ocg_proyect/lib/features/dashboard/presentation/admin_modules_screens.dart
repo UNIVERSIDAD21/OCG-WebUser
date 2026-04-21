@@ -1201,6 +1201,7 @@ class _TreatmentKpiPremium extends StatelessWidget {
       builder: (context, constraints) {
         final compactWidth = constraints.maxWidth < 220;
         final compactHeight = constraints.maxHeight < 88;
+        final ultraCompactHeight = constraints.maxHeight < 78;
         final compact = compactWidth || compactHeight;
         return Container(
           padding: EdgeInsets.fromLTRB(
@@ -1227,18 +1228,19 @@ class _TreatmentKpiPremium extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              Positioned(
-                top: -18,
-                right: -12,
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.28),
-                    shape: BoxShape.circle,
+              if (!ultraCompactHeight)
+                Positioned(
+                  top: -18,
+                  right: -12,
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.28),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1246,8 +1248,8 @@ class _TreatmentKpiPremium extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        width: compact ? 18 : 22,
-                        height: compact ? 18 : 22,
+                        width: ultraCompactHeight ? 16 : (compact ? 18 : 22),
+                        height: ultraCompactHeight ? 16 : (compact ? 18 : 22),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.65),
                           borderRadius: BorderRadius.circular(999),
@@ -1255,29 +1257,30 @@ class _TreatmentKpiPremium extends StatelessWidget {
                         ),
                         child: Icon(
                           icon,
-                          size: compact ? 10 : 12,
+                          size: ultraCompactHeight ? 9 : (compact ? 10 : 12),
                           color: accent,
                         ),
                       ),
                       const Spacer(),
-                      Container(
-                        width: compact ? 14 : 18,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: accent.withOpacity(0.45),
-                          borderRadius: BorderRadius.circular(999),
+                      if (!ultraCompactHeight)
+                        Container(
+                          width: compact ? 14 : 18,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                  SizedBox(height: compact ? 4 : 10),
+                  SizedBox(height: ultraCompactHeight ? 2 : (compact ? 4 : 10)),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
                       value,
                       style: TextStyle(
-                        fontSize: compact ? 19 : 24,
+                        fontSize: ultraCompactHeight ? 17 : (compact ? 19 : 24),
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFF2C2016),
                         letterSpacing: -0.4,
@@ -1285,30 +1288,32 @@ class _TreatmentKpiPremium extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(height: compact ? 2 : 4),
+                  SizedBox(height: ultraCompactHeight ? 1 : (compact ? 2 : 4)),
                   Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: compact ? 10.5 : 12,
+                      fontSize: ultraCompactHeight ? 10 : (compact ? 10.5 : 12),
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF2C2016),
                       height: 1.1,
                     ),
                   ),
-                  SizedBox(height: compact ? 1 : 2),
-                  Text(
-                    subtitle,
-                    maxLines: compact ? 1 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compact ? 9.5 : 10.5,
-                      color: accent.withOpacity(0.9),
-                      fontWeight: FontWeight.w500,
-                      height: 1.15,
+                  if (!ultraCompactHeight) ...[
+                    SizedBox(height: compact ? 1 : 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 9.5 : 10.5,
+                        color: accent.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                        height: 1.15,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
@@ -2276,43 +2281,59 @@ class _PayMiniKpi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: bg,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactHeight = constraints.maxHeight < 88;
+        return InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(13),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: OcgColors.ink,
-                height: 1,
-              ),
+          child: Container(
+            padding: EdgeInsets.all(compactHeight ? 8 : 10),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(13),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: OcgColors.espresso,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compactHeight ? 18 : 22,
+                    fontWeight: FontWeight.w800,
+                    color: OcgColors.ink,
+                    height: 1,
+                  ),
+                ),
+                SizedBox(height: compactHeight ? 2 : 4),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compactHeight ? 11.5 : 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                if (!compactHeight)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.8,
+                      color: Color(0xFF7E6754),
+                    ),
+                  ),
+              ],
             ),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 10.8, color: Color(0xFF7E6754)),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
