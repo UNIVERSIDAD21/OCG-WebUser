@@ -254,7 +254,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                mainAxisExtent: compact ? 112 : 98,
+                mainAxisExtent: compact ? 138 : 110,
                 children: [
                   _TreatmentKpiPremium(
                     value: '\$${formatCop(widget.overview.totalDebt)}',
@@ -797,7 +797,7 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                mainAxisExtent: compact ? 112 : 98,
+                mainAxisExtent: compact ? 138 : 110,
                 children: [
                   _TreatmentKpiPremium(
                     value: '$activeCount',

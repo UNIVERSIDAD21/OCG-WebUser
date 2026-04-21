@@ -132,8 +132,7 @@ class AdminPaymentsOverview {
             .where(
               (entry) =>
                   entry.latestPaymentDate != null &&
-                  entry.latestPaymentAmount > 0 &&
-                  entry.totalPaid > 0,
+                  entry.latestPaymentAmount > 0,
             )
             .toList()
           ..sort(
