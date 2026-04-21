@@ -465,7 +465,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Treatment streams del paciente',
+            'Tratamientos del paciente',
             style: TextStyle(
               color: OcgColors.espresso,
               fontWeight: FontWeight.w700,
@@ -573,7 +573,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     return Column(
       children: [
         _PremiumPanel(
-          title: 'Clinical overview',
+          title: 'Resumen clínico',
           subtitle:
               'Información clínica estructural del tratamiento visible y su contexto dentro del caso.',
           child: Column(
@@ -653,7 +653,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
         ),
         const SizedBox(height: 18),
         _PremiumPanel(
-          title: 'Audit trail del tratamiento',
+          title: 'Historial del tratamiento',
           subtitle:
               'Historial cronológico de cambios de etapa y acciones clínicas registradas.',
           child: StageHistoryList(historial: history, isAdmin: true),
@@ -699,7 +699,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     return Column(
       children: [
         _PremiumPanel(
-          title: 'Financial summary',
+          title: 'Resumen financiero',
           subtitle:
               'Resumen premium del tratamiento actual con claridad brutal en total, pagado y saldo.',
           child: Column(

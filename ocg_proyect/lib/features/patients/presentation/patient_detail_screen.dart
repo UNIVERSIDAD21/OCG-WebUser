@@ -189,13 +189,31 @@ class _PatientDetailView extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    patient.nombre,
-                    style: const TextStyle(
-                      color: OcgColors.espresso,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => context.go(RouteNames.adminPatients),
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Volver'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: OcgColors.espresso,
+                          side: BorderSide(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          patient.nombre,
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(

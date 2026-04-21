@@ -60,7 +60,8 @@ class _ManagePatientTreatmentDialogState
   late bool _isPrimary;
   late DateTime _fechaInicio;
   late List<_FinancialItemDraft> _financialItems;
-  bool _primarySelectionLocked = false;
+  bool _isSaving = false;
+  bool _hydrationCompleted = false;
 
   bool get _isCustomBase => _baseTreatment == '__custom__';
 
@@ -96,22 +97,7 @@ class _ManagePatientTreatmentDialogState
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final treatment = widget.initialTreatment;
-      if (treatment == null) return;
-      final itemsAsync = ref.read(
-        treatmentFinancialItemsProvider((
-          patientId: widget.patientId,
-          treatmentId: treatment.id,
-        )),
-      );
-      itemsAsync.whenData((items) {
-        if (!mounted || items.isEmpty) return;
-        setState(() {
-          _financialItems = items.map(_FinancialItemDraft.fromModel).toList()
-            ..sort((a, b) => a.order.compareTo(b.order));
-        });
-      });
+      _hydrateLegacyFinancialItems();
     });
   }
 
@@ -122,6 +108,45 @@ class _ManagePatientTreatmentDialogState
     _cleaningController.dispose();
     _controlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _hydrateLegacyFinancialItems() async {
+    if (_hydrationCompleted) return;
+    _hydrationCompleted = true;
+
+    final treatment = widget.initialTreatment;
+    if (treatment == null || treatment.id.startsWith('legacy-primary-')) {
+      _debugSave('legacy_hydration_skipped', {
+        'reason': treatment == null ? 'new-treatment' : 'legacy-virtual-id',
+      });
+      return;
+    }
+
+    try {
+      final items = await ref.read(
+        treatmentFinancialItemsProvider((
+          patientId: widget.patientId,
+          treatmentId: treatment.id,
+        )).future,
+      );
+
+      _debugSave('legacy_hydration_loaded', {
+        'treatmentId': treatment.id,
+        'itemsCount': items.length,
+        'legacyWithoutItems': items.isEmpty,
+      });
+
+      if (!mounted || items.isEmpty) return;
+      setState(() {
+        _financialItems = items.map(_FinancialItemDraft.fromModel).toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+      });
+    } catch (error, st) {
+      _debugSave('legacy_hydration_failed', {
+        'treatmentId': treatment.id,
+        'error': error.toString(),
+      }, stackTrace: st);
+    }
   }
 
   bool get _requiresSubtype =>
@@ -173,35 +198,7 @@ class _ManagePatientTreatmentDialogState
 
   @override
   Widget build(BuildContext context) {
-    final saveState = ref.watch(savePatientTreatmentProvider);
-    final saveFinancialState = ref.watch(saveTreatmentFinancialItemsProvider);
-    final isLoading = saveState.isLoading || saveFinancialState.isLoading;
-    final treatments =
-        ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
-        const <PatientTreatment>[];
-    final otherTreatments = treatments
-        .where((item) => item.id != widget.initialTreatment?.id)
-        .toList();
-    final existingPrimary = otherTreatments
-        .cast<PatientTreatment?>()
-        .firstWhere((item) => item?.isPrimary == true, orElse: () => null);
-    final isFirstTreatment =
-        widget.initialTreatment == null && treatments.isEmpty;
-    final editingCurrentPrimary = widget.initialTreatment?.isPrimary == true;
-    final shouldLockPrimary = editingCurrentPrimary && existingPrimary == null;
-    final resolvedIsPrimary = isFirstTreatment || shouldLockPrimary
-        ? true
-        : _isPrimary;
-    if (resolvedIsPrimary != _isPrimary ||
-        shouldLockPrimary != _primarySelectionLocked) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() {
-          _isPrimary = resolvedIsPrimary;
-          _primarySelectionLocked = shouldLockPrimary;
-        });
-      });
-    }
+    final isLoading = _isSaving;
     final catalogItems =
         ref.watch(treatmentCatalogProvider).asData?.value ??
         const <TreatmentCatalogItem>[];
@@ -1162,8 +1159,11 @@ class _ManagePatientTreatmentDialogState
       'activeItemsDraftCount': _financialItems
           .where((item) => item.active)
           .length,
+      'legacyTreatment': widget.initialTreatment != null,
+      'legacyWithoutFinancialItems': _financialItems.isEmpty,
     };
 
+    setState(() => _isSaving = true);
     try {
       final authService = ref.read(authServiceProvider);
       final currentUser = ref.read(authStateProvider).asData?.value;
@@ -1383,6 +1383,10 @@ class _ManagePatientTreatmentDialogState
         SnackBar(content: Text(message), duration: const Duration(seconds: 8)),
       );
       await _showTechnicalErrorDialog(message, diagnostics);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

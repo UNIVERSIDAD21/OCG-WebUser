@@ -28,10 +28,7 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _notasController;
-  late final TextEditingController _motivoController;
   late final TextEditingController _diagnosticoController;
-  late final TextEditingController _planController;
-  late final TextEditingController _adjuntosController;
 
   TreatmentStage? _nuevaEtapa;
   DateTime? _fechaEfectiva;
@@ -40,19 +37,13 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
   void initState() {
     super.initState();
     _notasController = TextEditingController();
-    _motivoController = TextEditingController();
     _diagnosticoController = TextEditingController();
-    _planController = TextEditingController();
-    _adjuntosController = TextEditingController();
   }
 
   @override
   void dispose() {
     _notasController.dispose();
-    _motivoController.dispose();
     _diagnosticoController.dispose();
-    _planController.dispose();
-    _adjuntosController.dispose();
     super.dispose();
   }
 
@@ -74,16 +65,18 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Etapa actual: ${stageNames[widget.etapaActual] ?? widget.etapaActual.name}'),
+              Text(
+                'Etapa actual: ${stageNames[widget.etapaActual] ?? widget.etapaActual.name}',
+              ),
               const SizedBox(height: 8),
               Text(
                 _nuevaEtapa == null
                     ? 'Selecciona la siguiente etapa'
                     : '${stageNames[widget.etapaActual] ?? widget.etapaActual.name} → ${stageNames[_nuevaEtapa!] ?? _nuevaEtapa!.name}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.espresso,
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: OcgColors.espresso,
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<TreatmentStage>(
@@ -91,7 +84,8 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                 decoration: const InputDecoration(labelText: 'Nueva etapa'),
                 items: TreatmentStage.values
                     .where(
-                      (e) => TreatmentStage.values.indexOf(e) >
+                      (e) =>
+                          TreatmentStage.values.indexOf(e) >
                           TreatmentStage.values.indexOf(widget.etapaActual),
                     )
                     .map(
@@ -116,37 +110,20 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Notas clínicas',
-                  errorText: _hasNotesError ? 'Debes escribir al menos 10 caracteres.' : null,
-                  helperText: '${_notasController.text.trim().length} / mín. 10 caracteres',
+                  errorText: _hasNotesError
+                      ? 'Debes escribir al menos 10 caracteres.'
+                      : null,
+                  helperText:
+                      '${_notasController.text.trim().length} / mín. 10 caracteres',
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _motivoController,
-                maxLines: 1,
-                decoration: const InputDecoration(labelText: 'Motivo del cambio'),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _diagnosticoController,
                 minLines: 1,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Diagnóstico breve'),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _planController,
-                minLines: 1,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Plan siguiente etapa'),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _adjuntosController,
-                maxLines: 1,
                 decoration: const InputDecoration(
-                  labelText: 'Adjuntos',
-                  hintText: 'Describe los adjuntos asociados',
+                  labelText: 'Diagnóstico breve',
                 ),
               ),
               const SizedBox(height: 10),
@@ -177,7 +154,10 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
                 ),
                 child: const Text(
                   'Esta acción no se puede deshacer. El historial quedará registrado.',
-                  style: TextStyle(color: OcgColors.error, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: OcgColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -219,24 +199,28 @@ class _UpdateStageDialogState extends ConsumerState<UpdateStageDialog> {
     if (_nuevaEtapa == null) return;
 
     try {
-      await ref.read(updateStageProvider.notifier).updateStage(
+      await ref
+          .read(updateStageProvider.notifier)
+          .updateStage(
             patientId: widget.patientId,
             etapaActual: widget.etapaActual,
             nuevaEtapa: _nuevaEtapa!,
             notas: _notasController.text,
             adminId: widget.adminId,
             treatmentId: widget.treatmentId,
-            motivoCambio: _motivoController.text,
+            motivoCambio: '',
             diagnosticoBreve: _diagnosticoController.text,
-            planSiguienteEtapa: _planController.text,
-            adjuntosDescripcion: _adjuntosController.text,
+            planSiguienteEtapa: '',
+            adjuntosDescripcion: '',
             fechaEfectiva: _fechaEfectiva,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
