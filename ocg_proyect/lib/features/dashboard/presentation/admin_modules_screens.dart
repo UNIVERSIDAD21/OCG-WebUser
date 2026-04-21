@@ -13,6 +13,8 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../payments/data/models/admin_payment_overview.dart';
 import '../../payments/providers/payments_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 
 Future<void> _signOutAdminModules(BuildContext context, WidgetRef ref) async {
   await ref.read(authServiceProvider).signOut();
@@ -47,23 +49,46 @@ class AdminTreatmentsScreen extends ConsumerWidget {
       error: (e, _) =>
           Center(child: Text('No se pudieron cargar tratamientos: $e')),
       data: (patients) {
+        final treatmentEntries = <_TreatmentAdminEntry>[];
+        for (final patient in patients) {
+          final treatments = ref.watch(
+            effectivePatientTreatmentsProvider((
+              patientId: patient.id,
+              patient: patient,
+            )),
+          );
+          if (treatments.isEmpty) {
+            treatmentEntries.add(_TreatmentAdminEntry.fromLegacy(patient));
+            continue;
+          }
+          for (final treatment in treatments) {
+            treatmentEntries.add(
+              _TreatmentAdminEntry(patient: patient, treatment: treatment),
+            );
+          }
+        }
+
         final byStage = <TreatmentStage, int>{
           for (final stage in TreatmentStage.values)
-            stage: patients.where((p) => p.etapaActual == stage).length,
+            stage: treatmentEntries
+                .where((entry) => entry.treatment.etapaActual == stage)
+                .length,
         };
 
-        final activePatients =
-            patients
-                .where((p) => p.treatmentStatus != TreatmentStatus.finalizado)
+        final activeEntries =
+            treatmentEntries
+                .where((entry) => !entry.treatment.isFinished)
                 .toList()
               ..sort(
-                (a, b) =>
-                    a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
+                (a, b) => a.patient.nombre.toLowerCase().compareTo(
+                  b.patient.nombre.toLowerCase(),
+                ),
               );
 
         return _UnifiedTreatmentsView(
           patients: patients,
-          activePatients: activePatients,
+          entries: treatmentEntries,
+          activeEntries: activeEntries,
           byStage: byStage,
         );
       },
@@ -646,13 +671,15 @@ class _UnifiedTreatmentsView extends StatefulWidget {
   const _UnifiedTreatmentsView({
     required this.patients,
     required this.byStage,
-    required this.activePatients,
+    required this.entries,
+    required this.activeEntries,
   });
 
   final List<PatientModel> patients;
 
   final Map<TreatmentStage, int> byStage;
-  final List<PatientModel> activePatients;
+  final List<_TreatmentAdminEntry> entries;
+  final List<_TreatmentAdminEntry> activeEntries;
 
   @override
   State<_UnifiedTreatmentsView> createState() => _UnifiedTreatmentsViewState();
@@ -665,51 +692,52 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
 
   @override
   Widget build(BuildContext context) {
-    List<PatientModel> filteredActivePatients = widget.activePatients;
+    List<_TreatmentAdminEntry> filteredEntries = widget.activeEntries;
 
     if (selectedType != null) {
-      filteredActivePatients = filteredActivePatients
-          .where((p) => p.tipoTratamiento == selectedType)
+      filteredEntries = filteredEntries
+          .where((entry) => entry.legacyType == selectedType)
           .toList();
     }
 
     if (selectedStatus == 'Finalizados') {
-      filteredActivePatients = widget.patients
-          .where((p) => p.treatmentStatus == TreatmentStatus.finalizado)
+      filteredEntries = widget.entries
+          .where((entry) => entry.legacyStatus == TreatmentStatus.finalizado)
           .toList();
     } else if (selectedStatus == 'En espera') {
-      filteredActivePatients = filteredActivePatients
-          .where((p) => p.treatmentStatus == TreatmentStatus.enEspera)
+      filteredEntries = filteredEntries
+          .where((entry) => entry.legacyStatus == TreatmentStatus.enEspera)
           .toList();
     } else if (selectedStatus == 'Activos') {
-      filteredActivePatients = filteredActivePatients
-          .where((p) => p.treatmentStatus == TreatmentStatus.activo)
+      filteredEntries = filteredEntries
+          .where((entry) => entry.legacyStatus == TreatmentStatus.activo)
           .toList();
     }
 
     if (query.trim().isNotEmpty) {
       final q = query.toLowerCase().trim();
-      filteredActivePatients = filteredActivePatients
+      filteredEntries = filteredEntries
           .where(
-            (p) =>
-                p.nombre.toLowerCase().contains(q) ||
-                p.email.toLowerCase().contains(q),
+            (entry) =>
+                entry.patient.nombre.toLowerCase().contains(q) ||
+                entry.patient.email.toLowerCase().contains(q) ||
+                entry.treatment.displayName.toLowerCase().contains(q),
           )
           .toList();
     }
 
-    final activeCount = widget.patients
-        .where((p) => p.treatmentStatus == TreatmentStatus.activo)
+    final activeCount = widget.entries
+        .where((entry) => entry.legacyStatus == TreatmentStatus.activo)
         .length;
-    final completedCount = widget.patients
-        .where((p) => p.treatmentStatus == TreatmentStatus.finalizado)
+    final completedCount = widget.entries
+        .where((entry) => entry.legacyStatus == TreatmentStatus.finalizado)
         .length;
-    final waitingCount = widget.patients
-        .where((p) => p.treatmentStatus == TreatmentStatus.enEspera)
+    final waitingCount = widget.entries
+        .where((entry) => entry.legacyStatus == TreatmentStatus.enEspera)
         .length;
-    final ingresos = widget.activePatients.fold<double>(
+    final ingresos = widget.activeEntries.fold<double>(
       0,
-      (sum, p) => sum + p.totalTratamiento,
+      (sum, entry) => sum + (entry.treatment.totalTratamiento ?? 0),
     );
 
     return SingleChildScrollView(
@@ -902,7 +930,7 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
                   border: Border.all(color: const Color(0xFFE2D0BC)),
                 ),
                 child: Text(
-                  '${filteredActivePatients.length} registros',
+                  '${filteredEntries.length} registros',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -920,7 +948,7 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
               border: Border.all(color: const Color(0xFFE8DDD2)),
             ),
             padding: const EdgeInsets.all(14),
-            child: filteredActivePatients.isEmpty
+            child: filteredEntries.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(18),
                     child: Text(
@@ -994,21 +1022,17 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
                           ],
                         ),
                       ),
-                      for (
-                        var i = 0;
-                        i < filteredActivePatients.length;
-                        i++
-                      ) ...[
+                      for (var i = 0; i < filteredEntries.length; i++) ...[
                         _TreatmentPatientCard(
-                          patient: filteredActivePatients[i],
+                          entry: filteredEntries[i],
                           onOpen: () => context.go(
                             RouteNames.adminPatientDetail.replaceFirst(
                               ':patientId',
-                              filteredActivePatients[i].id,
+                              filteredEntries[i].patient.id,
                             ),
                           ),
                         ),
-                        if (i != filteredActivePatients.length - 1)
+                        if (i != filteredEntries.length - 1)
                           const SizedBox(height: 8),
                       ],
                     ],
@@ -1343,32 +1367,78 @@ class _TreatmentChip extends StatelessWidget {
 String _fmtShortDate(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-class _TreatmentPatientCard extends StatelessWidget {
-  const _TreatmentPatientCard({required this.patient, required this.onOpen});
+class _TreatmentAdminEntry {
+  const _TreatmentAdminEntry({required this.patient, required this.treatment});
+
   final PatientModel patient;
+  final PatientTreatment treatment;
+
+  factory _TreatmentAdminEntry.fromLegacy(PatientModel patient) {
+    return _TreatmentAdminEntry(
+      patient: patient,
+      treatment: PatientTreatment.fromLegacyPatient(patient),
+    );
+  }
+
+  TreatmentType get legacyType {
+    if (treatment.tipoBase == 'convencional' &&
+        treatment.subtipo == 'estetico') {
+      return TreatmentType.estetico;
+    }
+    return switch (treatment.tipoBase) {
+      'convencional' => TreatmentType.convencional,
+      'autoligado' => TreatmentType.autoligado,
+      'alineadores' => TreatmentType.alineadores,
+      'ortopedia' => TreatmentType.ortopedia,
+      'interceptivo' => TreatmentType.interceptivo,
+      'retenedores' => TreatmentType.retenedores,
+      _ => TreatmentType.convencional,
+    };
+  }
+
+  TreatmentStatus get legacyStatus {
+    return switch (treatment.estado) {
+      'finalizado' || 'cancelado' => TreatmentStatus.finalizado,
+      'pausado' => TreatmentStatus.enEspera,
+      _ => TreatmentStatus.activo,
+    };
+  }
+
+  String get legacyStatusLabel {
+    return switch (legacyStatus) {
+      TreatmentStatus.activo => 'Activo',
+      TreatmentStatus.finalizado => 'Finalizado',
+      TreatmentStatus.enEspera => 'En espera',
+    };
+  }
+}
+
+class _TreatmentPatientCard extends StatelessWidget {
+  const _TreatmentPatientCard({required this.entry, required this.onOpen});
+  final _TreatmentAdminEntry entry;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final patient = entry.patient;
+    final treatment = entry.treatment;
     final initials = _initials(patient.nombre);
-    final treatmentLabel = _tipoLabel(
-      patient.tipoTratamiento ?? TreatmentType.convencional,
-    ).toLowerCase();
+    final treatmentLabel = _tipoLabel(entry.legacyType).toLowerCase();
 
     final stageIdx = TreatmentStage.values
-        .indexOf(patient.etapaActual)
+        .indexOf(treatment.etapaActual)
         .clamp(0, TreatmentStage.values.length - 1);
     final progress = (((stageIdx) / (TreatmentStage.values.length - 1)) * 100)
         .round()
         .clamp(0, 100);
 
-    final statusLabel = patient.treatmentStatusLabel;
-    final statusBg = switch (patient.treatmentStatus) {
+    final statusLabel = entry.legacyStatusLabel;
+    final statusBg = switch (entry.legacyStatus) {
       TreatmentStatus.activo => const Color(0xFFEFF8F0),
       TreatmentStatus.finalizado => const Color(0xFFE8F5E9),
       TreatmentStatus.enEspera => const Color(0xFFFFF4D8),
     };
-    final statusColor = switch (patient.treatmentStatus) {
+    final statusColor = switch (entry.legacyStatus) {
       TreatmentStatus.activo => const Color(0xFF406B4D),
       TreatmentStatus.finalizado => const Color(0xFF2E7D4C),
       TreatmentStatus.enEspera => const Color(0xFF9A6B00),
@@ -1423,7 +1493,17 @@ class _TreatmentPatientCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Inicio: ${_fmtShortDate(patient.fechaInicio)}',
+                          'Tratamiento: ${treatment.displayName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF8A6F59),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Inicio: ${_fmtShortDate(treatment.fechaInicio)}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF8A6F59),
@@ -1540,7 +1620,7 @@ class _TreatmentPatientCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Valor total: \$${formatCop(patient.totalTratamiento)}',
+                    'Valor total: \$${formatCop(treatment.totalTratamiento ?? 0)}',
                     textAlign: TextAlign.right,
                     style: const TextStyle(
                       fontSize: 12,
@@ -1549,7 +1629,7 @@ class _TreatmentPatientCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Pagado: \$${formatCop(patient.totalPagado)}',
+                    'Pagado: \$${formatCop(((treatment.totalTratamiento ?? 0) - (treatment.saldoPendiente ?? 0)).clamp(0, double.infinity).toDouble())}',
                     textAlign: TextAlign.right,
                     style: const TextStyle(
                       fontSize: 11,
@@ -1557,7 +1637,7 @@ class _TreatmentPatientCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Saldo pendiente: \$${formatCop(patient.saldoPendiente)}',
+                    'Saldo pendiente: \$${formatCop(treatment.saldoPendiente ?? 0)}',
                     textAlign: TextAlign.right,
                     style: const TextStyle(
                       fontSize: 10.5,
