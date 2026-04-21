@@ -5,19 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
-import '../../../shared/widgets/ocg_chip.dart';
-import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
-import '../../admin/presentation/web/components/detail_header.dart';
-import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
-import '../../treatment/data/models/patient_treatment.dart';
-import '../../treatment/providers/patient_treatments_provider.dart';
 import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
 import '../data/models/patient_model.dart';
@@ -156,13 +150,6 @@ class _PatientDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final existingAppointments =
         ref.watch(appointmentsProvider).asData?.value ?? const [];
-    final treatments = ref.watch(
-      effectivePatientTreatmentsProvider((
-        patientId: patient.id,
-        patient: patient,
-      )),
-    );
-    final selectedTreatment = _resolveHeaderTreatment(patient, treatments);
     final sectionParam = GoRouterState.of(
       context,
     ).uri.queryParameters['section'];
@@ -191,213 +178,76 @@ class _PatientDetailView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DetailHeader(
-              title: patient.nombre,
-              subtitle: _headerSubtitle(selectedTreatment, treatments),
-              trailing: ActionToolbar(
-                actions: [
-                  OutlinedButton.icon(
-                    onPressed: () => context.go(RouteNames.adminPatients),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Volver'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: () => context.go(
-                      RouteNames.adminPatientEdit.replaceFirst(
-                        ':patientId',
-                        patient.id,
-                      ),
-                    ),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Editar'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Eliminar'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                SizedBox(
-                  width: 420,
-                  child: SectionPanel(
-                    title: 'Tratamiento principal visible en cabecera',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Este bloque resume solo el tratamiento foco del paciente.',
-                          style: TextStyle(
-                            color: OcgColors.bronze,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OcgChip(
-                              label:
-                                  selectedTreatment?.displayName ??
-                                  'Sin tratamiento principal',
-                              backgroundColor: const Color(0xFFF4EFE7),
-                              textColor: OcgColors.espresso,
-                            ),
-                            OcgChip(
-                              label: selectedTreatment == null
-                                  ? 'Principal no definido'
-                                  : 'Tratamiento principal',
-                              backgroundColor: const Color(0xFFEAF5EE),
-                              textColor: const Color(0xFF2E7D4C),
-                            ),
-                            OcgChip(
-                              label:
-                                  '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} registrados',
-                              backgroundColor: const Color(0xFFFFF4D8),
-                              textColor: const Color(0xFFC99730),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          selectedTreatment == null
-                              ? 'La cabecera no tiene un tratamiento principal definido todavía.'
-                              : 'Principal actual: ${selectedTreatment.displayName}. Los tratamientos secundarios se administran abajo en la pestaña Tratamiento.',
-                          style: const TextStyle(
-                            color: OcgColors.espresso,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (selectedTreatment != null) ...[
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OcgChip(
-                                label:
-                                    'Etapa: ${formatTreatmentStage(selectedTreatment.etapaActual)}',
-                                backgroundColor: const Color(0xFFF2F4F7),
-                                textColor: OcgColors.espresso,
-                              ),
-                              OcgChip(
-                                label: 'Estado: ${selectedTreatment.estado}',
-                                backgroundColor: const Color(0xFFFBEAED),
-                                textColor: const Color(0xFFB06A5A),
-                              ),
-                              OcgChip(
-                                label:
-                                    'Saldo principal: ${formatCop(selectedTreatment.saldoPendiente ?? 0)} COP',
-                                backgroundColor: const Color(0xFFF8F3EC),
-                                textColor: OcgColors.espresso,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 420,
-                  child: SectionPanel(
-                    title: 'Resumen consolidado del paciente',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Este bloque suma todos los tratamientos del paciente, no solo el principal.',
-                          style: TextStyle(
-                            color: OcgColors.bronze,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OcgChip(
-                              label:
-                                  'Saldo total: ${formatCop(_totalPending(treatments, patient))} COP',
-                              backgroundColor: const Color(0xFFFBEAED),
-                              textColor: const Color(0xFFB06A5A),
-                            ),
-                            OcgChip(
-                              label:
-                                  'Total contratado: ${formatCop(_totalAmount(treatments, patient))} COP',
-                              backgroundColor: const Color(0xFFF4EFE7),
-                              textColor: OcgColors.espresso,
-                            ),
-                            OcgChip(
-                              label:
-                                  'Pagado consolidado: ${formatCop(_paidAmount(treatments, patient))} COP',
-                              backgroundColor: const Color(0xFFEAF5EE),
-                              textColor: const Color(0xFF2E7D4C),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          treatments.length <= 1
-                              ? 'Este paciente tiene una sola línea de tratamiento activa o histórica.'
-                              : 'Este paciente maneja múltiples tratamientos. El resumen principal está a la izquierda y el consolidado total está aquí.',
-                          style: const TextStyle(
-                            color: OcgColors.espresso,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
             Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
               decoration: BoxDecoration(
                 color: OcgColors.ivory,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
               ),
-              child: const TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                tabs: [
-                  Tab(text: 'Perfil'),
-                  Tab(text: 'Tratamiento'),
-                  Tab(text: 'Historial clínico'),
-                  Tab(text: 'Citas'),
-                  Tab(text: 'Pagos'),
-                  Tab(text: 'Simulador'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.nombre,
+                    style: const TextStyle(
+                      color: OcgColors.espresso,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          tabs: [
+                            Tab(text: 'Perfil'),
+                            Tab(text: 'Tratamiento'),
+                            Tab(text: 'Historial clínico'),
+                            Tab(text: 'Citas'),
+                            Tab(text: 'Pagos'),
+                            Tab(text: 'Simulador'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: () =>
+                            AdminAppointmentsScreen.showCreateDialog(
+                              context,
+                              ref,
+                              preselectedPatient: patient,
+                              existingAppointments: existingAppointments,
+                            ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Agendar cita'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 8),
             SectionPanel(
               title: 'Detalle',
-              trailing: FilledButton.icon(
-                onPressed: () => AdminAppointmentsScreen.showCreateDialog(
-                  context,
-                  ref,
-                  preselectedPatient: patient,
-                  existingAppointments: existingAppointments,
-                ),
-                icon: const Icon(Icons.add),
-                label: const Text('Agendar cita'),
-              ),
               child: SizedBox(
                 height: 760,
                 child: TabBarView(
                   children: [
-                    PatientProfileTab(patient: patient),
+                    _PatientProfileAdminTab(
+                      patient: patient,
+                      onEdit: () => context.go(
+                        RouteNames.adminPatientEdit.replaceFirst(
+                          ':patientId',
+                          patient.id,
+                        ),
+                      ),
+                      onDelete: onDelete,
+                    ),
                     PatientTreatmentTab(
                       patientId: patient.id,
                       patient: patient,
@@ -427,62 +277,6 @@ class _PatientDetailView extends ConsumerWidget {
     }
 
     return content;
-  }
-
-  String _headerSubtitle(
-    PatientTreatment? selectedTreatment,
-    List<PatientTreatment> treatments,
-  ) {
-    if (selectedTreatment == null) {
-      return treatments.isEmpty
-          ? 'Expediente clínico y financiero del paciente · sin tratamientos registrados todavía'
-          : 'Expediente clínico y financiero del paciente · múltiples tratamientos sin principal definido';
-    }
-    final countLabel = treatments.length == 1
-        ? '1 tratamiento'
-        : '${treatments.length} tratamientos';
-    return 'Cabecera enfocada en el tratamiento principal (${selectedTreatment.displayName}) · $countLabel en total';
-  }
-
-  PatientTreatment? _resolveHeaderTreatment(
-    PatientModel patient,
-    List<PatientTreatment> treatments,
-  ) {
-    if (treatments.isEmpty) return null;
-
-    final preferredId = patient.id;
-    for (final treatment in treatments) {
-      if (treatment.isPrimary) return treatment;
-    }
-    for (final treatment in treatments) {
-      if (treatment.id == preferredId) return treatment;
-    }
-    return treatments.first;
-  }
-
-  double _totalAmount(List<PatientTreatment> treatments, PatientModel patient) {
-    if (treatments.isEmpty) return patient.totalTratamiento;
-    return treatments.fold<double>(
-      0,
-      (sum, item) => sum + (item.totalTratamiento ?? 0),
-    );
-  }
-
-  double _totalPending(
-    List<PatientTreatment> treatments,
-    PatientModel patient,
-  ) {
-    if (treatments.isEmpty) return patient.saldoPendiente;
-    return treatments.fold<double>(
-      0,
-      (sum, item) => sum + (item.saldoPendiente ?? 0),
-    );
-  }
-
-  double _paidAmount(List<PatientTreatment> treatments, PatientModel patient) {
-    final total = _totalAmount(treatments, patient);
-    final pending = _totalPending(treatments, patient);
-    return (total - pending).clamp(0, double.infinity).toDouble();
   }
 }
 
@@ -593,6 +387,54 @@ class _AdminPatientWorkspaceState
         label: Text(text),
         onSelected: (_) => setState(() => _section = index),
       ),
+    );
+  }
+}
+
+class _PatientProfileAdminTab extends StatelessWidget {
+  const _PatientProfileAdminTab({
+    required this.patient,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final PatientModel patient;
+  final VoidCallback onEdit;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          decoration: BoxDecoration(
+            color: OcgColors.ivory,
+            border: Border(
+              bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.12)),
+            ),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Editar'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: PatientProfileTab(patient: patient)),
+      ],
     );
   }
 }
