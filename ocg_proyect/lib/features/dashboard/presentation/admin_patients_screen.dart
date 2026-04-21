@@ -12,6 +12,7 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
@@ -506,22 +507,33 @@ class AdminPatientsScreen extends ConsumerWidget {
         return created.year == now.year && created.month == now.month;
       }).length;
 
-      final desktopContent = Container(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 24),
+      final layout = AdminDesktopLayoutScope.maybeOf(context);
+      final tier = layout?.tier ?? AdminDesktopTier.standard;
+      final sectionGap = layout?.sectionSpacing ?? 16;
+      final panelGap = layout?.panelGap ?? 16;
+      final headerTitleSize = switch (tier) {
+        AdminDesktopTier.wide => 32.0,
+        AdminDesktopTier.standard => 30.0,
+        AdminDesktopTier.compact => 28.0,
+        AdminDesktopTier.tight => 26.0,
+      };
+
+      final desktopContent = Padding(
+        padding: EdgeInsets.only(bottom: sectionGap + 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Pacientes',
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: headerTitleSize,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF2C2016),
                           letterSpacing: -0.3,
@@ -559,7 +571,7 @@ class AdminPatientsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: sectionGap),
             _KpiRow(
               totalPacientes: totalPacientes,
               pacientesActivos: pacientesActivos,
@@ -577,9 +589,12 @@ class AdminPatientsScreen extends ConsumerWidget {
               onTapCitasHoy: () => context.go(RouteNames.adminAppointments),
               onTapSaldoPendiente: () => context.go(RouteNames.adminPayments),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: panelGap),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: tier == AdminDesktopTier.tight ? 12 : 14,
+                vertical: tier == AdminDesktopTier.tight ? 7 : 8,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFDFC),
                 borderRadius: BorderRadius.circular(14),
@@ -629,10 +644,10 @@ class AdminPatientsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: panelGap * 0.75),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: tier == AdminDesktopTier.tight ? 6 : 8,
+              runSpacing: tier == AdminDesktopTier.tight ? 6 : 8,
               children: _filters.map((filter) {
                 final selected = filter == selectedFilter;
                 return InkWell(
@@ -685,7 +700,7 @@ class AdminPatientsScreen extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: panelGap),
             Row(
               children: [
                 const Text(
@@ -718,14 +733,14 @@ class AdminPatientsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: panelGap * 0.75),
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFDFC),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFE8DDD2)),
               ),
-              padding: const EdgeInsets.all(14),
+              padding: EdgeInsets.all(tier == AdminDesktopTier.tight ? 12 : 14),
               child: filteredPatients.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.all(18),
@@ -835,67 +850,65 @@ class _KpiRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final crossAxisCount = switch (tier) {
+      AdminDesktopTier.wide => 3,
+      AdminDesktopTier.standard => 2,
+      AdminDesktopTier.compact => 2,
+      AdminDesktopTier.tight => 1,
+    };
+    final childAspectRatio = switch (tier) {
+      AdminDesktopTier.wide => 2.2,
+      AdminDesktopTier.standard => 2.7,
+      AdminDesktopTier.compact => 2.5,
+      AdminDesktopTier.tight => 3.6,
+    };
+    final spacing = layout?.panelGap ?? 10;
 
-        final crossAxisCount = width < 760
-            ? 1
-            : width < 1180
-            ? 2
-            : 4;
-
-        final childAspectRatio = width < 760
-            ? 3.6
-            : width < 1180
-            ? 2.35
-            : 2.15;
-
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          childAspectRatio: childAspectRatio,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          children: [
-            _KpiCard(
-              icon: Icons.people_outline,
-              value: '$totalPacientes',
-              label: 'Total pacientes',
-              footer: '+$nuevosMes este mes',
-              footerColor: const Color(0xFF2E7D32),
-              footerBg: const Color(0xFFE8F5E9),
-              bgColor: const Color(0xFFF6EFE7),
-              onTap: onTapTotal,
-            ),
-            _KpiCard(
-              icon: Icons.timelapse_outlined,
-              value: '$pacientesActivos',
-              label: 'Activos',
-              footer: 'en tratamiento',
-              bgColor: const Color(0xFFEFF8F0),
-              onTap: onTapActivos,
-            ),
-            _KpiCard(
-              icon: Icons.calendar_month_outlined,
-              value: '$citasHoy',
-              label: 'Citas hoy',
-              footer: 'programadas',
-              bgColor: const Color(0xFFFFF4D8),
-              onTap: onTapCitasHoy,
-            ),
-            _KpiCard(
-              icon: Icons.attach_money,
-              value: '\$${formatCop(saldoPendienteTotal)}',
-              label: 'Saldo pendiente',
-              footer: 'por cobrar',
-              bgColor: const Color(0xFFFFECEC),
-              onTap: onTapSaldoPendiente,
-            ),
-          ],
-        );
-      },
+    return GridView.count(
+      crossAxisCount: crossAxisCount,
+      shrinkWrap: true,
+      childAspectRatio: childAspectRatio,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: spacing,
+      mainAxisSpacing: spacing,
+      children: [
+        _KpiCard(
+          icon: Icons.people_outline,
+          value: '$totalPacientes',
+          label: 'Total pacientes',
+          footer: '+$nuevosMes este mes',
+          footerColor: const Color(0xFF2E7D32),
+          footerBg: const Color(0xFFE8F5E9),
+          bgColor: const Color(0xFFF6EFE7),
+          onTap: onTapTotal,
+        ),
+        _KpiCard(
+          icon: Icons.timelapse_outlined,
+          value: '$pacientesActivos',
+          label: 'Activos',
+          footer: 'en tratamiento',
+          bgColor: const Color(0xFFEFF8F0),
+          onTap: onTapActivos,
+        ),
+        _KpiCard(
+          icon: Icons.calendar_month_outlined,
+          value: '$citasHoy',
+          label: 'Citas hoy',
+          footer: 'programadas',
+          bgColor: const Color(0xFFFFF4D8),
+          onTap: onTapCitasHoy,
+        ),
+        _KpiCard(
+          icon: Icons.attach_money,
+          value: '\$${formatCop(saldoPendienteTotal)}',
+          label: 'Saldo pendiente',
+          footer: 'por cobrar',
+          bgColor: const Color(0xFFFFECEC),
+          onTap: onTapSaldoPendiente,
+        ),
+      ],
     );
   }
 }
@@ -925,7 +938,10 @@ class _KpiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 220;
+        final layout = AdminDesktopLayoutScope.maybeOf(context);
+        final tier = layout?.tier ?? AdminDesktopTier.standard;
+        final compact =
+            tier == AdminDesktopTier.compact || tier == AdminDesktopTier.tight;
         final base = bgColor ?? OcgColors.ivory;
 
         return InkWell(
@@ -956,26 +972,27 @@ class _KpiCard extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Positioned(
-                  top: -16,
-                  right: -16,
-                  child: Container(
-                    width: compact ? 44 : 52,
-                    height: compact ? 44 : 52,
-                    decoration: BoxDecoration(
-                      color: OcgColors.ivory.withOpacity(0.28),
-                      shape: BoxShape.circle,
+                if (tier != AdminDesktopTier.tight)
+                  Positioned(
+                    top: -16,
+                    right: -16,
+                    child: Container(
+                      width: compact ? 44 : 52,
+                      height: compact ? 44 : 52,
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory.withOpacity(0.28),
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Container(
-                          width: compact ? 20 : 22,
-                          height: compact ? 20 : 22,
+                          width: compact ? 18 : 22,
+                          height: compact ? 18 : 22,
                           decoration: BoxDecoration(
                             color: const Color(0xFFF3E9DD),
                             borderRadius: BorderRadius.circular(999),
@@ -983,61 +1000,77 @@ class _KpiCard extends StatelessWidget {
                           ),
                           child: Icon(
                             icon,
-                            size: 12,
+                            size: compact ? 10 : 12,
                             color: const Color(0xFF9A735C),
                           ),
                         ),
                         const Spacer(),
-                        Container(
-                          width: 18,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: const Color(0x409A735C),
-                            borderRadius: BorderRadius.circular(999),
+                        if (tier != AdminDesktopTier.tight)
+                          Container(
+                            width: 18,
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: const Color(0x409A735C),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                    SizedBox(height: compact ? 8 : 10),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: compact ? 20 : 24,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF2C2016),
-                          letterSpacing: -0.4,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 11 : 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2C2016),
-                      ),
-                    ),
-                    if (footer != null && footer!.trim().isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          footer!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: compact ? 10 : 10.5,
-                            color: const Color(0xFF9A735C),
-                            fontWeight: FontWeight.w500,
+                    SizedBox(height: compact ? 6 : 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Flexible(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontSize: compact ? 18 : 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF2C2016),
+                                    letterSpacing: -0.4,
+                                    height: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          SizedBox(height: compact ? 2 : 4),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: compact ? 10.5 : 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF2C2016),
+                            ),
+                          ),
+                          if (footer != null &&
+                              footer!.trim().isNotEmpty &&
+                              tier != AdminDesktopTier.tight)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                footer!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: compact ? 9.5 : 10.5,
+                                  color: const Color(0xFF9A735C),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ],
@@ -1197,6 +1230,117 @@ class _DesktopPatientRow extends StatelessWidget {
                 Icons.chevron_right,
                 color: OcgColors.bronze,
                 size: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AdminPatientsDesktopTestHarness extends StatelessWidget {
+  const AdminPatientsDesktopTestHarness({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 16;
+    final headerTitleSize = switch (tier) {
+      AdminDesktopTier.wide => 32.0,
+      AdminDesktopTier.standard => 30.0,
+      AdminDesktopTier.compact => 28.0,
+      AdminDesktopTier.tight => 26.0,
+    };
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: sectionGap + 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pacientes',
+                        style: TextStyle(
+                          fontSize: headerTitleSize,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF2C2016),
+                          letterSpacing: -0.3,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Gestión clínica y financiera',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF9A735C),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.person_add_outlined, size: 16),
+                  label: const Text('Nuevo paciente'),
+                ),
+              ],
+            ),
+            SizedBox(height: sectionGap),
+            _KpiRow(
+              totalPacientes: 18,
+              pacientesActivos: 12,
+              citasHoy: 5,
+              saldoPendienteTotal: 12500000,
+              nuevosMes: 3,
+              onTapTotal: () {},
+              onTapActivos: () {},
+              onTapCitasHoy: () {},
+              onTapSaldoPendiente: () {},
+            ),
+            SizedBox(height: panelGap),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: tier == AdminDesktopTier.tight ? 12 : 14,
+                vertical: tier == AdminDesktopTier.tight ? 7 : 8,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFDFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.search, size: 16, color: Color(0xFFC9A882)),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('Buscar en pacientes ...')),
+                ],
+              ),
+            ),
+            SizedBox(height: panelGap),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFDFC),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              padding: EdgeInsets.all(tier == AdminDesktopTier.tight ? 12 : 14),
+              child: const Column(
+                children: [
+                  ListTile(title: Text('Paciente demo 1')),
+                  SizedBox(height: 8),
+                  ListTile(title: Text('Paciente demo 2')),
+                ],
               ),
             ),
           ],

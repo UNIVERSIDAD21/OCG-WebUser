@@ -8,6 +8,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
@@ -641,6 +642,7 @@ class _WebAdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
     final now = DateTime.now();
     const wd = [
       'LUNES',
@@ -667,14 +669,38 @@ class _WebAdminDashboard extends StatelessWidget {
     ];
     final dateLabel =
         '${wd[now.weekday - 1]} ${now.day} DE ${months[now.month - 1]} · ${now.year}';
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 16;
+    final heroPadding = switch (tier) {
+      AdminDesktopTier.wide => const EdgeInsets.fromLTRB(42, 34, 42, 30),
+      AdminDesktopTier.standard => const EdgeInsets.fromLTRB(32, 28, 32, 26),
+      AdminDesktopTier.compact => const EdgeInsets.fromLTRB(26, 24, 26, 22),
+      AdminDesktopTier.tight => const EdgeInsets.fromLTRB(22, 20, 22, 20),
+    };
+    final heroTitleSize = switch (tier) {
+      AdminDesktopTier.wide => 44.0,
+      AdminDesktopTier.standard => 40.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
+    final shouldKeepMainSplit =
+        layout?.shouldKeepSplit(primaryMinWidth: 560, secondaryMinWidth: 320) ??
+        true;
+    final alertColumns = switch (tier) {
+      AdminDesktopTier.wide => 3,
+      AdminDesktopTier.standard => 2,
+      AdminDesktopTier.compact => 1,
+      AdminDesktopTier.tight => 1,
+    };
 
     final kpiGrid = GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: tier == AdminDesktopTier.tight ? 1 : 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 14,
-      mainAxisSpacing: 14,
-      childAspectRatio: 2.0,
+      crossAxisSpacing: panelGap,
+      mainAxisSpacing: panelGap,
+      childAspectRatio: tier == AdminDesktopTier.tight ? 3.4 : 2.0,
       children: [
         _MobileKpiMini(
           value: '${todaysAppointments.length}',
@@ -711,27 +737,44 @@ class _WebAdminDashboard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _MobileSectionTitle('Acceso rápido'),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _MobileQuickCard(
+        SizedBox(height: sectionGap - 4),
+        if (tier == AdminDesktopTier.tight)
+          Column(
+            children: [
+              _MobileQuickCard(
                 icon: Icons.people_outline,
                 label: 'Pacientes',
                 onTap: () => context.go(RouteNames.adminPatients),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _MobileQuickCard(
+              SizedBox(height: panelGap * 0.75),
+              _MobileQuickCard(
                 icon: Icons.calendar_month_outlined,
                 label: 'Agenda',
                 onTap: () => context.go(RouteNames.adminAppointments),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _MobileQuickCard(
+                  icon: Icons.people_outline,
+                  label: 'Pacientes',
+                  onTap: () => context.go(RouteNames.adminPatients),
+                ),
+              ),
+              SizedBox(width: panelGap * 0.75),
+              Expanded(
+                child: _MobileQuickCard(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Agenda',
+                  onTap: () => context.go(RouteNames.adminAppointments),
+                ),
+              ),
+            ],
+          ),
+        SizedBox(height: panelGap * 0.75),
         _MobileQuickCard(
           icon: Icons.person_add_outlined,
           label: 'Nuevo paciente',
@@ -742,13 +785,12 @@ class _WebAdminDashboard extends StatelessWidget {
     );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+      padding: EdgeInsets.fromLTRB(0, 0, 0, sectionGap + 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 1100;
               final left = Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -763,7 +805,7 @@ class _WebAdminDashboard extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(28),
                 ),
-                padding: const EdgeInsets.fromLTRB(42, 34, 42, 30),
+                padding: heroPadding,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -776,18 +818,18 @@ class _WebAdminDashboard extends StatelessWidget {
                         letterSpacing: 1.6,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    const Text(
+                    SizedBox(height: tier == AdminDesktopTier.tight ? 10 : 14),
+                    Text(
                       'Buenos días,\nAdmin',
                       style: TextStyle(
-                        fontSize: 44,
+                        fontSize: heroTitleSize,
                         fontWeight: FontWeight.w800,
                         color: OcgColors.ivory,
                         height: 1.04,
                         letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: tier == AdminDesktopTier.tight ? 8 : 10),
                     const Text(
                       'Centro operativo del día',
                       style: TextStyle(fontSize: 14, color: Color(0xFF9A735C)),
@@ -799,13 +841,18 @@ class _WebAdminDashboard extends StatelessWidget {
               final agendaItems = todaysAppointments.take(5).toList();
 
               final right = Container(
-                height: 318,
+                height: tier == AdminDesktopTier.tight ? 300 : 318,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFDFC),
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(color: const Color(0xFFE8DDD2)),
                 ),
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                padding: EdgeInsets.fromLTRB(
+                  tier == AdminDesktopTier.tight ? 18 : 24,
+                  tier == AdminDesktopTier.tight ? 18 : 24,
+                  tier == AdminDesktopTier.tight ? 18 : 24,
+                  tier == AdminDesktopTier.tight ? 16 : 20,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -913,9 +960,13 @@ class _WebAdminDashboard extends StatelessWidget {
                 ),
               );
 
-              if (narrow) {
+              if (!shouldKeepMainSplit) {
                 return Column(
-                  children: [left, const SizedBox(height: 14), right],
+                  children: [
+                    left,
+                    SizedBox(height: sectionGap),
+                    right,
+                  ],
                 );
               }
 
@@ -923,77 +974,76 @@ class _WebAdminDashboard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    flex: 8,
+                    flex: tier == AdminDesktopTier.standard ? 7 : 8,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [left, const SizedBox(height: 10), kpiGrid],
+                      children: [
+                        left,
+                        SizedBox(height: panelGap),
+                        kpiGrid,
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: panelGap),
                   Expanded(
                     flex: 4,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [right, const SizedBox(height: 10), quick],
+                      children: [
+                        right,
+                        SizedBox(height: panelGap),
+                        quick,
+                      ],
                     ),
                   ),
                 ],
               );
             },
           ),
-          const SizedBox(height: 6),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final split = constraints.maxWidth >= 1100;
-
-              if (split) {
-                return const SizedBox.shrink();
-              }
-
-              return Column(
-                children: [kpiGrid, const SizedBox(height: 14), quick],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
+          if (!shouldKeepMainSplit) ...[
+            SizedBox(height: sectionGap),
+            kpiGrid,
+            SizedBox(height: sectionGap),
+            quick,
+          ],
+          SizedBox(height: sectionGap),
           const _MobileSectionTitle('Alertas operativas'),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cols = constraints.maxWidth > 1100 ? 3 : 1;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: cols == 3 ? 2.7 : 4.0,
-                children: [
-                  _MobileAlertCard(
-                    icon: Icons.schedule,
-                    title:
-                        '$citasSinConfirmar2h cita${citasSinConfirmar2h == 1 ? '' : 's'} sin confirmar',
-                    subtitle: 'Revisar próximas 2 horas',
-                    bg: const Color(0xFFFFF9ED),
-                    iconColor: const Color(0xFFC99730),
-                  ),
-                  _MobileAlertCard(
-                    icon: Icons.description_outlined,
-                    title: '$perfilesPendientes perfiles incompletos',
-                    subtitle: 'Pendientes de actualización',
-                    bg: const Color(0xFFFBF8F4),
-                    iconColor: OcgColors.bronze,
-                  ),
-                  _MobileAlertCard(
-                    icon: Icons.payments_outlined,
-                    title: '$pagosVencidos pagos vencidos',
-                    subtitle: 'Seguimiento financiero requerido',
-                    bg: const Color(0xFFFFF4F4),
-                    iconColor: OcgColors.error,
-                  ),
-                ],
-              );
+          SizedBox(height: panelGap * 0.75),
+          GridView.count(
+            crossAxisCount: alertColumns,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: panelGap,
+            mainAxisSpacing: panelGap,
+            childAspectRatio: switch (alertColumns) {
+              3 => 2.7,
+              2 => 2.3,
+              _ => 4.0,
             },
+            children: [
+              _MobileAlertCard(
+                icon: Icons.schedule,
+                title:
+                    '$citasSinConfirmar2h cita${citasSinConfirmar2h == 1 ? '' : 's'} sin confirmar',
+                subtitle: 'Revisar próximas 2 horas',
+                bg: const Color(0xFFFFF9ED),
+                iconColor: const Color(0xFFC99730),
+              ),
+              _MobileAlertCard(
+                icon: Icons.description_outlined,
+                title: '$perfilesPendientes perfiles incompletos',
+                subtitle: 'Pendientes de actualización',
+                bg: const Color(0xFFFBF8F4),
+                iconColor: OcgColors.bronze,
+              ),
+              _MobileAlertCard(
+                icon: Icons.payments_outlined,
+                title: '$pagosVencidos pagos vencidos',
+                subtitle: 'Seguimiento financiero requerido',
+                bg: const Color(0xFFFFF4F4),
+                iconColor: OcgColors.error,
+              ),
+            ],
           ),
         ],
       ),
@@ -1008,6 +1058,7 @@ class _MobileSectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 3,
@@ -1018,12 +1069,15 @@ class _MobileSectionTitle extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: OcgColors.espresso,
+        Flexible(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
           ),
         ),
       ],
@@ -1163,9 +1217,13 @@ class _MobileAlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tier = AdminDesktopLayoutScope.maybeOf(context)?.tier;
+    final compact =
+        tier == AdminDesktopTier.compact || tier == AdminDesktopTier.tight;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(compact ? 10 : 12),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
@@ -1174,34 +1232,40 @@ class _MobileAlertCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: compact ? 28 : 30,
+            height: compact ? 28 : 30,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.6),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: iconColor, size: 16),
+            child: Icon(icon, color: iconColor, size: compact ? 15 : 16),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: compact ? 8 : 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 13.5,
+                  maxLines: compact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 12.5 : 13.5,
                     fontWeight: FontWeight.w700,
                     color: OcgColors.ink,
+                    height: 1.1,
                   ),
                 ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF7B6654),
+                if (!compact)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF7B6654),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1458,88 +1522,6 @@ class _AgendaActionCell extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _AlertsCard extends StatelessWidget {
-  const _AlertsCard({
-    required this.citasSinConfirmar2h,
-    required this.perfilesPendientes,
-    required this.pagosVencidos,
-  });
-
-  final int citasSinConfirmar2h;
-  final int perfilesPendientes;
-  final int pagosVencidos;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OcgColors.mist,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Alertas operativas',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: OcgColors.espresso,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _AlertRow(
-            label: 'Citas en < 2h sin confirmar',
-            value: citasSinConfirmar2h,
-          ),
-          _AlertRow(
-            label: 'Perfiles pendientes de completar',
-            value: perfilesPendientes,
-          ),
-          _AlertRow(label: 'Pagos vencidos', value: pagosVencidos),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertRow extends StatelessWidget {
-  const _AlertRow({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    final isCritical = value > 0;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            isCritical
-                ? Icons.warning_amber_rounded
-                : Icons.check_circle_outline,
-            size: 16,
-            color: isCritical ? OcgColors.warning : OcgColors.success,
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
-          Text(
-            '$value',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: isCritical ? OcgColors.warning : OcgColors.success,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1982,118 +1964,22 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-class _QuickCard extends StatelessWidget {
-  const _QuickCard({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: OcgColors.ivory,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 1,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: OcgColors.bronze, size: 28),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: OcgColors.espresso,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SignOutButton extends ConsumerWidget {
-  const _SignOutButton();
+class AdminDashboardDesktopTestHarness extends ConsumerWidget {
+  const AdminDashboardDesktopTestHarness({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (MediaQuery.of(context).size.width > 800) return const SizedBox.shrink();
-
-    final loading = ref.watch(authNotifierProvider).isLoading;
-
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: loading
-            ? null
-            : () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Cerrar sesión'),
-                    content: const Text(
-                      '¿Deseas cerrar tu sesión de administrador?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => popDialog(ctx, false),
-                        child: const Text('Cancelar'),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: OcgColors.error,
-                          foregroundColor: OcgColors.ivory,
-                        ),
-                        onPressed: () => popDialog(ctx, true),
-                        child: const Text('Cerrar sesión'),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirm != true) return;
-
-                try {
-                  await ref.read(authNotifierProvider.notifier).signOut();
-                } catch (_) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No se pudo cerrar sesión.')),
-                  );
-                }
-              },
-        icon: const Icon(Icons.logout, color: OcgColors.error),
-        label: const Text(
-          'Cerrar sesión',
-          style: TextStyle(color: OcgColors.error),
-        ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: OcgColors.error.withOpacity(0.08),
-          side: BorderSide(color: OcgColors.error.withOpacity(0.5)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+    return _WebAdminDashboard(
+      ref: ref,
+      todaysAppointments: const [],
+      pendingConfirm: 3,
+      canceladasSemana: 1,
+      nuevosPacientes30d: 7,
+      citasSinConfirmar2h: 2,
+      perfilesPendientes: 4,
+      pagosVencidos: 1,
+      loadingAppointments: false,
+      appointmentsError: false,
     );
   }
 }
