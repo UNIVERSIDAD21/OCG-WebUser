@@ -20,16 +20,29 @@ class TransactionList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncTx = ref.watch(
-      patientTransactionsProvider((patientId: patientId, treatmentId: treatmentId)),
+      patientTransactionsProvider((
+        patientId: patientId,
+        treatmentId: treatmentId,
+      )),
     );
-    final currency = NumberFormat.currency(locale: 'es_CO', symbol: r'$', decimalDigits: 0);
-    final dateFmt = DateFormat("d 'de' MMM yyyy, hh:mm a", 'es_CO');
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+    final dateFmt = _safeDateFormat();
 
     return asyncTx.when(
-      loading: () => const SizedBox(height: 120, child: ClipRect(child: OcgLoadingScreen())),
+      loading: () => const SizedBox(
+        height: 120,
+        child: ClipRect(child: OcgLoadingScreen()),
+      ),
       error: (error, _) => Text(
         'Error cargando transacciones: $error',
-        style: const TextStyle(color: OcgColors.error, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: OcgColors.error,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       data: (transactions) {
         if (transactions.isEmpty) {
@@ -43,14 +56,18 @@ class TransactionList extends ConsumerWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: transactions.length,
-          separatorBuilder: (_, __) => Divider(color: OcgColors.sand.withValues(alpha: 0.8)),
+          separatorBuilder: (_, __) =>
+              Divider(color: OcgColors.sand.withValues(alpha: 0.8)),
           itemBuilder: (context, index) {
             final tx = transactions[index];
             return ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
                 _methodLabel(tx.metodo),
-                style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +77,10 @@ class TransactionList extends ConsumerWidget {
                     style: const TextStyle(color: OcgColors.ink),
                   ),
                   if ((tx.referencia ?? '').isNotEmpty)
-                    Text('Ref: ${tx.referencia}', style: const TextStyle(color: OcgColors.ink)),
+                    Text(
+                      'Ref: ${tx.referencia}',
+                      style: const TextStyle(color: OcgColors.ink),
+                    ),
                   _RegisteredByText(registradoPor: tx.registradoPor),
                   if ((tx.notas ?? '').trim().isNotEmpty)
                     Text(
@@ -75,7 +95,10 @@ class TransactionList extends ConsumerWidget {
                 children: [
                   Text(
                     currency.format(tx.monto),
-                    style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: OcgColors.bronze,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if ((tx.reciboUrl ?? '').isNotEmpty)
                     TextButton(
@@ -91,18 +114,26 @@ class TransactionList extends ConsumerWidget {
     );
   }
 
+  DateFormat _safeDateFormat() {
+    try {
+      return DateFormat("d 'de' MMM yyyy, hh:mm a", 'es_CO');
+    } catch (_) {
+      return DateFormat('yyyy-MM-dd HH:mm');
+    }
+  }
+
   String _methodLabel(PaymentMethod method) => switch (method) {
-        PaymentMethod.efectivo => 'Efectivo',
-        PaymentMethod.transferencia => 'Transferencia',
-        PaymentMethod.payu => 'PayU',
-      };
+    PaymentMethod.efectivo => 'Efectivo',
+    PaymentMethod.transferencia => 'Transferencia',
+    PaymentMethod.payu => 'PayU',
+  };
 
   Future<void> _openReceipt(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('URL de recibo inválida.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('URL de recibo inválida.')));
       return;
     }
 
@@ -122,7 +153,10 @@ class _RegisteredByText extends StatelessWidget {
 
   bool get _isLikelyUid {
     final v = registradoPor.trim();
-    return v.isNotEmpty && v != 'admin' && v != 'payu_webhook' && v.length >= 20;
+    return v.isNotEmpty &&
+        v != 'admin' &&
+        v != 'payu_webhook' &&
+        v.length >= 20;
   }
 
   @override
@@ -141,7 +175,9 @@ class _RegisteredByText extends StatelessWidget {
           .get(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
-        final adminName = (data?['nombre'] ?? data?['displayName'] ?? '').toString().trim();
+        final adminName = (data?['nombre'] ?? data?['displayName'] ?? '')
+            .toString()
+            .trim();
         return Text(
           'Registrado por: ${adminName.isEmpty ? 'Administrador' : adminName}',
           style: const TextStyle(color: OcgColors.ink),

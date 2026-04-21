@@ -4,9 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/providers/auth_providers.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 
 import '../../../shared/constants/firestore_paths.dart';
+import '../../patients/data/models/patient_data_resolution.dart';
 import '../../patients/data/models/patient_model.dart';
+import '../../patients/data/services/patient_data_resolution_service.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../services/payu_service.dart';
 import '../data/models/admin_payment_overview.dart';
@@ -18,31 +21,137 @@ final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
   return PaymentsRepository(FirebaseFirestore.instance);
 });
 
+final patientDataResolutionServiceProvider =
+    Provider<PatientDataResolutionService>((ref) {
+      return const PatientDataResolutionService();
+    });
+
 final patientPaymentProvider = StreamProvider.family<PaymentModel?, String>((
   ref,
   patientId,
-) {
-  return ref.watch(paymentsRepositoryProvider).watchPatientPayments(patientId);
+) async* {
+  try {
+    yield* ref
+        .watch(paymentsRepositoryProvider)
+        .watchPatientPayments(patientId);
+  } catch (error) {
+    if (_isPermissionDenied(error)) {
+      yield null;
+      return;
+    }
+    rethrow;
+  }
 });
 
 final treatmentPaymentProvider =
     StreamProvider.family<
       PaymentModel?,
       ({String patientId, String treatmentId})
-    >((ref, args) {
-      return ref
-          .watch(paymentsRepositoryProvider)
-          .watchPatientPayments(args.patientId, treatmentId: args.treatmentId);
+    >((ref, args) async* {
+      try {
+        yield* ref
+            .watch(paymentsRepositoryProvider)
+            .watchPatientPayments(
+              args.patientId,
+              treatmentId: args.treatmentId,
+            );
+      } catch (error) {
+        if (_isPermissionDenied(error)) {
+          yield null;
+          return;
+        }
+        rethrow;
+      }
     });
 
 final patientTransactionsProvider =
     StreamProvider.family<
       List<PaymentTransaction>,
       ({String patientId, String? treatmentId})
+    >((ref, args) async* {
+      try {
+        yield* ref
+            .watch(paymentsRepositoryProvider)
+            .watchTransactions(args.patientId, treatmentId: args.treatmentId);
+      } catch (error) {
+        if (_isPermissionDenied(error)) {
+          yield const <PaymentTransaction>[];
+          return;
+        }
+        rethrow;
+      }
+    });
+
+final effectivePatientPaymentsProvider =
+    Provider.family<
+      EffectivePatientDataResolution,
+      ({String patientId, PatientModel patient})
     >((ref, args) {
-      return ref
-          .watch(paymentsRepositoryProvider)
-          .watchTransactions(args.patientId, treatmentId: args.treatmentId);
+      final service = ref.watch(patientDataResolutionServiceProvider);
+      final treatments = ref.watch(
+        effectivePatientTreatmentsProvider((
+          patientId: args.patientId,
+          patient: args.patient,
+        )),
+      );
+      final legacyPayment = ref
+          .watch(patientPaymentProvider(args.patientId))
+          .asData
+          ?.value;
+      final treatmentPayments = <PaymentModel>[];
+      final treatmentTransactions = <PaymentTransaction>[];
+
+      for (final treatment in treatments.where(
+        (item) => !item.id.startsWith('legacy-primary-'),
+      )) {
+        final payment = ref
+            .watch(
+              treatmentPaymentProvider((
+                patientId: args.patientId,
+                treatmentId: treatment.id,
+              )),
+            )
+            .asData
+            ?.value;
+        if (payment != null) {
+          treatmentPayments.add(payment);
+        }
+        final transactions = ref
+            .watch(
+              patientTransactionsProvider((
+                patientId: args.patientId,
+                treatmentId: treatment.id,
+              )),
+            )
+            .asData
+            ?.value;
+        if (transactions != null) {
+          treatmentTransactions.addAll(transactions);
+        }
+      }
+
+      final legacyTransactions =
+          ref
+              .watch(
+                patientTransactionsProvider((
+                  patientId: args.patientId,
+                  treatmentId: null,
+                )),
+              )
+              .asData
+              ?.value ??
+          const <PaymentTransaction>[];
+
+      return service.resolve(
+        patient: args.patient,
+        newTreatments: treatments
+            .where((item) => !item.id.startsWith('legacy-primary-'))
+            .toList(),
+        legacyPayment: legacyPayment,
+        treatmentPayments: treatmentPayments,
+        legacyTransactions: legacyTransactions,
+        treatmentTransactions: treatmentTransactions,
+      );
     });
 
 final adminPaymentsOverviewProvider = StreamProvider<AdminPaymentsOverview>((

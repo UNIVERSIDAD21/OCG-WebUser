@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../features/patients/data/models/patient_data_resolution.dart';
 import '../../../../features/payments/data/models/financial_item_model.dart';
 import '../../../../features/payments/providers/payments_provider.dart';
 import '../../../../features/payments/presentation/widgets/manage_financial_items_dialog.dart';
@@ -9,8 +10,6 @@ import '../../../../features/payments/presentation/widgets/register_payment_dial
 import '../../../../features/payments/presentation/widgets/transaction_list.dart';
 import '../../../../features/payments/providers/treatment_financial_provider.dart';
 import '../../../../features/treatment/data/models/patient_treatment.dart';
-import '../../../../features/treatment/providers/patient_treatments_provider.dart';
-import '../../../auth/providers/auth_providers.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../providers/patients_provider.dart';
@@ -26,13 +25,11 @@ class PatientPaymentsTab extends ConsumerStatefulWidget {
 
 class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
   String? _selectedTreatmentId;
+  bool _showGlobalHistory = true;
 
   @override
   Widget build(BuildContext context) {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
-    final treatmentsAsync = ref.watch(
-      patientTreatmentsProvider(widget.patientId),
-    );
 
     return patientAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -45,32 +42,21 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
           );
         }
 
-        final remoteTreatments =
-            treatmentsAsync.asData?.value ?? const <PatientTreatment>[];
-        final treatments = remoteTreatments.isNotEmpty
-            ? remoteTreatments
-            : <PatientTreatment>[PatientTreatment.fromLegacyPatient(patient)];
-        if (remoteTreatments.isEmpty && patient.tipoTratamiento != null) {
-          Future.microtask(
-            () => ref
-                .read(savePatientTreatmentProvider.notifier)
-                .migrateLegacyPatientIfNeeded(
-                  patient: patient,
-                  createdBy:
-                      ref.read(authStateProvider).asData?.value?.uid ??
-                      'system-migration',
-                ),
-          );
-        }
+        final resolution = ref.watch(
+          effectivePatientPaymentsProvider((
+            patientId: widget.patientId,
+            patient: patient,
+          )),
+        );
+        final treatments = resolution.treatments;
         final selectedTreatment = _resolveSelectedTreatment(treatments);
+
         if (!selectedTreatment.id.startsWith('legacy-primary-')) {
           Future.microtask(
-            () => ref
-                .read(treatmentFinancialRepositoryProvider)
-                .ensureBaseItems(
-                  patientId: widget.patientId,
-                  treatment: selectedTreatment,
-                ),
+            () => ref.read(ensureTreatmentFinancialItemsProvider)(
+              widget.patientId,
+              selectedTreatment,
+            ),
           );
         }
 
@@ -80,11 +66,23 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
             treatmentId: selectedTreatment.id,
           )),
         );
-        final treatmentPaymentAsync = ref.watch(
-          treatmentPaymentProvider((
-            patientId: widget.patientId,
-            treatmentId: selectedTreatment.id,
-          )),
+        final selectedAccount = resolution.paymentAccounts
+            .cast<EffectivePatientPaymentAccount?>()
+            .firstWhere(
+              (item) => item?.treatmentId == selectedTreatment.id,
+              orElse: () => null,
+            );
+        final globalTotal = resolution.paymentAccounts.fold<double>(
+          0,
+          (sum, account) => sum + account.payment.totalTratamiento,
+        );
+        final globalPaid = resolution.paymentAccounts.fold<double>(
+          0,
+          (sum, account) => sum + account.payment.montoPagado,
+        );
+        final globalPending = resolution.paymentAccounts.fold<double>(
+          0,
+          (sum, account) => sum + account.payment.saldoPendiente,
         );
 
         return SingleChildScrollView(
@@ -93,41 +91,95 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Pagos por tratamiento',
+                'Pagos del paciente',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'Cada tratamiento administra su propia cuenta financiera. Lo que registres aquí afecta solo al tratamiento seleccionado.',
+                'Resumen global agregado + cuentas por tratamiento. Los pagos manuales siempre se registran contra una cuenta específica.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: OcgColors.bronze),
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              const SizedBox(height: 16),
+              _GlobalPaymentsSummary(
+                total: globalTotal,
+                paid: globalPaid,
+                pending: globalPending,
+                mode: resolution.mode,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Cuentas por tratamiento',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              if (resolution.paymentAccounts.isEmpty)
+                const OcgEmptyState(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'No hay cuentas de pago todavía.',
+                  subtitle:
+                      'Cuando se inicialicen cuentas legacy o por tratamiento aparecerán aquí.',
+                )
+              else
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final account in resolution.paymentAccounts)
+                      _PaymentAccountCard(
+                        account: account,
+                        selected: account.treatmentId == selectedTreatment.id,
+                        onSelect: account.treatmentId == null
+                            ? null
+                            : () => setState(() {
+                                _selectedTreatmentId = account.treatmentId;
+                                _showGlobalHistory = false;
+                              }),
+                        onRegister: account.treatmentId == null
+                            ? null
+                            : () => showDialog<void>(
+                                context: context,
+                                builder: (_) => RegisterPaymentDialog(
+                                  patientId: widget.patientId,
+                                  treatmentId: account.treatmentId,
+                                  saldoPendiente:
+                                      account.payment.saldoPendiente,
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              Row(
                 children: [
-                  for (final treatment in treatments)
-                    ChoiceChip(
-                      selected: selectedTreatment.id == treatment.id,
-                      label: Text(treatment.displayName),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Historial global'),
+                      selected: _showGlobalHistory,
                       onSelected: (_) =>
-                          setState(() => _selectedTreatmentId = treatment.id),
+                          setState(() => _showGlobalHistory = true),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: Text('Cuenta: ${selectedTreatment.displayName}'),
+                      selected: !_showGlobalHistory,
+                      onSelected: (_) =>
+                          setState(() => _showGlobalHistory = false),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
-              treatmentPaymentAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (error, _) =>
-                    Text('No se pudo cargar la cuenta del tratamiento: $error'),
-                data: (payment) => _PaymentAccountBanner(
-                  treatment: selectedTreatment,
-                  nextPaymentDate: payment?.fechaProximoPago,
-                ),
+              _PaymentAccountBanner(
+                treatment: selectedTreatment,
+                nextPaymentDate: selectedAccount?.payment.fechaProximoPago,
               ),
               const SizedBox(height: 16),
               financialItemsAsync.when(
@@ -156,14 +208,17 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   backgroundColor: OcgColors.espresso,
                   foregroundColor: OcgColors.ivory,
                 ),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => RegisterPaymentDialog(
-                    patientId: widget.patientId,
-                    treatmentId: selectedTreatment.id,
-                    saldoPendiente: selectedTreatment.saldoPendiente ?? 0,
-                  ),
-                ),
+                onPressed: selectedAccount?.treatmentId == null
+                    ? null
+                    : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => RegisterPaymentDialog(
+                          patientId: widget.patientId,
+                          treatmentId: selectedAccount!.treatmentId,
+                          saldoPendiente:
+                              selectedAccount.payment.saldoPendiente,
+                        ),
+                      ),
                 icon: const Icon(Icons.add),
                 label: Text(
                   'Registrar pago en ${selectedTreatment.displayName}',
@@ -171,7 +226,9 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Historial de transacciones de ${selectedTreatment.displayName}',
+                _showGlobalHistory
+                    ? 'Historial global de pagos'
+                    : 'Historial de ${selectedTreatment.displayName}',
                 style: const TextStyle(
                   color: OcgColors.espresso,
                   fontSize: 16,
@@ -181,7 +238,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               const SizedBox(height: 8),
               TransactionList(
                 patientId: widget.patientId,
-                treatmentId: selectedTreatment.id,
+                treatmentId: _showGlobalHistory ? null : selectedTreatment.id,
               ),
             ],
           ),
@@ -202,6 +259,193 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
       if (treatment.isPrimary) return treatment;
     }
     return treatments.first;
+  }
+}
+
+class _GlobalPaymentsSummary extends StatelessWidget {
+  const _GlobalPaymentsSummary({
+    required this.total,
+    required this.paid,
+    required this.pending,
+    required this.mode,
+  });
+
+  final double total;
+  final double paid;
+  final double pending;
+  final PatientDataMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Resumen global del paciente',
+                  style: TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Text(
+                switch (mode) {
+                  PatientDataMode.legacyPuro => 'LEGACY',
+                  PatientDataMode.nuevoPuro => 'NUEVO',
+                  PatientDataMode.mixto => 'MIXTO',
+                },
+                style: const TextStyle(
+                  color: OcgColors.bronze,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _SummaryMetric(label: 'Total', value: currency.format(total)),
+              _SummaryMetric(label: 'Pagado', value: currency.format(paid)),
+              _SummaryMetric(label: 'Saldo', value: currency.format(pending)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F5F0),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentAccountCard extends StatelessWidget {
+  const _PaymentAccountCard({
+    required this.account,
+    required this.selected,
+    required this.onSelect,
+    required this.onRegister,
+  });
+
+  final EffectivePatientPaymentAccount account;
+  final bool selected;
+  final VoidCallback? onSelect;
+  final VoidCallback? onRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+    return SizedBox(
+      width: 320,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFF8F0E7) : OcgColors.ivory,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? OcgColors.bronze : const Color(0xFFE8DDD2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              account.treatmentId == null
+                  ? 'Cuenta legacy'
+                  : 'Cuenta ${account.treatmentId}',
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              account.isLegacy
+                  ? 'Legacy / transición'
+                  : 'Tratamiento específico',
+              style: const TextStyle(color: OcgColors.bronze),
+            ),
+            const SizedBox(height: 10),
+            Text('Total: ${currency.format(account.payment.totalTratamiento)}'),
+            Text('Pagado: ${currency.format(account.payment.montoPagado)}'),
+            Text('Saldo: ${currency.format(account.payment.saldoPendiente)}'),
+            if (account.payment.fechaProximoPago != null)
+              Text(
+                'Próximo pago: ${DateFormat('dd/MM/yyyy').format(account.payment.fechaProximoPago!)}',
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onSelect,
+                    child: const Text('Ver detalle'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onRegister,
+                    child: const Text('Registrar pago'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
