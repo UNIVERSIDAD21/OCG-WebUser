@@ -20,6 +20,8 @@ class AuthService {
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
 
+  User? get currentUser => _auth.currentUser;
+
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<String?> getUserRole() async {
@@ -61,7 +63,9 @@ class AuthService {
       'email': user.email,
       'cachedRole': cached.claims?['role'],
       'refreshedRole': refreshed.claims?['role'],
-      'claims': Map<String, dynamic>.from(refreshed.claims ?? const <String, dynamic>{}),
+      'claims': Map<String, dynamic>.from(
+        refreshed.claims ?? const <String, dynamic>{},
+      ),
     };
   }
 
@@ -76,7 +80,10 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return false;
 
-    final snap = await _db.collection(FirestorePaths.patients).doc(user.uid).get();
+    final snap = await _db
+        .collection(FirestorePaths.patients)
+        .doc(user.uid)
+        .get();
     if (!snap.exists) return false;
 
     final data = snap.data() ?? const <String, dynamic>{};
@@ -171,7 +178,10 @@ class AuthService {
 
       final user = credential.user;
       if (user == null) {
-        throw FirebaseAuthException(code: 'unknown', message: 'No se pudo crear el usuario.');
+        throw FirebaseAuthException(
+          code: 'unknown',
+          message: 'No se pudo crear el usuario.',
+        );
       }
 
       if (cleanName.isNotEmpty) {
@@ -296,12 +306,28 @@ class AuthService {
     return _auth.sendPasswordResetEmail(email: email.trim());
   }
 
-  Future<void> updateFcmToken(String uid, String role, String token) async {
-    final collection = role == 'admin' ? 'admins' : 'patients';
-    await _db.collection(collection).doc(uid).set({
-      'fcmToken': token,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+  Future<void> upsertFcmDeviceToken({
+    required String uid,
+    required String role,
+    required String token,
+    required String deviceId,
+    required String platform,
+  }) async {
+    final callable = _functions.httpsCallable('setFcmToken');
+    await callable.call({
+      'token': token,
+      'deviceId': deviceId,
+      'platform': platform,
+    });
+  }
+
+  Future<void> deleteFcmDeviceToken({
+    required String uid,
+    required String role,
+    required String deviceId,
+  }) async {
+    final callable = _functions.httpsCallable('deleteFcmToken');
+    await callable.call({'deviceId': deviceId});
   }
 
   Future<void> bootstrapAdminByEmailIfAllowed(String email) async {

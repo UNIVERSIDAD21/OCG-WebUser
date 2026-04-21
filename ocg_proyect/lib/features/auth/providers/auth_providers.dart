@@ -3,11 +3,18 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/router/app_router.dart';
 import '../../../services/firebase/auth_service.dart';
 import '../../../services/notifications/fcm_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
-final fcmServiceProvider = Provider<FcmService>((ref) => FcmService());
+final fcmServiceProvider = Provider<FcmService>((ref) {
+  final service = FcmService();
+  ref.onDispose(() {
+    unawaited(service.dispose());
+  });
+  return service;
+});
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;
@@ -52,25 +59,49 @@ final authNotifierProvider = AsyncNotifierProvider<AuthNotifier, void>(
   AuthNotifier.new,
 );
 
+final fcmBootstrapProvider = Provider<void>((ref) {
+  final authService = ref.watch(authServiceProvider);
+  final fcmService = ref.watch(fcmServiceProvider);
+  final router = ref.watch(appRouterProvider);
+
+  Future<String?> resolveRole() async =>
+      await ref.read(userRoleProvider.future);
+
+  unawaited(
+    fcmService.initialize(
+      authService: authService,
+      resolveRole: resolveRole,
+      router: router,
+    ),
+  );
+
+  ref.listen<AsyncValue<User?>>(authStateProvider, (previous, next) async {
+    final previousUser = previous?.asData?.value;
+    final nextUser = next.asData?.value;
+    final currentRole = await resolveRole();
+
+    if (previousUser != null && nextUser == null) {
+      if (currentRole == 'admin' || currentRole == 'patient') {
+        await fcmService.clearCurrentUserDeviceToken(
+          authService: authService,
+          role: currentRole!,
+        );
+      }
+      return;
+    }
+
+    if (nextUser != null) {
+      await fcmService.syncCurrentUserDeviceToken(
+        authService: authService,
+        resolveRole: resolveRole,
+      );
+    }
+  });
+});
+
 class AuthNotifier extends AsyncNotifier<void> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
-
-  Future<void> _updateFcmTokenAfterLogin({
-    required String uid,
-    required String role,
-  }) async {
-    final authService = ref.read(authServiceProvider);
-    final token = await ref.read(fcmServiceProvider).getToken();
-
-    if (token == null || token.isEmpty) return;
-
-    try {
-      await authService.updateFcmToken(uid, role, token);
-    } catch (_) {
-      // No bloquear flujo principal por fallo de escritura de token FCM.
-    }
-  }
 
   Future<void> signIn(String email, String password) async {
     state = const AsyncLoading();
@@ -97,14 +128,6 @@ class AuthNotifier extends AsyncNotifier<void> {
         }
 
         ref.invalidate(userRoleProvider);
-
-        unawaited(() async {
-          try {
-            await _updateFcmTokenAfterLogin(uid: uid, role: effectiveRole);
-          } catch (_) {
-            // Evitar errores no capturados en background durante login web.
-          }
-        }());
       }
 
       state = const AsyncData(null);
@@ -171,8 +194,16 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   Future<void> signOut() async {
     state = const AsyncLoading();
+    final authService = ref.read(authServiceProvider);
+    final role = await ref.read(userRoleProvider.future);
+
     final result = await AsyncValue.guard(() async {
-      await ref.read(authServiceProvider).signOut();
+      if (role == 'admin' || role == 'patient') {
+        await ref
+            .read(fcmServiceProvider)
+            .clearCurrentUserDeviceToken(authService: authService, role: role!);
+      }
+      await authService.signOut();
     });
 
     ref.invalidate(authStateProvider);

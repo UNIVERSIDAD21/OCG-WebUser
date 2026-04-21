@@ -11,6 +11,7 @@ import '../../features/dashboard/presentation/admin_modules_screens.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
+import '../../features/notifications/presentation/patient_notifications_screen.dart';
 import '../../features/patients/presentation/patient_detail_screen.dart';
 import '../../features/patients/presentation/patient_form_screen.dart';
 import '../../features/patients/presentation/patient_profile_screen.dart';
@@ -169,6 +170,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PatientProfileScreen(),
       ),
       GoRoute(
+        path: RouteNames.patientNotifications,
+        builder: (context, state) => const PatientNotificationsScreen(),
+      ),
+      GoRoute(
         path: RouteNames.patientPayments,
         builder: (context, state) => const PatientPaymentsScreen(),
       ),
@@ -192,8 +197,6 @@ class _AuthResolvingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

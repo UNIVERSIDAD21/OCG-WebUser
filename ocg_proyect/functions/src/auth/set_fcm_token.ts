@@ -1,58 +1,84 @@
 import * as admin from 'firebase-admin';
-import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
-type SetFcmTokenData = {
-  token?: string;
-};
-
-function getAuthContext(request: CallableRequest<SetFcmTokenData>): {
-  uid: string;
-  role: 'admin' | 'patient';
-} {
+export const setFcmToken = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
-    throw new HttpsError('unauthenticated', 'Autenticación requerida.');
+    throw new HttpsError('unauthenticated', 'User not authenticated');
   }
 
-  const roleClaim = request.auth?.token?.role;
-  if (roleClaim !== 'admin' && roleClaim !== 'patient') {
-    throw new HttpsError('permission-denied', 'Rol inválido para actualizar FCM token.');
-  }
-
-  return {uid, role: roleClaim};
-}
-
-function normalizeToken(rawToken?: string): string {
-  const token = (rawToken ?? '').trim();
+  const token = (request.data?.token || '').toString().trim();
+  const deviceId = (request.data?.deviceId || '').toString().trim();
+  const platform = (request.data?.platform || '').toString().trim() || 'android';
   if (!token) {
-    throw new HttpsError('invalid-argument', 'Token FCM requerido.');
+    throw new HttpsError('invalid-argument', 'Missing token');
+  }
+  if (!deviceId) {
+    throw new HttpsError('invalid-argument', 'Missing deviceId');
   }
 
-  if (token.length < 20 || token.length > 4096) {
-    throw new HttpsError('invalid-argument', 'Token FCM inválido.');
-  }
+  const db = admin.firestore();
+  const adminDoc = await db.collection('admins').doc(uid).get();
+  const role = adminDoc.exists ? 'admin' : 'patient';
 
-  return token;
-}
+  const deviceRef = db
+    .collection(role === 'admin' ? 'admins' : 'patients')
+    .doc(uid)
+    .collection('devices')
+    .doc(deviceId);
 
-export const setFcmToken = onCall<SetFcmTokenData>(async (request) => {
-  const {uid, role} = getAuthContext(request);
-  const token = normalizeToken(request.data?.token);
-
-  const collection = role === 'admin' ? 'admins' : 'patients';
-
-  await admin.firestore().collection(collection).doc(uid).set(
+  await deviceRef.set(
     {
-      fcmToken: token,
+      token,
+      deviceId,
+      platform,
+      active: true,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     },
-    {merge: true},
+    { merge: true },
   );
 
-  return {
-    ok: true,
-    uid,
-    role,
-    updated: true,
-  };
+  await db
+    .collection(role === 'admin' ? 'admins' : 'patients')
+    .doc(uid)
+    .set(
+      {
+        fcmToken: token,
+        fcmDeviceId: deviceId,
+        fcmPlatform: platform,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+  return { ok: true, role };
+});
+
+export const deleteFcmToken = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError('unauthenticated', 'User not authenticated');
+  }
+
+  const deviceId = (request.data?.deviceId || '').toString().trim();
+  if (!deviceId) {
+    throw new HttpsError('invalid-argument', 'Missing deviceId');
+  }
+
+  const db = admin.firestore();
+  const adminDoc = await db.collection('admins').doc(uid).get();
+  const role = adminDoc.exists ? 'admin' : 'patient';
+  const userRef = db.collection(role === 'admin' ? 'admins' : 'patients').doc(uid);
+
+  await userRef.collection('devices').doc(deviceId).set(
+    {
+      active: false,
+      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return { ok: true, role };
 });
