@@ -277,20 +277,27 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                   children: [
                     const _MobileSectionHeader(title: 'Ingresos recientes'),
                     const SizedBox(height: 10),
-                    ...recentIncome.take(3).map((entry) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _PaymentsCompactRow(
-                          entry: entry,
-                          onTap: () => context.go(
-                            RouteNames.adminPatientDetail.replaceFirst(
-                              ':patientId',
-                              entry.patient.id,
+                    if (recentIncome.isEmpty)
+                      const _PaymentsEmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        message:
+                            'No hay ingresos recientes para mostrar todavía.',
+                      )
+                    else
+                      ...recentIncome.take(3).map((entry) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _PaymentsCompactRow(
+                            entry: entry,
+                            onTap: () => context.go(
+                              RouteNames.adminPatientDetail.replaceFirst(
+                                ':patientId',
+                                entry.patient.id,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
+                        );
+                      }),
                   ],
                 ),
               );
@@ -500,9 +507,9 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
             ),
             padding: const EdgeInsets.all(14),
             child: history.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('No hay pagos para los filtros actuales.'),
+                ? const _PaymentsEmptyState(
+                    icon: Icons.payments_outlined,
+                    message: 'No hay transacciones para los filtros actuales.',
                   )
                 : Column(
                     children: [
@@ -2240,6 +2247,40 @@ String _tipoLabel(TreatmentType type) => switch (type) {
   TreatmentType.retenedores => 'Retenedores',
   TreatmentType.interceptivo => 'Interceptivo',
 };
+
+class _PaymentsEmptyState extends StatelessWidget {
+  const _PaymentsEmptyState({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F5F0),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF9A735C), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF7E6A5B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PaymentsCompactRow extends StatelessWidget {
   const _PaymentsCompactRow({

@@ -1,8 +1,49 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../models/payment_model.dart';
+
+@visibleForTesting
+List<PaymentTransaction> mergePatientTransactionsForOverview(
+  Iterable<PaymentTransaction> legacy,
+  Iterable<PaymentTransaction> treatment,
+) {
+  final merged = <String, PaymentTransaction>{};
+  for (final tx in legacy) {
+    merged[paymentTransactionDedupKey(tx)] = tx;
+  }
+  for (final tx in treatment) {
+    merged[paymentTransactionDedupKey(tx)] = tx;
+  }
+  final items = merged.values.toList()
+    ..sort((a, b) => b.fecha.compareTo(a.fecha));
+  return items;
+}
+
+@visibleForTesting
+String paymentTransactionDedupKey(
+  PaymentTransaction transaction, {
+  String? fallbackId,
+}) {
+  final id = transaction.id.trim().isNotEmpty
+      ? transaction.id.trim()
+      : fallbackId;
+  if (id != null && id.isNotEmpty) {
+    return 'id:$id';
+  }
+  return [
+    transaction.treatmentId ?? 'legacy',
+    transaction.metodo.name,
+    transaction.monto.toStringAsFixed(2),
+    transaction.fecha.toUtc().millisecondsSinceEpoch,
+    transaction.referencia ?? '',
+    transaction.payuTransactionId ?? '',
+  ].join('|');
+}
 
 class PaymentsRepository {
   PaymentsRepository(this._db);
@@ -90,16 +131,108 @@ class PaymentsRepository {
       return _watchTreatmentTransactions(patientId, treatmentId);
     }
 
-    return _db
-        .collectionGroup('transactions')
-        .where('patientId', isEqualTo: patientId)
+    return _watchPatientResolvedTransactions(patientId);
+  }
+
+  Stream<List<PaymentTransaction>> _watchPatientResolvedTransactions(
+    String patientId,
+  ) {
+    final controller = StreamController<List<PaymentTransaction>>.broadcast();
+    final legacyTransactions = <String, PaymentTransaction>{};
+    final treatmentTransactions = <String, PaymentTransaction>{};
+    final treatmentSubs =
+        <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? legacySub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? treatmentsSub;
+    var generation = 0;
+
+    void emitMerged() {
+      final merged = _mergePatientTransactions(
+        legacyTransactions.values,
+        treatmentTransactions.values,
+      );
+      controller.add(merged);
+    }
+
+    Future<void> bindTreatmentStreams(List<String> treatmentIds) async {
+      generation++;
+      final currentGeneration = generation;
+      for (final sub in treatmentSubs) {
+        await sub.cancel();
+      }
+      treatmentSubs.clear();
+      treatmentTransactions.clear();
+
+      unawaited(
+        _backfillLegacyTransactionsIfPossible(
+          patientId: patientId,
+          treatmentIds: treatmentIds,
+        ),
+      );
+
+      for (final treatmentId in treatmentIds) {
+        final sub = _db
+            .collection(
+              FirestorePaths.treatmentTransactions(patientId, treatmentId),
+            )
+            .orderBy('fecha', descending: true)
+            .snapshots()
+            .listen((snap) {
+              if (currentGeneration != generation) return;
+              treatmentTransactions.removeWhere(
+                (_, tx) => tx.treatmentId == treatmentId,
+              );
+              for (final doc in snap.docs) {
+                final tx = PaymentTransaction.fromJson(doc.data());
+                treatmentTransactions[_transactionDedupKey(
+                      tx,
+                      fallbackId: doc.id,
+                    )] =
+                    tx;
+              }
+              emitMerged();
+            }, onError: controller.addError);
+        treatmentSubs.add(sub);
+      }
+
+      emitMerged();
+    }
+
+    legacySub = _db
+        .collection(FirestorePaths.legacyTransactions(patientId))
         .orderBy('fecha', descending: true)
         .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map((d) => PaymentTransaction.fromJson(d.data()))
-              .toList(),
+        .listen((snap) {
+          legacyTransactions.clear();
+          for (final doc in snap.docs) {
+            final raw = Map<String, dynamic>.from(doc.data());
+            raw['patientId'] = raw['patientId'] ?? patientId;
+            raw['id'] = raw['id'] ?? doc.id;
+            final tx = PaymentTransaction.fromJson(raw);
+            legacyTransactions[_transactionDedupKey(tx, fallbackId: doc.id)] =
+                tx;
+          }
+          emitMerged();
+        }, onError: controller.addError);
+
+    treatmentsSub = _db
+        .collection(FirestorePaths.patientTreatments(patientId))
+        .snapshots()
+        .listen(
+          (snap) =>
+              bindTreatmentStreams(snap.docs.map((doc) => doc.id).toList()),
+          onError: controller.addError,
         );
+
+    controller.onCancel = () async {
+      await legacySub?.cancel();
+      await treatmentsSub?.cancel();
+      for (final sub in treatmentSubs) {
+        await sub.cancel();
+      }
+    };
+
+    return controller.stream;
   }
 
   Stream<List<PaymentTransaction>> _watchTreatmentTransactions(
@@ -713,32 +846,87 @@ class PaymentsRepository {
     required String patientId,
     required String treatmentId,
   }) async {
-    final targetCollection = _db.collection(
-      FirestorePaths.treatmentTransactions(patientId, treatmentId),
+    await _backfillLegacyTransactionsIfPossible(
+      patientId: patientId,
+      treatmentIds: [treatmentId],
     );
-    final existing = await targetCollection.limit(1).get();
-    if (existing.docs.isNotEmpty) return;
+  }
 
+  Future<void> _backfillLegacyTransactionsIfPossible({
+    required String patientId,
+    required List<String> treatmentIds,
+  }) async {
     final legacy = await _db
         .collection(FirestorePaths.legacyTransactions(patientId))
         .get();
 
     if (legacy.docs.isEmpty) return;
 
+    final resolvableSingleTreatment = treatmentIds.length == 1
+        ? treatmentIds.first
+        : null;
     final batch = _db.batch();
+    var hasWrites = false;
+
     for (final doc in legacy.docs) {
-      final data = doc.data();
-      final txTreatmentId = (data['treatmentId'] ?? '').toString();
-      if (txTreatmentId.isNotEmpty && txTreatmentId != treatmentId) continue;
-      batch.set(targetCollection.doc(doc.id), {
+      final data = Map<String, dynamic>.from(doc.data());
+      final legacyTreatmentId = (data['treatmentId'] ?? '').toString().trim();
+      final resolvedTreatmentId = legacyTreatmentId.isNotEmpty
+          ? legacyTreatmentId
+          : resolvableSingleTreatment;
+
+      final normalizedLegacy = <String, dynamic>{
         ...data,
+        'id': (data['id'] ?? doc.id).toString(),
         'patientId': patientId,
-        'treatmentId': treatmentId,
-        'migratedFrom':
+        'legacySource': true,
+        'legacyPath':
             '${FirestorePaths.legacyTransactions(patientId)}/${doc.id}',
-      }, SetOptions(merge: true));
+        'normalizedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (resolvedTreatmentId != null && resolvedTreatmentId.isNotEmpty) {
+        normalizedLegacy['treatmentId'] = resolvedTreatmentId;
+      }
+
+      batch.set(doc.reference, normalizedLegacy, SetOptions(merge: true));
+      hasWrites = true;
+
+      if (resolvedTreatmentId != null && resolvedTreatmentId.isNotEmpty) {
+        final targetRef = _db
+            .collection(
+              FirestorePaths.treatmentTransactions(
+                patientId,
+                resolvedTreatmentId,
+              ),
+            )
+            .doc(doc.id);
+        batch.set(targetRef, {
+          ...normalizedLegacy,
+          'migratedFrom':
+              '${FirestorePaths.legacyTransactions(patientId)}/${doc.id}',
+        }, SetOptions(merge: true));
+        hasWrites = true;
+      }
     }
-    await batch.commit();
+
+    if (hasWrites) {
+      await batch.commit();
+    }
+  }
+
+  List<PaymentTransaction> _mergePatientTransactions(
+    Iterable<PaymentTransaction> legacy,
+    Iterable<PaymentTransaction> treatment,
+  ) {
+    return mergePatientTransactionsForOverview(legacy, treatment);
+  }
+
+  String _transactionDedupKey(
+    PaymentTransaction transaction, {
+    String? fallbackId,
+  }) {
+    return paymentTransactionDedupKey(transaction, fallbackId: fallbackId);
   }
 
   PaymentModel _buildAggregatePayment(
