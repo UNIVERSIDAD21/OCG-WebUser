@@ -1199,13 +1199,15 @@ class _TreatmentKpiPremium extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 220;
+        final compactWidth = constraints.maxWidth < 220;
+        final compactHeight = constraints.maxHeight < 88;
+        final compact = compactWidth || compactHeight;
         return Container(
           padding: EdgeInsets.fromLTRB(
-            compact ? 12 : 14,
-            compact ? 10 : 12,
-            compact ? 12 : 14,
-            compact ? 10 : 12,
+            compact ? 10 : 14,
+            compact ? 8 : 12,
+            compact ? 10 : 14,
+            compact ? 8 : 12,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -1244,8 +1246,8 @@ class _TreatmentKpiPremium extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        width: compact ? 20 : 22,
-                        height: compact ? 20 : 22,
+                        width: compact ? 18 : 22,
+                        height: compact ? 18 : 22,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.65),
                           borderRadius: BorderRadius.circular(999),
@@ -1253,13 +1255,13 @@ class _TreatmentKpiPremium extends StatelessWidget {
                         ),
                         child: Icon(
                           icon,
-                          size: compact ? 11 : 12,
+                          size: compact ? 10 : 12,
                           color: accent,
                         ),
                       ),
                       const Spacer(),
                       Container(
-                        width: compact ? 16 : 18,
+                        width: compact ? 14 : 18,
                         height: 2,
                         decoration: BoxDecoration(
                           color: accent.withOpacity(0.45),
@@ -1268,14 +1270,14 @@ class _TreatmentKpiPremium extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(height: compact ? 8 : 10),
+                  SizedBox(height: compact ? 4 : 10),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
                       value,
                       style: TextStyle(
-                        fontSize: compact ? 22 : 24,
+                        fontSize: compact ? 19 : 24,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFF2C2016),
                         letterSpacing: -0.4,
@@ -1283,25 +1285,25 @@ class _TreatmentKpiPremium extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: compact ? 2 : 4),
                   Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: compact ? 11.5 : 12,
+                      fontSize: compact ? 10.5 : 12,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF2C2016),
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: compact ? 1 : 2),
                   Text(
                     subtitle,
-                    maxLines: compact ? 2 : 1,
+                    maxLines: compact ? 1 : 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: compact ? 10 : 10.5,
+                      fontSize: compact ? 9.5 : 10.5,
                       color: accent.withOpacity(0.9),
                       fontWeight: FontWeight.w500,
                       height: 1.15,
