@@ -721,7 +721,6 @@ class PaymentsRepository {
 
     final legacy = await _db
         .collection(FirestorePaths.legacyTransactions(patientId))
-        .where('treatmentId', whereIn: <dynamic>[treatmentId, null])
         .get();
 
     if (legacy.docs.isEmpty) return;
