@@ -7,6 +7,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
+import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
@@ -173,6 +174,23 @@ class _PatientDetailView extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
+      final layout = AdminDesktopLayoutScope.maybeOf(context);
+      final tier = layout?.tier ?? AdminDesktopTier.standard;
+      final sectionGap = layout?.sectionSpacing ?? 16;
+      final panelGap = layout?.panelGap ?? 12;
+      final headerPadding = switch (tier) {
+        AdminDesktopTier.wide => const EdgeInsets.fromLTRB(24, 20, 24, 14),
+        AdminDesktopTier.standard => const EdgeInsets.fromLTRB(22, 18, 22, 14),
+        AdminDesktopTier.compact => const EdgeInsets.fromLTRB(18, 16, 18, 12),
+        AdminDesktopTier.tight => const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      };
+      final titleSize = switch (tier) {
+        AdminDesktopTier.wide => 30.0,
+        AdminDesktopTier.standard => 28.0,
+        AdminDesktopTier.compact => 26.0,
+        AdminDesktopTier.tight => 24.0,
+      };
+
       final desktopContent = DefaultTabController(
         length: 6,
         child: Column(
@@ -180,16 +198,17 @@ class _PatientDetailView extends ConsumerWidget {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+              padding: headerPadding,
               decoration: BoxDecoration(
                 color: OcgColors.ivory,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       OutlinedButton.icon(
                         onPressed: () => context.go(RouteNames.adminPatients),
@@ -202,58 +221,108 @@ class _PatientDetailView extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: panelGap),
                       Expanded(
-                        child: Text(
-                          patient.nombre,
-                          style: const TextStyle(
-                            color: OcgColors.espresso,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: TabBar(
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          tabs: [
-                            Tab(text: 'Perfil'),
-                            Tab(text: 'Tratamiento'),
-                            Tab(text: 'Historial clínico'),
-                            Tab(text: 'Citas'),
-                            Tab(text: 'Pagos'),
-                            Tab(text: 'Simulador'),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              patient.nombre,
+                              style: TextStyle(
+                                color: OcgColors.espresso,
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w700,
+                                height: 1.05,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Workspace clínico, financiero y operativo del paciente',
+                              style: TextStyle(
+                                color: OcgColors.bronze,
+                                fontSize: tier == AdminDesktopTier.tight
+                                    ? 12
+                                    : 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: () =>
-                            AdminAppointmentsScreen.showCreateDialog(
-                              context,
-                              ref,
-                              preselectedPatient: patient,
-                              existingAppointments: existingAppointments,
+                      SizedBox(width: panelGap),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(
+                              RouteNames.adminPatientEdit.replaceFirst(
+                                ':patientId',
+                                patient.id,
+                              ),
                             ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Agendar cita'),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: const Text('Editar'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: onDelete,
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 16,
+                              color: OcgColors.error,
+                            ),
+                            label: const Text('Eliminar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: OcgColors.error,
+                            ),
+                          ),
+                          FilledButton.icon(
+                            onPressed: () =>
+                                AdminAppointmentsScreen.showCreateDialog(
+                                  context,
+                                  ref,
+                                  preselectedPatient: patient,
+                                  existingAppointments: existingAppointments,
+                                ),
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Agendar cita'),
+                          ),
+                        ],
                       ),
                     ],
+                  ),
+                  SizedBox(height: sectionGap),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tier == AdminDesktopTier.tight ? 10 : 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F5F0),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE8DDD2)),
+                    ),
+                    child: const TabBar(
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      tabs: [
+                        Tab(text: 'Perfil'),
+                        Tab(text: 'Tratamiento'),
+                        Tab(text: 'Historial clínico'),
+                        Tab(text: 'Citas'),
+                        Tab(text: 'Pagos'),
+                        Tab(text: 'Simulador'),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: sectionGap),
             SectionPanel(
-              title: 'Detalle',
-              child: SizedBox(
-                height: 760,
+              title: 'Workspace del paciente',
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 680),
                 child: TabBarView(
                   children: [
                     _PatientProfileAdminTab(
@@ -285,13 +354,7 @@ class _PatientDetailView extends ConsumerWidget {
         ),
       );
 
-      return AdminWebShell(
-        title: 'Detalle de paciente',
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: desktopContent,
-        ),
-      );
+      return AdminWebShell(title: 'Detalle de paciente', child: desktopContent);
     }
 
     return content;
@@ -422,37 +485,112 @@ class _PatientProfileAdminTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          decoration: BoxDecoration(
-            color: OcgColors.ivory,
-            border: Border(
-              bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.12)),
-            ),
-          ),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.end,
+    return PatientProfileTab(patient: patient);
+  }
+}
+
+class PatientDetailDesktopWorkspaceTestHarness extends StatelessWidget {
+  const PatientDetailDesktopWorkspaceTestHarness({
+    super.key,
+    required this.patient,
+  });
+
+  final PatientModel patient;
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 6,
+      child: Builder(
+        builder: (context) {
+          final layout = AdminDesktopLayoutScope.maybeOf(context);
+          final tier = layout?.tier ?? AdminDesktopTier.standard;
+          final sectionGap = layout?.sectionSpacing ?? 16;
+          final panelGap = layout?.panelGap ?? 12;
+          final titleSize = switch (tier) {
+            AdminDesktopTier.wide => 30.0,
+            AdminDesktopTier.standard => 28.0,
+            AdminDesktopTier.compact => 26.0,
+            AdminDesktopTier.tight => 24.0,
+          };
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Editar'),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.folder_shared_outlined),
+                        SizedBox(width: panelGap),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                patient.nombre,
+                                style: TextStyle(
+                                  color: OcgColors.espresso,
+                                  fontSize: titleSize,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Workspace clínico, financiero y operativo del paciente',
+                              ),
+                            ],
+                          ),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Agendar cita'),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: sectionGap),
+                    const TabBar(
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      tabs: [
+                        Tab(text: 'Perfil'),
+                        Tab(text: 'Tratamiento'),
+                        Tab(text: 'Historial clínico'),
+                        Tab(text: 'Citas'),
+                        Tab(text: 'Pagos'),
+                        Tab(text: 'Simulador'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Eliminar'),
+              SizedBox(height: sectionGap),
+              const Expanded(
+                child: TabBarView(
+                  children: [
+                    Center(child: Text('Perfil content')),
+                    Center(child: Text('Tratamiento content')),
+                    Center(child: Text('Historial content')),
+                    Center(child: Text('Citas content')),
+                    Center(child: Text('Pagos content')),
+                    Center(child: Text('Simulador content')),
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
-        Expanded(child: PatientProfileTab(patient: patient)),
-      ],
+          );
+        },
+      ),
     );
   }
 }
