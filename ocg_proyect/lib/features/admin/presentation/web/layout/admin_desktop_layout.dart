@@ -4,7 +4,7 @@ import '../../../../../presentation/web/common/web_breakpoints.dart';
 
 enum AdminDesktopTier { wide, standard, compact, tight }
 
-enum AdminSidebarMode { expanded, collapsed }
+enum AdminSidebarMode { expanded, rail, compactRail }
 
 class AdminDesktopLayoutData {
   const AdminDesktopLayoutData({
@@ -77,12 +77,16 @@ class AdminDesktopLayoutData {
 
   static AdminDesktopLayoutData fromViewport(Size viewportSize) {
     final viewportWidth = viewportSize.width;
-    final sidebarMode = viewportWidth < 1360
-        ? AdminSidebarMode.collapsed
-        : AdminSidebarMode.expanded;
-    final sidebarWidth = sidebarMode == AdminSidebarMode.expanded
-        ? 248.0
-        : 88.0;
+    final sidebarMode = switch (viewportWidth) {
+      >= 1460 => AdminSidebarMode.expanded,
+      >= 1120 => AdminSidebarMode.rail,
+      _ => AdminSidebarMode.compactRail,
+    };
+    final sidebarWidth = switch (sidebarMode) {
+      AdminSidebarMode.expanded => 232.0,
+      AdminSidebarMode.rail => 92.0,
+      AdminSidebarMode.compactRail => 76.0,
+    };
 
     final tier = _resolveTier(
       viewportWidth: viewportWidth,
@@ -96,8 +100,8 @@ class AdminDesktopLayoutData {
         tier: tier,
         sidebarMode: sidebarMode,
         sidebarWidth: sidebarWidth,
-        contentMaxWidth: 1360,
-        pageHorizontalPadding: 24,
+        contentMaxWidth: 1440,
+        pageHorizontalPadding: 22,
         shellGap: 0,
         sectionSpacing: 18,
         panelGap: 18,
@@ -110,8 +114,8 @@ class AdminDesktopLayoutData {
         tier: tier,
         sidebarMode: sidebarMode,
         sidebarWidth: sidebarWidth,
-        contentMaxWidth: 1240,
-        pageHorizontalPadding: 20,
+        contentMaxWidth: 1360,
+        pageHorizontalPadding: 18,
         shellGap: 0,
         sectionSpacing: 16,
         panelGap: 16,
@@ -124,8 +128,8 @@ class AdminDesktopLayoutData {
         tier: tier,
         sidebarMode: sidebarMode,
         sidebarWidth: sidebarWidth,
-        contentMaxWidth: 1120,
-        pageHorizontalPadding: 16,
+        contentMaxWidth: 1280,
+        pageHorizontalPadding: 14,
         shellGap: 0,
         sectionSpacing: 14,
         panelGap: 14,
@@ -136,10 +140,10 @@ class AdminDesktopLayoutData {
       AdminDesktopTier.tight => AdminDesktopLayoutData(
         viewportSize: viewportSize,
         tier: tier,
-        sidebarMode: AdminSidebarMode.collapsed,
-        sidebarWidth: 88,
-        contentMaxWidth: 1040,
-        pageHorizontalPadding: 14,
+        sidebarMode: AdminSidebarMode.compactRail,
+        sidebarWidth: 76,
+        contentMaxWidth: 1200,
+        pageHorizontalPadding: 12,
         shellGap: 0,
         sectionSpacing: 12,
         panelGap: 12,
@@ -161,17 +165,17 @@ class AdminDesktopLayoutData {
     );
 
     final tierContentPadding = <AdminDesktopTier, double>{
-      AdminDesktopTier.wide: 24,
-      AdminDesktopTier.standard: 20,
-      AdminDesktopTier.compact: 16,
-      AdminDesktopTier.tight: 14,
+      AdminDesktopTier.wide: 22,
+      AdminDesktopTier.standard: 18,
+      AdminDesktopTier.compact: 14,
+      AdminDesktopTier.tight: 12,
     };
 
     final tierMaxWidth = <AdminDesktopTier, double>{
-      AdminDesktopTier.wide: 1360,
-      AdminDesktopTier.standard: 1240,
-      AdminDesktopTier.compact: 1120,
-      AdminDesktopTier.tight: 1040,
+      AdminDesktopTier.wide: 1440,
+      AdminDesktopTier.standard: 1360,
+      AdminDesktopTier.compact: 1280,
+      AdminDesktopTier.tight: 1200,
     };
 
     double effectiveContentWidth(AdminDesktopTier tier) {

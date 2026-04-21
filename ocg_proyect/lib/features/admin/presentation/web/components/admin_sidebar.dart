@@ -7,11 +7,12 @@ import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/constants/firestore_paths.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 import '../../../../auth/providers/auth_providers.dart';
+import '../layout/admin_desktop_layout.dart';
 
 class AdminSidebar extends ConsumerStatefulWidget {
-  const AdminSidebar({super.key, this.collapsed = false});
+  const AdminSidebar({super.key, this.mode = AdminSidebarMode.expanded});
 
-  final bool collapsed;
+  final AdminSidebarMode mode;
 
   @override
   ConsumerState<AdminSidebar> createState() => _AdminSidebarState();
@@ -123,7 +124,9 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
   @override
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
-    final collapsed = widget.collapsed;
+    final mode = widget.mode;
+    final collapsed = mode != AdminSidebarMode.expanded;
+    final compactRail = mode == AdminSidebarMode.compactRail;
 
     final items = <({String label, IconData icon, String route})>[
       (
@@ -173,10 +176,10 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(
-                collapsed ? 12 : 20,
-                32,
-                collapsed ? 12 : 20,
-                24,
+                collapsed ? (compactRail ? 8 : 12) : 20,
+                28,
+                collapsed ? (compactRail ? 8 : 12) : 20,
+                compactRail ? 18 : 24,
               ),
               child: Column(
                 crossAxisAlignment: collapsed
@@ -187,9 +190,11 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                     'OCG',
                     style: TextStyle(
                       color: OcgColors.ivory,
-                      fontSize: collapsed ? 18 : 24,
+                      fontSize: collapsed ? (compactRail ? 16 : 18) : 24,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: collapsed ? 1.4 : 2.8,
+                      letterSpacing: collapsed
+                          ? (compactRail ? 1.0 : 1.4)
+                          : 2.8,
                     ),
                   ),
                   if (!collapsed) ...[
@@ -209,17 +214,22 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
             ),
             Container(
               margin: EdgeInsets.fromLTRB(
-                collapsed ? 16 : 20,
+                collapsed ? (compactRail ? 12 : 16) : 20,
                 0,
-                collapsed ? 16 : 20,
-                20,
+                collapsed ? (compactRail ? 12 : 16) : 20,
+                compactRail ? 14 : 20,
               ),
               height: 1,
               color: const Color(0x0DFFFFFF),
             ),
             if (collapsed)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: EdgeInsets.fromLTRB(
+                  compactRail ? 10 : 16,
+                  0,
+                  compactRail ? 10 : 16,
+                  compactRail ? 18 : 24,
+                ),
                 child: Tooltip(
                   message: 'Buscar en el sistema',
                   child: Material(
@@ -228,12 +238,12 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(999),
                       onTap: () => _runSystemSearch(context, items),
-                      child: const Padding(
-                        padding: EdgeInsets.all(12),
+                      child: Padding(
+                        padding: EdgeInsets.all(compactRail ? 10 : 12),
                         child: Icon(
                           Icons.search,
-                          size: 18,
-                          color: Color(0xFF6E5442),
+                          size: compactRail ? 16 : 18,
+                          color: const Color(0xFF6E5442),
                         ),
                       ),
                     ),
@@ -305,7 +315,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: collapsed ? 10 : 12,
+                  horizontal: collapsed ? (compactRail ? 8 : 10) : 12,
                   vertical: 0,
                 ),
                 children: items.map((item) {
@@ -333,7 +343,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                           child: Padding(
                             padding: EdgeInsets.symmetric(
                               horizontal: collapsed ? 0 : 12,
-                              vertical: collapsed ? 12 : 9,
+                              vertical: collapsed ? (compactRail ? 10 : 12) : 9,
                             ),
                             child: Row(
                               mainAxisAlignment: collapsed
@@ -343,7 +353,9 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                 Icon(
                                   item.icon,
                                   color: fgColor,
-                                  size: collapsed ? 18 : 15,
+                                  size: collapsed
+                                      ? (compactRail ? 16 : 18)
+                                      : 15,
                                 ),
                                 if (!collapsed) ...[
                                   const SizedBox(width: 10),
@@ -370,7 +382,12 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(12, 16, 12, collapsed ? 16 : 24),
+              padding: EdgeInsets.fromLTRB(
+                compactRail ? 8 : 12,
+                16,
+                compactRail ? 8 : 12,
+                collapsed ? 16 : 24,
+              ),
               child: Tooltip(
                 message: 'Cerrar sesión',
                 child: Material(
@@ -407,7 +424,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                     child: Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: collapsed ? 0 : 12,
-                        vertical: collapsed ? 12 : 9,
+                        vertical: collapsed ? (compactRail ? 10 : 12) : 9,
                       ),
                       child: Row(
                         mainAxisAlignment: collapsed

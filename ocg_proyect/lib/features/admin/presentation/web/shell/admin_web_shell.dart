@@ -28,9 +28,7 @@ class AdminWebShell extends StatelessWidget {
               children: [
                 SizedBox(
                   width: layout.sidebarWidth,
-                  child: AdminSidebar(
-                    collapsed: layout.sidebarMode == AdminSidebarMode.collapsed,
-                  ),
+                  child: AdminSidebar(mode: layout.sidebarMode),
                 ),
                 SizedBox(width: layout.shellGap),
                 Expanded(

@@ -11,7 +11,7 @@ void main() {
         AdminDesktopTier.wide,
       );
       expect(
-        AdminDesktopLayoutData.fromViewport(const Size(1440, 900)).tier,
+        AdminDesktopLayoutData.fromViewport(const Size(1366, 768)).tier,
         AdminDesktopTier.standard,
       );
       expect(
@@ -25,21 +25,20 @@ void main() {
     });
 
     test('colapsa sidebar antes de degradar paneles en desktop pequeño', () {
+      final wide = AdminDesktopLayoutData.fromViewport(const Size(1600, 900));
       final standard = AdminDesktopLayoutData.fromViewport(
-        const Size(1440, 900),
+        const Size(1366, 768),
       );
       final compact = AdminDesktopLayoutData.fromViewport(
         const Size(1280, 800),
       );
-      final tight = AdminDesktopLayoutData.fromViewport(const Size(1180, 820));
+      final tight = AdminDesktopLayoutData.fromViewport(const Size(980, 820));
 
-      expect(standard.sidebarMode, AdminSidebarMode.expanded);
-      expect(compact.sidebarMode, AdminSidebarMode.collapsed);
-      expect(tight.sidebarMode, AdminSidebarMode.collapsed);
-      expect(
-        compact.contentWidth,
-        greaterThan(standard.minSplitSecondaryWidth),
-      );
+      expect(wide.sidebarMode, AdminSidebarMode.expanded);
+      expect(standard.sidebarMode, AdminSidebarMode.rail);
+      expect(compact.sidebarMode, AdminSidebarMode.rail);
+      expect(tight.sidebarMode, AdminSidebarMode.compactRail);
+      expect(compact.contentWidth, greaterThan(1000));
     });
   });
 
@@ -47,12 +46,12 @@ void main() {
     'SplitViewLayout baja el panel secundario cuando el tier ya no soporta split',
     (WidgetTester tester) async {
       const layout = AdminDesktopLayoutData(
-        viewportSize: Size(1180, 820),
+        viewportSize: Size(980, 820),
         tier: AdminDesktopTier.tight,
-        sidebarMode: AdminSidebarMode.collapsed,
-        sidebarWidth: 88,
-        contentMaxWidth: 1040,
-        pageHorizontalPadding: 14,
+        sidebarMode: AdminSidebarMode.compactRail,
+        sidebarWidth: 76,
+        contentMaxWidth: 1200,
+        pageHorizontalPadding: 12,
         shellGap: 0,
         sectionSpacing: 12,
         panelGap: 12,
