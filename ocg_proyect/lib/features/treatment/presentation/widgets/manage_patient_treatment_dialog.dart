@@ -1113,163 +1113,37 @@ class _ManagePatientTreatmentDialogState
       return;
     }
 
-    final controller = TextEditingController(
-      text: CurrencyInputFormatter.formatDigits(item.amount.toInt().toString()),
+    final updated = await showDialog<double>(
+      context: context,
+      builder: (context) => _AmountEditorDialog(initialAmount: item.amount),
     );
-    try {
-      final updated = await showDialog<double>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Editar monto'),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              CurrencyInputFormatter(),
-            ],
-            decoration: const InputDecoration(labelText: 'Monto en COP'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final amount = CurrencyInputFormatter.parseToDouble(
-                  controller.text,
-                );
-                if (amount == null || amount < 0) return;
-                Navigator.of(context).pop(amount);
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      );
-      if (updated == null) return;
-      setState(() {
-        final index = _financialItems.indexWhere(
-          (draft) => draft.id == item.id,
-        );
-        if (index == -1) return;
-        _financialItems[index] = _financialItems[index].copyWith(
-          amount: updated,
-        );
-      });
-    } finally {
-      controller.dispose();
-    }
+    if (updated == null) return;
+    setState(() {
+      final index = _financialItems.indexWhere((draft) => draft.id == item.id);
+      if (index == -1) return;
+      _financialItems[index] = _financialItems[index].copyWith(amount: updated);
+    });
   }
 
   Future<void> _showControlsDialog(_FinancialItemDraft item) async {
-    final unitController = TextEditingController(
-      text: CurrencyInputFormatter.formatDigits(
-        item.effectiveUnitAmount.toInt().toString(),
+    final updated = await showDialog<({double unitAmount, int quantity})>(
+      context: context,
+      builder: (context) => _ControlsEditorDialog(
+        initialUnitAmount: item.effectiveUnitAmount,
+        initialQuantity: item.effectiveQuantity,
+        currency: _currency,
       ),
     );
-    final quantityController = TextEditingController(
-      text: item.effectiveQuantity.toString(),
-    );
 
-    try {
-      final updated = await showDialog<({double unitAmount, int quantity})>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setModalState) {
-            final unitAmount =
-                CurrencyInputFormatter.parseToDouble(unitController.text) ?? 0;
-            final quantity = int.tryParse(quantityController.text.trim()) ?? 1;
-            final subtotal = unitAmount * (quantity < 1 ? 1 : quantity);
-
-            return AlertDialog(
-              title: const Text('Editar controles'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: unitController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      CurrencyInputFormatter(),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Valor por control',
-                    ),
-                    onChanged: (_) => setModalState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: quantityController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Cantidad de controles',
-                    ),
-                    onChanged: (_) => setModalState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Subtotal: ${_currency.format(unitAmount)} × ${quantity < 1 ? 1 : quantity} = ${_currency.format(subtotal)} COP',
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final resolvedUnit = CurrencyInputFormatter.parseToDouble(
-                      unitController.text,
-                    );
-                    final resolvedQuantity = int.tryParse(
-                      quantityController.text.trim(),
-                    );
-                    if (resolvedUnit == null || resolvedUnit < 0) {
-                      return;
-                    }
-                    if (resolvedQuantity == null || resolvedQuantity < 1) {
-                      return;
-                    }
-                    Navigator.of(context).pop((
-                      unitAmount: resolvedUnit,
-                      quantity: resolvedQuantity,
-                    ));
-                  },
-                  child: const Text('Guardar'),
-                ),
-              ],
-            );
-          },
-        ),
+    if (updated == null) return;
+    setState(() {
+      final index = _financialItems.indexWhere((draft) => draft.id == item.id);
+      if (index == -1) return;
+      _financialItems[index] = _financialItems[index].copyWith(
+        unitAmount: updated.unitAmount,
+        quantity: updated.quantity,
       );
-
-      if (updated == null) return;
-      setState(() {
-        final index = _financialItems.indexWhere(
-          (draft) => draft.id == item.id,
-        );
-        if (index == -1) return;
-        _financialItems[index] = _financialItems[index].copyWith(
-          unitAmount: updated.unitAmount,
-          quantity: updated.quantity,
-        );
-      });
-    } finally {
-      unitController.dispose();
-      quantityController.dispose();
-    }
+    });
   }
 
   Future<void> _submit() async {
@@ -1881,6 +1755,178 @@ class _PillLabel extends StatelessWidget {
           fontSize: 12,
         ),
       ),
+    );
+  }
+}
+
+class _AmountEditorDialog extends StatefulWidget {
+  const _AmountEditorDialog({required this.initialAmount});
+
+  final double initialAmount;
+
+  @override
+  State<_AmountEditorDialog> createState() => _AmountEditorDialogState();
+}
+
+class _AmountEditorDialogState extends State<_AmountEditorDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: CurrencyInputFormatter.formatDigits(
+        widget.initialAmount.toInt().toString(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Editar monto'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          CurrencyInputFormatter(),
+        ],
+        decoration: const InputDecoration(labelText: 'Monto en COP'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final amount = CurrencyInputFormatter.parseToDouble(
+              _controller.text,
+            );
+            if (amount == null || amount < 0) return;
+            Navigator.of(context).pop(amount);
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ControlsEditorDialog extends StatefulWidget {
+  const _ControlsEditorDialog({
+    required this.initialUnitAmount,
+    required this.initialQuantity,
+    required this.currency,
+  });
+
+  final double initialUnitAmount;
+  final int initialQuantity;
+  final NumberFormat currency;
+
+  @override
+  State<_ControlsEditorDialog> createState() => _ControlsEditorDialogState();
+}
+
+class _ControlsEditorDialogState extends State<_ControlsEditorDialog> {
+  late final TextEditingController _unitController;
+  late final TextEditingController _quantityController;
+
+  @override
+  void initState() {
+    super.initState();
+    _unitController = TextEditingController(
+      text: CurrencyInputFormatter.formatDigits(
+        widget.initialUnitAmount.toInt().toString(),
+      ),
+    );
+    _quantityController = TextEditingController(
+      text: widget.initialQuantity.toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _unitController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final unitAmount =
+        CurrencyInputFormatter.parseToDouble(_unitController.text) ?? 0;
+    final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
+    final resolvedQuantity = quantity < 1 ? 1 : quantity;
+    final subtotal = unitAmount * resolvedQuantity;
+
+    return AlertDialog(
+      title: const Text('Editar controles'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _unitController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
+            ],
+            decoration: const InputDecoration(labelText: 'Valor por control'),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _quantityController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: const InputDecoration(
+              labelText: 'Cantidad de controles',
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Subtotal: ${widget.currency.format(unitAmount)} × $resolvedQuantity = ${widget.currency.format(subtotal)} COP',
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final resolvedUnit = CurrencyInputFormatter.parseToDouble(
+              _unitController.text,
+            );
+            final resolvedQuantity = int.tryParse(
+              _quantityController.text.trim(),
+            );
+            if (resolvedUnit == null || resolvedUnit < 0) return;
+            if (resolvedQuantity == null || resolvedQuantity < 1) return;
+            Navigator.of(
+              context,
+            ).pop((unitAmount: resolvedUnit, quantity: resolvedQuantity));
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }
