@@ -1580,6 +1580,94 @@ class TreatmentKpiPremiumTestHarness extends StatelessWidget {
   }
 }
 
+class AdminPaymentsDesktopTestHarness extends StatelessWidget {
+  const AdminPaymentsDesktopTestHarness({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 46.0,
+      AdminDesktopTier.standard => 42.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
+    final shouldSplit =
+        layout?.shouldKeepSplit(primaryMinWidth: 360, secondaryMinWidth: 320) ??
+        true;
+
+    final ingresosCard = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFDFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ingresos recientes'),
+          SizedBox(height: 8),
+          Text('Resumen financiero operativo'),
+        ],
+      ),
+    );
+
+    final alertsCard = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFDFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Alertas de cobro'),
+          SizedBox(height: 8),
+          Text('Seguimiento financiero requerido'),
+        ],
+      ),
+    );
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pagos',
+            style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          const Text('Control financiero y facturación'),
+          SizedBox(height: sectionGap),
+          PaymentsKpiSectionTestHarness(width: layout?.contentWidth ?? 1200),
+          SizedBox(height: sectionGap),
+          if (shouldSplit)
+            Row(
+              children: [
+                Expanded(child: ingresosCard),
+                SizedBox(width: panelGap),
+                Expanded(child: alertsCard),
+              ],
+            )
+          else
+            Column(
+              children: [
+                ingresosCard,
+                SizedBox(height: panelGap),
+                alertsCard,
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class PaymentsKpiSectionTestHarness extends StatelessWidget {
   const PaymentsKpiSectionTestHarness({
     super.key,
@@ -1610,6 +1698,61 @@ class PaymentsKpiSectionTestHarness extends StatelessWidget {
   }
 }
 
+class AdminTreatmentsDesktopTestHarness extends StatelessWidget {
+  const AdminTreatmentsDesktopTestHarness({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 46.0,
+      AdminDesktopTier.standard => 42.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tratamientos',
+            style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          const Text('Seguimiento clínico y progreso'),
+          SizedBox(height: sectionGap),
+          TreatmentsKpiSectionTestHarness(width: layout?.contentWidth ?? 1200),
+          SizedBox(height: sectionGap),
+          Wrap(
+            spacing: tier == AdminDesktopTier.tight ? 6 : 8,
+            runSpacing: tier == AdminDesktopTier.tight ? 6 : 8,
+            children: const [
+              Chip(label: Text('Todos')),
+              Chip(label: Text('Activos')),
+              Chip(label: Text('Finalizados')),
+            ],
+          ),
+          SizedBox(height: panelGap),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8DDD2)),
+            ),
+            child: const Text('Listado de tratamientos'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class TreatmentsKpiSectionTestHarness extends StatelessWidget {
   const TreatmentsKpiSectionTestHarness({
     super.key,
@@ -1635,6 +1778,95 @@ class TreatmentsKpiSectionTestHarness extends StatelessWidget {
         completedCount: completedCount,
         waitingCount: waitingCount,
         ingresos: ingresos,
+      ),
+    );
+  }
+}
+
+class AdminSimulatorDesktopTestHarness extends StatelessWidget {
+  const AdminSimulatorDesktopTestHarness({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 32.0,
+      AdminDesktopTier.standard => 32.0,
+      AdminDesktopTier.compact => 30.0,
+      AdminDesktopTier.tight => 28.0,
+    };
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [OcgColors.espresso, Color(0xFF4A3628)],
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Simulador',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Gestión clínica de simulaciones por paciente',
+                  style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: sectionGap),
+          GridView.count(
+            crossAxisCount: switch (tier) {
+              AdminDesktopTier.wide => 3,
+              AdminDesktopTier.standard => 3,
+              AdminDesktopTier.compact => 2,
+              AdminDesktopTier.tight => 1,
+            },
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: panelGap,
+            mainAxisSpacing: panelGap,
+            childAspectRatio: switch (tier) {
+              AdminDesktopTier.wide => 2.1,
+              AdminDesktopTier.standard => 2.0,
+              AdminDesktopTier.compact => 2.6,
+              AdminDesktopTier.tight => 3.0,
+            },
+            children: const [
+              Card(child: Center(child: Text('Simulaciones'))),
+              Card(child: Center(child: Text('Compartidas'))),
+              Card(child: Center(child: Text('Pendientes'))),
+            ],
+          ),
+          SizedBox(height: sectionGap),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8DDD2)),
+            ),
+            child: const Text('Pacientes con simulaciones'),
+          ),
+        ],
       ),
     );
   }

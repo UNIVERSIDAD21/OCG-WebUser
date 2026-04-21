@@ -74,6 +74,98 @@ String _labelTipo(AppointmentType t) {
 
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
+class AdminAppointmentsDesktopTestHarness extends StatelessWidget {
+  const AdminAppointmentsDesktopTestHarness({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final panelGap = layout?.panelGap ?? 12;
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final shouldSplit =
+        layout?.shouldKeepSplit(primaryMinWidth: 300, secondaryMinWidth: 420) ??
+        true;
+    final calendarWidth = switch (tier) {
+      AdminDesktopTier.wide => 320.0,
+      AdminDesktopTier.standard => 300.0,
+      AdminDesktopTier.compact => 280.0,
+      AdminDesktopTier.tight => 0.0,
+    };
+
+    final calendarCard = Container(
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.25)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Agenda'),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: shouldSplit ? 1.12 : 1.25,
+            children: List.generate(
+              14,
+              (index) => Container(
+                margin: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F5F0),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text('${index + 1}'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final detailPanel = Container(
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.25)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Detalle de agenda'),
+          SizedBox(height: 8),
+          Text('Citas del día y acciones operativas'),
+        ],
+      ),
+    );
+
+    if (shouldSplit) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: calendarWidth, child: calendarCard),
+          SizedBox(width: panelGap),
+          Expanded(child: detailPanel),
+        ],
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          calendarCard,
+          SizedBox(height: panelGap),
+          detailPanel,
+        ],
+      ),
+    );
+  }
+}
+
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   const AdminAppointmentsScreen({super.key});
 
