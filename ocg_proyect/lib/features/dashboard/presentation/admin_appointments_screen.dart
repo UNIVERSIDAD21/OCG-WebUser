@@ -18,6 +18,7 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
@@ -44,6 +45,7 @@ String _appointmentDayKey(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}';
 
 enum _AgendaFilter { hoy, activas, completadas, perdidas, canceladas }
+
 enum _AgendaInnerTab { hoy, mes, historial }
 
 bool _esPerdida(AppointmentModel a) {
@@ -265,7 +267,6 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
         ),
       ),
     );
-
   }
 
   @override
@@ -797,7 +798,11 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
-  DateTime _monthCursor = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _monthCursor = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    1,
+  );
   DateTime? _selectedMonthDay;
   _AgendaFilter _historyFilter = _AgendaFilter.activas;
   int _historyPage = 1;
@@ -885,7 +890,9 @@ class _AdminAppointmentsScreenState
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
                       availability: ref
-                          .read(availabilityByDayProvider(_appointmentDayKey(d)))
+                          .read(
+                            availabilityByDayProvider(_appointmentDayKey(d)),
+                          )
                           .asData
                           ?.value,
                     );
@@ -1206,19 +1213,6 @@ class _AdminAppointmentsScreenState
     }
   }
 
-  Future<void> _onNoCompletada(AppointmentModel appt) async {
-    try {
-      await ref
-          .read(appointmentsRepositoryProvider)
-          .updateAppointmentStatus(appt.id, AppointmentStatus.noAsistio);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
   Future<void> _onReabrirCompletada(AppointmentModel appt) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -1499,7 +1493,9 @@ class _AdminAppointmentsScreenState
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.3))),
+        border: Border(
+          bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.3)),
+        ),
       ),
       child: Row(
         children: [
@@ -1515,16 +1511,17 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> all,
     DateTime day,
   ) {
-    final list = all
-        .where(
-          (a) =>
-              a.fechaHora.year == day.year &&
-              a.fechaHora.month == day.month &&
-              a.fechaHora.day == day.day &&
-              a.estado != AppointmentStatus.reprogramada,
-        )
-        .toList()
-      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final list =
+        all
+            .where(
+              (a) =>
+                  a.fechaHora.year == day.year &&
+                  a.fechaHora.month == day.month &&
+                  a.fechaHora.day == day.day &&
+                  a.estado != AppointmentStatus.reprogramada,
+            )
+            .toList()
+          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
     return list;
   }
 
@@ -1591,7 +1588,9 @@ class _AdminAppointmentsScreenState
 
   void _openPatientProfile(String patientId) {
     if (patientId.trim().isEmpty) return;
-    context.go(RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId));
+    context.go(
+      RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId),
+    );
   }
 
   List<AppointmentTimeSlot> _visibleSlotsForDay({
@@ -1711,7 +1710,8 @@ class _AdminAppointmentsScreenState
       );
     }
 
-    if (a.estado == AppointmentStatus.programada || a.estado == AppointmentStatus.confirmada) {
+    if (a.estado == AppointmentStatus.programada ||
+        a.estado == AppointmentStatus.confirmada) {
       actions.add(
         OutlinedButton.icon(
           onPressed: () => _handleStatusAction(a, 'cancelar'),
@@ -1743,8 +1743,7 @@ class _AdminAppointmentsScreenState
         .length;
     final activas = dayItems
         .where(
-          (a) =>
-              a.estado == AppointmentStatus.programada && !_esPerdida(a),
+          (a) => a.estado == AppointmentStatus.programada && !_esPerdida(a),
         )
         .length;
     final completadas = dayItems
@@ -1993,9 +1992,8 @@ class _AdminAppointmentsScreenState
     BuildContext context,
     List<AppointmentModel> appointments,
   ) {
-    final firstWeekday = DateTime(_monthCursor.year, _monthCursor.month, 1)
-        .weekday %
-        7;
+    final firstWeekday =
+        DateTime(_monthCursor.year, _monthCursor.month, 1).weekday % 7;
     final daysInMonth = DateTime(
       _monthCursor.year,
       _monthCursor.month + 1,
@@ -2285,7 +2283,9 @@ class _AdminAppointmentsScreenState
                                         'Notas clínicas: ${a.notas!.trim()}',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: OcgColors.ink.withOpacity(0.78),
+                                          color: OcgColors.ink.withOpacity(
+                                            0.78,
+                                          ),
                                           fontStyle: FontStyle.italic,
                                         ),
                                       ),
@@ -2307,7 +2307,21 @@ class _AdminAppointmentsScreenState
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 900;
+        final layout = AdminDesktopLayoutScope.maybeOf(context);
+        final shouldSplit =
+            layout?.shouldKeepSplit(
+              primaryMinWidth: 300,
+              secondaryMinWidth: 420,
+            ) ??
+            constraints.maxWidth >= 900;
+        final panelGap = layout?.panelGap ?? 12;
+        final tier = layout?.tier ?? AdminDesktopTier.standard;
+        final calendarWidth = switch (tier) {
+          AdminDesktopTier.wide => 320.0,
+          AdminDesktopTier.standard => 300.0,
+          AdminDesktopTier.compact => 280.0,
+          AdminDesktopTier.tight => 0.0,
+        };
         final calendarCard = Container(
           decoration: BoxDecoration(
             color: OcgColors.ivory,
@@ -2344,18 +2358,19 @@ class _AdminAppointmentsScreenState
                 crossAxisCount: 7,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isDesktop ? 1.05 : 1.25,
+                childAspectRatio: shouldSplit ? 1.12 : 1.25,
                 children: calendarCells,
               ),
             ],
           ),
         );
 
-        if (isDesktop) {
+        if (shouldSplit) {
           return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 340, child: calendarCard),
-              const SizedBox(width: 12),
+              SizedBox(width: calendarWidth, child: calendarCard),
+              SizedBox(width: panelGap),
               Expanded(child: detailPanel),
             ],
           );
@@ -2363,11 +2378,7 @@ class _AdminAppointmentsScreenState
 
         return SingleChildScrollView(
           child: Column(
-            children: [
-              calendarCard,
-              const SizedBox(height: 10),
-              detailPanel,
-            ],
+            children: [calendarCard, const SizedBox(height: 10), detailPanel],
           ),
         );
       },
@@ -2394,11 +2405,12 @@ class _AdminAppointmentsScreenState
 
   List<AppointmentModel> _historyItems(List<AppointmentModel> all) {
     final now = DateTime.now();
-    final past = all
-        .where((a) => a.fechaHora.isBefore(now))
-        .where((a) => a.estado != AppointmentStatus.reprogramada)
-        .toList()
-      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+    final past =
+        all
+            .where((a) => a.fechaHora.isBefore(now))
+            .where((a) => a.estado != AppointmentStatus.reprogramada)
+            .toList()
+          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
     final filtered = switch (_historyFilter) {
       _AgendaFilter.completadas =>
@@ -2481,7 +2493,8 @@ class _AdminAppointmentsScreenState
 
     final groups = <String, List<AppointmentModel>>{};
     for (final item in items) {
-      final key = '${item.fechaHora.year}-${item.fechaHora.month.toString().padLeft(2, '0')}';
+      final key =
+          '${item.fechaHora.year}-${item.fechaHora.month.toString().padLeft(2, '0')}';
       groups.putIfAbsent(key, () => []).add(item);
     }
 
@@ -2504,7 +2517,9 @@ class _AdminAppointmentsScreenState
                     return Padding(
                       padding: const EdgeInsets.only(top: 10, bottom: 6),
                       child: Text(
-                        _historyMonthLabel(DateTime(sample.year, sample.month, 1)).toUpperCase(),
+                        _historyMonthLabel(
+                          DateTime(sample.year, sample.month, 1),
+                        ).toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -2543,7 +2558,9 @@ class _AdminAppointmentsScreenState
                             children: [
                               Text(
                                 '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                                style: TextStyle(color: OcgColors.ink.withOpacity(0.86)),
+                                style: TextStyle(
+                                  color: OcgColors.ink.withOpacity(0.86),
+                                ),
                               ),
                               if ((a.notas ?? '').trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
@@ -2558,8 +2575,12 @@ class _AdminAppointmentsScreenState
                               ],
                               const SizedBox(height: 6),
                               OutlinedButton.icon(
-                                onPressed: () => _openPatientProfile(a.patientId),
-                                icon: const Icon(Icons.person_outline, size: 14),
+                                onPressed: () =>
+                                    _openPatientProfile(a.patientId),
+                                icon: const Icon(
+                                  Icons.person_outline,
+                                  size: 14,
+                                ),
                                 label: const Text('Ver perfil'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: OcgColors.espresso,
@@ -2680,7 +2701,8 @@ class _AdminAppointmentsScreenState
     final hoyAgendaBody = appointmentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
-      data: (appointments) => _buildTodayAgenda(context, appointments, selectedDate),
+      data: (appointments) =>
+          _buildTodayAgenda(context, appointments, selectedDate),
     );
 
     final mesAgendaBody = appointmentsAsync.when(
@@ -2827,7 +2849,9 @@ class _AppointmentReminderSummary extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final remindersAsync = ref.watch(appointmentRemindersProvider(appointmentId));
+    final remindersAsync = ref.watch(
+      appointmentRemindersProvider(appointmentId),
+    );
 
     return remindersAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -2883,11 +2907,16 @@ class _AppointmentReminderSummary extends ConsumerWidget {
               children: [
                 for (final item in items)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: colorFor(item.status).withOpacity(0.10),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: colorFor(item.status).withOpacity(0.25)),
+                      border: Border.all(
+                        color: colorFor(item.status).withOpacity(0.25),
+                      ),
                     ),
                     child: Text(
                       '${item.channel} ${labelFor(item.kind)} · ${item.status}',

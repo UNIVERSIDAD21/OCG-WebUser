@@ -8,6 +8,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
@@ -191,6 +192,19 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 46.0,
+      AdminDesktopTier.standard => 42.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
+    final shouldSplit =
+        layout?.shouldKeepSplit(primaryMinWidth: 360, secondaryMinWidth: 320) ??
+        true;
     final history = widget.overview.historyForFilter(selectedFilter);
 
     final recoveredTotal = widget.overview.entries.fold<double>(
@@ -208,14 +222,14 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Pagos',
                       style: TextStyle(
-                        fontSize: 46,
+                        fontSize: titleSize,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF2C2016),
                         height: 1,
@@ -241,17 +255,16 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           _PaymentsKpiGrid(
             totalDebt: widget.overview.totalDebt,
             recoveredTotal: recoveredTotal,
             paidThisMonth: paidThisMonth,
             overdueCount: widget.overview.overdueEntries.length,
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           LayoutBuilder(
             builder: (context, constraints) {
-              final split = constraints.maxWidth > 1100;
               final ingresosCard = Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFDFC),
@@ -345,11 +358,11 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
                 ),
               );
 
-              if (!split) {
+              if (!shouldSplit) {
                 return Column(
                   children: [
                     ingresosCard,
-                    const SizedBox(height: 12),
+                    SizedBox(height: panelGap),
                     alertsCard,
                   ],
                 );
@@ -357,15 +370,18 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
               return Row(
                 children: [
                   Expanded(child: ingresosCard),
-                  const SizedBox(width: 12),
+                  SizedBox(width: panelGap),
                   Expanded(child: alertsCard),
                 ],
               );
             },
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: tier == AdminDesktopTier.tight ? 7 : 8,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFFFFFDFC),
               borderRadius: BorderRadius.circular(14),
@@ -412,10 +428,10 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: panelGap * 0.75),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: tier == AdminDesktopTier.tight ? 6 : 8,
+            runSpacing: tier == AdminDesktopTier.tight ? 6 : 8,
             children: [
               _TreatmentChip(
                 label: 'Todos',
@@ -445,7 +461,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           Row(
             children: [
               const Text(
@@ -648,6 +664,16 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 46.0,
+      AdminDesktopTier.standard => 42.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
     List<_TreatmentAdminEntry> filteredEntries = widget.activeEntries;
 
     if (selectedType != null) {
@@ -697,20 +723,20 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
     );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      padding: EdgeInsets.fromLTRB(0, 0, 0, sectionGap + 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Tratamientos',
                       style: TextStyle(
-                        fontSize: 46,
+                        fontSize: titleSize,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF2C2016),
                         height: 1,
@@ -740,16 +766,19 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           _TreatmentsKpiGrid(
             activeCount: activeCount,
             completedCount: completedCount,
             waitingCount: waitingCount,
             ingresos: ingresos,
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: tier == AdminDesktopTier.tight ? 7 : 8,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFFFFFDFC),
               borderRadius: BorderRadius.circular(14),
@@ -797,10 +826,10 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: panelGap * 0.75),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: tier == AdminDesktopTier.tight ? 6 : 8,
+            runSpacing: tier == AdminDesktopTier.tight ? 6 : 8,
             children: [
               ...['Todos', 'Activos', 'Finalizados', 'En espera'].map((f) {
                 final selected = selectedStatus == f;
@@ -822,7 +851,7 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
               }),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: sectionGap),
           Row(
             children: [
               const Text(
@@ -852,7 +881,7 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: panelGap * 0.75),
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFFFFFDFC),
@@ -963,14 +992,29 @@ class _WebSimulatorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final sectionGap = layout?.sectionSpacing ?? 16;
+    final panelGap = layout?.panelGap ?? 12;
+    final titleSize = switch (tier) {
+      AdminDesktopTier.wide => 46.0,
+      AdminDesktopTier.standard => 42.0,
+      AdminDesktopTier.compact => 36.0,
+      AdminDesktopTier.tight => 32.0,
+    };
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 36),
+      padding: EdgeInsets.fromLTRB(0, 0, 0, sectionGap + 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 22),
+            padding: EdgeInsets.fromLTRB(
+              tier == AdminDesktopTier.tight ? 18 : 24,
+              tier == AdminDesktopTier.tight ? 16 : 20,
+              tier == AdminDesktopTier.tight ? 18 : 24,
+              tier == AdminDesktopTier.tight ? 18 : 22,
+            ),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF21170F), OcgColors.espresso],
@@ -979,63 +1023,68 @@ class _WebSimulatorView extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Simulador',
                   style: TextStyle(
                     color: OcgColors.ivory,
-                    fontSize: 32,
+                    fontSize: titleSize > 32 ? 32 : titleSize,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 6),
-                Text(
+                const SizedBox(height: 6),
+                const Text(
                   'Gestión clínica de simulaciones por paciente',
                   style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cols = constraints.maxWidth > 980 ? 3 : 1;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: cols == 3 ? 2.1 : 3.0,
-                children: [
-                  _PayMiniKpi(
-                    value: '${ordered.length}',
-                    title: 'Pacientes',
-                    subtitle: 'con acceso a simulación',
-                    bg: const Color(0xFFF6EFE7),
-                    onTap: () => context.go(RouteNames.adminPatients),
-                  ),
-                  _PayMiniKpi(
-                    value: '3D',
-                    title: 'Módulo visual',
-                    subtitle: 'simulación guiada',
-                    bg: const Color(0xFFEFF2FA),
-                    onTap: () => context.go(RouteNames.adminSimulator),
-                  ),
-                  _PayMiniKpi(
-                    value: 'IA',
-                    title: 'Asistencia',
-                    subtitle: 'apoyo clínico',
-                    bg: const Color(0xFFFFF4D8),
-                    onTap: () => context.go(RouteNames.adminSimulator),
-                  ),
-                ],
-              );
+          SizedBox(height: sectionGap),
+          GridView.count(
+            crossAxisCount: switch (tier) {
+              AdminDesktopTier.wide => 3,
+              AdminDesktopTier.standard => 3,
+              AdminDesktopTier.compact => 2,
+              AdminDesktopTier.tight => 1,
             },
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: panelGap,
+            mainAxisSpacing: panelGap,
+            childAspectRatio: switch (tier) {
+              AdminDesktopTier.wide => 2.1,
+              AdminDesktopTier.standard => 2.0,
+              AdminDesktopTier.compact => 2.6,
+              AdminDesktopTier.tight => 3.0,
+            },
+            children: [
+              _PayMiniKpi(
+                value: '${ordered.length}',
+                title: 'Pacientes',
+                subtitle: 'con acceso a simulación',
+                bg: const Color(0xFFF6EFE7),
+                onTap: () => context.go(RouteNames.adminPatients),
+              ),
+              _PayMiniKpi(
+                value: '3D',
+                title: 'Módulo visual',
+                subtitle: 'simulación guiada',
+                bg: const Color(0xFFEFF2FA),
+                onTap: () => context.go(RouteNames.adminSimulator),
+              ),
+              _PayMiniKpi(
+                value: 'IA',
+                title: 'Asistencia',
+                subtitle: 'apoyo clínico',
+                bg: const Color(0xFFFFF4D8),
+                onTap: () => context.go(RouteNames.adminSimulator),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: sectionGap),
           const _MobileSectionHeader(
             title: 'Pacientes con acceso a simulación',
           ),
@@ -1105,55 +1154,41 @@ class _PaymentsKpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1120 ? 4 : 2;
-        final itemWidth =
-            (constraints.maxWidth - ((columns - 1) * 12)) / columns;
-        final compact = itemWidth < 220;
-        return GridView.count(
-          crossAxisCount: columns,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          mainAxisExtent: compact ? 138 : 110,
-          children: [
-            _TreatmentKpiPremium(
-              value: '\$${formatCop(totalDebt)}',
-              title: 'Saldo pendiente',
-              subtitle: 'por cobrar',
-              bg: const Color(0xFFFBEAED),
-              accent: const Color(0xFFB06A5A),
-              icon: Icons.payments_outlined,
-            ),
-            _TreatmentKpiPremium(
-              value: '\$${formatCop(recoveredTotal)}',
-              title: 'Recaudado',
-              subtitle: 'total acumulado',
-              bg: const Color(0xFFEAF5EE),
-              accent: const Color(0xFF2E7D4C),
-              icon: Icons.check_circle_outline,
-            ),
-            _TreatmentKpiPremium(
-              value: '$paidThisMonth',
-              title: 'Pagos este mes',
-              subtitle: 'transacciones',
-              bg: const Color(0xFFF8F3EC),
-              accent: const Color(0xFF9A735C),
-              icon: Icons.receipt_long_outlined,
-            ),
-            _TreatmentKpiPremium(
-              value: '$overdueCount',
-              title: 'Pagos vencidos',
-              subtitle: 'requieren seguimiento',
-              bg: const Color(0xFFFFF4D8),
-              accent: const Color(0xFFC99730),
-              icon: Icons.warning_amber_rounded,
-            ),
-          ],
-        );
-      },
+    return _AdminResponsiveKpiGrid(
+      cards: [
+        _TreatmentKpiPremium(
+          value: '\$${formatCop(totalDebt)}',
+          title: 'Saldo pendiente',
+          subtitle: 'por cobrar',
+          bg: const Color(0xFFFBEAED),
+          accent: const Color(0xFFB06A5A),
+          icon: Icons.payments_outlined,
+        ),
+        _TreatmentKpiPremium(
+          value: '\$${formatCop(recoveredTotal)}',
+          title: 'Recaudado',
+          subtitle: 'total acumulado',
+          bg: const Color(0xFFEAF5EE),
+          accent: const Color(0xFF2E7D4C),
+          icon: Icons.check_circle_outline,
+        ),
+        _TreatmentKpiPremium(
+          value: '$paidThisMonth',
+          title: 'Pagos este mes',
+          subtitle: 'transacciones',
+          bg: const Color(0xFFF8F3EC),
+          accent: const Color(0xFF9A735C),
+          icon: Icons.receipt_long_outlined,
+        ),
+        _TreatmentKpiPremium(
+          value: '$overdueCount',
+          title: 'Pagos vencidos',
+          subtitle: 'requieren seguimiento',
+          bg: const Color(0xFFFFF4D8),
+          accent: const Color(0xFFC99730),
+          icon: Icons.warning_amber_rounded,
+        ),
+      ],
     );
   }
 }
@@ -1173,55 +1208,76 @@ class _TreatmentsKpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1120 ? 4 : 2;
-        final itemWidth =
-            (constraints.maxWidth - ((columns - 1) * 12)) / columns;
-        final compact = itemWidth < 220;
-        return GridView.count(
-          crossAxisCount: columns,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          mainAxisExtent: compact ? 138 : 110,
-          children: [
-            _TreatmentKpiPremium(
-              value: '$activeCount',
-              title: 'Tratamientos activos',
-              subtitle: '+2 este mes',
-              bg: const Color(0xFFF6EFE7),
-              accent: const Color(0xFF9A735C),
-              icon: Icons.monitor_heart_outlined,
-            ),
-            _TreatmentKpiPremium(
-              value: '$completedCount',
-              title: 'Completados',
-              subtitle: 'últimos 30 días',
-              bg: const Color(0xFFEFF8F0),
-              accent: const Color(0xFF2E7D4C),
-              icon: Icons.check_circle_outline,
-            ),
-            _TreatmentKpiPremium(
-              value: '$waitingCount',
-              title: 'En espera',
-              subtitle: 'pendientes inicio',
-              bg: const Color(0xFFFFF4D8),
-              accent: const Color(0xFFC99730),
-              icon: Icons.schedule_outlined,
-            ),
-            _TreatmentKpiPremium(
-              value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
-              title: 'Ingresos totales',
-              subtitle: 'tratamientos vigentes',
-              bg: const Color(0xFFFFECEC),
-              accent: const Color(0xFFB06A5A),
-              icon: Icons.payments_outlined,
-            ),
-          ],
-        );
-      },
+    return _AdminResponsiveKpiGrid(
+      cards: [
+        _TreatmentKpiPremium(
+          value: '$activeCount',
+          title: 'Tratamientos activos',
+          subtitle: '+2 este mes',
+          bg: const Color(0xFFF6EFE7),
+          accent: const Color(0xFF9A735C),
+          icon: Icons.monitor_heart_outlined,
+        ),
+        _TreatmentKpiPremium(
+          value: '$completedCount',
+          title: 'Completados',
+          subtitle: 'últimos 30 días',
+          bg: const Color(0xFFEFF8F0),
+          accent: const Color(0xFF2E7D4C),
+          icon: Icons.check_circle_outline,
+        ),
+        _TreatmentKpiPremium(
+          value: '$waitingCount',
+          title: 'En espera',
+          subtitle: 'pendientes inicio',
+          bg: const Color(0xFFFFF4D8),
+          accent: const Color(0xFFC99730),
+          icon: Icons.schedule_outlined,
+        ),
+        _TreatmentKpiPremium(
+          value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
+          title: 'Ingresos totales',
+          subtitle: 'tratamientos vigentes',
+          bg: const Color(0xFFFFECEC),
+          accent: const Color(0xFFB06A5A),
+          icon: Icons.payments_outlined,
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminResponsiveKpiGrid extends StatelessWidget {
+  const _AdminResponsiveKpiGrid({required this.cards});
+
+  final List<Widget> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AdminDesktopLayoutScope.maybeOf(context);
+    final tier = layout?.tier ?? AdminDesktopTier.standard;
+    final spacing = layout?.panelGap ?? 12;
+    final columns = switch (tier) {
+      AdminDesktopTier.wide => 4,
+      AdminDesktopTier.standard => 4,
+      AdminDesktopTier.compact => 2,
+      AdminDesktopTier.tight => 1,
+    };
+    final extent = switch (tier) {
+      AdminDesktopTier.wide => 110.0,
+      AdminDesktopTier.standard => 114.0,
+      AdminDesktopTier.compact => 124.0,
+      AdminDesktopTier.tight => 118.0,
+    };
+
+    return GridView.count(
+      crossAxisCount: columns,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: spacing,
+      mainAxisSpacing: spacing,
+      mainAxisExtent: extent,
+      children: cards,
     );
   }
 }
