@@ -242,55 +242,11 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
             ],
           ),
           const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1120 ? 4 : 2;
-              final itemWidth =
-                  (constraints.maxWidth - ((columns - 1) * 12)) / columns;
-              final compact = itemWidth < 220;
-              return GridView.count(
-                crossAxisCount: columns,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                mainAxisExtent: compact ? 138 : 110,
-                children: [
-                  _TreatmentKpiPremium(
-                    value: '\$${formatCop(widget.overview.totalDebt)}',
-                    title: 'Saldo pendiente',
-                    subtitle: 'por cobrar',
-                    bg: const Color(0xFFFBEAED),
-                    accent: const Color(0xFFB06A5A),
-                    icon: Icons.payments_outlined,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '\$${formatCop(recoveredTotal)}',
-                    title: 'Recaudado',
-                    subtitle: 'total acumulado',
-                    bg: const Color(0xFFEAF5EE),
-                    accent: const Color(0xFF2E7D4C),
-                    icon: Icons.check_circle_outline,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '$paidThisMonth',
-                    title: 'Pagos este mes',
-                    subtitle: 'transacciones',
-                    bg: const Color(0xFFF8F3EC),
-                    accent: const Color(0xFF9A735C),
-                    icon: Icons.receipt_long_outlined,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '${widget.overview.overdueEntries.length}',
-                    title: 'Pagos vencidos',
-                    subtitle: 'requieren seguimiento',
-                    bg: const Color(0xFFFFF4D8),
-                    accent: const Color(0xFFC99730),
-                    icon: Icons.warning_amber_rounded,
-                  ),
-                ],
-              );
-            },
+          _PaymentsKpiGrid(
+            totalDebt: widget.overview.totalDebt,
+            recoveredTotal: recoveredTotal,
+            paidThisMonth: paidThisMonth,
+            overdueCount: widget.overview.overdueEntries.length,
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -785,55 +741,11 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
             ],
           ),
           const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 1120 ? 4 : 2;
-              final itemWidth =
-                  (constraints.maxWidth - ((columns - 1) * 12)) / columns;
-              final compact = itemWidth < 220;
-              return GridView.count(
-                crossAxisCount: columns,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                mainAxisExtent: compact ? 138 : 110,
-                children: [
-                  _TreatmentKpiPremium(
-                    value: '$activeCount',
-                    title: 'Tratamientos activos',
-                    subtitle: '+2 este mes',
-                    bg: const Color(0xFFF6EFE7),
-                    accent: const Color(0xFF9A735C),
-                    icon: Icons.monitor_heart_outlined,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '$completedCount',
-                    title: 'Completados',
-                    subtitle: 'últimos 30 días',
-                    bg: const Color(0xFFEFF8F0),
-                    accent: const Color(0xFF2E7D4C),
-                    icon: Icons.check_circle_outline,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '$waitingCount',
-                    title: 'En espera',
-                    subtitle: 'pendientes inicio',
-                    bg: const Color(0xFFFFF4D8),
-                    accent: const Color(0xFFC99730),
-                    icon: Icons.schedule_outlined,
-                  ),
-                  _TreatmentKpiPremium(
-                    value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
-                    title: 'Ingresos totales',
-                    subtitle: 'tratamientos vigentes',
-                    bg: const Color(0xFFFFECEC),
-                    accent: const Color(0xFFB06A5A),
-                    icon: Icons.payments_outlined,
-                  ),
-                ],
-              );
-            },
+          _TreatmentsKpiGrid(
+            activeCount: activeCount,
+            completedCount: completedCount,
+            waitingCount: waitingCount,
+            ingresos: ingresos,
           ),
           const SizedBox(height: 14),
           Container(
@@ -1178,6 +1090,142 @@ class _MobileSectionHeader extends StatelessWidget {
   }
 }
 
+class _PaymentsKpiGrid extends StatelessWidget {
+  const _PaymentsKpiGrid({
+    required this.totalDebt,
+    required this.recoveredTotal,
+    required this.paidThisMonth,
+    required this.overdueCount,
+  });
+
+  final double totalDebt;
+  final double recoveredTotal;
+  final int paidThisMonth;
+  final int overdueCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1120 ? 4 : 2;
+        final itemWidth =
+            (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+        final compact = itemWidth < 220;
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          mainAxisExtent: compact ? 138 : 110,
+          children: [
+            _TreatmentKpiPremium(
+              value: '\$${formatCop(totalDebt)}',
+              title: 'Saldo pendiente',
+              subtitle: 'por cobrar',
+              bg: const Color(0xFFFBEAED),
+              accent: const Color(0xFFB06A5A),
+              icon: Icons.payments_outlined,
+            ),
+            _TreatmentKpiPremium(
+              value: '\$${formatCop(recoveredTotal)}',
+              title: 'Recaudado',
+              subtitle: 'total acumulado',
+              bg: const Color(0xFFEAF5EE),
+              accent: const Color(0xFF2E7D4C),
+              icon: Icons.check_circle_outline,
+            ),
+            _TreatmentKpiPremium(
+              value: '$paidThisMonth',
+              title: 'Pagos este mes',
+              subtitle: 'transacciones',
+              bg: const Color(0xFFF8F3EC),
+              accent: const Color(0xFF9A735C),
+              icon: Icons.receipt_long_outlined,
+            ),
+            _TreatmentKpiPremium(
+              value: '$overdueCount',
+              title: 'Pagos vencidos',
+              subtitle: 'requieren seguimiento',
+              bg: const Color(0xFFFFF4D8),
+              accent: const Color(0xFFC99730),
+              icon: Icons.warning_amber_rounded,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TreatmentsKpiGrid extends StatelessWidget {
+  const _TreatmentsKpiGrid({
+    required this.activeCount,
+    required this.completedCount,
+    required this.waitingCount,
+    required this.ingresos,
+  });
+
+  final int activeCount;
+  final int completedCount;
+  final int waitingCount;
+  final double ingresos;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1120 ? 4 : 2;
+        final itemWidth =
+            (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+        final compact = itemWidth < 220;
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          mainAxisExtent: compact ? 138 : 110,
+          children: [
+            _TreatmentKpiPremium(
+              value: '$activeCount',
+              title: 'Tratamientos activos',
+              subtitle: '+2 este mes',
+              bg: const Color(0xFFF6EFE7),
+              accent: const Color(0xFF9A735C),
+              icon: Icons.monitor_heart_outlined,
+            ),
+            _TreatmentKpiPremium(
+              value: '$completedCount',
+              title: 'Completados',
+              subtitle: 'últimos 30 días',
+              bg: const Color(0xFFEFF8F0),
+              accent: const Color(0xFF2E7D4C),
+              icon: Icons.check_circle_outline,
+            ),
+            _TreatmentKpiPremium(
+              value: '$waitingCount',
+              title: 'En espera',
+              subtitle: 'pendientes inicio',
+              bg: const Color(0xFFFFF4D8),
+              accent: const Color(0xFFC99730),
+              icon: Icons.schedule_outlined,
+            ),
+            _TreatmentKpiPremium(
+              value: '\$${(ingresos / 1000000).toStringAsFixed(1)}M',
+              title: 'Ingresos totales',
+              subtitle: 'tratamientos vigentes',
+              bg: const Color(0xFFFFECEC),
+              accent: const Color(0xFFB06A5A),
+              icon: Icons.payments_outlined,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _TreatmentKpiPremium extends StatelessWidget {
   const _TreatmentKpiPremium({
     required this.value,
@@ -1198,17 +1246,15 @@ class _TreatmentKpiPremium extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final compactWidth = constraints.maxWidth < 220;
-        final compactHeight = constraints.maxHeight < 88;
-        final ultraCompactHeight = constraints.maxHeight < 78;
-        final compact = compactWidth || compactHeight;
+      builder: (context, outerConstraints) {
+        final compactWidth = outerConstraints.maxWidth < 220;
+        final horizontalPadding = compactWidth ? 10.0 : 14.0;
+        final verticalPadding = compactWidth ? 8.0 : 12.0;
+
         return Container(
-          padding: EdgeInsets.fromLTRB(
-            compact ? 10 : 14,
-            compact ? 8 : 12,
-            compact ? 10 : 14,
-            compact ? 8 : 12,
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -1226,100 +1272,314 @@ class _TreatmentKpiPremium extends StatelessWidget {
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              if (!ultraCompactHeight)
-                Positioned(
-                  top: -18,
-                  right: -12,
-                  child: Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.28),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+          child: LayoutBuilder(
+            builder: (context, innerConstraints) {
+              final density = _TreatmentKpiDensity.resolve(
+                width: innerConstraints.maxWidth,
+                height: innerConstraints.maxHeight,
+              );
+
+              return Stack(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: ultraCompactHeight ? 16 : (compact ? 18 : 22),
-                        height: ultraCompactHeight ? 16 : (compact ? 18 : 22),
+                  if (density.showDecoration)
+                    Positioned(
+                      top: -18,
+                      right: -12,
+                      child: Container(
+                        width: 58,
+                        height: 58,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.65),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0x1A2C2016)),
-                        ),
-                        child: Icon(
-                          icon,
-                          size: ultraCompactHeight ? 9 : (compact ? 10 : 12),
-                          color: accent,
+                          color: Colors.white.withOpacity(0.28),
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      const Spacer(),
-                      if (!ultraCompactHeight)
-                        Container(
-                          width: compact ? 14 : 18,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: accent.withOpacity(0.45),
-                            borderRadius: BorderRadius.circular(999),
+                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: density.iconBoxSize,
+                            height: density.iconBoxSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.65),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0x1A2C2016),
+                              ),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: density.iconSize,
+                              color: accent,
+                            ),
                           ),
+                          const Spacer(),
+                          if (density.showAccentBar)
+                            Container(
+                              width: density.accentBarWidth,
+                              height: 2,
+                              decoration: BoxDecoration(
+                                color: accent.withOpacity(0.45),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: density.headerGap),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              flex: 3,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    value,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: density.valueFontSize,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF2C2016),
+                                      letterSpacing: -0.4,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: density.valueGap),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: density.titleFontSize,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF2C2016),
+                                height: 1.1,
+                              ),
+                            ),
+                            if (density.showSubtitle) ...[
+                              SizedBox(height: density.subtitleGap),
+                              Flexible(
+                                child: Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: density.subtitleFontSize,
+                                    color: accent.withOpacity(0.9),
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.15,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                      ),
                     ],
                   ),
-                  SizedBox(height: ultraCompactHeight ? 2 : (compact ? 4 : 10)),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: ultraCompactHeight ? 17 : (compact ? 19 : 24),
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF2C2016),
-                        letterSpacing: -0.4,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: ultraCompactHeight ? 1 : (compact ? 2 : 4)),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: ultraCompactHeight ? 10 : (compact ? 10.5 : 12),
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2C2016),
-                      height: 1.1,
-                    ),
-                  ),
-                  if (!ultraCompactHeight) ...[
-                    SizedBox(height: compact ? 1 : 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 9.5 : 10.5,
-                        color: accent.withOpacity(0.9),
-                        fontWeight: FontWeight.w500,
-                        height: 1.15,
-                      ),
-                    ),
-                  ],
                 ],
-              ),
-            ],
+              );
+            },
           ),
         );
       },
+    );
+  }
+}
+
+class _TreatmentKpiDensity {
+  const _TreatmentKpiDensity({
+    required this.iconBoxSize,
+    required this.iconSize,
+    required this.accentBarWidth,
+    required this.valueFontSize,
+    required this.titleFontSize,
+    required this.subtitleFontSize,
+    required this.headerGap,
+    required this.valueGap,
+    required this.subtitleGap,
+    required this.showSubtitle,
+    required this.showDecoration,
+    required this.showAccentBar,
+  });
+
+  final double iconBoxSize;
+  final double iconSize;
+  final double accentBarWidth;
+  final double valueFontSize;
+  final double titleFontSize;
+  final double subtitleFontSize;
+  final double headerGap;
+  final double valueGap;
+  final double subtitleGap;
+  final bool showSubtitle;
+  final bool showDecoration;
+  final bool showAccentBar;
+
+  static _TreatmentKpiDensity resolve({
+    required double width,
+    required double height,
+  }) {
+    final compactWidth = width < 196;
+    final veryTightHeight = height < 68;
+    final compactHeight = height < 86;
+
+    if (veryTightHeight) {
+      return _TreatmentKpiDensity(
+        iconBoxSize: 16,
+        iconSize: 9,
+        accentBarWidth: 0,
+        valueFontSize: compactWidth ? 17 : 18,
+        titleFontSize: 10,
+        subtitleFontSize: 0,
+        headerGap: 2,
+        valueGap: 1,
+        subtitleGap: 0,
+        showSubtitle: false,
+        showDecoration: false,
+        showAccentBar: false,
+      );
+    }
+
+    if (compactHeight || compactWidth) {
+      return _TreatmentKpiDensity(
+        iconBoxSize: 18,
+        iconSize: 10,
+        accentBarWidth: 14,
+        valueFontSize: compactWidth ? 18 : 19,
+        titleFontSize: 10.5,
+        subtitleFontSize: 9.5,
+        headerGap: 4,
+        valueGap: 2,
+        subtitleGap: 1,
+        showSubtitle: height >= 78,
+        showDecoration: height >= 78,
+        showAccentBar: height >= 78,
+      );
+    }
+
+    return const _TreatmentKpiDensity(
+      iconBoxSize: 22,
+      iconSize: 12,
+      accentBarWidth: 18,
+      valueFontSize: 24,
+      titleFontSize: 12,
+      subtitleFontSize: 10.5,
+      headerGap: 10,
+      valueGap: 4,
+      subtitleGap: 2,
+      showSubtitle: true,
+      showDecoration: true,
+      showAccentBar: true,
+    );
+  }
+}
+
+class TreatmentKpiPremiumTestHarness extends StatelessWidget {
+  const TreatmentKpiPremiumTestHarness({
+    super.key,
+    required this.value,
+    required this.title,
+    required this.subtitle,
+    required this.width,
+    required this.height,
+    this.bg = const Color(0xFFF6EFE7),
+    this.accent = const Color(0xFF9A735C),
+    this.icon = Icons.payments_outlined,
+  });
+
+  final String value;
+  final String title;
+  final String subtitle;
+  final double width;
+  final double height;
+  final Color bg;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: height,
+      child: _TreatmentKpiPremium(
+        value: value,
+        title: title,
+        subtitle: subtitle,
+        bg: bg,
+        accent: accent,
+        icon: icon,
+      ),
+    );
+  }
+}
+
+class PaymentsKpiSectionTestHarness extends StatelessWidget {
+  const PaymentsKpiSectionTestHarness({
+    super.key,
+    required this.width,
+    this.totalDebt = 1200000,
+    this.recoveredTotal = 3600000,
+    this.paidThisMonth = 3,
+    this.overdueCount = 1,
+  });
+
+  final double width;
+  final double totalDebt;
+  final double recoveredTotal;
+  final int paidThisMonth;
+  final int overdueCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: _PaymentsKpiGrid(
+        totalDebt: totalDebt,
+        recoveredTotal: recoveredTotal,
+        paidThisMonth: paidThisMonth,
+        overdueCount: overdueCount,
+      ),
+    );
+  }
+}
+
+class TreatmentsKpiSectionTestHarness extends StatelessWidget {
+  const TreatmentsKpiSectionTestHarness({
+    super.key,
+    required this.width,
+    this.activeCount = 4,
+    this.completedCount = 2,
+    this.waitingCount = 1,
+    this.ingresos = 4800000,
+  });
+
+  final double width;
+  final int activeCount;
+  final int completedCount;
+  final int waitingCount;
+  final double ingresos;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: _TreatmentsKpiGrid(
+        activeCount: activeCount,
+        completedCount: completedCount,
+        waitingCount: waitingCount,
+        ingresos: ingresos,
+      ),
     );
   }
 }
