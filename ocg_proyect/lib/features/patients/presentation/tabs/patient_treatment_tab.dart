@@ -17,6 +17,7 @@ import '../../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../../treatment/presentation/widgets/update_stage_dialog.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../../treatment/providers/treatment_provider.dart';
+import '../../data/models/patient_data_resolution.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientTreatmentTab extends ConsumerStatefulWidget {
@@ -52,6 +53,12 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       )),
     );
     final saveState = ref.watch(savePatientTreatmentProvider);
+    final patientDataMode = ref.watch(
+      patientDataModeProvider((
+        patientId: widget.patientId,
+        patient: widget.patient,
+      )),
+    );
 
     if (treatments.length == 1 &&
         treatments.first.id.startsWith('legacy-primary-') &&
@@ -75,12 +82,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final selectedTreatment = _resolveSelectedTreatment(treatments);
     if (!selectedTreatment.id.startsWith('legacy-primary-')) {
       Future.microtask(
-        () => ref
-            .read(treatmentFinancialRepositoryProvider)
-            .ensureBaseItems(
-              patientId: widget.patientId,
-              treatment: selectedTreatment,
-            ),
+        () => ref.read(ensureTreatmentFinancialItemsProvider)(
+          widget.patientId,
+          selectedTreatment,
+        ),
       );
     }
 
@@ -146,7 +151,11 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   saveState.isLoading,
                 ),
                 const SizedBox(height: 18),
-                _buildTreatmentSelector(treatments, selectedTreatment),
+                _buildTreatmentSelector(
+                  treatments,
+                  selectedTreatment,
+                  patientDataMode,
+                ),
                 const SizedBox(height: 18),
                 _buildSummaryGrid(selectedTreatment, treatments, summary),
                 const SizedBox(height: 18),
@@ -281,77 +290,75 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'OCG — Módulo de tratamiento',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF908C88),
-                        letterSpacing: 1.3,
-                        fontWeight: FontWeight.w700,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackHeader = constraints.maxWidth < 980;
+              final heroInfo = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'OCG — Módulo de tratamiento',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF908C88),
+                      letterSpacing: 1.3,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    selectedTreatment.displayName,
+                    key: const ValueKey('selected-treatment-title'),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: const Color(0xFF1A1208),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.patient.nombre} · ${PatientTreatment.labelForBaseTreatment(selectedTreatment.tipoBase)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF908C88),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _HeroTag(
+                        icon: Icons.star_outline,
+                        label: primaryLabel,
+                        accent: const Color(0xFFB07D3C),
+                        background: const Color(0xFFF0E4CC),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      selectedTreatment.displayName,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: const Color(0xFF1A1208),
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.patient.nombre} · ${PatientTreatment.labelForBaseTreatment(selectedTreatment.tipoBase)}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF908C88),
-                        fontWeight: FontWeight.w500,
+                      _HeroTag(
+                        icon: Icons.layers_outlined,
+                        label: '$count tratamiento${count == 1 ? '' : 's'}',
+                        accent: OcgColors.espresso,
+                        background: const Color(0xFFF5F1EA),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _HeroTag(
-                          icon: Icons.star_outline,
-                          label: primaryLabel,
-                          accent: const Color(0xFFB07D3C),
-                          background: const Color(0xFFF0E4CC),
-                        ),
-                        _HeroTag(
-                          icon: Icons.layers_outlined,
-                          label: '$count tratamiento${count == 1 ? '' : 's'}',
-                          accent: OcgColors.espresso,
-                          background: const Color(0xFFF5F1EA),
-                        ),
-                        _HeroTag(
-                          icon: Icons.flag_outlined,
-                          label: selectedTreatment.statusLabel,
-                          accent: const Color(0xFF7A5010),
-                          background: const Color(0xFFFFF4D8),
-                        ),
-                        _HeroTag(
-                          icon: Icons.timeline_outlined,
-                          label:
-                              stageNames[selectedTreatment.etapaActual] ??
-                              selectedTreatment.etapaActual.name,
-                          accent: const Color(0xFF1B4332),
-                          background: const Color(0xFFEAF5EE),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Wrap(
+                      _HeroTag(
+                        icon: Icons.flag_outlined,
+                        label: selectedTreatment.statusLabel,
+                        accent: const Color(0xFF7A5010),
+                        background: const Color(0xFFFFF4D8),
+                      ),
+                      _HeroTag(
+                        icon: Icons.timeline_outlined,
+                        label:
+                            stageNames[selectedTreatment.etapaActual] ??
+                            selectedTreatment.etapaActual.name,
+                        accent: const Color(0xFF1B4332),
+                        background: const Color(0xFFEAF5EE),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+
+              final heroActions = Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 alignment: WrapAlignment.end,
@@ -395,8 +402,24 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                             },
                     ),
                 ],
-              ),
-            ],
+              );
+
+              if (stackHeader) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [heroInfo, const SizedBox(height: 16), heroActions],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: heroInfo),
+                  const SizedBox(width: 16),
+                  Flexible(child: heroActions),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           LayoutBuilder(
@@ -452,6 +475,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   Widget _buildTreatmentSelector(
     List<PatientTreatment> treatments,
     PatientTreatment selectedTreatment,
+    PatientDataMode patientDataMode,
   ) {
     return Container(
       width: double.infinity,
@@ -473,9 +497,11 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Cada tratamiento se muestra como una línea clínica/financiera independiente. El principal se destaca, pero los secundarios siguen visibles.',
-            style: TextStyle(
+          Text(
+            patientDataMode == PatientDataMode.mixto
+                ? 'Paciente en transición legacy + nuevo. La lista combina todos los tratamientos reales sin ocultar los secundarios.'
+                : 'Cada tratamiento se muestra como una línea clínica/financiera independiente. El principal se destaca, pero los secundarios siguen visibles.',
+            style: const TextStyle(
               color: Color(0xFF8A6F59),
               fontWeight: FontWeight.w500,
             ),
@@ -487,6 +513,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             children: [
               for (final treatment in treatments)
                 _TreatmentStreamCard(
+                  key: ValueKey('treatment-stream-${treatment.id}'),
                   treatment: treatment,
                   selected: treatment.id == selectedTreatment.id,
                   currency: _currency,
@@ -1150,12 +1177,15 @@ class _HeroTag extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: accent),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: accent,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -1213,6 +1243,7 @@ class _HeroActionButton extends StatelessWidget {
 
 class _TreatmentStreamCard extends StatelessWidget {
   const _TreatmentStreamCard({
+    super.key,
     required this.treatment,
     required this.selected,
     required this.currency,

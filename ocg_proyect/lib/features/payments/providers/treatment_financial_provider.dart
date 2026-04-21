@@ -5,16 +5,31 @@ import '../../treatment/data/models/patient_treatment.dart';
 import '../data/models/financial_item_model.dart';
 import '../data/repositories/treatment_financial_repository.dart';
 
-final treatmentFinancialRepositoryProvider = Provider<TreatmentFinancialRepository>((ref) {
-  return TreatmentFinancialRepository(FirebaseFirestore.instance);
-});
+final treatmentFinancialRepositoryProvider =
+    Provider<TreatmentFinancialRepository>((ref) {
+      return TreatmentFinancialRepository(FirebaseFirestore.instance);
+    });
 
 final treatmentFinancialItemsProvider =
-    StreamProvider.family<List<FinancialItemModel>, ({String patientId, String treatmentId})>((ref, args) {
-  return ref
-      .watch(treatmentFinancialRepositoryProvider)
-      .watchFinancialItems(args.patientId, args.treatmentId);
-});
+    StreamProvider.family<
+      List<FinancialItemModel>,
+      ({String patientId, String treatmentId})
+    >((ref, args) {
+      return ref
+          .watch(treatmentFinancialRepositoryProvider)
+          .watchFinancialItems(args.patientId, args.treatmentId);
+    });
+
+final ensureTreatmentFinancialItemsProvider =
+    Provider<
+      Future<void> Function(String patientId, PatientTreatment treatment)
+    >((ref) {
+      final repository = ref.watch(treatmentFinancialRepositoryProvider);
+      return (patientId, treatment) => repository.ensureBaseItems(
+        patientId: patientId,
+        treatment: treatment,
+      );
+    });
 
 class SaveTreatmentFinancialItemsNotifier extends AsyncNotifier<void> {
   @override
@@ -27,16 +42,21 @@ class SaveTreatmentFinancialItemsNotifier extends AsyncNotifier<void> {
     String updatedBy = 'system',
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(treatmentFinancialRepositoryProvider).replaceFinancialItems(
-          patientId: patientId,
-          treatment: treatment,
-          items: items,
-          updatedBy: updatedBy,
-        ));
+    state = await AsyncValue.guard(
+      () => ref
+          .read(treatmentFinancialRepositoryProvider)
+          .replaceFinancialItems(
+            patientId: patientId,
+            treatment: treatment,
+            items: items,
+            updatedBy: updatedBy,
+          ),
+    );
   }
 }
 
 final saveTreatmentFinancialItemsProvider =
-    AsyncNotifierProvider.autoDispose<SaveTreatmentFinancialItemsNotifier, void>(
-  SaveTreatmentFinancialItemsNotifier.new,
-);
+    AsyncNotifierProvider.autoDispose<
+      SaveTreatmentFinancialItemsNotifier,
+      void
+    >(SaveTreatmentFinancialItemsNotifier.new);
