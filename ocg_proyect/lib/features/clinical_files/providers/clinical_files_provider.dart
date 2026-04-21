@@ -57,13 +57,18 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
     PatientTreatment? treatment,
     bool visibleToPatient = false,
   }) async {
+    final picker = ref.read(clinicalFilePickerProvider);
+    final validator = ref.read(clinicalFileValidatorProvider);
+    final storage = ref.read(clinicalFilesStorageProvider);
+    final repository = ref.read(clinicalFilesRepositoryProvider);
+
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final picked = await ref.read(clinicalFilePickerProvider).pick();
+      final picked = await picker.pick();
       if (picked == null) {
         throw Exception('CLINICAL_FILE_PICK_CANCELLED');
       }
-      ref.read(clinicalFileValidatorProvider).validate(picked);
+      validator.validate(picked);
 
       final fileId = DateTime.now().microsecondsSinceEpoch.toString();
       final storagePath = StoragePaths.patientClinicalFile(
@@ -74,14 +79,12 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
       );
 
       try {
-        final url = await ref
-            .read(clinicalFilesStorageProvider)
-            .upload(
-              patientId: patientId,
-              treatmentId: treatment?.id,
-              fileId: fileId,
-              file: picked,
-            );
+        final url = await storage.upload(
+          patientId: patientId,
+          treatmentId: treatment?.id,
+          fileId: fileId,
+          file: picked,
+        );
 
         final now = DateTime.now();
         final model = ClinicalFileModel(
@@ -107,7 +110,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
           visibleToPatient: visibleToPatient,
         );
 
-        await ref.read(clinicalFilesRepositoryProvider).saveMetadata(model);
+        await repository.saveMetadata(model);
       } on FirebaseException catch (error) {
         if (error.plugin == 'firebase_storage' ||
             error.code == 'unauthorized') {
@@ -116,9 +119,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
         if (error.plugin == 'cloud_firestore' ||
             error.code == 'permission-denied') {
           try {
-            await ref
-                .read(clinicalFilesStorageProvider)
-                .deleteByPath(storagePath);
+            await storage.deleteByPath(storagePath);
           } catch (_) {}
           throw Exception('CLINICAL_FILE_METADATA_PERMISSION_DENIED');
         }
@@ -127,9 +128,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
         final text = error.toString();
         if (text.contains('permission-denied')) {
           try {
-            await ref
-                .read(clinicalFilesStorageProvider)
-                .deleteByPath(storagePath);
+            await storage.deleteByPath(storagePath);
           } catch (_) {}
           throw Exception('CLINICAL_FILE_METADATA_PERMISSION_DENIED');
         }
@@ -143,20 +142,19 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
     required String fileId,
     required String deletedBy,
   }) async {
+    final repository = ref.read(clinicalFilesRepositoryProvider);
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref
-          .read(clinicalFilesRepositoryProvider)
-          .softDelete(
-            patientId: patientId,
-            fileId: fileId,
-            deletedBy: deletedBy,
-          ),
+      () => repository.softDelete(
+        patientId: patientId,
+        fileId: fileId,
+        deletedBy: deletedBy,
+      ),
     );
   }
 }
 
 final uploadClinicalFileProvider =
-    AsyncNotifierProvider.autoDispose<UploadClinicalFileNotifier, void>(
+    AsyncNotifierProvider<UploadClinicalFileNotifier, void>(
       UploadClinicalFileNotifier.new,
     );
