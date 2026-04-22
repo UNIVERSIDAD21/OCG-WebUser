@@ -69,11 +69,13 @@ class AuthService {
     };
   }
 
-  Future<UserCredential> signIn(String email, String password) {
-    return _auth.signInWithEmailAndPassword(
+  Future<UserCredential> signIn(String email, String password) async {
+    final credential = await _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
+    await credential.user?.getIdTokenResult(true);
+    return credential;
   }
 
   Future<bool> currentPatientProfileExists() async {

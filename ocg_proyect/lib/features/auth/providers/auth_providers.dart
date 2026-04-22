@@ -27,8 +27,6 @@ final userRoleProvider = FutureProvider<String?>((ref) async {
   final authService = ref.watch(authServiceProvider);
   final role = await authService.getUserRole();
 
-  // Guard global de sesión: si el usuario es paciente pero su perfil ya no
-  // existe (o está inactivo), invalidamos sesión inmediatamente.
   if (role == 'patient') {
     final exists = await authService.currentPatientProfileExists();
     if (!exists) {
@@ -73,38 +71,7 @@ final fcmBootstrapProvider = Provider<void>((ref) {
       resolveRole: resolveRole,
       router: router,
     );
-
-    if (authService.currentUser != null) {
-      await fcmService.syncCurrentUserDeviceToken(
-        authService: authService,
-        resolveRole: resolveRole,
-        source: 'bootstrap.initialize',
-      );
-    }
   }());
-
-  ref.listen<AsyncValue<User?>>(authStateProvider, (previous, next) async {
-    final previousUser = previous?.asData?.value;
-    final nextUser = next.asData?.value;
-    final currentRole = await resolveRole();
-
-    if (previousUser != null && nextUser == null) {
-      if (currentRole == 'admin' || currentRole == 'patient') {
-        await fcmService.clearCurrentUserDeviceToken(
-          authService: authService,
-          role: currentRole!,
-        );
-      }
-      return;
-    }
-
-    if (nextUser != null) {
-      await fcmService.syncCurrentUserDeviceToken(
-        authService: authService,
-        resolveRole: resolveRole,
-      );
-    }
-  });
 });
 
 class AuthNotifier extends AsyncNotifier<void> {
@@ -122,8 +89,6 @@ class AuthNotifier extends AsyncNotifier<void> {
         final role = await authService.getUserRole();
         final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
-        // Regla de seguridad: si el usuario es paciente y su documento
-        // ya no existe (o está inactivo), bloquear sin revelar detalle.
         if (effectiveRole == 'patient') {
           final exists = await authService.currentPatientProfileExists();
           if (!exists) {
@@ -136,6 +101,10 @@ class AuthNotifier extends AsyncNotifier<void> {
         }
 
         ref.invalidate(userRoleProvider);
+        await ref.read(fcmServiceProvider).registerCurrentDeviceAfterLogin(
+          authService: authService,
+          resolveRole: () async => effectiveRole,
+        );
       }
 
       state = const AsyncData(null);
@@ -203,13 +172,15 @@ class AuthNotifier extends AsyncNotifier<void> {
   Future<void> signOut() async {
     state = const AsyncLoading();
     final authService = ref.read(authServiceProvider);
-    final role = await ref.read(userRoleProvider.future);
 
     final result = await AsyncValue.guard(() async {
+      final role = await ref.read(userRoleProvider.future);
       if (role == 'admin' || role == 'patient') {
-        await ref
-            .read(fcmServiceProvider)
-            .clearCurrentUserDeviceToken(authService: authService, role: role!);
+        await ref.read(fcmServiceProvider).clearCurrentUserDeviceToken(
+          authService: authService,
+          role: role!,
+          source: 'auth_notifier.sign_out',
+        );
       }
       await authService.signOut();
     });

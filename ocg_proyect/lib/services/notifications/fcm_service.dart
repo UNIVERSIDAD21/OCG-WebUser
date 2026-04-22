@@ -43,6 +43,8 @@ class FcmService {
   StreamSubscription<String>? _tokenRefreshSub;
   StreamSubscription<RemoteMessage>? _foregroundSub;
   StreamSubscription<RemoteMessage>? _messageOpenedSub;
+  Future<void>? _syncInFlight;
+  String? _lastSyncedFingerprint;
 
   Future<void> initialize({
     required AuthService authService,
@@ -83,6 +85,14 @@ class FcmService {
     }
 
     _tokenRefreshSub = _messaging.onTokenRefresh.listen((token) async {
+      final currentUser = authService.currentUser;
+      if (currentUser == null) {
+        developer.log(
+          'skip token refresh sync: no authenticated user',
+          name: 'ocg.fcm',
+        );
+        return;
+      }
       await syncCurrentUserDeviceToken(
         authService: authService,
         resolveRole: resolveRole,
@@ -90,6 +100,17 @@ class FcmService {
         source: 'messaging.onTokenRefresh',
       );
     });
+  }
+
+  Future<void> registerCurrentDeviceAfterLogin({
+    required AuthService authService,
+    required Future<String?> Function() resolveRole,
+  }) async {
+    await syncCurrentUserDeviceToken(
+      authService: authService,
+      resolveRole: resolveRole,
+      source: 'auth_notifier.sign_in_success',
+    );
   }
 
   Future<void> syncCurrentUserDeviceToken({
@@ -119,30 +140,95 @@ class FcmService {
     }
 
     final deviceId = await getOrCreateDeviceId();
+    final fingerprint = '${user.uid}|$deviceId|$token';
 
     debugPrint('FCM TOKEN: $token');
     debugPrint('FCM UID: ${user.uid}');
     debugPrint('FCM ROLE: $effectiveRole');
     debugPrint('FCM DEVICE ID: $deviceId');
 
-    await authService.upsertFcmDeviceToken(
-      uid: user.uid,
-      role: effectiveRole,
-      token: token,
-      deviceId: deviceId,
-      platform: 'android',
+    if (_syncInFlight != null) {
+      developer.log(
+        'sync omitido por in-flight guard',
+        name: 'ocg.fcm',
+        error: {'uid': user.uid, 'deviceId': deviceId, 'source': source},
+      );
+      return _syncInFlight!;
+    }
+
+    if (_lastSyncedFingerprint == fingerprint) {
+      developer.log(
+        'sync omitido por mismo token ya sincronizado',
+        name: 'ocg.fcm',
+        error: {
+          'uid': user.uid,
+          'deviceId': deviceId,
+          'tokenPreview': _tokenPreview(token),
+          'source': source,
+        },
+      );
+      return;
+    }
+
+    developer.log(
+      'login estable',
+      name: 'ocg.fcm',
+      error: {'uid': user.uid, 'role': effectiveRole, 'source': source},
     );
     developer.log(
-      'FCM token synced',
+      'token obtenido',
       name: 'ocg.fcm',
-      error: {
-        'uid': user.uid,
-        'role': effectiveRole,
-        'deviceId': deviceId,
-        'tokenPreview': _tokenPreview(token),
-        'source': source,
-      },
+      error: {'uid': user.uid, 'tokenPreview': _tokenPreview(token)},
     );
+    developer.log(
+      'deviceId resuelto',
+      name: 'ocg.fcm',
+      error: {'uid': user.uid, 'deviceId': deviceId},
+    );
+
+    final future = () async {
+      developer.log(
+        'callable setFcmToken invocada',
+        name: 'ocg.fcm',
+        error: {
+          'uid': user.uid,
+          'role': effectiveRole,
+          'deviceId': deviceId,
+          'source': source,
+        },
+      );
+      await authService.upsertFcmDeviceToken(
+        uid: user.uid,
+        role: effectiveRole,
+        token: token,
+        deviceId: deviceId,
+        platform: 'android',
+      );
+      _lastSyncedFingerprint = fingerprint;
+      developer.log(
+        'callable setFcmToken exitosa',
+        name: 'ocg.fcm',
+        error: {
+          'uid': user.uid,
+          'role': effectiveRole,
+          'deviceId': deviceId,
+          'tokenPreview': _tokenPreview(token),
+          'source': source,
+        },
+      );
+      developer.log(
+        'documento devices actualizado',
+        name: 'ocg.fcm',
+        error: {'uid': user.uid, 'deviceId': deviceId},
+      );
+    }();
+
+    _syncInFlight = future;
+    try {
+      await future;
+    } finally {
+      _syncInFlight = null;
+    }
   }
 
   Future<void> clearCurrentUserDeviceToken({

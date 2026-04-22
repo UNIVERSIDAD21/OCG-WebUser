@@ -164,9 +164,10 @@ class PaymentsRepository {
       treatmentTransactions.clear();
 
       unawaited(
-        _backfillLegacyTransactionsIfPossible(
+        _safeBackfillLegacyTransactionsIfPossible(
           patientId: patientId,
           treatmentIds: treatmentIds,
+          source: 'watchTransactions.bindTreatmentStreams',
         ),
       );
 
@@ -846,10 +847,32 @@ class PaymentsRepository {
     required String patientId,
     required String treatmentId,
   }) async {
-    await _backfillLegacyTransactionsIfPossible(
+    await _safeBackfillLegacyTransactionsIfPossible(
       patientId: patientId,
       treatmentIds: [treatmentId],
+      source: 'migrateLegacyTransactionsIfNeeded',
     );
+  }
+
+  Future<void> _safeBackfillLegacyTransactionsIfPossible({
+    required String patientId,
+    required List<String> treatmentIds,
+    required String source,
+  }) async {
+    try {
+      await _backfillLegacyTransactionsIfPossible(
+        patientId: patientId,
+        treatmentIds: treatmentIds,
+      );
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        debugPrint(
+          'PAYMENTS BACKFILL OMITIDO ($source): permission-denied para $patientId',
+        );
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _backfillLegacyTransactionsIfPossible({
