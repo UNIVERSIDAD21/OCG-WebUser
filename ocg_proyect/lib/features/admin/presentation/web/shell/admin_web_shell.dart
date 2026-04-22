@@ -6,10 +6,16 @@ import '../components/admin_sidebar.dart';
 import '../layout/admin_desktop_layout.dart';
 
 class AdminWebShell extends StatelessWidget {
-  const AdminWebShell({super.key, required this.title, required this.child});
+  const AdminWebShell({
+    super.key,
+    required this.title,
+    required this.child,
+    this.scrollable = true,
+  });
 
   final String title;
   final Widget child;
+  final bool scrollable;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +25,15 @@ class AdminWebShell extends StatelessWidget {
       builder: (context, constraints) {
         final layout = AdminDesktopLayoutData.fromViewport(
           Size(constraints.maxWidth, constraints.maxHeight),
+        );
+
+        final page = WebPageContainer(
+          maxWidth: layout.contentMaxWidth,
+          padding: EdgeInsets.symmetric(
+            horizontal: layout.pageHorizontalPadding,
+            vertical: layout.sectionSpacing,
+          ),
+          child: child,
         );
 
         return AdminDesktopLayoutScope(
@@ -32,16 +47,9 @@ class AdminWebShell extends StatelessWidget {
                 ),
                 SizedBox(width: layout.shellGap),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: WebPageContainer(
-                      maxWidth: layout.contentMaxWidth,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: layout.pageHorizontalPadding,
-                        vertical: layout.sectionSpacing,
-                      ),
-                      child: child,
-                    ),
-                  ),
+                  child: scrollable
+                      ? SingleChildScrollView(child: page)
+                      : SizedBox.expand(child: page),
                 ),
               ],
             ),
