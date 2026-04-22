@@ -22,35 +22,62 @@ class FcmPayloadRouter {
     }
 
     final type = (data['type'] ?? '').toString().trim();
-    final patientId = (data['patientId'] ?? data['entityId'] ?? '')
-        .toString()
-        .trim();
+    final entityType = (data['entityType'] ?? '').toString().trim();
+    final patientId = (data['patientId'] ?? data['recipientId'] ?? '').toString().trim();
+
+    if (_isAppointmentType(type) || entityType == 'appointment') {
+      return userRole == 'admin'
+          ? RouteNames.adminAppointments
+          : RouteNames.patientAppointments;
+    }
+
+    if (_isPaymentType(type) || entityType == 'payment') {
+      return userRole == 'admin'
+          ? RouteNames.adminPayments
+          : RouteNames.patientPayments;
+    }
+
+    if (_isTreatmentType(type) || entityType == 'treatment') {
+      return userRole == 'admin'
+          ? (patientId.isEmpty
+                ? RouteNames.adminTreatments
+                : RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId))
+          : RouteNames.patientHome;
+    }
 
     switch (type) {
       case 'patient_notification':
         return RouteNames.patientNotifications;
-      case 'appointment':
-        return userRole == 'admin'
-            ? RouteNames.adminAppointments
-            : RouteNames.patientAppointments;
-      case 'payment':
-        return userRole == 'admin'
-            ? RouteNames.adminPayments
-            : RouteNames.patientPayments;
       case 'simulation':
         return userRole == 'admin'
             ? RouteNames.adminSimulator
             : RouteNames.patientSimulations;
       case 'patient_detail':
         if (patientId.isEmpty) return RouteNames.adminPatients;
-        return RouteNames.adminPatientDetail.replaceFirst(
-          ':patientId',
-          patientId,
-        );
+        return RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId);
       default:
         return userRole == 'admin'
             ? RouteNames.adminDashboard
-            : RouteNames.patientHome;
+            : RouteNames.patientNotifications;
     }
+  }
+
+  bool _isAppointmentType(String type) {
+    return type == 'appointment' ||
+        type == 'appointment_created' ||
+        type == 'appointment_cancelled' ||
+        type == 'appointment_rescheduled' ||
+        type == 'appointment_reminder';
+  }
+
+  bool _isPaymentType(String type) {
+    return type == 'payment' ||
+        type == 'payment_received' ||
+        type == 'payment_due';
+  }
+
+  bool _isTreatmentType(String type) {
+    return type == 'treatment' ||
+        type == 'treatment_stage_updated';
   }
 }

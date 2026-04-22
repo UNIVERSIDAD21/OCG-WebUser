@@ -20,6 +20,7 @@ import {initializeAllPaymentDocuments} from './payments/initialize_all_payment_d
 import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_item_write';
 import {processPaymentDueNotifications} from './payments/payment_due_scheduler';
 import {onPatientStageHistoryCreate} from './treatments/on_stage_history_create';
+import {onPatientStageChangeWrite} from './treatments/on_patient_stage_change_write';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -48,4 +49,5 @@ export {
   onTreatmentFinancialItemWrite,
   processPaymentDueNotifications,
   onPatientStageHistoryCreate,
+  onPatientStageChangeWrite,
 };
