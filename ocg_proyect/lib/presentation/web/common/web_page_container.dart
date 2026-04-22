@@ -6,22 +6,33 @@ class WebPageContainer extends StatelessWidget {
     required this.child,
     this.maxWidth = 1400,
     this.padding = const EdgeInsets.all(20),
+    this.expandHeight = false,
   });
 
   final Widget child;
   final double maxWidth;
   final EdgeInsetsGeometry padding;
+  final bool expandHeight;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Padding(
-          padding: padding,
-          child: child,
-        ),
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Padding(
+        padding: padding,
+        child: child,
       ),
     );
+
+    if (expandHeight) {
+      return SizedBox.expand(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: content,
+        ),
+      );
+    }
+
+    return Center(child: content);
   }
 }

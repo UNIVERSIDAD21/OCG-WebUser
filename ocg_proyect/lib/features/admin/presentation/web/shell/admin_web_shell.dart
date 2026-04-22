@@ -33,6 +33,7 @@ class AdminWebShell extends StatelessWidget {
             horizontal: layout.pageHorizontalPadding,
             vertical: layout.sectionSpacing,
           ),
+          expandHeight: !scrollable,
           child: child,
         );
 
