@@ -252,7 +252,7 @@ class _PatientDetailView extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Workspace clínico, financiero y operativo del paciente',
+                                    'Vista clínica, financiera y operativa del paciente',
                                     style: TextStyle(
                                       color: OcgColors.bronze,
                                       fontSize: tier == AdminDesktopTier.tight
@@ -335,7 +335,7 @@ class _PatientDetailView extends ConsumerWidget {
                   SizedBox(height: sectionGap),
                   Expanded(
                     child: SectionPanel(
-                      title: 'Workspace del paciente',
+                      title: 'Detalle del paciente',
                       expandChild: true,
                       child: TabBarView(
                         children: [
@@ -586,7 +586,7 @@ class PatientDetailDesktopWorkspaceTestHarness extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                'Workspace clínico, financiero y operativo del paciente',
+                                'Vista clínica, financiera y operativa del paciente',
                               ),
                             ],
                           ),

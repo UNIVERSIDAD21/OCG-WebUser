@@ -133,6 +133,14 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                     for (final account in resolution.paymentAccounts)
                       _PaymentAccountCard(
                         account: account,
+                        treatment: account.treatmentId == null
+                            ? null
+                            : treatments
+                                  .cast<PatientTreatment?>()
+                                  .firstWhere(
+                                    (item) => item?.id == account.treatmentId,
+                                    orElse: () => null,
+                                  ),
                         selected: account.treatmentId == selectedTreatment.id,
                         onSelect: account.treatmentId == null
                             ? null
@@ -369,12 +377,14 @@ class _SummaryMetric extends StatelessWidget {
 class _PaymentAccountCard extends StatelessWidget {
   const _PaymentAccountCard({
     required this.account,
+    required this.treatment,
     required this.selected,
     required this.onSelect,
     required this.onRegister,
   });
 
   final EffectivePatientPaymentAccount account;
+  final PatientTreatment? treatment;
   final bool selected;
   final VoidCallback? onSelect;
   final VoidCallback? onRegister;
@@ -386,6 +396,15 @@ class _PaymentAccountCard extends StatelessWidget {
       symbol: r'$',
       decimalDigits: 0,
     );
+    final treatmentTitle = account.treatmentId == null
+        ? 'Cuenta legacy'
+        : (treatment?.displayName.isNotEmpty == true
+              ? treatment!.displayName
+              : 'Tratamiento sin nombre');
+    final treatmentType = treatment == null
+        ? 'Legacy / transición'
+        : PatientTreatment.labelForBaseTreatment(treatment!.tipoBase);
+
     return SizedBox(
       width: 320,
       child: Container(
@@ -401,9 +420,7 @@ class _PaymentAccountCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              account.treatmentId == null
-                  ? 'Cuenta legacy'
-                  : 'Cuenta ${account.treatmentId}',
+              treatmentTitle,
               style: const TextStyle(
                 color: OcgColors.espresso,
                 fontWeight: FontWeight.w700,
@@ -411,9 +428,7 @@ class _PaymentAccountCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              account.isLegacy
-                  ? 'Legacy / transición'
-                  : 'Tratamiento específico',
+              treatmentType,
               style: const TextStyle(color: OcgColors.bronze),
             ),
             const SizedBox(height: 10),
