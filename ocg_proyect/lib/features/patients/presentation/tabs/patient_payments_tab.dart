@@ -25,7 +25,6 @@ class PatientPaymentsTab extends ConsumerStatefulWidget {
 
 class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
   String? _selectedTreatmentId;
-  bool _showGlobalHistory = true;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +145,6 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                             ? null
                             : () => setState(() {
                                 _selectedTreatmentId = account.treatmentId;
-                                _showGlobalHistory = false;
                               }),
                         onRegister: account.treatmentId == null
                             ? null
@@ -162,28 +160,6 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                       ),
                   ],
                 ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Historial global'),
-                      selected: _showGlobalHistory,
-                      onSelected: (_) =>
-                          setState(() => _showGlobalHistory = true),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: Text('Cuenta: ${selectedTreatment.displayName}'),
-                      selected: !_showGlobalHistory,
-                      onSelected: (_) =>
-                          setState(() => _showGlobalHistory = false),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 16),
               _PaymentAccountBanner(
                 treatment: selectedTreatment,
@@ -234,9 +210,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               ),
               const SizedBox(height: 16),
               Text(
-                _showGlobalHistory
-                    ? 'Historial global de pagos'
-                    : 'Historial de ${selectedTreatment.displayName}',
+                'Historial de ${selectedTreatment.displayName}',
                 style: const TextStyle(
                   color: OcgColors.espresso,
                   fontSize: 16,
@@ -246,7 +220,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               const SizedBox(height: 8),
               TransactionList(
                 patientId: widget.patientId,
-                treatmentId: _showGlobalHistory ? null : selectedTreatment.id,
+                treatmentId: selectedTreatment.id,
               ),
             ],
           ),
@@ -406,59 +380,172 @@ class _PaymentAccountCard extends StatelessWidget {
         : PatientTreatment.labelForBaseTreatment(treatment!.tipoBase);
 
     return SizedBox(
-      width: 320,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF8F0E7) : OcgColors.ivory,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? OcgColors.bronze : const Color(0xFFE8DDD2),
+      width: 340,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onSelect,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFF8F0E7) : OcgColors.ivory,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? OcgColors.espresso : const Color(0xFFE8DDD2),
+              width: selected ? 1.6 : 1,
+            ),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x141A1410),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ]
+                : null,
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              treatmentTitle,
-              style: const TextStyle(
-                color: OcgColors.espresso,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              treatmentType,
-              style: const TextStyle(color: OcgColors.bronze),
-            ),
-            const SizedBox(height: 10),
-            Text('Total: ${currency.format(account.payment.totalTratamiento)}'),
-            Text('Pagado: ${currency.format(account.payment.montoPagado)}'),
-            Text('Saldo: ${currency.format(account.payment.saldoPendiente)}'),
-            if (account.payment.fechaProximoPago != null)
-              Text(
-                'Próximo pago: ${DateFormat('dd/MM/yyyy').format(account.payment.fechaProximoPago!)}',
-              ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onSelect,
-                    child: const Text('Ver detalle'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          treatmentTitle,
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          treatmentType,
+                          style: const TextStyle(color: OcgColors.bronze),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: onRegister,
-                    child: const Text('Registrar pago'),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? OcgColors.espresso
+                          : const Color(0xFFF3ECE4),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      selected ? 'Cuenta activa' : 'Seleccionar',
+                      style: TextStyle(
+                        color: selected ? OcgColors.ivory : OcgColors.espresso,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _AccountMetric(
+                    label: 'Total',
+                    value: currency.format(account.payment.totalTratamiento),
+                  ),
+                  _AccountMetric(
+                    label: 'Pagado',
+                    value: currency.format(account.payment.montoPagado),
+                  ),
+                  _AccountMetric(
+                    label: 'Saldo',
+                    value: currency.format(account.payment.saldoPendiente),
+                    emphasis: true,
+                  ),
+                ],
+              ),
+              if (account.payment.fechaProximoPago != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Próximo pago: ${DateFormat('dd/MM/yyyy').format(account.payment.fechaProximoPago!)}',
+                  style: const TextStyle(color: OcgColors.ink),
                 ),
               ],
-            ),
-          ],
+              if (treatment != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  treatment!.isPrimary
+                      ? 'Tratamiento principal del paciente'
+                      : 'Tratamiento secundario',
+                  style: const TextStyle(color: OcgColors.bronze),
+                ),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onRegister,
+                  icon: const Icon(Icons.add_card_outlined, size: 16),
+                  label: Text(
+                    selected ? 'Registrar pago en esta cuenta' : 'Usar esta cuenta y registrar pago',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _AccountMetric extends StatelessWidget {
+  const _AccountMetric({
+    required this.label,
+    required this.value,
+    this.emphasis = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: emphasis ? const Color(0xFFF6E9DD) : const Color(0xFFF8F5F0),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: emphasis ? OcgColors.espresso : OcgColors.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
