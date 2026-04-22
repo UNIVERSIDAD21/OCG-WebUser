@@ -1,6 +1,7 @@
 import {onDocumentCreated} from 'firebase-functions/v2/firestore';
 
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 
 import {notifyPatientTreatmentStageEvent} from '../notifications/domain_notifications';
 
@@ -37,6 +38,14 @@ export const onPatientStageHistoryCreate = onDocumentCreated(
     const treatmentId = String(data.treatmentId ?? '').trim();
 
     if (!patientId || !historyId || !newStage) return;
+
+    logger.info('Processing treatment stage history notification', {
+      patientId,
+      historyId,
+      treatmentId,
+      previousStage: previousStage || null,
+      newStage,
+    });
 
     await notifyPatientTreatmentStageEvent(db, {
       notificationId: `stage_${historyId}`,

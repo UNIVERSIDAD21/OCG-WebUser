@@ -67,13 +67,21 @@ final fcmBootstrapProvider = Provider<void>((ref) {
   Future<String?> resolveRole() async =>
       await ref.read(userRoleProvider.future);
 
-  unawaited(
-    fcmService.initialize(
+  unawaited(() async {
+    await fcmService.initialize(
       authService: authService,
       resolveRole: resolveRole,
       router: router,
-    ),
-  );
+    );
+
+    if (authService.currentUser != null) {
+      await fcmService.syncCurrentUserDeviceToken(
+        authService: authService,
+        resolveRole: resolveRole,
+        source: 'bootstrap.initialize',
+      );
+    }
+  }());
 
   ref.listen<AsyncValue<User?>>(authStateProvider, (previous, next) async {
     final previousUser = previous?.asData?.value;

@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 
 import {
@@ -7,7 +8,9 @@ import {
   notifyPatientPaymentEvent,
 } from '../notifications/domain_notifications';
 
-const db = admin.firestore();
+function db(): FirebaseFirestore.Firestore {
+  return admin.firestore();
+}
 const BOGOTA_TIME_ZONE = 'America/Bogota';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -36,7 +39,7 @@ export const processPaymentDueNotifications = onSchedule(
   },
   async () => {
     const now = new Date();
-    const paymentsSnap = await db.collection('payments').get();
+    const paymentsSnap = await db().collection('payments').get();
 
     for (const doc of paymentsSnap.docs) {
       const payment = doc.data() ?? {};
@@ -54,7 +57,16 @@ export const processPaymentDueNotifications = onSchedule(
 
       const reminderKey = `${patientId}_${startOfBogotaDay(dueDate).toISOString().slice(0, 10)}`;
 
-      await notifyPatientPaymentEvent(db, {
+      logger.info('Processing payment due notification', {
+        patientId,
+        paymentId: doc.id,
+        saldoPendiente,
+        dueDate: dueDate.toISOString(),
+        daysUntilDue,
+        reminderKey,
+      });
+
+      await notifyPatientPaymentEvent(db(), {
         notificationId: `payment_due_${reminderKey}`,
         patientId,
         paymentId: doc.id,

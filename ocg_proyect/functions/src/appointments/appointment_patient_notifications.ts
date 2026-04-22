@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 
 import {
   formatDateTimeBogota,
@@ -40,6 +41,16 @@ export async function notifyAppointmentPatientChanges(
   const currentStatus = String(after.estado ?? '').trim();
 
   if (!appointmentId || !patientId) return;
+
+  logger.info('Evaluating appointment patient notification', {
+    appointmentId,
+    patientId,
+    treatmentId,
+    previousStatus: String(before?.estado ?? '').trim() || null,
+    currentStatus,
+    beforeAt: (before?.fechaHora as admin.firestore.Timestamp | undefined)?.toDate?.()?.toISOString?.() ?? null,
+    afterAt: (after.fechaHora as admin.firestore.Timestamp | undefined)?.toDate?.()?.toISOString?.() ?? null,
+  });
 
   if (!before) {
     await notifyPatientAppointmentEvent(db, {

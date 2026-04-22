@@ -1,9 +1,12 @@
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 
 import {deliverAndroidNotification} from '../notifications/android_notification_service';
 
-const db = admin.firestore();
+function db(): FirebaseFirestore.Firestore {
+  return admin.firestore();
+}
 
 const VALID_APPOINTMENT_STATUSES = new Set(['programada', 'confirmada']);
 const BLOCKING_APPOINTMENT_STATUSES = new Set([
@@ -229,7 +232,7 @@ async function markExistingReminders(
   appointmentId: string,
   nextStatus: 'cancelled' | 'obsolete' | 'skipped',
 ): Promise<void> {
-  const snapshot = await db
+  const snapshot = await db()
     .collection('scheduledNotifications')
     .where('appointmentId', '==', appointmentId)
     .where('status', 'in', ['pending', 'pending_provider'])
@@ -237,7 +240,7 @@ async function markExistingReminders(
 
   if (snapshot.empty) return;
 
-  const batch = db.batch();
+  const batch = db().batch();
   for (const doc of snapshot.docs) {
     batch.update(doc.ref, {
       status: nextStatus,
@@ -265,17 +268,17 @@ export async function syncAppointmentReminders(
     return;
   }
 
-  const patientSnap = await db.collection('patients').doc(appointment.patientId).get();
+  const patientSnap = await db().collection('patients').doc(appointment.patientId).get();
   const patient = (patientSnap.data() ?? {}) as PatientLike;
   const drafts = buildReminderDrafts(appointment, patient);
   const desiredIds = new Set(drafts.map((item) => item.id));
 
-  const existing = await db
+  const existing = await db()
     .collection('scheduledNotifications')
     .where('appointmentId', '==', appointment.id)
     .get();
 
-  const batch = db.batch();
+  const batch = db().batch();
 
   for (const doc of existing.docs) {
     if (!desiredIds.has(doc.id)) {
@@ -289,7 +292,7 @@ export async function syncAppointmentReminders(
   }
 
   for (const draft of drafts) {
-    const ref = db.collection('scheduledNotifications').doc(draft.id);
+    const ref = db().collection('scheduledNotifications').doc(draft.id);
     batch.set(
       ref,
       {
@@ -338,7 +341,7 @@ async function sendAppReminder(
   const treatmentId = (reminder.treatmentId ?? '').toString().trim();
   const kind = (reminder.kind ?? '').toString().trim();
 
-  const {delivery} = await deliverAndroidNotification(db, {
+  const {delivery} = await deliverAndroidNotification(db(), {
     notificationId: reminderId,
     recipientId: patientId,
     recipientRole: 'patient',
@@ -357,12 +360,34 @@ async function sendAppReminder(
     source: 'scheduler:appointment_reminder',
   });
 
+  const ok = delivery.status === 'sent' || delivery.status === 'partial';
+  const errorCode = delivery.status === 'skipped_no_active_tokens'
+    ? 'SKIPPED_NO_ACTIVE_TOKENS'
+    : (delivery.errors[0]?.code ?? null);
+  const errorMessage = delivery.status === 'skipped_no_active_tokens'
+    ? 'No hay tokens activos para entrega push real.'
+    : (delivery.errors[0]?.message ?? null);
+
+  logger.info('Appointment reminder app delivery evaluated', {
+    reminderId,
+    patientId,
+    appointmentId,
+    treatmentId,
+    kind,
+    deliveryStatus: delivery.status,
+    attempted: delivery.attempted,
+    successCount: delivery.successCount,
+    failureCount: delivery.failureCount,
+    ok,
+    errorCode,
+    errorMessage,
+  });
+
   return {
-    ok: delivery.status === 'sent' || delivery.status === 'partial' ||
-      delivery.status === 'skipped_no_active_tokens',
+    ok,
     providerMessageId: delivery.providerMessageIds[0] ?? null,
-    errorCode: delivery.errors[0]?.code ?? null,
-    errorMessage: delivery.errors[0]?.message ?? null,
+    errorCode,
+    errorMessage,
   };
 }
 
@@ -433,7 +458,7 @@ async function sendWhatsappReminder(
 
 async function processReminderDoc(doc: admin.firestore.QueryDocumentSnapshot): Promise<void> {
   const reminder = doc.data() as Record<string, unknown>;
-  const appointmentRef = db.collection('appointments').doc((reminder.appointmentId ?? '').toString());
+  const appointmentRef = db().collection('appointments').doc((reminder.appointmentId ?? '').toString());
   const appointmentSnap = await appointmentRef.get();
   const appointment = appointmentSnap.data() as AppointmentLike | undefined;
 
@@ -472,6 +497,18 @@ async function processReminderDoc(doc: admin.firestore.QueryDocumentSnapshot): P
     errorMessage: result.errorMessage ?? null,
   });
 
+  logger.info('Scheduled reminder processed', {
+    reminderId: doc.id,
+    appointmentId: reminder.appointmentId ?? null,
+    patientId: reminder.patientId ?? null,
+    channel: reminder.channel ?? null,
+    kind: reminder.kind ?? null,
+    finalStatus: result.ok ? 'sent' : 'failed',
+    providerMessageId: result.providerMessageId ?? null,
+    errorCode: result.errorCode ?? null,
+    errorMessage: result.errorMessage ?? null,
+  });
+
   if (result.ok && reminder.channel === 'app') {
     const reminderKind = (reminder.kind ?? '').toString();
     if (reminderKind === 'day_before' || reminderKind === 'hour_before') {
@@ -489,7 +526,7 @@ async function processReminderDoc(doc: admin.firestore.QueryDocumentSnapshot): P
 
 async function dueReminderSnapshots(): Promise<admin.firestore.QueryDocumentSnapshot[]> {
   const now = admin.firestore.Timestamp.now();
-  const scheduled = db.collection('scheduledNotifications');
+  const scheduled = db().collection('scheduledNotifications');
   const snapshots = [
     await scheduled.where('status', '==', 'pending').where('scheduledFor', '<=', now).limit(50).get(),
   ];

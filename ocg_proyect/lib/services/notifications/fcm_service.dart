@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -86,6 +87,7 @@ class FcmService {
         authService: authService,
         resolveRole: resolveRole,
         overrideToken: token,
+        source: 'messaging.onTokenRefresh',
       );
     });
   }
@@ -94,16 +96,31 @@ class FcmService {
     required AuthService authService,
     required Future<String?> Function() resolveRole,
     String? overrideToken,
+    String source = 'manual',
   }) async {
     if (kIsWeb) return;
     final user = authService.currentUser;
     if (user == null) return;
     final role = await resolveRole();
-    if (role != 'admin' && role != 'patient') return;
+    if (role != 'admin' && role != 'patient') {
+      developer.log(
+        'skip syncCurrentUserDeviceToken: role unresolved',
+        name: 'ocg.fcm',
+        error: {'uid': user.uid, 'source': source, 'role': role},
+      );
+      return;
+    }
     final String effectiveRole = role!;
 
     final token = overrideToken ?? await getToken();
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      developer.log(
+        'skip syncCurrentUserDeviceToken: empty token',
+        name: 'ocg.fcm',
+        error: {'uid': user.uid, 'role': effectiveRole, 'source': source},
+      );
+      return;
+    }
 
     final deviceId = await getOrCreateDeviceId();
     await authService.upsertFcmDeviceToken(
@@ -113,11 +130,23 @@ class FcmService {
       deviceId: deviceId,
       platform: 'android',
     );
+    developer.log(
+      'FCM token synced',
+      name: 'ocg.fcm',
+      error: {
+        'uid': user.uid,
+        'role': effectiveRole,
+        'deviceId': deviceId,
+        'tokenPreview': _tokenPreview(token),
+        'source': source,
+      },
+    );
   }
 
   Future<void> clearCurrentUserDeviceToken({
     required AuthService authService,
     required String role,
+    String source = 'manual',
   }) async {
     if (kIsWeb) return;
     final user = authService.currentUser;
@@ -127,6 +156,16 @@ class FcmService {
       uid: user.uid,
       role: role,
       deviceId: deviceId,
+    );
+    developer.log(
+      'FCM token cleared',
+      name: 'ocg.fcm',
+      error: {
+        'uid': user.uid,
+        'role': role,
+        'deviceId': deviceId,
+        'source': source,
+      },
     );
   }
 
@@ -204,11 +243,30 @@ class FcmService {
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
-    if (notification == null) return;
+    final title = notification?.title ?? message.data['title']?.toString();
+    final body = notification?.body ?? message.data['body']?.toString();
+    if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+      developer.log(
+        'foreground push ignored: no visible content',
+        name: 'ocg.fcm',
+        error: {'data': message.data},
+      );
+      return;
+    }
+    developer.log(
+      'foreground push received',
+      name: 'ocg.fcm',
+      error: {
+        'messageId': message.messageId,
+        'title': title,
+        'body': body,
+        'data': message.data,
+      },
+    );
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      message.messageId.hashCode ^ (title ?? '').hashCode ^ (body ?? '').hashCode,
+      title,
+      body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _androidChannelId,
@@ -230,6 +288,11 @@ class FcmService {
   }) async {
     final role = await resolveRole();
     _payloadRouter.routeFromPayload(router, data, userRole: role);
+  }
+
+  String _tokenPreview(String token) {
+    if (token.length <= 18) return token;
+    return '${token.substring(0, 10)}…${token.substring(token.length - 6)}';
   }
 
   Future<void> dispose() async {

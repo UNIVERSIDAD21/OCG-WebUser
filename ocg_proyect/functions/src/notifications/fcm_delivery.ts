@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 
 export type NotificationRecipientRole = 'admin' | 'patient';
 export type NotificationDeliveryStatus =
@@ -22,6 +23,8 @@ export interface AndroidNotificationPayload {
 export interface AndroidDeviceTokenRecord {
   id: string;
   token: string;
+  source: 'devices' | 'legacy_top_level';
+  active: boolean;
 }
 
 export interface AndroidDeliveryError {
@@ -45,6 +48,11 @@ function userCollection(role: NotificationRecipientRole): string {
   return role === 'admin' ? 'admins' : 'patients';
 }
 
+function tokenPreview(token: string): string {
+  if (token.length <= 18) return token;
+  return `${token.slice(0, 10)}…${token.slice(-6)}`;
+}
+
 function sanitizeData(data?: Record<string, string>): Record<string, string> {
   if (!data) return {};
 
@@ -63,6 +71,8 @@ function buildAndroidDataPayload(payload: AndroidNotificationPayload): Record<st
     entityType: payload.entityType ?? '',
     recipientId: payload.recipientId,
     recipientRole: payload.recipientRole,
+    title: payload.title,
+    body: payload.body,
     ...sanitizeData(payload.data),
   };
 }
@@ -72,20 +82,37 @@ export async function resolveActiveAndroidTokens(
   role: NotificationRecipientRole,
   uid: string,
 ): Promise<AndroidDeviceTokenRecord[]> {
-  const snap = await db
-    .collection(userCollection(role))
-    .doc(uid)
-    .collection('devices')
-    .where('active', '==', true)
-    .where('platform', '==', 'android')
-    .get();
+  const userRef = db.collection(userCollection(role)).doc(uid);
+  const [userSnap, devicesSnap] = await Promise.all([
+    userRef.get(),
+    userRef.collection('devices').where('active', '==', true).where('platform', '==', 'android').get(),
+  ]);
 
-  return snap.docs
-    .map((doc) => ({
+  const deduped = new Map<string, AndroidDeviceTokenRecord>();
+  for (const doc of devicesSnap.docs) {
+    const token = String(doc.data().token ?? '').trim();
+    if (!token) continue;
+    deduped.set(token, {
       id: doc.id,
-      token: String(doc.data().token ?? '').trim(),
-    }))
-    .filter((item) => item.token.length > 0);
+      token,
+      source: 'devices',
+      active: true,
+    });
+  }
+
+  const userData = userSnap.data() ?? {};
+  const legacyToken = String(userData.fcmToken ?? '').trim();
+  const legacyDeviceId = String(userData.fcmDeviceId ?? '').trim() || 'legacy_top_level';
+  if (legacyToken && !deduped.has(legacyToken)) {
+    deduped.set(legacyToken, {
+      id: legacyDeviceId,
+      token: legacyToken,
+      source: 'legacy_top_level',
+      active: true,
+    });
+  }
+
+  return [...deduped.values()];
 }
 
 export async function deactivateDeviceToken(
@@ -146,7 +173,25 @@ export async function sendAndroidFcmNotification(
     payload.recipientId,
   );
 
+  logger.info('Resolved Android notification tokens', {
+    recipientId: payload.recipientId,
+    recipientRole: payload.recipientRole,
+    type: payload.type,
+    tokensFound: devices.length,
+    deviceIds: devices.map((device) => device.id),
+    tokenSources: devices.map((device) => ({
+      deviceId: device.id,
+      source: device.source,
+      tokenPreview: tokenPreview(device.token),
+    })),
+  });
+
   if (devices.length === 0) {
+    logger.warn('Skipping Android notification: no active tokens', {
+      recipientId: payload.recipientId,
+      recipientRole: payload.recipientRole,
+      type: payload.type,
+    });
     return {
       attempted: 0,
       successCount: 0,
@@ -205,12 +250,26 @@ export async function sendAndroidFcmNotification(
 
   const successCount = responses.filter((item) => item.ok).length;
   const failureCount = responses.length - successCount;
+  const status = resolveDeliveryStatus(devices.length, successCount);
+
+  logger.info('Android FCM delivery result', {
+    recipientId: payload.recipientId,
+    recipientRole: payload.recipientRole,
+    type: payload.type,
+    attempted: devices.length,
+    successCount,
+    failureCount,
+    status,
+    invalidDeviceIds,
+    providerMessageIds,
+    errors,
+  });
 
   return {
     attempted: devices.length,
     successCount,
     failureCount,
-    status: resolveDeliveryStatus(devices.length, successCount),
+    status,
     invalidDeviceIds,
     errors,
     providerMessageIds,
