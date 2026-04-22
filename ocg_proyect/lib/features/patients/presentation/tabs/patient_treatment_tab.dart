@@ -37,12 +37,24 @@ class PatientTreatmentTab extends ConsumerStatefulWidget {
 
 class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   String? _selectedTreatmentId;
+  bool _legacyMigrationQueued = false;
+  String? _ensuredFinancialItemsForTreatmentId;
 
   final NumberFormat _currency = NumberFormat.currency(
     locale: 'es_CO',
     symbol: r'$ ',
     decimalDigits: 0,
   );
+
+  @override
+  void didUpdateWidget(covariant PatientTreatmentTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId) {
+      _selectedTreatmentId = null;
+      _legacyMigrationQueued = false;
+      _ensuredFinancialItemsForTreatmentId = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,10 +72,15 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       )),
     );
 
-    if (treatments.length == 1 &&
-        treatments.first.id.startsWith('legacy-primary-') &&
-        !saveState.isLoading) {
-      Future.microtask(() {
+    final hasSingleLegacyTreatment =
+        treatments.length == 1 && treatments.first.id.startsWith('legacy-primary-');
+
+    if (!hasSingleLegacyTreatment) {
+      _legacyMigrationQueued = false;
+    } else if (!_legacyMigrationQueued && !saveState.isLoading) {
+      _legacyMigrationQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         ref
             .read(savePatientTreatmentProvider.notifier)
             .migrateLegacyPatientIfNeeded(
@@ -80,17 +97,26 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     }
 
     final selectedTreatment = _resolveSelectedTreatment(treatments);
-    if (!selectedTreatment.id.startsWith('legacy-primary-')) {
-      Future.microtask(
-        () => ref.read(ensureTreatmentFinancialItemsProvider)(
+    final isLegacySelected = selectedTreatment.id.startsWith('legacy-primary-');
+    if (isLegacySelected) {
+      _ensuredFinancialItemsForTreatmentId = null;
+    } else if (_ensuredFinancialItemsForTreatmentId != selectedTreatment.id) {
+      _ensuredFinancialItemsForTreatmentId = selectedTreatment.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(ensureTreatmentFinancialItemsProvider)(
           widget.patientId,
           selectedTreatment,
-        ),
-      );
+        );
+      });
+    }
+
+    if (saveState.hasError && hasSingleLegacyTreatment) {
+      return _buildMigrationErrorState(context, saveState.error);
     }
 
     final financialItemsAsync =
-        selectedTreatment.id.startsWith('legacy-primary-')
+        isLegacySelected
         ? const AsyncValue<List<FinancialItemModel>>.data(
             <FinancialItemModel>[],
           )
@@ -101,7 +127,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             )),
           );
 
-    final historyAsync = selectedTreatment.id.startsWith('legacy-primary-')
+    final historyAsync = isLegacySelected
         ? ref.watch(stageHistoryProvider(widget.patientId))
         : ref.watch(
             treatmentStageHistoryProvider((
@@ -218,6 +244,38 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMigrationErrorState(BuildContext context, Object? error) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: OcgColors.ivory,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE8DED2)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x100D0A07),
+              blurRadius: 30,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: OcgEmptyState(
+          icon: Icons.error_outline,
+          title: 'No se pudo preparar el tratamiento legacy del paciente',
+          subtitle:
+              'El detalle sigue disponible, pero la migración automática falló para este paciente. Error: $error',
+          ctaLabel: 'Reintentar migración',
+          onCta: () {
+            setState(() => _legacyMigrationQueued = false);
+          },
+        ),
+      ),
     );
   }
 
