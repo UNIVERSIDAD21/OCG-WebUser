@@ -10,12 +10,12 @@ class FcmPayloadRouter {
     Map<String, dynamic> data, {
     String? userRole,
   }) {
-    final route = _resolveRoute(data, userRole: userRole);
+    final route = resolveRoute(data, userRole: userRole);
     if (route == null || route.isEmpty) return;
     router.go(route);
   }
 
-  String? _resolveRoute(Map<String, dynamic> data, {String? userRole}) {
+  String? resolveRoute(Map<String, dynamic> data, {String? userRole}) {
     final explicitRoute = (data['route'] ?? '').toString().trim();
     if (explicitRoute.isNotEmpty) {
       return explicitRoute;
