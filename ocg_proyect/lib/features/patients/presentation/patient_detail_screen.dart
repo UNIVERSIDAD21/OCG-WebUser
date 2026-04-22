@@ -404,43 +404,17 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
 class _AdminPatientWorkspaceState
     extends ConsumerState<_AdminPatientWorkspace> {
   late int _section;
+  late final Set<int> _loadedSections;
 
   @override
   void initState() {
     super.initState();
     _section = widget.initialSection.clamp(0, 5);
+    _loadedSections = {_section};
   }
 
   @override
   Widget build(BuildContext context) {
-    final views = [
-      PatientProfileScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
-      _AdminTreatmentHost(patient: widget.patient),
-      PatientClinicalHistoryTab(
-        patientId: widget.patient.id,
-        patient: widget.patient,
-      ),
-      PatientAppointmentsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
-      PatientPaymentsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
-      PatientSimulationsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
-    ];
-
     return OcgAdaptiveScaffold(
       selectedIndex: 1,
       title: 'Paciente: ${widget.patient.nombre}',
@@ -474,11 +448,53 @@ class _AdminPatientWorkspaceState
             ),
           ),
           Expanded(
-            child: IndexedStack(index: _section, children: views),
+            child: IndexedStack(
+              index: _section,
+              children: List.generate(6, (index) {
+                if (!_loadedSections.contains(index)) {
+                  return const SizedBox.shrink();
+                }
+                return KeyedSubtree(
+                  key: ValueKey('patient-detail-section-$index'),
+                  child: _buildSection(index),
+                );
+              }),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSection(int index) {
+    return switch (index) {
+      0 => PatientProfileScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      1 => _AdminTreatmentHost(patient: widget.patient),
+      2 => PatientClinicalHistoryTab(
+        patientId: widget.patient.id,
+        patient: widget.patient,
+      ),
+      3 => PatientAppointmentsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      4 => PatientPaymentsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      5 => PatientSimulationsScreen(
+        embedded: true,
+        patientIdOverride: widget.patient.id,
+        viewerMode: PatientViewerMode.adminViewer,
+      ),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   Widget _sectionChip(String text, int index) {
@@ -488,7 +504,10 @@ class _AdminPatientWorkspaceState
       child: ChoiceChip(
         selected: active,
         label: Text(text),
-        onSelected: (_) => setState(() => _section = index),
+        onSelected: (_) => setState(() {
+          _section = index;
+          _loadedSections.add(index);
+        }),
       ),
     );
   }
