@@ -114,15 +114,17 @@ class FcmService {
 
     final token = overrideToken ?? await getToken();
     if (token == null || token.isEmpty) {
-      developer.log(
-        'skip syncCurrentUserDeviceToken: empty token',
-        name: 'ocg.fcm',
-        error: {'uid': user.uid, 'role': effectiveRole, 'source': source},
-      );
+      debugPrint('FCM TOKEN: null o vacío');
       return;
     }
 
     final deviceId = await getOrCreateDeviceId();
+
+    debugPrint('FCM TOKEN: $token');
+    debugPrint('FCM UID: ${user.uid}');
+    debugPrint('FCM ROLE: $effectiveRole');
+    debugPrint('FCM DEVICE ID: $deviceId');
+
     await authService.upsertFcmDeviceToken(
       uid: user.uid,
       role: effectiveRole,
@@ -264,7 +266,9 @@ class FcmService {
       },
     );
     await _localNotifications.show(
-      message.messageId.hashCode ^ (title ?? '').hashCode ^ (body ?? '').hashCode,
+      message.messageId.hashCode ^
+          (title ?? '').hashCode ^
+          (body ?? '').hashCode,
       title,
       body,
       const NotificationDetails(

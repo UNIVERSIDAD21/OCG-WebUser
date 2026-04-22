@@ -4,7 +4,15 @@ const _bogotaUtcOffset = Duration(hours: 5);
 
 DateTime _bogotaNowWallClock() {
   final b = DateTime.now().toUtc().subtract(_bogotaUtcOffset);
-  return DateTime(b.year, b.month, b.day, b.hour, b.minute, b.second, b.millisecond);
+  return DateTime(
+    b.year,
+    b.month,
+    b.day,
+    b.hour,
+    b.minute,
+    b.second,
+    b.millisecond,
+  );
 }
 
 class AppointmentTimeSlot {
@@ -120,7 +128,8 @@ class AppointmentsBusinessRules {
   }
 
   /// Retorna true si la clínica trabaja ese día.
-  static bool isWorkingDay(DateTime day) => scheduleBlocksForDay(day).isNotEmpty;
+  static bool isWorkingDay(DateTime day) =>
+      scheduleBlocksForDay(day).isNotEmpty;
 
   static bool isTypeAllowedForPatient(AppointmentType type) =>
       patientAllowedTypes.contains(type);
@@ -136,15 +145,15 @@ class AppointmentsBusinessRules {
     bool includeCompleted = true,
   }) {
     if (isHistoricalStatus(status)) return false;
-    if (!includeCompleted && status == AppointmentStatus.completada) return false;
+    if (!includeCompleted && status == AppointmentStatus.completada)
+      return false;
     return true;
   }
 
   static bool shouldIncludeInDayAgenda(
     AppointmentStatus status, {
     bool includeCompleted = true,
-  }) =>
-      isOperationalStatus(status, includeCompleted: includeCompleted);
+  }) => isOperationalStatus(status, includeCompleted: includeCompleted);
 
   static String? validateNoSameDayAppointment({
     required List<AppointmentModel> existingAppointments,
@@ -156,7 +165,10 @@ class AppointmentsBusinessRules {
         return false;
       }
 
-      return isSameBogotaCalendarDay(appointment.fechaHora, newAppointmentDateTime);
+      return isSameBogotaCalendarDay(
+        appointment.fechaHora,
+        newAppointmentDateTime,
+      );
     });
 
     if (!hasSameDayAppointment) return null;
@@ -175,8 +187,18 @@ class AppointmentsBusinessRules {
     final end = start.add(Duration(minutes: durationMinutes));
 
     final withinAnyBlock = blocks.any((block) {
-      final blockStart = DateTime(start.year, start.month, start.day, block.startHour);
-      final blockEnd = DateTime(start.year, start.month, start.day, block.endHour);
+      final blockStart = DateTime(
+        start.year,
+        start.month,
+        start.day,
+        block.startHour,
+      );
+      final blockEnd = DateTime(
+        start.year,
+        start.month,
+        start.day,
+        block.endHour,
+      );
       return !start.isBefore(blockStart) && !end.isAfter(blockEnd);
     });
 
@@ -196,7 +218,8 @@ class AppointmentsBusinessRules {
     final newEnd = newStart.add(Duration(minutes: durationMinutes));
 
     for (final appointment in existingAppointments) {
-      if (excludeAppointmentId != null && appointment.id == excludeAppointmentId) {
+      if (excludeAppointmentId != null &&
+          appointment.id == excludeAppointmentId) {
         continue;
       }
 
@@ -208,10 +231,14 @@ class AppointmentsBusinessRules {
 
       final existingStart = appointment.fechaHora;
       final existingEnd = existingStart.add(
-        Duration(minutes: appointment.duracionMinutos + bufferMinutesBetweenAppointments),
+        Duration(
+          minutes:
+              appointment.duracionMinutos + bufferMinutesBetweenAppointments,
+        ),
       );
 
-      final overlaps = newStart.isBefore(existingEnd) && existingStart.isBefore(newEnd);
+      final overlaps =
+          newStart.isBefore(existingEnd) && existingStart.isBefore(newEnd);
       if (overlaps) return true;
     }
 
@@ -228,7 +255,12 @@ class AppointmentsBusinessRules {
     final slots = <AppointmentTimeSlot>[];
 
     for (final block in blocks) {
-      final blockStart = DateTime(day.year, day.month, day.day, block.startHour);
+      final blockStart = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        block.startHour,
+      );
       final blockEnd = DateTime(day.year, day.month, day.day, block.endHour);
 
       for (
@@ -256,7 +288,12 @@ class AppointmentsBusinessRules {
     final slots = <AppointmentTimeSlot>[];
 
     for (final block in blocks) {
-      final blockStart = DateTime(day.year, day.month, day.day, block.startHour);
+      final blockStart = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        block.startHour,
+      );
       final blockEnd = DateTime(day.year, day.month, day.day, block.endHour);
 
       for (
@@ -288,7 +325,10 @@ class AppointmentsBusinessRules {
     return null;
   }
 
-  static bool canCancelAppointment(DateTime appointmentDateTime, {DateTime? now}) {
+  static bool canCancelAppointment(
+    DateTime appointmentDateTime, {
+    DateTime? now,
+  }) {
     final referenceNow = now ?? _bogotaNowWallClock();
     final horasRestantes = appointmentDateTime.difference(referenceNow).inHours;
     return horasRestantes >= 24;
