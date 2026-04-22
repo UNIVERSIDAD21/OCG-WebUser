@@ -30,6 +30,7 @@ export {
   removeAdminRole,
   setFcmToken,
   deleteFcmToken,
+  sendAndroidNotification,
   createPatientAccount,
   registerPatientSelf,
   deletePatientAccount,

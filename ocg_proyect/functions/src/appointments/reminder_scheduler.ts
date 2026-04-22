@@ -1,6 +1,8 @@
 import * as admin from 'firebase-admin';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 
+import {deliverAndroidNotification} from '../notifications/android_notification_service';
+
 const db = admin.firestore();
 
 const VALID_APPOINTMENT_STATUSES = new Set(['programada', 'confirmada']);
@@ -134,8 +136,8 @@ function resolveReminderPhone(
     patient.contactPreferences?.guardianPhone?.toString(),
   );
 
-  if (preferred == 'guardian' && guardianPhone) return guardianPhone;
-  if (preferred == 'both') return guardianPhone ?? patientPhone;
+  if (preferred === 'guardian' && guardianPhone) return guardianPhone;
+  if (preferred === 'both') return guardianPhone ?? patientPhone;
   return patientPhone ?? guardianPhone;
 }
 
@@ -319,36 +321,6 @@ export async function syncAppointmentReminders(
   await batch.commit();
 }
 
-async function sendPushIfPossible(
-  patientId: string,
-  title: string,
-  body: string,
-): Promise<SendResult> {
-  const patientSnap = await db.collection('patients').doc(patientId).get();
-  const token = (patientSnap.data()?.fcmToken ?? '').toString().trim();
-
-  try {
-    if (token) {
-      const response = await admin.messaging().send({
-        token,
-        notification: {title, body},
-        data: {
-          kind: 'appointment_reminder',
-        },
-      });
-      return {ok: true, providerMessageId: response};
-    }
-
-    return {ok: true, providerMessageId: 'notifications-only'};
-  } catch (error) {
-    return {
-      ok: false,
-      errorCode: 'FCM_SEND_FAILED',
-      errorMessage: error instanceof Error ? error.message : 'No se pudo enviar push FCM.',
-    };
-  }
-}
-
 async function sendAppReminder(
   reminderId: string,
   reminder: Record<string, unknown>,
@@ -361,24 +333,37 @@ async function sendAppReminder(
     (reminder.payloadSnapshot as Record<string, unknown> | undefined)?.message?.toString() ??
     'Tienes una cita próxima.';
 
-  await db.collection('notifications').doc(reminderId).set(
-    {
-      id: reminderId,
-      recipientId: reminder.patientId,
-      channel: 'app',
-      type: 'appointment_reminder',
-      title,
-      body,
-      appointmentId: reminder.appointmentId,
-      treatmentId: reminder.treatmentId ?? null,
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    {merge: true},
-  );
+  const patientId = (reminder.patientId ?? '').toString().trim();
+  const appointmentId = (reminder.appointmentId ?? '').toString().trim();
+  const treatmentId = (reminder.treatmentId ?? '').toString().trim();
+  const kind = (reminder.kind ?? '').toString().trim();
 
-  return sendPushIfPossible((reminder.patientId ?? '').toString(), title, body);
+  const {delivery} = await deliverAndroidNotification(db, {
+    notificationId: reminderId,
+    recipientId: patientId,
+    recipientRole: 'patient',
+    title,
+    body,
+    type: 'appointment_reminder',
+    targetRoute: '/patient/appointments',
+    entityId: appointmentId || undefined,
+    entityType: 'appointment',
+    data: {
+      kind,
+      appointmentId,
+      treatmentId,
+      reminderId,
+    },
+    source: 'scheduler:appointment_reminder',
+  });
+
+  return {
+    ok: delivery.status === 'sent' || delivery.status === 'partial' ||
+      delivery.status === 'skipped_no_active_tokens',
+    providerMessageId: delivery.providerMessageIds[0] ?? null,
+    errorCode: delivery.errors[0]?.code ?? null,
+    errorMessage: delivery.errors[0]?.message ?? null,
+  };
 }
 
 async function sendWhatsappReminder(
