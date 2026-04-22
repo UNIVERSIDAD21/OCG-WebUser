@@ -2,6 +2,8 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import {onRequest} from 'firebase-functions/v2/https';
 
+import {formatCop, notifyPatientPaymentEvent} from '../notifications/domain_notifications';
+
 const SANDBOX_API_KEY = '4Vj8eK4rloUd272L48hsrarnUA';
 
 export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async (req, res) => {
@@ -143,6 +145,20 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
       );
 
       await batch.commit();
+
+      await notifyPatientPaymentEvent(db, {
+        notificationId: `payment_received_${reference}`,
+        patientId,
+        paymentId: paymentRef.id,
+        treatmentId: String(payment.treatmentId ?? '').trim(),
+        type: 'payment_received',
+        title: 'Pago recibido con éxito',
+        body: `Recibimos tu pago por ${formatCop(appliedMonto)}. Tu saldo pendiente ahora es ${formatCop(nuevoSaldo)}.`,
+        amount: appliedMonto,
+        dueDate: fechaProximoPago ?? undefined,
+        reference,
+      });
+
       console.info('payuWebhook pago aprobado', {patientId, reference, appliedMonto});
     } else if (state === 6) {
       await sessionRef.set(

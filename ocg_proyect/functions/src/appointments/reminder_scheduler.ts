@@ -471,6 +471,20 @@ async function processReminderDoc(doc: admin.firestore.QueryDocumentSnapshot): P
     errorCode: result.errorCode ?? null,
     errorMessage: result.errorMessage ?? null,
   });
+
+  if (result.ok && reminder.channel === 'app') {
+    const reminderKind = (reminder.kind ?? '').toString();
+    if (reminderKind === 'day_before' || reminderKind === 'hour_before') {
+      await appointmentRef.set(
+        {
+          [reminderKind === 'day_before' ? 'recordatorio24hEnviado' : 'recordatorio2hEnviado']:
+            true,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+    }
+  }
 }
 
 async function dueReminderSnapshots(): Promise<admin.firestore.QueryDocumentSnapshot[]> {
