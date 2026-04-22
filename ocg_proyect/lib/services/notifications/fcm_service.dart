@@ -106,11 +106,13 @@ class FcmService {
     required AuthService authService,
     required Future<String?> Function() resolveRole,
   }) async {
+    developer.log('FcmService.registerCurrentDeviceAfterLogin start', name: 'ocg.fcm');
     await syncCurrentUserDeviceToken(
       authService: authService,
       resolveRole: resolveRole,
       source: 'auth_notifier.sign_in_success',
     );
+    developer.log('FcmService.registerCurrentDeviceAfterLogin end', name: 'ocg.fcm');
   }
 
   Future<void> syncCurrentUserDeviceToken({

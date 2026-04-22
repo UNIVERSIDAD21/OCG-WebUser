@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +66,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final userRole = ref.read(userRoleProvider);
       final isLoggedIn = authState.asData?.value != null;
       final authFlowLoading = ref.read(authNotifierProvider).isLoading;
+      developer.log('router redirect evaluate', name: 'ocg.router', error: {
+        'location': location,
+        'authLoading': authState.isLoading,
+        'authFlowLoading': authFlowLoading,
+        'isLoggedIn': isLoggedIn,
+        'roleLoading': userRole.isLoading,
+        'roleValue': userRole.asData?.value,
+      });
 
       if (authState.isLoading || authFlowLoading) {
         return location == RouteNames.splash ? null : RouteNames.splash;
