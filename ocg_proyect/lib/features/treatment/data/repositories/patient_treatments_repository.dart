@@ -76,8 +76,12 @@ class PatientTreatmentsRepository {
         !treatmentsSnapshot.docs.any((doc) => doc.id == treatment.id);
     final mustBePrimary = isFirstTreatment || currentPrimary == null;
 
+    final defaultSubtype = _defaultSubtypeForBaseType(treatment.tipoBase.trim());
     final normalized = treatment.copyWith(
       patientId: patientId,
+      subtipo: (treatment.subtipo?.trim().isNotEmpty ?? false)
+          ? treatment.subtipo!.trim()
+          : (defaultSubtype.isEmpty ? null : defaultSubtype),
       isPrimary: mustBePrimary ? true : treatment.isPrimary,
       updatedAt: now,
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
@@ -246,10 +250,17 @@ class PatientTreatmentsRepository {
     }
     if (kSubtypeRequiredBaseTreatments.contains(tipoBase)) {
       final subtype = treatment.subtipo?.trim() ?? '';
-      if (!kTreatmentSubtypes.contains(subtype)) {
+      final inferredLegacySubtype = _defaultSubtypeForBaseType(tipoBase);
+      if (!kTreatmentSubtypes.contains(subtype) &&
+          !kTreatmentSubtypes.contains(inferredLegacySubtype)) {
         throw Exception('TREATMENT_SUBTYPE_REQUIRED');
       }
     }
+  }
+
+  String _defaultSubtypeForBaseType(String tipoBase) {
+    if (!kSubtypeRequiredBaseTreatments.contains(tipoBase)) return '';
+    return 'metalico';
   }
 
   Map<String, dynamic> _patientProjection(PatientTreatment treatment) {

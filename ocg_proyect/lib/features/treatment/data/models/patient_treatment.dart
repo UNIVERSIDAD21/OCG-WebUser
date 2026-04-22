@@ -126,6 +126,15 @@ class PatientTreatment {
         .join(' ');
   }
 
+  static String? _legacySubtypeForTreatmentType({
+    required TreatmentType? tipoTratamiento,
+    required String tipoBase,
+  }) {
+    if (tipoTratamiento == TreatmentType.estetico) return 'estetico';
+    if (!kSubtypeRequiredBaseTreatments.contains(tipoBase)) return null;
+    return 'metalico';
+  }
+
   static DateTime _parseDate(dynamic value, DateTime fallback) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
@@ -188,7 +197,10 @@ class PatientTreatment {
       TreatmentType.retenedores => 'Retenedores',
       null => 'Tratamiento principal',
     };
-    final subtipo = patient.tipoTratamiento == TreatmentType.estetico ? 'estetico' : null;
+    final subtipo = _legacySubtypeForTreatmentType(
+      tipoTratamiento: patient.tipoTratamiento,
+      tipoBase: tipoBase,
+    );
 
     return PatientTreatment(
       id: 'legacy-primary-${patient.id}',
