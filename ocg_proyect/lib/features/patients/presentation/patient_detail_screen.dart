@@ -336,32 +336,31 @@ class _PatientDetailView extends ConsumerWidget {
                   Expanded(
                     child: SectionPanel(
                       title: 'Workspace del paciente',
-                      child: SizedBox.expand(
-                        child: TabBarView(
-                          children: [
-                            _PatientProfileAdminTab(
-                              patient: patient,
-                              onEdit: () => context.go(
-                                RouteNames.adminPatientEdit.replaceFirst(
-                                  ':patientId',
-                                  patient.id,
-                                ),
+                      expandChild: true,
+                      child: TabBarView(
+                        children: [
+                          _PatientProfileAdminTab(
+                            patient: patient,
+                            onEdit: () => context.go(
+                              RouteNames.adminPatientEdit.replaceFirst(
+                                ':patientId',
+                                patient.id,
                               ),
-                              onDelete: onDelete,
                             ),
-                            PatientTreatmentTab(
-                              patientId: patient.id,
-                              patient: patient,
-                            ),
-                            PatientClinicalHistoryTab(
-                              patientId: patient.id,
-                              patient: patient,
-                            ),
-                            PatientAppointmentsTab(patient: patient),
-                            PatientPaymentsTab(patientId: patient.id),
-                            PatientSimulatorTab(patient: patient),
-                          ],
-                        ),
+                            onDelete: onDelete,
+                          ),
+                          PatientTreatmentTab(
+                            patientId: patient.id,
+                            patient: patient,
+                          ),
+                          PatientClinicalHistoryTab(
+                            patientId: patient.id,
+                            patient: patient,
+                          ),
+                          PatientAppointmentsTab(patient: patient),
+                          PatientPaymentsTab(patientId: patient.id),
+                          PatientSimulatorTab(patient: patient),
+                        ],
                       ),
                     ),
                   ),

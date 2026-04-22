@@ -9,11 +9,13 @@ class SectionPanel extends StatelessWidget {
     required this.title,
     required this.child,
     this.trailing,
+    this.expandChild = false,
   });
 
   final String title;
   final Widget child;
   final Widget? trailing;
+  final bool expandChild;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +54,7 @@ class SectionPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          child,
+          if (expandChild) Expanded(child: child) else child,
         ],
       ),
     );
