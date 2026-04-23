@@ -350,7 +350,7 @@ class AuthService {
   }) async {
     final callable = _functions.httpsCallable('setFcmToken');
     try {
-      await callable.call({
+      await _callWithFreshAuth(callable, <String, dynamic>{
         'token': token,
         'deviceId': deviceId,
         'platform': platform,
@@ -382,7 +382,9 @@ class AuthService {
   }) async {
     final callable = _functions.httpsCallable('deleteFcmToken');
     try {
-      await callable.call({'deviceId': deviceId});
+      await _callWithFreshAuth(callable, <String, dynamic>{
+        'deviceId': deviceId,
+      });
       return;
     } on FirebaseFunctionsException catch (error) {
       debugPrint(
@@ -399,6 +401,27 @@ class AuthService {
       role: role,
       deviceId: deviceId,
     );
+  }
+
+  Future<HttpsCallableResult<dynamic>> _callWithFreshAuth(
+    HttpsCallable callable,
+    Map<String, dynamic> payload,
+  ) async {
+    await _auth.currentUser?.getIdToken(true);
+
+    try {
+      return await callable.call(payload);
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code != 'unauthenticated') rethrow;
+
+      debugPrint(
+        'Callable respondió unauthenticated; se fuerza refresh de auth y se reintenta una vez.',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await _auth.currentUser?.reload();
+      await _auth.currentUser?.getIdToken(true);
+      return await callable.call(payload);
+    }
   }
 
   Future<void> _upsertFcmDeviceTokenFallback({
