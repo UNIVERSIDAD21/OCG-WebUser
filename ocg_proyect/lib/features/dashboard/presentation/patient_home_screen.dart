@@ -1148,9 +1148,6 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
     if (widget.userId.isEmpty) return const SizedBox.shrink();
 
     final patientAsync = ref.watch(patientByIdProvider(widget.userId));
-    final appointmentsAsync = ref.watch(
-      patientAppointmentsProvider(widget.userId),
-    );
 
     return patientAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1204,11 +1201,6 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
             final stageIndex = TreatmentStage.values
                 .indexOf(selectedTreatment.etapaActual)
                 .clamp(0, TreatmentStage.values.length - 1);
-            final completedAppointments =
-                (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
-                    .where((a) => a.estado == AppointmentStatus.completada)
-                    .length;
-
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1222,9 +1214,13 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                       20,
                       22,
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF1A120C), Color(0xFF2E1F14)],
+                        colors: [
+                          OcgColors.espresso,
+                          const Color(0xFF6F5746),
+                          const Color(0xFF9A7E69),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -1251,12 +1247,21 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                   ),
                                   const SizedBox(height: 6),
                                   const Text(
-                                    'Seguimiento\nclínico',
+                                    'Tratamiento',
                                     style: TextStyle(
                                       color: OcgColors.ivory,
                                       fontSize: 28,
                                       fontWeight: FontWeight.w800,
                                       height: 1.1,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Revisa el avance de tus tratamientos',
+                                    style: TextStyle(
+                                      color: OcgColors.ivory.withOpacity(0.82),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -1269,14 +1274,10 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF166534,
-                                ).withOpacity(0.22),
+                                color: OcgColors.ivory.withOpacity(0.14),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: const Color(
-                                    0xFF166534,
-                                  ).withOpacity(0.45),
+                                  color: OcgColors.ivory.withOpacity(0.18),
                                 ),
                               ),
                               child: Row(
@@ -1294,7 +1295,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                   const Text(
                                     'Activo',
                                     style: TextStyle(
-                                      color: Color(0xFF4ADE80),
+                                      color: OcgColors.ivory,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 0.5,
@@ -1495,10 +1496,14 @@ class _PremiumTreatmentSelectorCard extends StatelessWidget {
         width: 200,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF5EFE9) : const Color(0xFF221610),
-          borderRadius: BorderRadius.circular(16),
+          color: selected
+              ? const Color(0xFFFFFBF7)
+              : OcgColors.ivory.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? const Color(0xFFD4A97A) : const Color(0xFF3A2A1E),
+            color: selected
+                ? const Color(0xFFE2C4A7)
+                : OcgColors.ivory.withOpacity(0.16),
             width: selected ? 1.5 : 1,
           ),
           boxShadow: selected
@@ -1540,15 +1545,13 @@ class _PremiumTreatmentSelectorCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: selected
                         ? OcgColors.espresso
-                        : const Color(0xFF3A2A1E),
+                        : OcgColors.ivory.withOpacity(0.14),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '$progress%',
                     style: TextStyle(
-                      color: selected
-                          ? OcgColors.ivory
-                          : const Color(0xFFD4A97A),
+                      color: selected ? OcgColors.ivory : OcgColors.ivory,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
@@ -1612,9 +1615,9 @@ class _PremiumSingleTreatmentBadge extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF221610),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3A2A1E)),
+        color: OcgColors.ivory.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
       ),
       child: Row(
         children: [
@@ -1631,7 +1634,7 @@ class _PremiumSingleTreatmentBadge extends StatelessWidget {
                   child: CircularProgressIndicator(
                     value: progress / 100,
                     strokeWidth: 4,
-                    backgroundColor: const Color(0xFF3A2A1E),
+                    backgroundColor: OcgColors.ivory.withOpacity(0.18),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       Color(0xFFD4A97A),
                     ),
@@ -1679,13 +1682,13 @@ class _PremiumSingleTreatmentBadge extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFF3A2A1E),
+              color: OcgColors.ivory.withOpacity(0.14),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               treatment.isPrimary ? 'Principal' : treatment.statusLabel,
               style: const TextStyle(
-                color: Color(0xFFD4A97A),
+                color: OcgColors.ivory,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
@@ -1724,9 +1727,16 @@ class _PatientProgressCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF8F3),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFFFFFBF8),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE8D8C8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D2C2016),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1829,9 +1839,16 @@ class _PatientClinicalSummaryCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF8F3),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFFFFFBF8),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE8D8C8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D2C2016),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1894,9 +1911,20 @@ class _PatientActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F1EA),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFFBF8), Color(0xFFF5ECE2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE7D8C9)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D2C2016),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
