@@ -3038,6 +3038,7 @@ class AppointmentCard extends StatelessWidget {
     this.onCancelar,
     this.onReabrirCompletada,
     this.onNoCompletada,
+    this.showReminders = true,
   });
 
   final AppointmentModel appointment;
@@ -3047,6 +3048,7 @@ class AppointmentCard extends StatelessWidget {
   final VoidCallback? onCancelar;
   final Future<void> Function()? onReabrirCompletada;
   final Future<void> Function()? onNoCompletada;
+  final bool showReminders;
 
   @override
   Widget build(BuildContext context) {
@@ -3129,8 +3131,10 @@ class AppointmentCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 10),
-            _AppointmentReminderSummary(appointmentId: appointment.id),
+            if (showReminders) ...[
+              const SizedBox(height: 10),
+              _AppointmentReminderSummary(appointmentId: appointment.id),
+            ],
 
             // ── Acciones ─────────────────────────────────────────────────
             if (onConfirmar != null ||

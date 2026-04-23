@@ -40,8 +40,10 @@ class PatientAppointmentsTab extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           itemCount: appointments.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) =>
-              AppointmentCard(appointment: appointments[index]),
+          itemBuilder: (context, index) => AppointmentCard(
+            appointment: appointments[index],
+            showReminders: false,
+          ),
         );
       },
     );
