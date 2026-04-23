@@ -349,11 +349,30 @@ class AuthService {
     required String platform,
   }) async {
     final callable = _functions.httpsCallable('setFcmToken');
-    await callable.call({
-      'token': token,
-      'deviceId': deviceId,
-      'platform': platform,
-    });
+    try {
+      await callable.call({
+        'token': token,
+        'deviceId': deviceId,
+        'platform': platform,
+      });
+      return;
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint(
+        'FCM callable setFcmToken falló (${error.code}). Se aplica fallback directo a Firestore.',
+      );
+    } catch (error) {
+      debugPrint(
+        'FCM callable setFcmToken falló (${error.runtimeType}). Se aplica fallback directo a Firestore.',
+      );
+    }
+
+    await _upsertFcmDeviceTokenFallback(
+      uid: uid,
+      role: role,
+      token: token,
+      deviceId: deviceId,
+      platform: platform,
+    );
   }
 
   Future<void> deleteFcmDeviceToken({
@@ -362,7 +381,106 @@ class AuthService {
     required String deviceId,
   }) async {
     final callable = _functions.httpsCallable('deleteFcmToken');
-    await callable.call({'deviceId': deviceId});
+    try {
+      await callable.call({'deviceId': deviceId});
+      return;
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint(
+        'FCM callable deleteFcmToken falló (${error.code}). Se aplica fallback directo a Firestore.',
+      );
+    } catch (error) {
+      debugPrint(
+        'FCM callable deleteFcmToken falló (${error.runtimeType}). Se aplica fallback directo a Firestore.',
+      );
+    }
+
+    await _deleteFcmDeviceTokenFallback(
+      uid: uid,
+      role: role,
+      deviceId: deviceId,
+    );
+  }
+
+  Future<void> _upsertFcmDeviceTokenFallback({
+    required String uid,
+    required String role,
+    required String token,
+    required String deviceId,
+    required String platform,
+  }) async {
+    final userRef = _db.collection(_userCollectionForRole(role)).doc(uid);
+    final deviceRef = userRef.collection('devices').doc(deviceId);
+    final existingDeviceSnap = await deviceRef.get();
+
+    await deviceRef.set({
+      'token': token,
+      'deviceId': deviceId,
+      'platform': platform,
+      'active': true,
+      'deletedAt': null,
+      'invalidatedAt': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt':
+          existingDeviceSnap.data()?['createdAt'] ??
+          FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await userRef.set({
+      'fcmToken': token,
+      'fcmDeviceId': deviceId,
+      'fcmPlatform': platform,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _deleteFcmDeviceTokenFallback({
+    required String uid,
+    required String role,
+    required String deviceId,
+  }) async {
+    final userRef = _db.collection(_userCollectionForRole(role)).doc(uid);
+    final deviceRef = userRef.collection('devices').doc(deviceId);
+
+    await deviceRef.set({
+      'active': false,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    final remainingActive = await userRef
+        .collection('devices')
+        .where('active', isEqualTo: true)
+        .limit(20)
+        .get();
+
+    Map<String, dynamic>? nextTopLevel;
+    for (final doc in remainingActive.docs) {
+      final data = doc.data();
+      final updatedAt = data['updatedAt'];
+      if (nextTopLevel == null) {
+        nextTopLevel = data;
+        continue;
+      }
+      final nextDate = updatedAt is Timestamp ? updatedAt.toDate() : null;
+      final currentDate = nextTopLevel['updatedAt'] is Timestamp
+          ? (nextTopLevel['updatedAt'] as Timestamp).toDate()
+          : null;
+      if ((nextDate?.millisecondsSinceEpoch ?? 0) >
+          (currentDate?.millisecondsSinceEpoch ?? 0)) {
+        nextTopLevel = data;
+      }
+    }
+
+    await userRef.set({
+      'fcmToken': nextTopLevel?['token'],
+      'fcmDeviceId': nextTopLevel?['deviceId'],
+      'fcmPlatform': nextTopLevel?['platform'],
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  String _userCollectionForRole(String role) {
+    return role == 'admin' ? FirestorePaths.admins : FirestorePaths.patients;
   }
 
   Future<void> bootstrapAdminByEmailIfAllowed(String email) async {

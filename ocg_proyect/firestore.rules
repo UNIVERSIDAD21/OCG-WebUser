@@ -35,6 +35,12 @@ service cloud.firestore {
     match /admins/{adminId} {
       allow read: if isAdmin() || isOwnPatient(adminId);
       allow write: if isAdmin();
+
+      match /devices/{deviceId} {
+        allow read: if isAdmin() || isOwnPatient(adminId);
+        allow create, update: if isAdmin() || isOwnPatient(adminId);
+        allow delete: if false;
+      }
     }
 
     match /patients/{patientId} {
@@ -44,6 +50,12 @@ service cloud.firestore {
       allow update: if isAdmin() ||
                       (request.auth != null && isOwnPatient(patientId));
       allow delete: if isAdmin();
+
+      match /devices/{deviceId} {
+        allow read: if isAdmin() || isOwnPatient(patientId);
+        allow create, update: if isAdmin() || isOwnPatient(patientId);
+        allow delete: if false;
+      }
 
       match /photos/{photoId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
