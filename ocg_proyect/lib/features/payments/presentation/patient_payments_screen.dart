@@ -396,12 +396,23 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                   20,
                   16,
                 ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [OcgColors.espresso, OcgColors.bronze],
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      OcgColors.espresso,
+                      OcgColors.bronze,
+                      Color(0xFFB89A84),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A2C2016),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,54 +434,82 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _PatientHeaderChip(
-                          label: '${treatments.length} tratamientos',
-                        ),
-                        _PatientHeaderChip(
-                          label:
-                              '${treatments.where((t) => !t.isFinished).length} activos',
-                        ),
-                        _PatientHeaderChip(
-                          label:
-                              selectedAccount?.payment.fechaProximoPago == null
-                              ? 'Sin próxima cuota'
-                              : 'Próximo pago ${_formatCompactDate(selectedAccount!.payment.fechaProximoPago!)}',
-                        ),
-                      ],
-                    ),
-                    if (treatments.length > 1) ...[
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 116,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: treatments.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: 10),
-                          itemBuilder: (context, index) {
-                            final treatment = treatments[index];
-                            final account = resolution.paymentAccounts
-                                .cast<EffectivePatientPaymentAccount?>()
-                                .firstWhere(
-                                  (item) => item?.treatmentId == treatment.id,
-                                  orElse: () => null,
-                                );
-                            return _PatientPaymentTreatmentCard(
-                              treatment: treatment,
-                              selected: treatment.id == selectedTreatment.id,
-                              account: account?.payment,
-                              onTap: () => setState(
-                                () => _selectedTreatmentId = treatment.id,
-                              ),
-                            );
-                          },
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: OcgColors.ivory.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: OcgColors.ivory.withOpacity(0.14),
                         ),
                       ),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _PatientHeaderChip(
+                                label: '${treatments.length} tratamientos',
+                              ),
+                              _PatientHeaderChip(
+                                label:
+                                    '${treatments.where((t) => !t.isFinished).length} activos',
+                              ),
+                              _PatientHeaderChip(
+                                label:
+                                    selectedAccount?.payment.fechaProximoPago ==
+                                        null
+                                    ? 'Sin próxima cuota'
+                                    : 'Próximo pago ${_formatCompactDate(selectedAccount!.payment.fechaProximoPago!)}',
+                              ),
+                            ],
+                          ),
+                          if (treatments.length > 1) ...[
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Selecciona un tratamiento',
+                              style: TextStyle(
+                                color: OcgColors.ivory,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 122,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: treatments.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, index) {
+                                  final treatment = treatments[index];
+                                  final account = resolution.paymentAccounts
+                                      .cast<EffectivePatientPaymentAccount?>()
+                                      .firstWhere(
+                                        (item) =>
+                                            item?.treatmentId == treatment.id,
+                                        orElse: () => null,
+                                      );
+                                  return _PatientPaymentTreatmentCard(
+                                    treatment: treatment,
+                                    selected:
+                                        treatment.id == selectedTreatment.id,
+                                    account: account?.payment,
+                                    onTap: () => setState(
+                                      () => _selectedTreatmentId = treatment.id,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -725,20 +764,37 @@ class _PatientPaymentTreatmentCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 190,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 196,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFFFFFBF7)
-              : OcgColors.ivory.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: selected
+                ? [const Color(0xFFFFFBF7), const Color(0xFFF4E8DD)]
+                : [
+                    OcgColors.ivory.withOpacity(0.16),
+                    OcgColors.ivory.withOpacity(0.08),
+                  ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
                 ? const Color(0xFFE2C4A7)
                 : OcgColors.ivory.withOpacity(0.16),
             width: selected ? 1.5 : 1,
           ),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x1A2C2016),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -754,12 +810,21 @@ class _PatientPaymentTreatmentCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Text(
-              treatment.isPrimary ? 'Principal' : treatment.statusLabel,
-              style: TextStyle(
-                color: selected ? OcgColors.bronze : OcgColors.ivory,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: selected
+                    ? OcgColors.espresso
+                    : OcgColors.ivory.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                treatment.isPrimary ? 'Principal' : treatment.statusLabel,
+                style: TextStyle(
+                  color: selected ? OcgColors.ivory : OcgColors.ivory,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: 2),
@@ -848,32 +913,82 @@ class _PatientPaymentSummaryCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF8),
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBF8), Color(0xFFF7EFE7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFE8D8C8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            treatment.displayName,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      treatment.displayName,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Estado: ${treatment.statusLabel}',
+                      style: const TextStyle(
+                        color: Color(0xFF6E5644),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E7DB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$progress%',
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress / 100,
+              minHeight: 10,
+              backgroundColor: const Color(0xFFE8D8C8),
+              valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.bronze),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Estado: ${treatment.statusLabel}',
-            style: const TextStyle(
-              color: Color(0xFF6E5644),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -906,11 +1021,22 @@ class _PatientFinancialBreakdownCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF8),
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBF8), Color(0xFFF7EFE7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFE8D8C8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x122C2016),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -923,7 +1049,12 @@ class _PatientFinancialBreakdownCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
+          const Text(
+            'Desglose claro de lo que compone esta cuenta.',
+            style: TextStyle(color: Color(0xFF8A6F59), fontSize: 12.5),
+          ),
+          const SizedBox(height: 14),
           if (items.isEmpty)
             const Text(
               'Aún no hay conceptos detallados para este tratamiento.',
@@ -931,8 +1062,14 @@ class _PatientFinancialBreakdownCard extends StatelessWidget {
             )
           else
             ...items.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+              (item) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F3EC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE9DCD0)),
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -946,6 +1083,7 @@ class _PatientFinancialBreakdownCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Text(
                             item.supportsQuantity
                                 ? 'Controles · ${item.effectiveQuantity} x ${currency.format(item.effectiveUnitAmount)}'
@@ -958,11 +1096,13 @@ class _PatientFinancialBreakdownCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(width: 10),
                     Text(
                       currency.format(item.computedAmount),
                       style: const TextStyle(
                         color: OcgColors.bronze,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
                     ),
                   ],
