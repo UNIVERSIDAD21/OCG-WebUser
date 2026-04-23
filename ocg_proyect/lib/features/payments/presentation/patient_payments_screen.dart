@@ -7,10 +7,17 @@ import 'package:intl/intl.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/currency_input_formatter.dart';
+import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../patients/data/models/patient_data_resolution.dart';
+import '../../patients/presentation/patient_viewer_mode.dart';
+import '../../patients/providers/patients_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
+import '../data/models/financial_item_model.dart';
 import '../data/models/payment_model.dart';
 import '../providers/payments_provider.dart';
-import '../../patients/presentation/patient_viewer_mode.dart';
+import '../providers/treatment_financial_provider.dart';
+import 'widgets/transaction_list.dart';
 
 class PatientPaymentsScreen extends ConsumerStatefulWidget {
   const PatientPaymentsScreen({
@@ -31,6 +38,7 @@ class PatientPaymentsScreen extends ConsumerStatefulWidget {
 
 class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
   _PaymentsFilter _filter = _PaymentsFilter.todos;
+  String? _selectedTreatmentId;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +70,15 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     if (effectivePatientId.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Debes iniciar sesión para ver tus pagos.')),
+      );
+    }
+
+    if (!isAdminViewer) {
+      return _buildPatientTreatmentAwareView(
+        context,
+        effectivePatientId,
+        user?.email ?? '',
+        user?.displayName ?? 'Paciente',
       );
     }
 
@@ -304,6 +321,255 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     );
   }
 
+  Widget _buildPatientTreatmentAwareView(
+    BuildContext context,
+    String patientId,
+    String patientEmail,
+    String patientName,
+  ) {
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+    final patientAsync = ref.watch(patientByIdProvider(patientId));
+
+    return patientAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => Scaffold(
+        body: Center(child: Text('No se pudo cargar pagos: $error')),
+      ),
+      data: (patient) {
+        if (patient == null) {
+          return const Scaffold(
+            body: Center(child: Text('Paciente no encontrado.')),
+          );
+        }
+
+        final resolution = ref.watch(
+          effectivePatientPaymentsProvider((
+            patientId: patientId,
+            patient: patient,
+          )),
+        );
+        final treatments = resolution.treatments;
+        if (treatments.isEmpty) {
+          return Scaffold(
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: OcgEmptyState(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Aún no tienes pagos asociados',
+                  subtitle:
+                      'Cuando la clínica cree tu primer tratamiento podrás ver aquí su cuenta.',
+                ),
+              ),
+            ),
+          );
+        }
+
+        final selectedTreatment = _resolveSelectedTreatment(treatments);
+        final selectedAccount = resolution.paymentAccounts
+            .cast<EffectivePatientPaymentAccount?>()
+            .firstWhere(
+              (item) => item?.treatmentId == selectedTreatment.id,
+              orElse: () => null,
+            );
+        final financialItemsAsync = ref.watch(
+          treatmentFinancialItemsProvider((
+            patientId: patientId,
+            treatmentId: selectedTreatment.id,
+          )),
+        );
+
+        final content = SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  MediaQuery.paddingOf(context).top + 18,
+                  20,
+                  16,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [OcgColors.espresso, OcgColors.bronze],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pagos',
+                      style: TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Consulta el estado de tus tratamientos',
+                      style: TextStyle(
+                        color: OcgColors.ivory.withOpacity(0.82),
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _PatientHeaderChip(
+                          label: '${treatments.length} tratamientos',
+                        ),
+                        _PatientHeaderChip(
+                          label:
+                              '${treatments.where((t) => !t.isFinished).length} activos',
+                        ),
+                        _PatientHeaderChip(
+                          label:
+                              selectedAccount?.payment.fechaProximoPago == null
+                              ? 'Sin próxima cuota'
+                              : 'Próximo pago ${_formatCompactDate(selectedAccount!.payment.fechaProximoPago!)}',
+                        ),
+                      ],
+                    ),
+                    if (treatments.length > 1) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 116,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: treatments.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final treatment = treatments[index];
+                            final account = resolution.paymentAccounts
+                                .cast<EffectivePatientPaymentAccount?>()
+                                .firstWhere(
+                                  (item) => item?.treatmentId == treatment.id,
+                                  orElse: () => null,
+                                );
+                            return _PatientPaymentTreatmentCard(
+                              treatment: treatment,
+                              selected: treatment.id == selectedTreatment.id,
+                              account: account?.payment,
+                              onTap: () => setState(
+                                () => _selectedTreatmentId = treatment.id,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _PatientPaymentSummaryCard(
+                      treatment: selectedTreatment,
+                      payment: selectedAccount?.payment,
+                      currency: currency,
+                    ),
+                    const SizedBox(height: 16),
+                    financialItemsAsync.when(
+                      loading: () => const _LoadingCard(),
+                      error: (error, _) => _ErrorCard(
+                        message: 'No se pudieron cargar conceptos: $error',
+                      ),
+                      data: (items) => _PatientFinancialBreakdownCard(
+                        items: items,
+                        currency: currency,
+                      ),
+                    ),
+                    if ((selectedAccount?.payment.saldoPendiente ?? 0) > 0) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: OcgColors.espresso,
+                            foregroundColor: OcgColors.ivory,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () => _confirmAndPayu(
+                            context,
+                            patientId,
+                            selectedAccount!.payment.saldoPendiente,
+                            patientEmail,
+                            patientName,
+                          ),
+                          icon: const Icon(Icons.lock_outline, size: 18),
+                          label: Text(
+                            'Pagar ${selectedTreatment.displayName} con PayU',
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Historial de ${selectedTreatment.displayName}',
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TransactionList(
+                      patientId: patientId,
+                      treatmentId: selectedTreatment.id,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (widget.embedded) return content;
+        return Scaffold(body: content);
+      },
+    );
+  }
+
+  PatientTreatment _resolveSelectedTreatment(
+    List<PatientTreatment> treatments,
+  ) {
+    if (_selectedTreatmentId != null) {
+      for (final treatment in treatments) {
+        if (treatment.id == _selectedTreatmentId) return treatment;
+      }
+    }
+    for (final treatment in treatments) {
+      if (treatment.isPrimary) return treatment;
+    }
+    for (final treatment in treatments) {
+      if (!treatment.isFinished) return treatment;
+    }
+    return treatments.first;
+  }
+
+  String _formatCompactDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
   Future<void> _showRegisterManualPaymentDialog(
     BuildContext context,
     String patientId,
@@ -408,6 +674,304 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
           patientEmail: patientEmail,
           patientName: patientName,
         );
+  }
+}
+
+class _PatientHeaderChip extends StatelessWidget {
+  const _PatientHeaderChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: OcgColors.ivory,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientPaymentTreatmentCard extends StatelessWidget {
+  const _PatientPaymentTreatmentCard({
+    required this.treatment,
+    required this.selected,
+    required this.account,
+    required this.onTap,
+  });
+
+  final PatientTreatment treatment;
+  final bool selected;
+  final PaymentModel? account;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 190,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFFFFBF7)
+              : OcgColors.ivory.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFFE2C4A7)
+                : OcgColors.ivory.withOpacity(0.16),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              treatment.displayName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected ? OcgColors.espresso : OcgColors.ivory,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              treatment.isPrimary ? 'Principal' : treatment.statusLabel,
+              style: TextStyle(
+                color: selected ? OcgColors.bronze : OcgColors.ivory,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              account == null
+                  ? 'Sin cuenta'
+                  : 'Saldo ${currency.format(account!.saldoPendiente)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFF6E5644)
+                    : OcgColors.ivory.withOpacity(0.82),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientMetricChip extends StatelessWidget {
+  const _PatientMetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F1EA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF8A6F59),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientPaymentSummaryCard extends StatelessWidget {
+  const _PatientPaymentSummaryCard({
+    required this.treatment,
+    required this.payment,
+    required this.currency,
+  });
+
+  final PatientTreatment treatment;
+  final PaymentModel? payment;
+  final NumberFormat currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = payment?.totalTratamiento ?? 0;
+    final paid = payment?.montoPagado ?? 0;
+    final pending = payment?.saldoPendiente ?? 0;
+    final progress = total > 0
+        ? ((paid / total) * 100).round().clamp(0, 100)
+        : 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            treatment.displayName,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Estado: ${treatment.statusLabel}',
+            style: const TextStyle(
+              color: Color(0xFF6E5644),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _PatientMetricChip(label: 'Total', value: currency.format(total)),
+              _PatientMetricChip(label: 'Pagado', value: currency.format(paid)),
+              _PatientMetricChip(
+                label: 'Saldo',
+                value: currency.format(pending),
+              ),
+              _PatientMetricChip(label: 'Avance', value: '$progress%'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientFinancialBreakdownCard extends StatelessWidget {
+  const _PatientFinancialBreakdownCard({
+    required this.items,
+    required this.currency,
+  });
+
+  final List<FinancialItemModel> items;
+  final NumberFormat currency;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Conceptos del tratamiento',
+            style: TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const Text(
+              'Aún no hay conceptos detallados para este tratamiento.',
+              style: TextStyle(color: Color(0xFF6E5644)),
+            )
+          else
+            ...items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              color: OcgColors.espresso,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            item.supportsQuantity
+                                ? 'Controles · ${item.effectiveQuantity} x ${currency.format(item.effectiveUnitAmount)}'
+                                : item.kind,
+                            style: const TextStyle(
+                              color: Color(0xFF6E5644),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      currency.format(item.computedAmount),
+                      style: const TextStyle(
+                        color: OcgColors.bronze,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
