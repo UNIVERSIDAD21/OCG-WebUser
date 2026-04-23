@@ -612,7 +612,6 @@ class _TreatmentHeroCard extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 Text(
                   '$progress%',
                   textAlign: TextAlign.center,
@@ -850,12 +849,9 @@ class _NextAppointmentCard extends StatelessWidget {
                     color: const Color(0xFFF2EDE8),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Detalle disponible en Citas',
-                    style: TextStyle(
-                      color: const Color(0xFF8A6F59),
-                      fontSize: 11.5,
-                    ),
+                    style: TextStyle(color: Color(0xFF8A6F59), fontSize: 11.5),
                   ),
                 ),
               ],
@@ -1116,6 +1112,10 @@ class _MilestoneTile extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TRATAMIENTO SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _TratamientoSection extends ConsumerStatefulWidget {
   const _TratamientoSection({
     required this.userId,
@@ -1204,8 +1204,6 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
             final stageIndex = TreatmentStage.values
                 .indexOf(selectedTreatment.etapaActual)
                 .clamp(0, TreatmentStage.values.length - 1);
-            final activeCount = treatments.where((t) => !t.isFinished).length;
-            final primaryCount = treatments.where((t) => t.isPrimary).length;
             final completedAppointments =
                 (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
                     .where((a) => a.estado == AppointmentStatus.completada)
@@ -1215,17 +1213,18 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Premium header ──────────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.fromLTRB(
                       20,
                       MediaQuery.paddingOf(context).top + 20,
                       20,
-                      18,
+                      22,
                     ),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [OcgColors.espresso, OcgColors.bronze],
+                        colors: [Color(0xFF1A120C), Color(0xFF2E1F14)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -1233,44 +1232,85 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Tratamiento',
-                          style: TextStyle(
-                            color: OcgColors.ivory,
-                            fontSize: 27,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Revisa el avance de tus tratamientos',
-                          style: TextStyle(
-                            color: OcgColors.ivory.withOpacity(0.78),
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                        // Title row
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            _PatientModuleChip(
-                              label: '$activeCount tratamientos activos',
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'TRATAMIENTO',
+                                    style: TextStyle(
+                                      color: OcgColors.ivory.withOpacity(0.38),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 2.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text(
+                                    'Seguimiento\nclínico',
+                                    style: TextStyle(
+                                      color: OcgColors.ivory,
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            _PatientModuleChip(
-                              label: '$primaryCount principal',
-                            ),
-                            _PatientModuleChip(
-                              label: patient.proximaCita == null
-                                  ? 'Sin próxima revisión'
-                                  : 'Próxima revisión ${_fmtDate(patient.proximaCita!)}',
+                            // Live indicator
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF166534,
+                                ).withOpacity(0.22),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF166534,
+                                  ).withOpacity(0.45),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF4ADE80),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Activo',
+                                    style: TextStyle(
+                                      color: Color(0xFF4ADE80),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
+
+                        // Treatment selector (only when multiple)
                         if (treatments.length > 1) ...[
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           SizedBox(
-                            height: 114,
+                            height: 96,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: treatments.length,
@@ -1280,7 +1320,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                 final treatment = treatments[index];
                                 final selected =
                                     treatment.id == selectedTreatment.id;
-                                return _PatientTreatmentSelectorCard(
+                                return _PremiumTreatmentSelectorCard(
                                   treatment: treatment,
                                   selected: selected,
                                   progress: _progressByStage(
@@ -1293,19 +1333,19 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                               },
                             ),
                           ),
+                        ] else ...[
+                          const SizedBox(height: 20),
+                          // Single treatment — compact premium display
+                          _PremiumSingleTreatmentBadge(
+                            treatment: selectedTreatment,
+                            progress: progress,
+                          ),
                         ],
-                        const SizedBox(height: 16),
-                        _PatientSelectedTreatmentCard(
-                          treatment: selectedTreatment,
-                          progress: progress,
-                          fallbackEstimatedEnd:
-                              selectedTreatment.fechaFin ??
-                              patient.fechaEstimadaFin,
-                          completedAppointments: completedAppointments,
-                        ),
                       ],
                     ),
                   ),
+
+                  // ── Body ────────────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
                     child: Column(
@@ -1428,36 +1468,12 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
   }
 }
 
-String _fmtDate(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW: Premium treatment selector card (multiple treatments)
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _PatientModuleChip extends StatelessWidget {
-  const _PatientModuleChip({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: OcgColors.ivory,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _PatientTreatmentSelectorCard extends StatelessWidget {
-  const _PatientTreatmentSelectorCard({
+class _PremiumTreatmentSelectorCard extends StatelessWidget {
+  const _PremiumTreatmentSelectorCard({
     required this.treatment,
     required this.selected,
     required this.progress,
@@ -1471,46 +1487,93 @@ class _PatientTreatmentSelectorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 180,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        width: 200,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? OcgColors.ivory : OcgColors.ivory.withOpacity(0.14),
-          borderRadius: BorderRadius.circular(18),
+          color: selected ? const Color(0xFFF5EFE9) : const Color(0xFF221610),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected
-                ? OcgColors.ivory
-                : OcgColors.ivory.withOpacity(0.18),
+            color: selected ? const Color(0xFFD4A97A) : const Color(0xFF3A2A1E),
             width: selected ? 1.5 : 1,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFD4A97A).withOpacity(0.30),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              treatment.displayName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: selected ? OcgColors.espresso : OcgColors.ivory,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
+            // Top row: name + progress pill
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    treatment.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? OcgColors.espresso : OcgColors.ivory,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? OcgColors.espresso
+                        : const Color(0xFF3A2A1E),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$progress%',
+                    style: TextStyle(
+                      color: selected
+                          ? OcgColors.ivory
+                          : const Color(0xFFD4A97A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Spacer(),
-            Text(
-              treatment.isPrimary ? 'Principal' : treatment.statusLabel,
-              style: TextStyle(
-                color: selected ? OcgColors.bronze : OcgColors.ivory,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+            // Thin progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: progress / 100,
+                minHeight: 3,
+                backgroundColor: selected
+                    ? const Color(0xFFE4D5C5)
+                    : const Color(0xFF3A2A1E),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  selected ? OcgColors.espresso : const Color(0xFFD4A97A),
+                ),
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 8),
+            // Stage name
             Text(
               stageNames[treatment.etapaActual] ?? treatment.etapaActual.name,
               maxLines: 1,
@@ -1518,18 +1581,9 @@ class _PatientTreatmentSelectorCard extends StatelessWidget {
               style: TextStyle(
                 color: selected
                     ? const Color(0xFF6E5644)
-                    : OcgColors.ivory.withOpacity(0.82),
-                fontSize: 11,
+                    : OcgColors.ivory.withOpacity(0.58),
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '$progress%',
-              style: TextStyle(
-                color: selected ? OcgColors.espresso : OcgColors.ivory,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -1539,82 +1593,117 @@ class _PatientTreatmentSelectorCard extends StatelessWidget {
   }
 }
 
-class _PatientSelectedTreatmentCard extends StatelessWidget {
-  const _PatientSelectedTreatmentCard({
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW: Premium single treatment badge (when only one treatment exists)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PremiumSingleTreatmentBadge extends StatelessWidget {
+  const _PremiumSingleTreatmentBadge({
     required this.treatment,
     required this.progress,
-    required this.fallbackEstimatedEnd,
-    required this.completedAppointments,
   });
 
   final PatientTreatment treatment;
   final int progress;
-  final DateTime? fallbackEstimatedEnd;
-  final int completedAppointments;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
+        color: const Color(0xFF221610),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF3A2A1E)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            treatment.displayName,
-            style: const TextStyle(
-              color: OcgColors.ivory,
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
+          // Circular mini progress
+          SizedBox(
+            width: 46,
+            height: 46,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: CircularProgressIndicator(
+                    value: progress / 100,
+                    strokeWidth: 4,
+                    backgroundColor: const Color(0xFF3A2A1E),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFFD4A97A),
+                    ),
+                  ),
+                ),
+                Text(
+                  '$progress%',
+                  style: const TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Estado: ${treatment.statusLabel}',
-            style: TextStyle(
-              color: OcgColors.ivory.withOpacity(0.88),
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  treatment.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  stageNames[treatment.etapaActual] ??
+                      treatment.etapaActual.name,
+                  style: TextStyle(
+                    color: OcgColors.ivory.withOpacity(0.55),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _SummaryTile(
-                title: 'Tipo',
-                value: PatientTreatment.labelForBaseTreatment(
-                  treatment.tipoBase,
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A2A1E),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              treatment.isPrimary ? 'Principal' : treatment.statusLabel,
+              style: const TextStyle(
+                color: Color(0xFFD4A97A),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
               ),
-              if (treatment.normalizedSubtypeLabel != null)
-                _SummaryTile(
-                  title: 'Subtipo',
-                  value: treatment.normalizedSubtypeLabel!,
-                ),
-              _SummaryTile(
-                title: 'Inicio',
-                value: _fmtDate(treatment.fechaInicio),
-              ),
-              _SummaryTile(
-                title: 'Fin estimado',
-                value: fallbackEstimatedEnd == null
-                    ? 'Por definir'
-                    : _fmtDate(fallbackEstimatedEnd!),
-              ),
-              _SummaryTile(title: 'Progreso', value: '$progress%'),
-              _SummaryTile(title: 'Citas', value: '$completedAppointments'),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Existing widgets (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+
+String _fmtDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
 class _PatientProgressCard extends StatelessWidget {
   const _PatientProgressCard({
@@ -1823,146 +1912,6 @@ class _PatientActionButton extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SummaryTile extends StatelessWidget {
-  const _SummaryTile({required this.title, required this.value});
-
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 112,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: OcgColors.ivory.withOpacity(0.78),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              color: OcgColors.ivory,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhaseBar extends StatelessWidget {
-  const _PhaseBar({required this.phase});
-  final int phase;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(5, (i) {
-        final current = i + 1 == phase;
-        final done = i + 1 < phase;
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: i == 4 ? 0 : 6),
-            height: 10,
-            decoration: BoxDecoration(
-              color: done
-                  ? OcgColors.espresso
-                  : (current
-                        ? const Color(0xFF8A6F59)
-                        : const Color(0xFFEADBCB)),
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-class _CurrentStageCard extends StatelessWidget {
-  const _CurrentStageCard({
-    required this.stageName,
-    required this.description,
-    required this.progress,
-  });
-
-  final String stageName;
-  final String description;
-  final int progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDF8F3),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8D8C8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.auto_awesome, size: 18, color: OcgColors.bronze),
-              const SizedBox(width: 6),
-              const Text(
-                '¡Vas muy bien!',
-                style: TextStyle(
-                  color: OcgColors.espresso,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '$progress%',
-                style: const TextStyle(
-                  color: OcgColors.bronze,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            stageName,
-            style: const TextStyle(
-              color: Color(0xFF1A1410),
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: const TextStyle(
-              color: Color(0xFF6E5644),
-              height: 1.45,
-              fontSize: 12.5,
-            ),
-          ),
-        ],
       ),
     );
   }
