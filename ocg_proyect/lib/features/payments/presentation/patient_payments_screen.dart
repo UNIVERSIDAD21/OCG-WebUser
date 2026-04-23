@@ -384,6 +384,8 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
           )),
         );
 
+        final compact = MediaQuery.sizeOf(context).width < 380;
+
         final content = SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,10 +393,10 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.fromLTRB(
-                  20,
+                  compact ? 16 : 20,
                   MediaQuery.paddingOf(context).top + 18,
-                  20,
-                  16,
+                  compact ? 16 : 20,
+                  compact ? 14 : 16,
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -417,11 +419,11 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Pagos',
                       style: TextStyle(
                         color: OcgColors.ivory,
-                        fontSize: 28,
+                        fontSize: compact ? 25 : 28,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -430,7 +432,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                       'Consulta el estado de tus tratamientos',
                       style: TextStyle(
                         color: OcgColors.ivory.withOpacity(0.82),
-                        fontSize: 13,
+                        fontSize: compact ? 12 : 13,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -479,7 +481,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                             ),
                             const SizedBox(height: 10),
                             SizedBox(
-                              height: 122,
+                              height: compact ? 112 : 122,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: treatments.length,
@@ -514,7 +516,12 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 16 : 20,
+                  18,
+                  compact ? 16 : 20,
+                  110,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -761,13 +768,14 @@ class _PatientPaymentTreatmentCard extends StatelessWidget {
       symbol: r'$',
       decimalDigits: 0,
     );
+    final compact = MediaQuery.sizeOf(context).width < 380;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        width: 196,
-        padding: const EdgeInsets.all(14),
+        width: compact ? 176 : 196,
+        padding: EdgeInsets.all(compact ? 12 : 14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: selected
@@ -805,7 +813,7 @@ class _PatientPaymentTreatmentCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: selected ? OcgColors.espresso : OcgColors.ivory,
-                fontSize: 13,
+                fontSize: compact ? 12 : 13,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -857,9 +865,13 @@ class _PatientMetricChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 380;
     return Container(
-      constraints: const BoxConstraints(minWidth: 120),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      constraints: BoxConstraints(minWidth: compact ? 106 : 120),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 9 : 10,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F1EA),
         borderRadius: BorderRadius.circular(14),
@@ -870,18 +882,18 @@ class _PatientMetricChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF8A6F59),
-              fontSize: 11,
+            style: TextStyle(
+              color: const Color(0xFF8A6F59),
+              fontSize: compact ? 10.5 : 11,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: OcgColors.espresso,
-              fontSize: 15,
+              fontSize: compact ? 14 : 15,
               fontWeight: FontWeight.w800,
             ),
           ),
