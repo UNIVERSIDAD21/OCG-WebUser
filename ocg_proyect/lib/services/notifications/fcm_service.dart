@@ -125,15 +125,16 @@ class FcmService {
     final user = authService.currentUser;
     if (user == null) return;
     final role = await resolveRole();
-    if (role != 'admin' && role != 'patient') {
+    final bool hasResolvedRole = role == 'admin' || role == 'patient';
+    final String effectiveRole = hasResolvedRole ? role! : 'unknown';
+
+    if (!hasResolvedRole) {
       developer.log(
-        'skip syncCurrentUserDeviceToken: role unresolved',
+        'role unresolved on client; continuing token sync via backend role inference',
         name: 'ocg.fcm',
         error: {'uid': user.uid, 'source': source, 'role': role},
       );
-      return;
     }
-    final String effectiveRole = role!;
 
     final token = overrideToken ?? await getToken();
     if (token == null || token.isEmpty) {

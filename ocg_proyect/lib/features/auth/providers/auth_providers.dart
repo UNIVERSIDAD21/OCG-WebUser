@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,20 +27,31 @@ final userRoleProvider = FutureProvider<String?>((ref) async {
   if (user == null) return null;
 
   final authService = ref.watch(authServiceProvider);
-  final role = await authService.getUserRole();
 
-  if (role == 'patient') {
-    final exists = await authService.currentPatientProfileExists();
-    if (!exists) {
-      ref
-          .read(authInvalidSessionMessageProvider.notifier)
-          .set('Correo o contraseña incorrectos');
-      await authService.signOut();
-      return null;
+  try {
+    final role = await authService.getUserRole();
+
+    if (role == 'patient') {
+      final exists = await authService.currentPatientProfileExists();
+      if (!exists) {
+        ref
+            .read(authInvalidSessionMessageProvider.notifier)
+            .set('Correo o contraseña incorrectos');
+        await authService.signOut();
+        return null;
+      }
     }
-  }
 
-  return role;
+    return role;
+  } on FirebaseException catch (error) {
+    if (error.code == 'permission-denied') {
+      debugPrint(
+        'USER ROLE CHECK OMITIDO: permission-denied durante estabilización para ${user.uid}',
+      );
+      return 'patient';
+    }
+    rethrow;
+  }
 });
 
 class AuthInvalidSessionMessageNotifier extends Notifier<String?> {

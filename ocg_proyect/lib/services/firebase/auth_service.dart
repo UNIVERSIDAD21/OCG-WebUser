@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -37,6 +38,28 @@ class AuthService {
     final refreshedToken = await user.getIdTokenResult(true);
     role = refreshedToken.claims?['role'] as String?;
     if (role == 'admin' || role == 'patient') return role;
+
+    try {
+      final adminSnap = await _db
+          .collection(FirestorePaths.admins)
+          .doc(user.uid)
+          .get();
+      if (adminSnap.exists) return 'admin';
+
+      final patientSnap = await _db
+          .collection(FirestorePaths.patients)
+          .doc(user.uid)
+          .get();
+      if (patientSnap.exists) return 'patient';
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        debugPrint(
+          'AUTH ROLE FALLBACK OMITIDO: permission-denied para ${user.uid}',
+        );
+        return null;
+      }
+      rethrow;
+    }
 
     return null;
   }
@@ -82,15 +105,25 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return false;
 
-    final snap = await _db
-        .collection(FirestorePaths.patients)
-        .doc(user.uid)
-        .get();
-    if (!snap.exists) return false;
+    try {
+      final snap = await _db
+          .collection(FirestorePaths.patients)
+          .doc(user.uid)
+          .get();
+      if (!snap.exists) return false;
 
-    final data = snap.data() ?? const <String, dynamic>{};
-    final isDeleted = data['deletedAt'] != null || data['activo'] == false;
-    return !isDeleted;
+      final data = snap.data() ?? const <String, dynamic>{};
+      final isDeleted = data['deletedAt'] != null || data['activo'] == false;
+      return !isDeleted;
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        debugPrint(
+          'AUTH PROFILE CHECK OMITIDO: permission-denied para ${user.uid}',
+        );
+        return true;
+      }
+      rethrow;
+    }
   }
 
   Future<bool> _emailExistsInFirestore(String cleanEmail) async {
