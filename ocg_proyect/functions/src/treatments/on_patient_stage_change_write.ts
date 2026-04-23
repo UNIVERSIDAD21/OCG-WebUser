@@ -1,14 +1,16 @@
 import * as admin from 'firebase-admin';
 import {onDocumentUpdated} from 'firebase-functions/v2/firestore';
 
-const db = admin.firestore();
+function db(): FirebaseFirestore.Firestore {
+  return admin.firestore();
+}
 
 async function hasRecentMatchingStageHistory(
   patientId: string,
   previousStage: string,
   newStage: string,
 ): Promise<boolean> {
-  const snap = await db
+  const snap = await db()
     .collection(`patients/${patientId}/stageHistory`)
     .orderBy('createdAt', 'desc')
     .limit(5)
@@ -45,7 +47,7 @@ export const onPatientStageChangeWrite = onDocumentUpdated(
     );
     if (alreadyTracked) return;
 
-    const historyRef = db.collection(`patients/${patientId}/stageHistory`).doc();
+    const historyRef = db().collection(`patients/${patientId}/stageHistory`).doc();
     await historyRef.set({
       id: historyRef.id,
       patientId,
