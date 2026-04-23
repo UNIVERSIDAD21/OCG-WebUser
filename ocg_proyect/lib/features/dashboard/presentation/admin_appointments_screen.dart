@@ -1554,7 +1554,14 @@ class _AdminAppointmentsScreenState
     Widget item(_AgendaInnerTab tab, String label) {
       final active = _innerTab == tab;
       return TextButton(
-        onPressed: () => setState(() => _innerTab = tab),
+        onPressed: () => setState(() {
+          _innerTab = tab;
+          if (tab == _AgendaInnerTab.mes) {
+            final now = DateTime.now();
+            _monthCursor = DateTime(now.year, now.month, 1);
+            _selectedMonthDay = DateTime(now.year, now.month, now.day);
+          }
+        }),
         style: TextButton.styleFrom(
           foregroundColor: active ? OcgColors.espresso : OcgColors.ink,
           textStyle: TextStyle(

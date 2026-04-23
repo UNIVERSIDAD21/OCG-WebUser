@@ -484,24 +484,32 @@ class _MobileAdminDashboard extends StatelessWidget {
                       title: 'Citas hoy',
                       subtitle: 'programadas',
                       bg: const Color(0xFFF6EFE7),
+                      accent: const Color(0xFF9A735C),
+                      icon: Icons.calendar_month_outlined,
                     ),
                     _MobileKpiMini(
                       value: '$pendingConfirm',
                       title: 'Sin confirmar',
                       subtitle: 'pendientes',
                       bg: const Color(0xFFFFF4D8),
+                      accent: const Color(0xFFC99730),
+                      icon: Icons.schedule_outlined,
                     ),
                     _MobileKpiMini(
                       value: '$canceladasSemana',
                       title: 'Canceladas',
                       subtitle: 'últimos 7 días',
                       bg: const Color(0xFFFFECEC),
+                      accent: const Color(0xFFB06A5A),
+                      icon: Icons.event_busy_outlined,
                     ),
                     _MobileKpiMini(
                       value: '$nuevosPacientes30d',
                       title: 'Nuevos',
                       subtitle: 'últimos 30 días',
                       bg: const Color(0xFFEFF8F0),
+                      accent: const Color(0xFF2E7D4C),
+                      icon: Icons.person_add_alt_1_outlined,
                     ),
                   ],
                 ),
@@ -707,6 +715,8 @@ class _WebAdminDashboard extends StatelessWidget {
           title: 'Citas hoy',
           subtitle: 'programadas',
           bg: const Color(0xFFF6EFE7),
+          accent: const Color(0xFF9A735C),
+          icon: Icons.calendar_month_outlined,
           onTap: () => context.go(RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
@@ -714,6 +724,8 @@ class _WebAdminDashboard extends StatelessWidget {
           title: 'Sin confirmar',
           subtitle: 'pendientes',
           bg: const Color(0xFFFFF4D8),
+          accent: const Color(0xFFC99730),
+          icon: Icons.schedule_outlined,
           onTap: () => context.go(RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
@@ -721,6 +733,8 @@ class _WebAdminDashboard extends StatelessWidget {
           title: 'Canceladas',
           subtitle: 'últimos 7 días',
           bg: const Color(0xFFFFECEC),
+          accent: const Color(0xFFB06A5A),
+          icon: Icons.event_busy_outlined,
           onTap: () => context.go(RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
@@ -728,6 +742,8 @@ class _WebAdminDashboard extends StatelessWidget {
           title: 'Nuevos',
           subtitle: 'últimos 30 días',
           bg: const Color(0xFFEFF8F0),
+          accent: const Color(0xFF2E7D4C),
+          icon: Icons.person_add_alt_1_outlined,
           onTap: () => context.go(RouteNames.adminPatients),
         ),
       ],
@@ -1091,49 +1107,122 @@ class _MobileKpiMini extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.bg,
+    required this.accent,
+    required this.icon,
     this.onTap,
   });
   final String value;
   final String title;
   final String subtitle;
   final Color bg;
+  final Color accent;
+  final IconData icon;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final tier = AdminDesktopLayoutScope.maybeOf(context)?.tier;
+    final compact =
+        tier == AdminDesktopTier.compact || tier == AdminDesktopTier.tight;
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 10 : 12,
+          vertical: compact ? 8 : 10,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bg, Color.lerp(bg, Colors.white, 0.35)!],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE6D8CB), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x122C2016),
+              blurRadius: 14,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
           children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: OcgColors.ink,
-                height: 1,
+            Positioned(
+              top: -18,
+              right: -12,
+              child: Container(
+                width: compact ? 48 : 56,
+                height: compact ? 48 : 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.24),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: OcgColors.espresso,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 10.5, color: Color(0xFF7E6754)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: compact ? 24 : 28,
+                      height: compact ? 24 : 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0x1A2C2016)),
+                      ),
+                      child: Icon(icon, size: compact ? 13 : 15, color: accent),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: compact ? 18 : 22,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.45),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: compact ? 6 : 8),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 20 : 22,
+                    fontWeight: FontWeight.w800,
+                    color: OcgColors.ink,
+                    height: 1,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 11.5 : 12,
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 9.5 : 10,
+                    color: const Color(0xFF7E6754),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

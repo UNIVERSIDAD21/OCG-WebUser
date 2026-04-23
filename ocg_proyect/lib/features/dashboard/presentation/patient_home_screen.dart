@@ -39,10 +39,38 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
 class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   late int _selectedIndex;
 
+  void _openNotificationsSheet(String patientId) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final topPadding = MediaQuery.paddingOf(sheetContext).top;
+        return Container(
+          height: MediaQuery.sizeOf(sheetContext).height * 0.92,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F5F0),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            child: Padding(
+              padding: EdgeInsets.only(top: topPadding > 0 ? 0 : 8),
+              child: PatientNotificationsScreen(
+                embedded: true,
+                patientIdOverride: widget.isAdminView ? patientId : null,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialSection.clamp(0, 6);
+    _selectedIndex = widget.initialSection.clamp(0, 5);
   }
 
   @override
@@ -57,8 +85,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final sections = [
       _InicioSection(
         userId: effectivePatientId,
-        onOpenProfile: () => setState(() => _selectedIndex = 6),
+        onOpenProfile: () => setState(() => _selectedIndex = 5),
         onOpenPayments: () => setState(() => _selectedIndex = 3),
+        onOpenAlerts: () => _openNotificationsSheet(effectivePatientId),
       ),
       PatientAppointmentsScreen(
         embedded: true,
@@ -81,10 +110,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         viewerMode: widget.isAdminView
             ? PatientViewerMode.adminViewer
             : PatientViewerMode.patient,
-      ),
-      PatientNotificationsScreen(
-        embedded: true,
-        patientIdOverride: overrideForAdmin,
       ),
       PatientProfileScreen(
         embedded: true,
@@ -157,11 +182,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             selectedIcon: Icons.auto_awesome,
           ),
           PatientNavItem(
-            label: 'Alertas',
-            icon: Icons.notifications_none_outlined,
-            selectedIcon: Icons.notifications,
-          ),
-          PatientNavItem(
             label: 'Perfil',
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
@@ -191,10 +211,12 @@ class _InicioSection extends ConsumerWidget {
     required this.userId,
     this.onOpenProfile,
     this.onOpenPayments,
+    this.onOpenAlerts,
   });
   final String userId;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenPayments;
+  final VoidCallback? onOpenAlerts;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -323,6 +345,30 @@ class _InicioSection extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        if (onOpenAlerts != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: onOpenAlerts,
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: OcgColors.ivory.withOpacity(0.14),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: OcgColors.ivory.withOpacity(0.16),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_none_rounded,
+                                  color: OcgColors.ivory,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
                         InkWell(
                           borderRadius: BorderRadius.circular(24),
                           onTap: onOpenProfile,
@@ -365,7 +411,8 @@ class _InicioSection extends ConsumerWidget {
                       total: total,
                       saldo: saldo,
                       pagoPercent: pagoPercent,
-                      onGoToPayments: onOpenPayments ??
+                      onGoToPayments:
+                          onOpenPayments ??
                           () => context.go(RouteNames.patientPayments),
                     ),
                     const SizedBox(height: 18),
