@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +18,9 @@ import '../../payments/presentation/patient_payments_screen.dart';
 import '../../notifications/presentation/patient_notifications_screen.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
 import 'patient_appointments_screen.dart';
+import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/presentation/widgets/stage_history_list.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 import '../../treatment/providers/treatment_provider.dart';
 import 'widgets/patient_bottom_nav.dart';
 
@@ -96,7 +100,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             ? PatientViewerMode.adminViewer
             : PatientViewerMode.patient,
       ),
-      _TratamientoSection(userId: effectivePatientId),
+      _TratamientoSection(
+        userId: effectivePatientId,
+        onOpenPayments: () => setState(() => _selectedIndex = 3),
+        onOpenAppointments: () => setState(() => _selectedIndex = 1),
+      ),
       PatientPaymentsScreen(
         embedded: true,
         patientIdOverride: overrideForAdmin,
@@ -1108,17 +1116,41 @@ class _MilestoneTile extends StatelessWidget {
   }
 }
 
-class _TratamientoSection extends ConsumerWidget {
-  const _TratamientoSection({required this.userId});
+class _TratamientoSection extends ConsumerStatefulWidget {
+  const _TratamientoSection({
+    required this.userId,
+    this.onOpenPayments,
+    this.onOpenAppointments,
+  });
+
   final String userId;
+  final VoidCallback? onOpenPayments;
+  final VoidCallback? onOpenAppointments;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (userId.isEmpty) return const SizedBox.shrink();
+  ConsumerState<_TratamientoSection> createState() =>
+      _TratamientoSectionState();
+}
 
-    final patientAsync = ref.watch(patientByIdProvider(userId));
-    final historyAsync = ref.watch(stageHistoryProvider(userId));
-    final appointmentsAsync = ref.watch(patientAppointmentsProvider(userId));
+class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
+  String? _selectedTreatmentId;
+
+  @override
+  void didUpdateWidget(covariant _TratamientoSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      _selectedTreatmentId = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.userId.isEmpty) return const SizedBox.shrink();
+
+    final patientAsync = ref.watch(patientByIdProvider(widget.userId));
+    final appointmentsAsync = ref.watch(
+      patientAppointmentsProvider(widget.userId),
+    );
 
     return patientAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1135,6 +1167,32 @@ class _TratamientoSection extends ConsumerWidget {
           );
         }
 
+        final treatments = ref.watch(
+          effectivePatientTreatmentsProvider((
+            patientId: widget.userId,
+            patient: patient,
+          )),
+        );
+
+        if (treatments.isEmpty) {
+          return const OcgEmptyState(
+            icon: Icons.medical_services_outlined,
+            title: 'Aún no tienes tratamientos registrados',
+            subtitle:
+                'Cuando la clínica active tu tratamiento podrás seguir aquí tu progreso.',
+          );
+        }
+
+        final selectedTreatment = _resolveSelectedTreatment(treatments);
+        final historyAsync = selectedTreatment.id.startsWith('legacy-primary-')
+            ? ref.watch(stageHistoryProvider(widget.userId))
+            : ref.watch(
+                treatmentStageHistoryProvider((
+                  patientId: widget.userId,
+                  treatmentId: selectedTreatment.id,
+                )),
+              );
+
         return historyAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, __) => const OcgEmptyState(
@@ -1142,15 +1200,16 @@ class _TratamientoSection extends ConsumerWidget {
             title: 'No se pudo cargar el historial',
           ),
           data: (historial) {
+            final progress = _progressByStage(selectedTreatment.etapaActual);
             final stageIndex = TreatmentStage.values
-                .indexOf(patient.etapaActual)
+                .indexOf(selectedTreatment.etapaActual)
                 .clamp(0, TreatmentStage.values.length - 1);
-            final progress = _progressByStage(patient.etapaActual);
-            final phase = _phaseFromProgress(progress);
-
-            final citasRealizadas = appointmentsAsync.asData?.value
-                .where((a) => a.estado == AppointmentStatus.completada)
-                .length;
+            final activeCount = treatments.where((t) => !t.isFinished).length;
+            final primaryCount = treatments.where((t) => t.isPrimary).length;
+            final completedAppointments =
+                (appointmentsAsync.asData?.value ?? const <AppointmentModel>[])
+                    .where((a) => a.estado == AppointmentStatus.completada)
+                    .length;
 
             return SingleChildScrollView(
               child: Column(
@@ -1175,7 +1234,7 @@ class _TratamientoSection extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Mi tratamiento',
+                          'Tratamiento',
                           style: TextStyle(
                             color: OcgColors.ivory,
                             fontSize: 27,
@@ -1184,20 +1243,65 @@ class _TratamientoSection extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          patient.tipoTratamiento == null
-                              ? 'Seguimiento clínico de ortodoncia'
-                              : 'Tratamiento ${patient.tipoTratamiento!.name}',
+                          'Revisa el avance de tus tratamientos',
                           style: TextStyle(
                             color: OcgColors.ivory.withOpacity(0.78),
                             fontSize: 13,
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _PatientModuleChip(
+                              label: '$activeCount tratamientos activos',
+                            ),
+                            _PatientModuleChip(
+                              label: '$primaryCount principal',
+                            ),
+                            _PatientModuleChip(
+                              label: patient.proximaCita == null
+                                  ? 'Sin próxima revisión'
+                                  : 'Próxima revisión ${_fmtDate(patient.proximaCita!)}',
+                            ),
+                          ],
+                        ),
+                        if (treatments.length > 1) ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 114,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: treatments.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, index) {
+                                final treatment = treatments[index];
+                                final selected =
+                                    treatment.id == selectedTreatment.id;
+                                return _PatientTreatmentSelectorCard(
+                                  treatment: treatment,
+                                  selected: selected,
+                                  progress: _progressByStage(
+                                    treatment.etapaActual,
+                                  ),
+                                  onTap: () => setState(
+                                    () => _selectedTreatmentId = treatment.id,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
-                        _TreatmentSummaryTopCard(
+                        _PatientSelectedTreatmentCard(
+                          treatment: selectedTreatment,
                           progress: progress,
-                          fechaInicio: patient.fechaInicio,
-                          fechaEstimadaFin: patient.fechaEstimadaFin,
-                          citasRealizadas: citasRealizadas,
+                          fallbackEstimatedEnd:
+                              selectedTreatment.fechaFin ??
+                              patient.fechaEstimadaFin,
+                          completedAppointments: completedAppointments,
                         ),
                       ],
                     ),
@@ -1207,16 +1311,13 @@ class _TratamientoSection extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _PhaseBar(phase: phase),
-                        const SizedBox(height: 14),
-                        _CurrentStageCard(
-                          stageName:
-                              stageNames[patient.etapaActual] ??
-                              patient.etapaActual.name,
-                          description:
-                              stageDescriptions[patient.etapaActual] ??
-                              'Avance clínico en curso.',
+                        _PatientProgressCard(
                           progress: progress,
+                          currentStage:
+                              stageNames[selectedTreatment.etapaActual] ??
+                              selectedTreatment.etapaActual.name,
+                          currentStep: stageIndex + 1,
+                          totalSteps: TreatmentStage.values.length,
                         ),
                         const SizedBox(height: 18),
                         const Text(
@@ -1238,11 +1339,12 @@ class _TratamientoSection extends ConsumerWidget {
                           final historyMatch = historial
                               .where((h) => h.etapaNueva == stage)
                               .toList();
-
                           final stageDate = historyMatch.isNotEmpty
                               ? (historyMatch.first.fechaEfectiva ??
                                     historyMatch.first.fechaCambio)
-                              : (idx == 0 ? patient.fechaInicio : null);
+                              : (idx == 0
+                                    ? selectedTreatment.fechaInicio
+                                    : null);
 
                           return _StageTimelineTile(
                             stageIndex: idx + 1,
@@ -1257,9 +1359,35 @@ class _TratamientoSection extends ConsumerWidget {
                             notes: historyMatch.firstOrNull?.notas,
                           );
                         }),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 18),
+                        _PatientClinicalSummaryCard(
+                          treatment: selectedTreatment,
+                          lastUpdate: historial.isEmpty
+                              ? selectedTreatment.updatedAt
+                              : (historial.first.fechaEfectiva ??
+                                    historial.first.fechaCambio),
+                        ),
+                        const SizedBox(height: 18),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            if (widget.onOpenPayments != null)
+                              _PatientActionButton(
+                                icon: Icons.payments_outlined,
+                                label: 'Ver pagos',
+                                onTap: widget.onOpenPayments!,
+                              ),
+                            if (widget.onOpenAppointments != null)
+                              _PatientActionButton(
+                                icon: Icons.event_note_outlined,
+                                label: 'Ver citas relacionadas',
+                                onTap: widget.onOpenAppointments!,
+                              ),
+                          ],
+                        ),
                         if (historial.isNotEmpty) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 18),
                           Text(
                             'Historial clínico',
                             style: Theme.of(context).textTheme.titleMedium,
@@ -1281,94 +1409,423 @@ class _TratamientoSection extends ConsumerWidget {
       },
     );
   }
+
+  PatientTreatment _resolveSelectedTreatment(
+    List<PatientTreatment> treatments,
+  ) {
+    if (_selectedTreatmentId != null) {
+      for (final treatment in treatments) {
+        if (treatment.id == _selectedTreatmentId) return treatment;
+      }
+    }
+    for (final treatment in treatments) {
+      if (treatment.isPrimary) return treatment;
+    }
+    for (final treatment in treatments) {
+      if (!treatment.isFinished) return treatment;
+    }
+    return treatments.first;
+  }
 }
 
-class _TreatmentSummaryTopCard extends StatelessWidget {
-  const _TreatmentSummaryTopCard({
-    required this.progress,
-    required this.fechaInicio,
-    required this.fechaEstimadaFin,
-    required this.citasRealizadas,
-  });
+String _fmtDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-  final int progress;
-  final DateTime fechaInicio;
-  final DateTime? fechaEstimadaFin;
-  final int? citasRealizadas;
+class _PatientModuleChip extends StatelessWidget {
+  const _PatientModuleChip({required this.label});
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: OcgColors.ivory.withOpacity(0.2)),
+        color: OcgColors.ivory.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
       ),
-      child: Row(
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: OcgColors.ivory,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientTreatmentSelectorCard extends StatelessWidget {
+  const _PatientTreatmentSelectorCard({
+    required this.treatment,
+    required this.selected,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final PatientTreatment treatment;
+  final bool selected;
+  final int progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 180,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? OcgColors.ivory : OcgColors.ivory.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? OcgColors.ivory
+                : OcgColors.ivory.withOpacity(0.18),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              treatment.displayName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected ? OcgColors.espresso : OcgColors.ivory,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              treatment.isPrimary ? 'Principal' : treatment.statusLabel,
+              style: TextStyle(
+                color: selected ? OcgColors.bronze : OcgColors.ivory,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              stageNames[treatment.etapaActual] ?? treatment.etapaActual.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFF6E5644)
+                    : OcgColors.ivory.withOpacity(0.82),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '$progress%',
+              style: TextStyle(
+                color: selected ? OcgColors.espresso : OcgColors.ivory,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientSelectedTreatmentCard extends StatelessWidget {
+  const _PatientSelectedTreatmentCard({
+    required this.treatment,
+    required this.progress,
+    required this.fallbackEstimatedEnd,
+    required this.completedAppointments,
+  });
+
+  final PatientTreatment treatment;
+  final int progress;
+  final DateTime? fallbackEstimatedEnd;
+  final int completedAppointments;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 138,
-            height: 138,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 138,
-                  height: 138,
-                  child: CircularProgressIndicator(
-                    value: progress / 100,
-                    strokeWidth: 13,
-                    backgroundColor: const Color(0x55ECD9C6),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      OcgColors.ivory,
-                    ),
-                  ),
-                ),
-                Text(
-                  '$progress%',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: OcgColors.ivory,
-                    fontSize: 31,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                  ),
-                ),
-              ],
+          Text(
+            treatment.displayName,
+            style: const TextStyle(
+              color: OcgColors.ivory,
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SummaryTile(title: 'Inicio', value: _fmtDate(fechaInicio)),
+          const SizedBox(height: 6),
+          Text(
+            'Estado: ${treatment.statusLabel}',
+            style: TextStyle(
+              color: OcgColors.ivory.withOpacity(0.88),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _SummaryTile(
+                title: 'Tipo',
+                value: PatientTreatment.labelForBaseTreatment(
+                  treatment.tipoBase,
+                ),
+              ),
+              if (treatment.normalizedSubtypeLabel != null)
                 _SummaryTile(
-                  title: 'Estimado fin',
-                  value: fechaEstimadaFin == null
-                      ? 'Sin fecha'
-                      : _fmtDate(fechaEstimadaFin!),
+                  title: 'Subtipo',
+                  value: treatment.normalizedSubtypeLabel!,
                 ),
-                _SummaryTile(
-                  title: 'Citas realizadas',
-                  value: citasRealizadas == null ? '--' : '$citasRealizadas',
+              _SummaryTile(
+                title: 'Inicio',
+                value: _fmtDate(treatment.fechaInicio),
+              ),
+              _SummaryTile(
+                title: 'Fin estimado',
+                value: fallbackEstimatedEnd == null
+                    ? 'Por definir'
+                    : _fmtDate(fallbackEstimatedEnd!),
+              ),
+              _SummaryTile(title: 'Progreso', value: '$progress%'),
+              _SummaryTile(title: 'Citas', value: '$completedAppointments'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientProgressCard extends StatelessWidget {
+  const _PatientProgressCard({
+    required this.progress,
+    required this.currentStage,
+    required this.currentStep,
+    required this.totalSteps,
+  });
+
+  final int progress;
+  final String currentStage;
+  final int currentStep;
+  final int totalSteps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF8F3),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Progreso del tratamiento',
+            style: TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              SizedBox(
+                width: 88,
+                height: 88,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: CircularProgressIndicator(
+                        value: progress / 100,
+                        strokeWidth: 10,
+                        backgroundColor: const Color(0xFFE7D8C9),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          OcgColors.bronze,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$progress%',
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
                 ),
-                const _SummaryTile(
-                  title: 'Doctor principal',
-                  value: 'Sin registro',
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fase actual: $currentStage',
+                      style: const TextStyle(
+                        color: Color(0xFF1A1410),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$currentStep de $totalSteps etapas completadas',
+                      style: const TextStyle(
+                        color: Color(0xFF6E5644),
+                        fontSize: 12.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress / 100,
+              minHeight: 10,
+              backgroundColor: const Color(0xFFE8D8C8),
+              valueColor: const AlwaysStoppedAnimation<Color>(OcgColors.bronze),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  String _fmtDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+class _PatientClinicalSummaryCard extends StatelessWidget {
+  const _PatientClinicalSummaryCard({
+    required this.treatment,
+    required this.lastUpdate,
+  });
+
+  final PatientTreatment treatment;
+  final DateTime lastUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF8F3),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resumen clínico',
+            style: TextStyle(
+              color: Color(0xFF1A1410),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Objetivo: seguimiento de ${PatientTreatment.labelForBaseTreatment(treatment.tipoBase).toLowerCase()} para este tratamiento.',
+            style: const TextStyle(color: Color(0xFF6E5644), height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            (treatment.notas ?? '').trim().isEmpty
+                ? 'Observaciones del ortodoncista: aún no hay notas registradas para este tratamiento.'
+                : 'Observaciones del ortodoncista: ${treatment.notas!.trim()}',
+            style: const TextStyle(color: Color(0xFF6E5644), height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Recomendaciones actuales: consulta pagos y citas desde el contexto del tratamiento activo para evitar mezclar información.',
+            style: const TextStyle(color: Color(0xFF6E5644), height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Última actualización: ${_fmtDate(lastUpdate)}',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientActionButton extends StatelessWidget {
+  const _PatientActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F1EA),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE7D8C9)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: OcgColors.espresso),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SummaryTile extends StatelessWidget {
