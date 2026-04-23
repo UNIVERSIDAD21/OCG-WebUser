@@ -106,13 +106,19 @@ class FcmService {
     required AuthService authService,
     required Future<String?> Function() resolveRole,
   }) async {
-    developer.log('FcmService.registerCurrentDeviceAfterLogin start', name: 'ocg.fcm');
+    developer.log(
+      'FcmService.registerCurrentDeviceAfterLogin start',
+      name: 'ocg.fcm',
+    );
     await syncCurrentUserDeviceToken(
       authService: authService,
       resolveRole: resolveRole,
       source: 'auth_notifier.sign_in_success',
     );
-    developer.log('FcmService.registerCurrentDeviceAfterLogin end', name: 'ocg.fcm');
+    developer.log(
+      'FcmService.registerCurrentDeviceAfterLogin end',
+      name: 'ocg.fcm',
+    );
   }
 
   Future<void> syncCurrentUserDeviceToken({
@@ -248,6 +254,7 @@ class FcmService {
       role: role,
       deviceId: deviceId,
     );
+    _lastSyncedFingerprint = null;
     developer.log(
       'FCM token cleared',
       name: 'ocg.fcm',
@@ -388,10 +395,17 @@ class FcmService {
     return '${token.substring(0, 10)}…${token.substring(token.length - 6)}';
   }
 
+  void resetSyncState() {
+    _lastSyncedFingerprint = null;
+    _syncInFlight = null;
+  }
+
   Future<void> dispose() async {
     await _tokenRefreshSub?.cancel();
     await _foregroundSub?.cancel();
     await _messageOpenedSub?.cancel();
     _initialized = false;
+    _lastSyncedFingerprint = null;
+    _syncInFlight = null;
   }
 }

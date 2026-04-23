@@ -92,24 +92,49 @@ class AuthNotifier extends AsyncNotifier<void> {
   AsyncValue<void> build() => const AsyncData(null);
 
   Future<void> signIn(String email, String password) async {
-    developer.log('AuthNotifier.signIn start', name: 'ocg.auth', error: {'email': email.trim()});
+    developer.log(
+      'AuthNotifier.signIn start',
+      name: 'ocg.auth',
+      error: {'email': email.trim()},
+    );
     state = const AsyncLoading();
     try {
       final authService = ref.read(authServiceProvider);
       final credential = await authService.signIn(email, password);
-      developer.log('AuthNotifier.signIn after authService.signIn', name: 'ocg.auth', error: {'uid': credential.user?.uid});
+      developer.log(
+        'AuthNotifier.signIn after authService.signIn',
+        name: 'ocg.auth',
+        error: {'uid': credential.user?.uid},
+      );
 
       final uid = credential.user?.uid;
       if (uid != null) {
-        developer.log('AuthNotifier.signIn before getUserRole', name: 'ocg.auth', error: {'uid': uid});
+        ref.read(fcmServiceProvider).resetSyncState();
+        developer.log(
+          'AuthNotifier.signIn before getUserRole',
+          name: 'ocg.auth',
+          error: {'uid': uid},
+        );
         final role = await authService.getUserRole();
-        developer.log('AuthNotifier.signIn after getUserRole', name: 'ocg.auth', error: {'uid': uid, 'role': role});
+        developer.log(
+          'AuthNotifier.signIn after getUserRole',
+          name: 'ocg.auth',
+          error: {'uid': uid, 'role': role},
+        );
         final effectiveRole = role == 'admin' ? 'admin' : 'patient';
 
         if (effectiveRole == 'patient') {
-          developer.log('AuthNotifier.signIn before currentPatientProfileExists', name: 'ocg.auth', error: {'uid': uid});
+          developer.log(
+            'AuthNotifier.signIn before currentPatientProfileExists',
+            name: 'ocg.auth',
+            error: {'uid': uid},
+          );
           final exists = await authService.currentPatientProfileExists();
-          developer.log('AuthNotifier.signIn after currentPatientProfileExists', name: 'ocg.auth', error: {'uid': uid, 'exists': exists});
+          developer.log(
+            'AuthNotifier.signIn after currentPatientProfileExists',
+            name: 'ocg.auth',
+            error: {'uid': uid, 'exists': exists},
+          );
           if (!exists) {
             await authService.signOut();
             throw FirebaseAuthException(
@@ -122,14 +147,29 @@ class AuthNotifier extends AsyncNotifier<void> {
         ref.invalidate(userRoleProvider);
         unawaited(() async {
           try {
-            developer.log('AuthNotifier.signIn spawning registerCurrentDeviceAfterLogin', name: 'ocg.auth', error: {'uid': uid, 'role': effectiveRole});
-            await ref.read(fcmServiceProvider).registerCurrentDeviceAfterLogin(
-              authService: authService,
-              resolveRole: () async => effectiveRole,
+            developer.log(
+              'AuthNotifier.signIn spawning registerCurrentDeviceAfterLogin',
+              name: 'ocg.auth',
+              error: {'uid': uid, 'role': effectiveRole},
             );
-            developer.log('AuthNotifier.signIn registerCurrentDeviceAfterLogin completed', name: 'ocg.auth', error: {'uid': uid});
+            await ref
+                .read(fcmServiceProvider)
+                .registerCurrentDeviceAfterLogin(
+                  authService: authService,
+                  resolveRole: () async => effectiveRole,
+                );
+            developer.log(
+              'AuthNotifier.signIn registerCurrentDeviceAfterLogin completed',
+              name: 'ocg.auth',
+              error: {'uid': uid},
+            );
           } catch (error, stackTrace) {
-            developer.log('AuthNotifier.signIn registerCurrentDeviceAfterLogin failed without blocking login', name: 'ocg.auth', error: error, stackTrace: stackTrace);
+            developer.log(
+              'AuthNotifier.signIn registerCurrentDeviceAfterLogin failed without blocking login',
+              name: 'ocg.auth',
+              error: error,
+              stackTrace: stackTrace,
+            );
           }
         }());
       }
@@ -137,7 +177,12 @@ class AuthNotifier extends AsyncNotifier<void> {
       state = const AsyncData(null);
       developer.log('AuthNotifier.signIn end', name: 'ocg.auth');
     } catch (error, stackTrace) {
-      developer.log('AuthNotifier.signIn failed', name: 'ocg.auth', error: error, stackTrace: stackTrace);
+      developer.log(
+        'AuthNotifier.signIn failed',
+        name: 'ocg.auth',
+        error: error,
+        stackTrace: stackTrace,
+      );
       state = AsyncError(error, stackTrace);
       rethrow;
     }
@@ -205,11 +250,13 @@ class AuthNotifier extends AsyncNotifier<void> {
     final result = await AsyncValue.guard(() async {
       final role = await ref.read(userRoleProvider.future);
       if (role == 'admin' || role == 'patient') {
-        await ref.read(fcmServiceProvider).clearCurrentUserDeviceToken(
-          authService: authService,
-          role: role!,
-          source: 'auth_notifier.sign_out',
-        );
+        await ref
+            .read(fcmServiceProvider)
+            .clearCurrentUserDeviceToken(
+              authService: authService,
+              role: role!,
+              source: 'auth_notifier.sign_out',
+            );
       }
       await authService.signOut();
     });
