@@ -1292,10 +1292,11 @@ class _ManagePatientTreatmentDialogState
     final targetTreatment = previous == null
         ? treatment
         : previous.copyWith(tipoBase: treatment.tipoBase);
+
+    // FIX 1: eliminado parámetro 'overwriteMissingOnly' que no existe en ensureBaseItems
     await financialRepo.ensureBaseItems(
       patientId: widget.patientId,
       treatment: targetTreatment,
-      overwriteMissingOnly: false,
     );
 
     final items =
@@ -1314,35 +1315,37 @@ class _ManagePatientTreatmentDialogState
     final controlsItem = _findItem(items, 'controls');
     final thirdItem = _findThirdItem(items);
 
-    if (initialItem != null) {
-      await financialRepo.upsertItem(
-        patientId: widget.patientId,
-        treatmentId: treatment.id,
-        item: initialItem.copyWith(
+    // FIX 2: eliminadas las llamadas a upsertItem (no existe en TreatmentFinancialRepository).
+    // Se construye la lista actualizada y se persiste de una sola vez con replaceFinancialItems.
+    final updatedItems = items.map((item) {
+      if (initialItem != null && item.id == initialItem.id) {
+        return item.copyWith(
           amount: _parseMoney(_initialAmountCtrl.text),
           active: true,
-        ),
-      );
-    }
-    if (controlsItem != null) {
-      await financialRepo.upsertItem(
-        patientId: widget.patientId,
-        treatmentId: treatment.id,
-        item: controlsItem.copyWith(
+        );
+      }
+      if (controlsItem != null && item.id == controlsItem.id) {
+        return item.copyWith(
           unitAmount: _parseMoney(_controlsUnitCtrl.text),
           quantity: int.tryParse(_controlsQtyCtrl.text.trim()) ?? 1,
           active: true,
-        ),
-      );
-    }
-    if (thirdItem != null) {
-      await financialRepo.upsertItem(
-        patientId: widget.patientId,
-        treatmentId: treatment.id,
-        item: thirdItem.copyWith(
+        );
+      }
+      if (thirdItem != null && item.id == thirdItem.id) {
+        return item.copyWith(
           amount: _parseMoney(_thirdConceptCtrl.text),
           active: true,
-        ),
+        );
+      }
+      return item;
+    }).toList();
+
+    if (updatedItems.isNotEmpty) {
+      // FIX: replaceFinancialItems recibe 'treatment' (PatientTreatment), no 'treatmentId'
+      await financialRepo.replaceFinancialItems(
+        patientId: widget.patientId,
+        treatment: treatment,
+        items: updatedItems,
       );
     }
   }

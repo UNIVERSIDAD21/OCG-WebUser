@@ -253,11 +253,14 @@ class _ManageFinancialItemsDialogState
           item.normalizedName.contains('reten') ||
           (item.active && item.kind == 'extra');
     }).toList();
+
     int orderFor(FinancialItemModel item) {
       if (item.kind == 'initial') return 0;
       if (item.kind == 'controls') return 1;
       if (item.normalizedName.contains('aparato')) return 2;
-      if (item.normalizedName.contains('reten') || item.name.toLowerCase().contains('reten')) return 2;
+      if (item.normalizedName.contains('reten') ||
+          item.name.toLowerCase().contains('reten'))
+        return 2;
       return 10;
     }
 
@@ -282,13 +285,13 @@ class _ManageFinancialItemsDialogState
     setState(() => _saving = true);
     try {
       final repo = ref.read(treatmentFinancialRepositoryProvider);
-      for (final item in _visibleItems()) {
-        await repo.upsertItem(
-          patientId: widget.patientId,
-          treatmentId: widget.treatment.id,
-          item: item,
-        );
-      }
+      // FIX: reemplazado el loop de upsertItem (no existe) por una sola
+      // llamada a replaceFinancialItems con la firma real del repositorio.
+      await repo.replaceFinancialItems(
+        patientId: widget.patientId,
+        treatment: widget.treatment,
+        items: _visibleItems(),
+      );
       if (mounted) Navigator.of(context).pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);
