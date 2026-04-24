@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
+import '../../../appointments/data/models/appointment_model.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../models/patient_treatment.dart';
 
@@ -22,6 +23,9 @@ class PatientTreatmentsRepository {
 
   DocumentReference<Map<String, dynamic>> _legacyPaymentRef(String patientId) =>
       _db.doc(FirestorePaths.paymentDoc(patientId));
+
+  CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
+      _db.collection(FirestorePaths.appointments);
 
   Stream<List<PatientTreatment>> watchPatientTreatments(String patientId) {
     return _treatmentsRef(
@@ -62,6 +66,7 @@ class PatientTreatmentsRepository {
 
     final now = DateTime.now();
     final docRef = _treatmentsRef(patientId).doc(treatment.id);
+    final existingDoc = await docRef.get();
     final treatmentsSnapshot = await _treatmentsRef(patientId).get();
     final siblingTreatments = treatmentsSnapshot.docs
         .where((doc) => doc.id != treatment.id)
@@ -76,13 +81,27 @@ class PatientTreatmentsRepository {
         !treatmentsSnapshot.docs.any((doc) => doc.id == treatment.id);
     final mustBePrimary = isFirstTreatment || currentPrimary == null;
 
-    final defaultSubtype = _defaultSubtypeForBaseType(treatment.tipoBase.trim());
+    final defaultSubtype = _defaultSubtypeForBaseType(
+      treatment.tipoBase.trim(),
+    );
     final normalized = treatment.copyWith(
       patientId: patientId,
       subtipo: (treatment.subtipo?.trim().isNotEmpty ?? false)
           ? treatment.subtipo!.trim()
           : (defaultSubtype.isEmpty ? null : defaultSubtype),
       isPrimary: mustBePrimary ? true : treatment.isPrimary,
+      nextCleaningDate:
+          treatment.nextCleaningDate ??
+          _addMonths(
+            treatment.fechaInicio,
+            treatment.suggestedCleaningEveryMonths,
+          ),
+      nextControlDate:
+          treatment.nextControlDate ??
+          _addMonths(
+            treatment.fechaInicio,
+            treatment.suggestedControlEveryMonths,
+          ),
       updatedAt: now,
       updatedBy: treatment.updatedBy ?? treatment.createdBy,
     );
@@ -142,6 +161,11 @@ class PatientTreatmentsRepository {
     );
 
     await batch.commit();
+    await _syncRecurringAppointments(
+      patientId: patientId,
+      treatment: normalized,
+      creatingFirstTime: !existingDoc.exists,
+    );
   }
 
   Future<void> setPrimaryTreatment({
@@ -235,6 +259,83 @@ class PatientTreatmentsRepository {
     }
 
     await batch.commit();
+  }
+
+  Future<void> _syncRecurringAppointments({
+    required String patientId,
+    required PatientTreatment treatment,
+    required bool creatingFirstTime,
+  }) async {
+    if (!treatment.isActive) return;
+
+    final patientSnap = await _patientRef(patientId).get();
+    final patientData = patientSnap.data() ?? const <String, dynamic>{};
+    final patientName = (patientData['nombre'] ?? '').toString().trim();
+    final patientPhone = (patientData['telefono'] ?? '').toString().trim();
+    if (patientName.isEmpty) return;
+
+    final definitions =
+        <({String kind, DateTime? date, String notes, int duration})>[
+          (
+            kind: 'cleaning',
+            date: treatment.nextCleaningDate,
+            notes:
+                'Limpieza automática del tratamiento ${treatment.displayName}',
+            duration: 45,
+          ),
+          (
+            kind: 'control',
+            date: treatment.nextControlDate,
+            notes:
+                'Control automático del tratamiento ${treatment.displayName}',
+            duration: 30,
+          ),
+        ];
+
+    for (final item in definitions) {
+      final when = item.date;
+      if (when == null) continue;
+      final existing = await _appointmentsRef
+          .where('patientId', isEqualTo: patientId)
+          .where('treatmentId', isEqualTo: treatment.id)
+          .where('autoScheduleKind', isEqualTo: item.kind)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isEmpty) {
+        final ref = _appointmentsRef.doc();
+        final appointment = AppointmentModel(
+          id: ref.id,
+          patientId: patientId,
+          patientName: patientName,
+          patientPhone: patientPhone,
+          treatmentId: treatment.id,
+          tipo: AppointmentType.control,
+          estado: AppointmentStatus.programada,
+          fechaHora: when,
+          duracionMinutos: item.duration,
+          creadoPor: 'system',
+          notas: item.notes,
+          createdAt: DateTime.now(),
+        );
+        await ref.set({...appointment.toJson(), 'autoScheduleKind': item.kind});
+      } else {
+        final doc = existing.docs.first;
+        await doc.reference.set({
+          'fechaHora': Timestamp.fromDate(when),
+          'duracionMinutos': item.duration,
+          'tipo': AppointmentType.control.name,
+          'estado': AppointmentStatus.programada.name,
+          'notas': item.notes,
+          'autoScheduleKind': item.kind,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    }
+  }
+
+  DateTime _addMonths(DateTime date, int months) {
+    return DateTime(date.year, date.month + months, date.day, 9, 0);
   }
 
   void _validateTreatment(PatientTreatment treatment) {

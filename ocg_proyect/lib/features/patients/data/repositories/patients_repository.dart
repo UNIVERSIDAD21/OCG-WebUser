@@ -8,7 +8,7 @@ import '../models/patient_model.dart';
 
 class PatientsRepository {
   PatientsRepository(this._db, [FirebaseFunctions? functions])
-      : _functions = functions ?? FirebaseFunctions.instance;
+    : _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
@@ -22,7 +22,15 @@ class PatientsRepository {
     return _patientsRef
         .orderBy('nombre')
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => PatientModel.fromJson(doc.data())).toList());
+        .map(
+          (snap) => snap.docs
+              .map((doc) => PatientModel.fromJson(doc.data()))
+              .where(
+                (patient) =>
+                    patient.email.trim().toLowerCase() != 'admin@ocg.com',
+              )
+              .toList(),
+        );
   }
 
   Stream<PatientModel?> watchPatient(String patientId) {
@@ -34,7 +42,9 @@ class PatientsRepository {
   }
 
   Future<void> createPatient(PatientModel patient) async {
-    await _patientsRef.doc(patient.id).set(patient.toJson(), SetOptions(merge: true));
+    await _patientsRef
+        .doc(patient.id)
+        .set(patient.toJson(), SetOptions(merge: true));
 
     await _paymentsRepository.initializePaymentDocument(
       patientId: patient.id,
@@ -42,14 +52,20 @@ class PatientsRepository {
     );
   }
 
-  Future<void> updatePatientClinicalData(String patientId, Map<String, dynamic> data) async {
+  Future<void> updatePatientClinicalData(
+    String patientId,
+    Map<String, dynamic> data,
+  ) async {
     await _patientsRef.doc(patientId).update({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> updatePatientBasicData(String patientId, Map<String, dynamic> data) async {
+  Future<void> updatePatientBasicData(
+    String patientId,
+    Map<String, dynamic> data,
+  ) async {
     await _patientsRef.doc(patientId).update({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -77,9 +93,7 @@ class PatientsRepository {
     String? telefono,
     String? fotoUrl,
   }) async {
-    final data = <String, dynamic>{
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
+    final data = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
 
     if (telefono != null) data['telefono'] = telefono;
     if (fotoUrl != null) data['fotoUrl'] = fotoUrl;
@@ -106,7 +120,9 @@ class PatientsRepository {
     final paymentData = paymentSnap.data() ?? <String, dynamic>{};
 
     final montoPagado = (paymentData['montoPagado'] as num?)?.toDouble() ?? 0;
-    final saldoPendiente = (totalTratamiento - montoPagado).clamp(0, double.infinity).toDouble();
+    final saldoPendiente = (totalTratamiento - montoPagado)
+        .clamp(0, double.infinity)
+        .toDouble();
     final estado = PaymentModel.calcularEstado(
       saldoPendiente: saldoPendiente,
       fechaProximoPago: fechaProximoPago,
@@ -120,7 +136,9 @@ class PatientsRepository {
       'notasClinicas': notasClinicas,
       'totalTratamiento': totalTratamiento,
       'saldoPendiente': saldoPendiente,
-      'fechaProximoPago': fechaProximoPago == null ? null : Timestamp.fromDate(fechaProximoPago),
+      'fechaProximoPago': fechaProximoPago == null
+          ? null
+          : Timestamp.fromDate(fechaProximoPago),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -130,9 +148,13 @@ class PatientsRepository {
       'totalTratamiento': totalTratamiento,
       'montoPagado': montoPagado,
       'saldoPendiente': saldoPendiente,
-      'fechaProximoPago': fechaProximoPago == null ? null : Timestamp.fromDate(fechaProximoPago),
+      'fechaProximoPago': fechaProximoPago == null
+          ? null
+          : Timestamp.fromDate(fechaProximoPago),
       'estado': estado.name,
-      'createdAt': paymentSnap.exists ? paymentData['createdAt'] : FieldValue.serverTimestamp(),
+      'createdAt': paymentSnap.exists
+          ? paymentData['createdAt']
+          : FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -157,7 +179,9 @@ class PatientsRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    final historyRef = _db.collection(FirestorePaths.stageHistory(patientId)).doc();
+    final historyRef = _db
+        .collection(FirestorePaths.stageHistory(patientId))
+        .doc();
     batch.set(historyRef, {
       'id': historyRef.id,
       'etapa': newStage.name,

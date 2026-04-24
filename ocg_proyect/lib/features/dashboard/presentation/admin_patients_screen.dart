@@ -852,63 +852,60 @@ class _KpiRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = AdminDesktopLayoutScope.maybeOf(context);
     final tier = layout?.tier ?? AdminDesktopTier.standard;
-    final crossAxisCount = switch (tier) {
-      AdminDesktopTier.wide => 3,
-      AdminDesktopTier.standard => 2,
-      AdminDesktopTier.compact => 2,
-      AdminDesktopTier.tight => 1,
-    };
-    final childAspectRatio = switch (tier) {
-      AdminDesktopTier.wide => 2.2,
-      AdminDesktopTier.standard => 2.7,
-      AdminDesktopTier.compact => 2.5,
-      AdminDesktopTier.tight => 3.6,
-    };
     final spacing = layout?.panelGap ?? 10;
+    final cardWidth = switch (tier) {
+      AdminDesktopTier.wide => 260.0,
+      AdminDesktopTier.standard => 245.0,
+      AdminDesktopTier.compact => 228.0,
+      AdminDesktopTier.tight => 210.0,
+    };
 
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      shrinkWrap: true,
-      childAspectRatio: childAspectRatio,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: spacing,
-      mainAxisSpacing: spacing,
-      children: [
-        _KpiCard(
-          icon: Icons.people_outline,
-          value: '$totalPacientes',
-          label: 'Total pacientes',
-          footer: '+$nuevosMes este mes',
-          footerColor: const Color(0xFF2E7D32),
-          footerBg: const Color(0xFFE8F5E9),
-          bgColor: const Color(0xFFF6EFE7),
-          onTap: onTapTotal,
-        ),
-        _KpiCard(
-          icon: Icons.timelapse_outlined,
-          value: '$pacientesActivos',
-          label: 'Activos',
-          footer: 'en tratamiento',
-          bgColor: const Color(0xFFEFF8F0),
-          onTap: onTapActivos,
-        ),
-        _KpiCard(
-          icon: Icons.calendar_month_outlined,
-          value: '$citasHoy',
-          label: 'Citas hoy',
-          footer: 'programadas',
-          bgColor: const Color(0xFFFFF4D8),
-          onTap: onTapCitasHoy,
-        ),
-        _KpiCard(
-          icon: Icons.attach_money,
-          value: '\$${formatCop(saldoPendienteTotal)}',
-          label: 'Saldo pendiente',
-          footer: 'por cobrar',
-          bgColor: const Color(0xFFFFECEC),
-          onTap: onTapSaldoPendiente,
-        ),
-      ],
+    final cards = [
+      _KpiCard(
+        icon: Icons.people_outline,
+        value: '$totalPacientes',
+        label: 'Total pacientes',
+        footer: '+$nuevosMes este mes',
+        footerColor: const Color(0xFF2E7D32),
+        footerBg: const Color(0xFFE8F5E9),
+        bgColor: const Color(0xFFF6EFE7),
+        onTap: onTapTotal,
+      ),
+      _KpiCard(
+        icon: Icons.timelapse_outlined,
+        value: '$pacientesActivos',
+        label: 'Activos',
+        footer: 'en tratamiento',
+        bgColor: const Color(0xFFEFF8F0),
+        onTap: onTapActivos,
+      ),
+      _KpiCard(
+        icon: Icons.calendar_month_outlined,
+        value: '$citasHoy',
+        label: 'Citas hoy',
+        footer: 'programadas',
+        bgColor: const Color(0xFFFFF4D8),
+        onTap: onTapCitasHoy,
+      ),
+      _KpiCard(
+        icon: Icons.attach_money,
+        value: '\$${formatCop(saldoPendienteTotal)}',
+        label: 'Saldo pendiente',
+        footer: 'por cobrar',
+        bgColor: const Color(0xFFFFECEC),
+        onTap: onTapSaldoPendiente,
+      ),
+    ];
+
+    return SizedBox(
+      height: 132,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: cards.length,
+        separatorBuilder: (_, __) => SizedBox(width: spacing),
+        itemBuilder: (context, index) =>
+            SizedBox(width: cardWidth, child: cards[index]),
+      ),
     );
   }
 }

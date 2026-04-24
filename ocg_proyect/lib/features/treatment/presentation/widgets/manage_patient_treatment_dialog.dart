@@ -33,6 +33,8 @@ class _ManagePatientTreatmentDialogState
   late String _status;
   late TreatmentStage _stage;
   late DateTime _startDate;
+  late DateTime _nextCleaningDate;
+  late DateTime _nextControlDate;
   bool _isPrimary = false;
 
   bool get _requiresSubtype =>
@@ -49,6 +51,8 @@ class _ManagePatientTreatmentDialogState
     _status = initial?.estado ?? 'activo';
     _stage = initial?.etapaActual ?? TreatmentStage.valoracionInicial;
     _startDate = initial?.fechaInicio ?? DateTime.now();
+    _nextCleaningDate = initial?.nextCleaningDate ?? _addMonths(_startDate, 3);
+    _nextControlDate = initial?.nextControlDate ?? _addMonths(_startDate, 6);
     _isPrimary = initial?.isPrimary ?? true;
     if (_requiresSubtype && (_subtype == null || _subtype!.trim().isEmpty)) {
       _subtype = 'metalico';
@@ -212,6 +216,27 @@ class _ManagePatientTreatmentDialogState
                   trailing: const Icon(Icons.calendar_today_outlined, size: 18),
                   onTap: saveState.isLoading ? null : _pickStartDate,
                 ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Próxima limpieza'),
+                  subtitle: Text(_formatDate(_nextCleaningDate)),
+                  trailing: const Icon(
+                    Icons.event_available_outlined,
+                    size: 18,
+                  ),
+                  onTap: saveState.isLoading
+                      ? null
+                      : () => _pickRecurringDate(isCleaning: true),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Próximo control'),
+                  subtitle: Text(_formatDate(_nextControlDate)),
+                  trailing: const Icon(Icons.event_repeat_outlined, size: 18),
+                  onTap: saveState.isLoading
+                      ? null
+                      : () => _pickRecurringDate(isCleaning: false),
+                ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _isPrimary,
@@ -263,8 +288,37 @@ class _ManagePatientTreatmentDialogState
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      setState(() => _startDate = picked);
+      setState(() {
+        _startDate = picked;
+        if (widget.initialTreatment == null) {
+          _nextCleaningDate = _addMonths(picked, 3);
+          _nextControlDate = _addMonths(picked, 6);
+        }
+      });
     }
+  }
+
+  Future<void> _pickRecurringDate({required bool isCleaning}) async {
+    final initialDate = isCleaning ? _nextCleaningDate : _nextControlDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: _startDate,
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isCleaning) {
+          _nextCleaningDate = picked;
+        } else {
+          _nextControlDate = picked;
+        }
+      });
+    }
+  }
+
+  DateTime _addMonths(DateTime date, int months) {
+    return DateTime(date.year, date.month + months, date.day);
   }
 
   Future<void> _submit() async {
@@ -297,6 +351,8 @@ class _ManagePatientTreatmentDialogState
       updatedBy: authUser?.uid ?? previous?.updatedBy ?? 'system',
       suggestedCleaningEveryMonths: previous?.suggestedCleaningEveryMonths ?? 3,
       suggestedControlEveryMonths: previous?.suggestedControlEveryMonths ?? 6,
+      nextCleaningDate: _nextCleaningDate,
+      nextControlDate: _nextControlDate,
       totalTratamiento: previous?.totalTratamiento,
       saldoPendiente: previous?.saldoPendiente,
       notas: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),

@@ -73,7 +73,8 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     );
 
     final hasSingleLegacyTreatment =
-        treatments.length == 1 && treatments.first.id.startsWith('legacy-primary-');
+        treatments.length == 1 &&
+        treatments.first.id.startsWith('legacy-primary-');
 
     if (!hasSingleLegacyTreatment) {
       _legacyMigrationQueued = false;
@@ -115,8 +116,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       return _buildMigrationErrorState(context, saveState.error);
     }
 
-    final financialItemsAsync =
-        isLegacySelected
+    final financialItemsAsync = isLegacySelected
         ? const AsyncValue<List<FinancialItemModel>>.data(
             <FinancialItemModel>[],
           )
@@ -495,12 +495,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   value: _currency.format(summary.pendingAmount),
                   supporting: 'Pagado: ${_currency.format(summary.paidAmount)}',
                 ),
-                _MetricHeroCard(
-                  label: 'Frecuencia de control',
-                  value:
-                      'Cada ${selectedTreatment.suggestedControlEveryMonths} meses',
-                  supporting:
-                      'Limpieza cada ${selectedTreatment.suggestedCleaningEveryMonths} meses',
+                _TreatmentScheduleCard(
+                  patientId: widget.patientId,
+                  patientName: widget.patient.nombre,
+                  treatment: selectedTreatment,
                 ),
               ];
               if (compact) {
@@ -1207,6 +1205,102 @@ class _MetricHeroCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TreatmentScheduleCard extends ConsumerWidget {
+  const _TreatmentScheduleCard({
+    required this.patientId,
+    required this.patientName,
+    required this.treatment,
+  });
+
+  final String patientId;
+  final String patientName;
+  final PatientTreatment treatment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEDE7DC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Frecuencia de control',
+            style: TextStyle(
+              color: Color(0xFF908C88),
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Cada ${treatment.suggestedControlEveryMonths} meses',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+              fontSize: 19,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Limpieza cada ${treatment.suggestedCleaningEveryMonths} meses',
+            style: const TextStyle(
+              color: Color(0xFF8A6F59),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HeroTag(
+                icon: Icons.event_repeat_outlined,
+                label: treatment.nextControlDate == null
+                    ? 'Control sin fecha'
+                    : 'Control ${_fmtDate(treatment.nextControlDate!)}',
+                accent: OcgColors.espresso,
+                background: const Color(0xFFF5F1EA),
+              ),
+              _HeroTag(
+                icon: Icons.cleaning_services_outlined,
+                label: treatment.nextCleaningDate == null
+                    ? 'Limpieza sin fecha'
+                    : 'Limpieza ${_fmtDate(treatment.nextCleaningDate!)}',
+                accent: OcgColors.espresso,
+                background: const Color(0xFFF5F1EA),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => ManagePatientTreatmentDialog(
+                patientId: patientId,
+                patientName: patientName,
+                initialTreatment: treatment,
+              ),
+            ),
+            icon: const Icon(Icons.edit_calendar_outlined),
+            label: const Text('Editar fechas'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
 class _HeroTag extends StatelessWidget {

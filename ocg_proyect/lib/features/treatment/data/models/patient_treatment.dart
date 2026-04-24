@@ -26,10 +26,7 @@ const List<String> kSubtypeRequiredBaseTreatments = <String>[
   'autoligado',
 ];
 
-const List<String> kTreatmentSubtypes = <String>[
-  'estetico',
-  'metalico',
-];
+const List<String> kTreatmentSubtypes = <String>['estetico', 'metalico'];
 
 const List<String> kTreatmentStatusOptions = <String>[
   'activo',
@@ -57,6 +54,8 @@ class PatientTreatment {
     this.updatedBy,
     this.suggestedCleaningEveryMonths = 3,
     this.suggestedControlEveryMonths = 6,
+    this.nextCleaningDate,
+    this.nextControlDate,
     this.totalTratamiento,
     this.saldoPendiente,
     this.notas,
@@ -79,6 +78,8 @@ class PatientTreatment {
   final String? updatedBy;
   final int suggestedCleaningEveryMonths;
   final int suggestedControlEveryMonths;
+  final DateTime? nextCleaningDate;
+  final DateTime? nextControlDate;
   final double? totalTratamiento;
   final double? saldoPendiente;
   final String? notas;
@@ -112,7 +113,8 @@ class PatientTreatment {
 
   String get statusLabel => _titleize(estado.replaceAll('_', ' '));
 
-  static String labelForBaseTreatment(String value) => _titleize(value.replaceAll('_', ' '));
+  static String labelForBaseTreatment(String value) =>
+      _titleize(value.replaceAll('_', ' '));
 
   static String _titleize(String value) {
     final words = value
@@ -122,7 +124,10 @@ class PatientTreatment {
         .toList();
     if (words.isEmpty) return '';
     return words
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+        .map(
+          (word) =>
+              '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+        )
         .join(' ');
   }
 
@@ -162,12 +167,21 @@ class PatientTreatment {
     return PatientTreatment(
       id: id ?? (json['id'] ?? '').toString(),
       patientId: (json['patientId'] ?? '').toString(),
-      nombre: (json['name'] ?? json['nombre'] ?? json['baseType'] ?? json['tipoBase'] ?? '').toString(),
-      categoria: (json['category'] ?? json['categoria'] ?? 'ortodoncia').toString(),
+      nombre:
+          (json['name'] ??
+                  json['nombre'] ??
+                  json['baseType'] ??
+                  json['tipoBase'] ??
+                  '')
+              .toString(),
+      categoria: (json['category'] ?? json['categoria'] ?? 'ortodoncia')
+          .toString(),
       tipoBase: (json['baseType'] ?? json['tipoBase'] ?? '').toString(),
       subtipo: (json['subtype'] ?? json['subtipo'])?.toString(),
       estado: (json['status'] ?? json['estado'] ?? 'activo').toString(),
-      etapaActual: PatientModel.fromJson(<String, dynamic>{'etapaActual': stageRaw}).etapaActual,
+      etapaActual: PatientModel.fromJson(<String, dynamic>{
+        'etapaActual': stageRaw,
+      }).etapaActual,
       fechaInicio: _parseDate(json['startDate'] ?? json['fechaInicio'], now),
       fechaFin: _parseNullableDate(json['endDate'] ?? json['fechaFin']),
       createdAt: _parseDate(json['createdAt'], now),
@@ -175,8 +189,12 @@ class PatientTreatment {
       isPrimary: (json['isPrimary'] as bool?) ?? false,
       createdBy: json['createdBy']?.toString(),
       updatedBy: json['updatedBy']?.toString(),
-      suggestedCleaningEveryMonths: (json['suggestedCleaningEveryMonths'] as num?)?.toInt() ?? 3,
-      suggestedControlEveryMonths: (json['suggestedControlEveryMonths'] as num?)?.toInt() ?? 6,
+      suggestedCleaningEveryMonths:
+          (json['suggestedCleaningEveryMonths'] as num?)?.toInt() ?? 3,
+      suggestedControlEveryMonths:
+          (json['suggestedControlEveryMonths'] as num?)?.toInt() ?? 6,
+      nextCleaningDate: _parseNullableDate(json['nextCleaningDate']),
+      nextControlDate: _parseNullableDate(json['nextControlDate']),
       totalTratamiento: _parseNullableDouble(json['totalTratamiento']),
       saldoPendiente: _parseNullableDouble(json['saldoPendiente']),
       notas: json['notas']?.toString(),
@@ -212,7 +230,9 @@ class PatientTreatment {
       estado: patient.isFinished ? 'finalizado' : 'activo',
       etapaActual: patient.etapaActual,
       fechaInicio: patient.fechaInicio,
-      fechaFin: patient.isFinished ? (patient.updatedAt ?? patient.fechaEstimadaFin) : null,
+      fechaFin: patient.isFinished
+          ? (patient.updatedAt ?? patient.fechaEstimadaFin)
+          : null,
       createdAt: patient.createdAt ?? patient.fechaInicio,
       updatedAt: patient.updatedAt ?? patient.fechaInicio,
       isPrimary: true,
@@ -240,6 +260,8 @@ class PatientTreatment {
     String? updatedBy,
     int? suggestedCleaningEveryMonths,
     int? suggestedControlEveryMonths,
+    DateTime? nextCleaningDate,
+    DateTime? nextControlDate,
     double? totalTratamiento,
     double? saldoPendiente,
     String? notas,
@@ -267,17 +289,27 @@ class PatientTreatment {
           suggestedCleaningEveryMonths ?? this.suggestedCleaningEveryMonths,
       suggestedControlEveryMonths:
           suggestedControlEveryMonths ?? this.suggestedControlEveryMonths,
-      totalTratamiento: clearFinancials ? null : (totalTratamiento ?? this.totalTratamiento),
-      saldoPendiente: clearFinancials ? null : (saldoPendiente ?? this.saldoPendiente),
+      nextCleaningDate: nextCleaningDate ?? this.nextCleaningDate,
+      nextControlDate: nextControlDate ?? this.nextControlDate,
+      totalTratamiento: clearFinancials
+          ? null
+          : (totalTratamiento ?? this.totalTratamiento),
+      saldoPendiente: clearFinancials
+          ? null
+          : (saldoPendiente ?? this.saldoPendiente),
       notas: clearNotes ? null : (notas ?? this.notas),
     );
   }
 
   Map<String, dynamic> toJson() {
     final cleanName = nombre.trim();
-    final cleanCategory = categoria.trim().isEmpty ? 'ortodoncia' : categoria.trim();
+    final cleanCategory = categoria.trim().isEmpty
+        ? 'ortodoncia'
+        : categoria.trim();
     final cleanBaseType = tipoBase.trim();
-    final cleanSubtype = subtipo?.trim().isEmpty ?? true ? null : subtipo?.trim();
+    final cleanSubtype = subtipo?.trim().isEmpty ?? true
+        ? null
+        : subtipo?.trim();
     final cleanStatus = estado.trim();
 
     return <String, dynamic>{
@@ -308,6 +340,12 @@ class PatientTreatment {
       'fechaFin': fechaFin == null ? null : Timestamp.fromDate(fechaFin!),
       'suggestedCleaningEveryMonths': suggestedCleaningEveryMonths,
       'suggestedControlEveryMonths': suggestedControlEveryMonths,
+      'nextCleaningDate': nextCleaningDate == null
+          ? null
+          : Timestamp.fromDate(nextCleaningDate!),
+      'nextControlDate': nextControlDate == null
+          ? null
+          : Timestamp.fromDate(nextControlDate!),
       'totalTratamiento': totalTratamiento,
       'saldoPendiente': saldoPendiente,
       'notas': notas,
