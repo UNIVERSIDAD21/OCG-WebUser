@@ -139,17 +139,21 @@ class _ManagePatientTreatmentDialogState
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       backgroundColor: Colors.transparent,
       child: Container(
-        width: wide ? 1080 : media.width - 32,
+        width: wide ? 1120 : media.width - 32,
         constraints: BoxConstraints(maxHeight: media.height - 48),
         decoration: BoxDecoration(
-          color: const Color(0xFFFCF8F3),
-          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFFCF8), Color(0xFFF7F0E8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(32),
           border: Border.all(color: const Color(0xFFE7DDD2)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x1F2C2016),
-              blurRadius: 28,
-              offset: Offset(0, 14),
+              color: Color(0x262C2016),
+              blurRadius: 36,
+              offset: Offset(0, 18),
             ),
           ],
         ),
@@ -264,73 +268,103 @@ class _ManagePatientTreatmentDialogState
 
   Widget _buildHeader(PatientTreatment? otherPrimary) {
     final badgeText = _isPrimary
-        ? 'Tratamiento principal activo.'
+        ? 'Tratamiento principal activo'
         : (otherPrimary != null
-              ? 'Secundario. Principal actual: ${otherPrimary.displayName}.'
-              : 'Tratamiento secundario.');
+              ? 'Secundario · Principal actual: ${otherPrimary.displayName}'
+              : 'Tratamiento secundario');
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: OcgColors.mist,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: OcgColors.espresso.withOpacity(0.08)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF7EFE6), Color(0xFFFDF9F5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5D8CA)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _editing ? 'Editar tratamiento' : 'Crear tratamiento',
-            style: const TextStyle(
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
               color: OcgColors.espresso,
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.biotech_outlined,
+              color: OcgColors.ivory,
+              size: 26,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Paciente: ${widget.patientName}',
-            style: const TextStyle(
-              color: Color(0xFF6E5644),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Configura el tratamiento clínico y su estructura de costos.',
-            style: TextStyle(color: Color(0xFF8A6F59)),
-          ),
-          const SizedBox(height: 12),
-          if (_isPrimary || otherPrimary != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3E7DB),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 16,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _editing ? 'Editar tratamiento' : 'Crear tratamiento',
+                  style: const TextStyle(
                     color: OcgColors.espresso,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      badgeText,
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontWeight: FontWeight.w700,
-                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Paciente: ${widget.patientName}',
+                  style: const TextStyle(
+                    color: Color(0xFF6E5644),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Configura el tratamiento clínico y su estructura de costos.',
+                  style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+                ),
+                const SizedBox(height: 14),
+                if (_isPrimary || otherPrimary != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEE1D3),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFE0C7AF)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: OcgColors.espresso,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            badgeText,
+                            style: const TextStyle(
+                              color: OcgColors.espresso,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -510,29 +544,63 @@ class _ManagePatientTreatmentDialogState
   ) {
     return Column(
       children: [
-        _sectionCard(
-          title: 'Resultado autocalculado',
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF201611), Color(0xFF3B2A20), Color(0xFF6E5644)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x242C2016),
+                blurRadius: 22,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Resultado autocalculado con Inicial + Controles + concepto base + extras activos.',
-                style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _currency.format(summary.totalAmount),
-                style: const TextStyle(
-                  color: OcgColors.espresso,
-                  fontSize: 34,
+                'Resultado autocalculado',
+                style: TextStyle(
+                  color: OcgColors.ivory,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Este valor no se edita manualmente. Se genera a partir de los conceptos financieros activos.',
-                style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+                'Resultado autocalculado con Inicial + Controles + concepto base + extras activos.',
+                style: TextStyle(color: Color(0xFFE4D6CA), height: 1.45),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                _currency.format(summary.totalAmount),
+                style: const TextStyle(
+                  color: OcgColors.ivory,
+                  fontSize: 38,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.1,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: OcgColors.ivory.withOpacity(0.08)),
+                ),
+                child: const Text(
+                  'Este valor no se edita manualmente. Se genera a partir de los conceptos financieros activos.',
+                  style: TextStyle(color: Color(0xFFE4D6CA), height: 1.45),
+                ),
               ),
             ],
           ),
@@ -547,19 +615,15 @@ class _ManagePatientTreatmentDialogState
                 'Snapshot antes de guardar, separado de los pagos reales del paciente.',
                 style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _summaryRow('Moneda', summary.currency),
               _summaryRow('Subtotal', _currency.format(summary.subtotalAmount)),
-              _summaryRow(
-                'Descuento',
-                _currency.format(summary.discountAmount),
-              ),
               _summaryRow(
                 'Total',
                 _currency.format(summary.totalAmount),
                 emphasized: true,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               financialItemsAsync.when(
                 loading: () => const LinearProgressIndicator(minHeight: 2),
                 error: (_, __) => const Text(
@@ -568,9 +632,20 @@ class _ManagePatientTreatmentDialogState
                 ),
                 data: (items) {
                   final active = items.where((i) => i.active).length;
-                  return Text(
-                    '$active concepto(s) financiero(s) activo(s).',
-                    style: const TextStyle(color: Color(0xFF8A6F59)),
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F3ED),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '$active concepto(s) financiero(s) activo(s).',
+                      style: const TextStyle(
+                        color: Color(0xFF8A6F59),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   );
                 },
               ),
@@ -584,11 +659,18 @@ class _ManagePatientTreatmentDialogState
   Widget _sectionCard({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFE9DED2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F2C2016),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,7 +763,7 @@ class _ManagePatientTreatmentDialogState
       labelText: label,
       hintText: hint,
       filled: true,
-      fillColor: const Color(0xFFF9F4EE),
+      fillColor: const Color(0xFFFCF8F3),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Color(0xFFE4D8CB)),
