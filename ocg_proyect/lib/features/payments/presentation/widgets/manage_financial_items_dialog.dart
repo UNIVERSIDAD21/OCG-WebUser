@@ -253,7 +253,15 @@ class _ManageFinancialItemsDialogState
           item.normalizedName.contains('reten') ||
           (item.active && item.kind == 'extra');
     }).toList();
-    base.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    int orderFor(FinancialItemModel item) {
+      if (item.kind == 'initial') return 0;
+      if (item.kind == 'controls') return 1;
+      if (item.normalizedName.contains('aparato')) return 2;
+      if (item.normalizedName.contains('reten') || item.name.toLowerCase().contains('reten')) return 2;
+      return 10;
+    }
+
+    base.sort((a, b) => orderFor(a).compareTo(orderFor(b)));
     return base;
   }
 
