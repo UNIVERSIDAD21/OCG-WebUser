@@ -72,6 +72,27 @@ String _labelTipo(AppointmentType t) {
   }
 }
 
+String? _autoScheduleLabel(AppointmentModel a) {
+  final notes = (a.notas ?? '').trim().toLowerCase();
+  if (notes.startsWith('limpieza automática')) return 'Limpieza automática';
+  if (notes.startsWith('control automático')) return 'Control automático';
+  return null;
+}
+
+Color _autoScheduleBg(AppointmentModel a) {
+  final label = _autoScheduleLabel(a);
+  if (label == 'Limpieza automática') return const Color(0xFFE7F6EF);
+  if (label == 'Control automático') return const Color(0xFFFFF4D8);
+  return const Color(0xFFF3ECE4);
+}
+
+Color _autoScheduleFg(AppointmentModel a) {
+  final label = _autoScheduleLabel(a);
+  if (label == 'Limpieza automática') return const Color(0xFF2E7D4C);
+  if (label == 'Control automático') return const Color(0xFF9A6A00);
+  return OcgColors.espresso;
+}
+
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
 class AdminAppointmentsDesktopTestHarness extends StatelessWidget {
@@ -1942,12 +1963,40 @@ class _AdminAppointmentsScreenState
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: OcgColors.ink.withOpacity(0.72),
-                                  ),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: OcgColors.ink.withOpacity(0.72),
+                                      ),
+                                    ),
+                                    if (_autoScheduleLabel(a) != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _autoScheduleBg(a),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _autoScheduleLabel(a)!,
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: _autoScheduleFg(a),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 if ((a.notas ?? '').trim().isNotEmpty) ...[
                                   const SizedBox(height: 4),
@@ -2303,11 +2352,40 @@ class _AdminAppointmentsScreenState
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  Text(
-                                    '${_labelTipo(a.tipo)} · ${ui.label}',
-                                    style: TextStyle(
-                                      color: OcgColors.ink.withOpacity(0.72),
-                                    ),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      Text(
+                                        '${_labelTipo(a.tipo)} · ${ui.label}',
+                                        style: TextStyle(
+                                          color: OcgColors.ink.withOpacity(
+                                            0.72,
+                                          ),
+                                        ),
+                                      ),
+                                      if (_autoScheduleLabel(a) != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _autoScheduleBg(a),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _autoScheduleLabel(a)!,
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: _autoScheduleFg(a),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   if ((a.notas ?? '').trim().isNotEmpty) ...[
                                     const SizedBox(height: 4),
@@ -2370,11 +2448,39 @@ class _AdminAppointmentsScreenState
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    Text(
-                                      '${_labelTipo(a.tipo)} · ${ui.label}',
-                                      style: TextStyle(
-                                        color: OcgColors.ink.withOpacity(0.72),
-                                      ),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: [
+                                        Text(
+                                          '${_labelTipo(a.tipo)} · ${ui.label}',
+                                          style: TextStyle(
+                                            color: OcgColors.ink.withOpacity(
+                                              0.72,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_autoScheduleLabel(a) != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _autoScheduleBg(a),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              _autoScheduleLabel(a)!,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: _autoScheduleFg(a),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                     if ((a.notas ?? '').trim().isNotEmpty) ...[
                                       const SizedBox(height: 4),
