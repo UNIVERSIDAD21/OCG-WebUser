@@ -145,8 +145,9 @@ class AppointmentsBusinessRules {
     bool includeCompleted = true,
   }) {
     if (isHistoricalStatus(status)) return false;
-    if (!includeCompleted && status == AppointmentStatus.completada)
+    if (!includeCompleted && status == AppointmentStatus.completada) {
       return false;
+    }
     return true;
   }
 

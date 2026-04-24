@@ -1237,7 +1237,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'TRATAMIENTO',
+                                    'Tu tratamiento dentro de la clínica',
                                     style: TextStyle(
                                       color: OcgColors.ivory.withOpacity(0.38),
                                       fontSize: 10,
