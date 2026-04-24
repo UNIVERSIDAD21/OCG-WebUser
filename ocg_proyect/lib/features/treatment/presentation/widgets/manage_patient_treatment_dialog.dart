@@ -7,6 +7,7 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
 import '../../../payments/providers/treatment_financial_provider.dart';
+import '../../../payments/presentation/widgets/manage_financial_items_dialog.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../../data/models/patient_treatment.dart';
 import '../../providers/patient_treatments_provider.dart';
@@ -636,21 +637,82 @@ class _ManagePatientTreatmentDialogState
                   style: TextStyle(color: Color(0xFF8A6F59)),
                 ),
                 data: (items) {
-                  final active = items.where((i) => i.active).length;
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F3ED),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '$active concepto(s) financiero(s) activo(s).',
-                      style: const TextStyle(
-                        color: Color(0xFF8A6F59),
-                        fontWeight: FontWeight.w600,
+                  final active = items.where((i) => i.active).toList();
+                  final initialItem = active
+                      .cast<FinancialItemModel?>()
+                      .firstWhere(
+                        (i) => i?.kind == 'initial',
+                        orElse: () => null,
+                      );
+                  final controlsItem = active
+                      .cast<FinancialItemModel?>()
+                      .firstWhere(
+                        (i) => i?.kind == 'controls',
+                        orElse: () => null,
+                      );
+                  final retainerItems = active
+                      .where(
+                        (i) =>
+                            i.normalizedName.contains('reten') ||
+                            i.name.toLowerCase().contains('reten'),
+                      )
+                      .toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F3ED),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            _summaryRow(
+                              'Inicial',
+                              initialItem == null
+                                  ? 'No configurado'
+                                  : _currency.format(
+                                      initialItem.computedAmount,
+                                    ),
+                            ),
+                            _summaryRow(
+                              'Controles',
+                              controlsItem == null
+                                  ? 'No configurado'
+                                  : '${controlsItem.effectiveQuantity} x ${_currency.format(controlsItem.effectiveUnitAmount)}',
+                            ),
+                            if (retainerItems.isNotEmpty)
+                              ...retainerItems.map(
+                                (item) => _summaryRow(
+                                  item.name,
+                                  _currency.format(item.computedAmount),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: widget.initialTreatment == null
+                              ? null
+                              : () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => ManageFinancialItemsDialog(
+                                    patientId: widget.patientId,
+                                    treatment: widget.initialTreatment!,
+                                    initialItems: items,
+                                  ),
+                                ),
+                          icon: const Icon(Icons.tune_outlined),
+                          label: const Text('Editar conceptos financieros'),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
