@@ -4,10 +4,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../auth/providers/auth_providers.dart';
-import '../../../patients/data/models/patient_model.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
 import '../../../payments/providers/treatment_financial_provider.dart';
+import '../../../patients/data/models/patient_model.dart';
 import '../../data/models/patient_treatment.dart';
 import '../../providers/patient_treatments_provider.dart';
 
@@ -231,11 +231,15 @@ class _ManagePatientTreatmentDialogState
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(color: Color(0xFFD9CCBE)),
                         foregroundColor: OcgColors.espresso,
+                        backgroundColor: Colors.white.withOpacity(0.7),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text('Cancelar'),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     FilledButton(
@@ -243,6 +247,7 @@ class _ManagePatientTreatmentDialogState
                       style: FilledButton.styleFrom(
                         backgroundColor: OcgColors.espresso,
                         foregroundColor: OcgColors.ivory,
+                        elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -675,12 +680,35 @@ class _ManagePatientTreatmentDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: OcgColors.bronze,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 42,
+            height: 2,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6D7C7),
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
           const SizedBox(height: 14),
@@ -699,11 +727,31 @@ class _ManagePatientTreatmentDialogState
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F3ED),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF8F3ED), Color(0xFFFEFBF7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7DBCF)),
       ),
       child: Row(
         children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE7DBCF)),
+            ),
+            child: const Icon(
+              Icons.event_outlined,
+              size: 18,
+              color: OcgColors.espresso,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,15 +768,16 @@ class _ManagePatientTreatmentDialogState
                   _formatDate(value),
                   style: const TextStyle(
                     color: OcgColors.espresso,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
-          TextButton(
+          TextButton.icon(
             onPressed: isLoading ? null : onTap,
-            child: const Text('Cambiar fecha'),
+            icon: const Icon(Icons.edit_calendar_outlined, size: 16),
+            label: const Text('Cambiar'),
           ),
         ],
       ),
@@ -743,14 +792,26 @@ class _ManagePatientTreatmentDialogState
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF6E5644)),
+              style: const TextStyle(
+                color: Color(0xFF6E5644),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: emphasized ? OcgColors.espresso : OcgColors.bronze,
-              fontWeight: FontWeight.w800,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: emphasized
+                  ? const Color(0xFFF1E5D8)
+                  : const Color(0xFFF8F3ED),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                color: emphasized ? OcgColors.espresso : OcgColors.bronze,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
