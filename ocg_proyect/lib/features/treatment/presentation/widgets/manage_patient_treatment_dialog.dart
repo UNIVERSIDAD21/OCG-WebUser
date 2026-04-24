@@ -10,7 +10,9 @@ import '../../../payments/providers/treatment_financial_provider.dart';
 import '../../../payments/presentation/widgets/manage_financial_items_dialog.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../../data/models/patient_treatment.dart';
+import '../../data/models/treatment_catalog_item.dart';
 import '../../providers/patient_treatments_provider.dart';
+import '../../providers/treatment_catalog_provider.dart';
 
 class ManagePatientTreatmentDialog extends ConsumerStatefulWidget {
   const ManagePatientTreatmentDialog({
@@ -38,11 +40,13 @@ class _ManagePatientTreatmentDialogState
     decimalDigits: 0,
   );
 
-  late final TextEditingController _nameCtrl;
+  late final TextEditingController _visibleNameCtrl;
   late final TextEditingController _notesCtrl;
   late final TextEditingController _cleaningCtrl;
   late final TextEditingController _controlCtrl;
   late String _baseType;
+  String? _selectedCatalogId;
+  String? _clinicalTreatmentName;
   String? _subtype;
   late String _status;
   late TreatmentStage _stage;
@@ -59,7 +63,9 @@ class _ManagePatientTreatmentDialogState
   void initState() {
     super.initState();
     final initial = widget.initialTreatment;
-    _nameCtrl = TextEditingController(text: initial?.nombre ?? '');
+    _visibleNameCtrl = TextEditingController(
+      text: initial?.visibleName ?? initial?.nombre ?? '',
+    );
     _notesCtrl = TextEditingController(text: initial?.notas ?? '');
     _cleaningCtrl = TextEditingController(
       text: (initial?.suggestedCleaningEveryMonths ?? 3).toString(),
@@ -68,6 +74,8 @@ class _ManagePatientTreatmentDialogState
       text: (initial?.suggestedControlEveryMonths ?? 6).toString(),
     );
     _baseType = initial?.tipoBase ?? 'convencional';
+    _selectedCatalogId = initial?.catalogTreatmentId;
+    _clinicalTreatmentName = initial?.clinicalTreatmentName ?? initial?.nombre;
     _subtype = initial?.subtipo;
     _status = initial?.estado ?? 'activo';
     _stage = initial?.etapaActual ?? TreatmentStage.valoracionInicial;
@@ -82,7 +90,7 @@ class _ManagePatientTreatmentDialogState
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
+    _visibleNameCtrl.dispose();
     _notesCtrl.dispose();
     _cleaningCtrl.dispose();
     _controlCtrl.dispose();
@@ -92,6 +100,7 @@ class _ManagePatientTreatmentDialogState
   @override
   Widget build(BuildContext context) {
     final saveState = ref.watch(savePatientTreatmentProvider);
+    final catalogAsync = ref.watch(treatmentCatalogProvider);
     final existingTreatments =
         ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
         const <PatientTreatment>[];
@@ -183,6 +192,7 @@ class _ManagePatientTreatmentDialogState
                                   saveState.isLoading,
                                   canTogglePrimary,
                                   otherPrimary,
+                                  catalogAsync,
                                 ),
                               ),
                             ),
@@ -208,6 +218,7 @@ class _ManagePatientTreatmentDialogState
                               saveState.isLoading,
                               canTogglePrimary,
                               otherPrimary,
+                              catalogAsync,
                             ),
                             const SizedBox(height: 18),
                             _buildFinancialColumn(
@@ -380,6 +391,7 @@ class _ManagePatientTreatmentDialogState
     bool isLoading,
     bool canTogglePrimary,
     PatientTreatment? otherPrimary,
+    AsyncValue<List<TreatmentCatalogItem>> catalogAsync,
   ) {
     return Column(
       children: [
@@ -942,6 +954,101 @@ class _ManagePatientTreatmentDialogState
     );
   }
 
+  TreatmentCatalogItem? _resolveCatalogSelection(
+    List<TreatmentCatalogItem> catalog,
+  ) {
+    if (_selectedCatalogId != null) {
+      for (final item in catalog) {
+        if (item.id == _selectedCatalogId) return item;
+      }
+    }
+    if (_clinicalTreatmentName != null) {
+      for (final item in catalog) {
+        if (item.name.toLowerCase() == _clinicalTreatmentName!.toLowerCase()) {
+          return item;
+        }
+      }
+    }
+    for (final item in catalog) {
+      if (item.baseType == _baseType) return item;
+    }
+    return catalog.isEmpty ? null : catalog.first;
+  }
+
+  Future<void> _handleCatalogSelection(
+    String? value,
+    List<TreatmentCatalogItem> catalog,
+  ) async {
+    if (value == null) return;
+    if (value == '__create_new__') {
+      final created = await _createCatalogItem();
+      if (created == null || !mounted) return;
+      setState(() {
+        _selectedCatalogId = created.id;
+        _clinicalTreatmentName = created.name;
+        _baseType = created.baseType;
+        _subtype = created.requiresSubtype
+            ? (created.allowedSubtypes.isNotEmpty
+                  ? created.allowedSubtypes.first
+                  : 'metalico')
+            : null;
+        if (_visibleNameCtrl.text.trim().isEmpty)
+          _visibleNameCtrl.text = created.name;
+      });
+      return;
+    }
+    final selected = catalog.firstWhere((item) => item.id == value);
+    setState(() {
+      _selectedCatalogId = selected.id;
+      _clinicalTreatmentName = selected.name;
+      _baseType = selected.baseType;
+      _subtype = selected.requiresSubtype
+          ? ((_subtype != null && selected.allowedSubtypes.contains(_subtype))
+                ? _subtype
+                : (selected.allowedSubtypes.isNotEmpty
+                      ? selected.allowedSubtypes.first
+                      : 'metalico'))
+          : null;
+      if (_visibleNameCtrl.text.trim().isEmpty ||
+          _visibleNameCtrl.text.trim() == widget.initialTreatment?.nombre) {
+        _visibleNameCtrl.text = selected.name;
+      }
+    });
+  }
+
+  Future<TreatmentCatalogItem?> _createCatalogItem() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crear nuevo tratamiento'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Nombre del tratamiento',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+    final name = (result ?? '').trim();
+    if (name.isEmpty) return null;
+    final authUser = ref.read(authStateProvider).asData?.value;
+    return ref
+        .read(treatmentCatalogRepositoryProvider)
+        .createCatalogItem(name: name, createdBy: authUser?.uid);
+  }
+
   Future<void> _pickStartDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -989,10 +1096,15 @@ class _ManagePatientTreatmentDialogState
         previous?.id ??
         'treatment-${now.millisecondsSinceEpoch}-${widget.patientId.substring(0, widget.patientId.length.clamp(0, 6))}';
 
+    final visibleName = _visibleNameCtrl.text.trim();
+    final clinicalName = _clinicalTreatmentName ?? visibleName;
     final treatment = PatientTreatment(
       id: treatmentId,
       patientId: widget.patientId,
-      nombre: _nameCtrl.text.trim(),
+      nombre: visibleName.isEmpty ? clinicalName : visibleName,
+      catalogTreatmentId: _selectedCatalogId,
+      clinicalTreatmentName: clinicalName,
+      visibleName: visibleName.isEmpty ? clinicalName : visibleName,
       categoria: 'ortodoncia',
       tipoBase: _baseType,
       subtipo: _requiresSubtype ? _subtype : null,

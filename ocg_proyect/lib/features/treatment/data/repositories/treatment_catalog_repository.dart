@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
-import '../models/patient_treatment.dart';
 import '../models/treatment_catalog_item.dart';
 
 class TreatmentCatalogRepository {
@@ -12,77 +11,66 @@ class TreatmentCatalogRepository {
   CollectionReference<Map<String, dynamic>> get _catalogRef =>
       _db.collection(FirestorePaths.treatmentCatalog);
 
-  Stream<List<TreatmentCatalogItem>> watchActiveCatalog() {
-    return _catalogRef.where('active', isEqualTo: true).snapshots().map((snapshot) {
-      final items = snapshot.docs
-          .map((doc) => TreatmentCatalogItem.fromJson(doc.data(), id: doc.id))
+  Stream<List<TreatmentCatalogItem>> watchCatalog() {
+    return _catalogRef.orderBy('name').snapshots().map((snap) {
+      final remote = snap.docs
+          .map((doc) => TreatmentCatalogItem.fromJson(doc.data()))
+          .where((item) => item.active)
           .toList();
-      items.sort((a, b) {
-        if (a.isSystemDefault != b.isSystemDefault) return a.isSystemDefault ? -1 : 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
-      return items;
+      if (remote.isEmpty) return TreatmentCatalogItem.defaults;
+      final merged = [...remote];
+      for (final item in TreatmentCatalogItem.defaults) {
+        final exists = merged.any(
+          (e) => e.normalizedName == item.normalizedName,
+        );
+        if (!exists) merged.add(item);
+      }
+      merged.sort((a, b) => a.name.compareTo(b.name));
+      return merged;
     });
   }
 
-  Future<TreatmentCatalogItem?> findByNormalizedName(String normalizedName) async {
-    final clean = normalizeCatalogName(normalizedName);
-    if (clean.isEmpty) return null;
-
-    final snapshot = await _catalogRef.where('normalizedName', isEqualTo: clean).limit(1).get();
-    if (snapshot.docs.isEmpty) return null;
-    final doc = snapshot.docs.first;
-    return TreatmentCatalogItem.fromJson(doc.data(), id: doc.id);
-  }
-
-  Future<TreatmentCatalogItem> ensureCustomTreatmentExists({
-    required String displayName,
-    required String category,
-    required String createdBy,
+  Future<TreatmentCatalogItem> createCatalogItem({
+    required String name,
+    String category = 'ortodoncia',
+    String? createdBy,
   }) async {
-    final normalized = normalizeCatalogName(displayName);
-    final cleanName = normalizeHumanName(displayName);
-    if (normalized.isEmpty || cleanName.isEmpty) {
-      throw Exception('TREATMENT_CATALOG_NAME_REQUIRED');
+    final normalized = _normalize(name);
+    final existing = await _catalogRef
+        .where('normalizedName', isEqualTo: normalized)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) {
+      return TreatmentCatalogItem.fromJson(existing.docs.first.data());
     }
 
-    final existing = await findByNormalizedName(normalized);
-    if (existing != null) return existing;
-
-    final docRef = _catalogRef.doc(normalized);
+    final now = DateTime.now();
+    final ref = _catalogRef.doc(normalized);
     final item = TreatmentCatalogItem(
-      id: docRef.id,
-      name: cleanName,
+      id: ref.id,
+      name: name.trim(),
       normalizedName: normalized,
-      category: category.trim().isEmpty ? 'ortodoncia' : category.trim().toLowerCase(),
+      category: category,
       baseType: normalized,
       requiresSubtype: false,
       allowedSubtypes: const <String>[],
-      isSystemDefault: false,
       active: true,
-      createdAt: DateTime.now(),
-      createdBy: createdBy,
+      createdAt: now,
+      updatedAt: now,
     );
-
-    await docRef.set(item.toJson(), SetOptions(merge: true));
+    await ref.set({
+      ...item.toJson(),
+      'createdBy': createdBy ?? 'system',
+      'updatedBy': createdBy ?? 'system',
+    }, SetOptions(merge: true));
     return item;
   }
 
-  static String normalizeCatalogName(String value) {
+  String _normalize(String value) {
     return value
         .trim()
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9áéíóúñü\s]'), '')
         .replaceAll(RegExp(r'\s+'), '_');
-  }
-
-  static String normalizeHumanName(String value) {
-    final clean = value.trim();
-    if (clean.isEmpty) return '';
-    return clean
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .map((word) => PatientTreatment.labelForBaseTreatment(word))
-        .join(' ');
   }
 }

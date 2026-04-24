@@ -40,6 +40,9 @@ class PatientTreatment {
     required this.id,
     required this.patientId,
     required this.nombre,
+    this.catalogTreatmentId,
+    this.clinicalTreatmentName,
+    this.visibleName,
     required this.categoria,
     required this.tipoBase,
     this.subtipo,
@@ -64,6 +67,9 @@ class PatientTreatment {
   final String id;
   final String patientId;
   final String nombre;
+  final String? catalogTreatmentId;
+  final String? clinicalTreatmentName;
+  final String? visibleName;
   final String categoria;
   final String tipoBase;
   final String? subtipo;
@@ -170,10 +176,15 @@ class PatientTreatment {
       nombre:
           (json['name'] ??
                   json['nombre'] ??
+                  json['visibleName'] ??
+                  json['clinicalTreatmentName'] ??
                   json['baseType'] ??
                   json['tipoBase'] ??
                   '')
               .toString(),
+      catalogTreatmentId: (json['catalogTreatmentId'] as String?)?.trim(),
+      clinicalTreatmentName: (json['clinicalTreatmentName'] as String?)?.trim(),
+      visibleName: (json['visibleName'] as String?)?.trim(),
       categoria: (json['category'] ?? json['categoria'] ?? 'ortodoncia')
           .toString(),
       tipoBase: (json['baseType'] ?? json['tipoBase'] ?? '').toString(),
@@ -245,6 +256,9 @@ class PatientTreatment {
   PatientTreatment copyWith({
     String? id,
     String? nombre,
+    String? catalogTreatmentId,
+    String? clinicalTreatmentName,
+    String? visibleName,
     String? categoria,
     String? tipoBase,
     String? patientId,
@@ -273,6 +287,10 @@ class PatientTreatment {
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       nombre: nombre ?? this.nombre,
+      catalogTreatmentId: catalogTreatmentId ?? this.catalogTreatmentId,
+      clinicalTreatmentName:
+          clinicalTreatmentName ?? this.clinicalTreatmentName,
+      visibleName: visibleName ?? this.visibleName,
       categoria: categoria ?? this.categoria,
       tipoBase: tipoBase ?? this.tipoBase,
       subtipo: clearSubtype ? null : (subtipo ?? this.subtipo),
@@ -316,6 +334,9 @@ class PatientTreatment {
       'id': id,
       'patientId': patientId,
       'name': cleanName,
+      'catalogTreatmentId': catalogTreatmentId,
+      'clinicalTreatmentName': (clinicalTreatmentName ?? cleanName).trim(),
+      'visibleName': (visibleName ?? cleanName).trim(),
       'category': cleanCategory,
       'baseType': cleanBaseType,
       'subtype': cleanSubtype,

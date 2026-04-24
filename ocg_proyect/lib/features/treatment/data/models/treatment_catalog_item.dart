@@ -9,10 +9,9 @@ class TreatmentCatalogItem {
     required this.baseType,
     required this.requiresSubtype,
     required this.allowedSubtypes,
-    required this.isSystemDefault,
     required this.active,
-    required this.createdAt,
-    this.createdBy,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -22,50 +21,107 @@ class TreatmentCatalogItem {
   final String baseType;
   final bool requiresSubtype;
   final List<String> allowedSubtypes;
-  final bool isSystemDefault;
   final bool active;
-  final DateTime createdAt;
-  final String? createdBy;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
-  factory TreatmentCatalogItem.fromJson(Map<String, dynamic> json, {String? id}) {
+  static const defaults = <TreatmentCatalogItem>[
+    TreatmentCatalogItem(
+      id: 'ortopedia',
+      name: 'Ortopedia',
+      normalizedName: 'ortopedia',
+      category: 'ortodoncia',
+      baseType: 'ortopedia',
+      requiresSubtype: false,
+      allowedSubtypes: <String>[],
+      active: true,
+    ),
+    TreatmentCatalogItem(
+      id: 'ortodoncia_convencional',
+      name: 'Ortodoncia convencional',
+      normalizedName: 'ortodoncia_convencional',
+      category: 'ortodoncia',
+      baseType: 'convencional',
+      requiresSubtype: true,
+      allowedSubtypes: <String>['metalico', 'estetico'],
+      active: true,
+    ),
+    TreatmentCatalogItem(
+      id: 'ortodoncia_autoligado',
+      name: 'Ortodoncia autoligado',
+      normalizedName: 'ortodoncia_autoligado',
+      category: 'ortodoncia',
+      baseType: 'autoligado',
+      requiresSubtype: true,
+      allowedSubtypes: <String>['metalico', 'estetico'],
+      active: true,
+    ),
+    TreatmentCatalogItem(
+      id: 'retenedores',
+      name: 'Retenedores',
+      normalizedName: 'retenedores',
+      category: 'ortodoncia',
+      baseType: 'retenedores',
+      requiresSubtype: false,
+      allowedSubtypes: <String>[],
+      active: true,
+    ),
+    TreatmentCatalogItem(
+      id: 'blanqueamiento',
+      name: 'Blanqueamiento',
+      normalizedName: 'blanqueamiento',
+      category: 'estetica',
+      baseType: 'blanqueamiento',
+      requiresSubtype: false,
+      allowedSubtypes: <String>[],
+      active: true,
+    ),
+    TreatmentCatalogItem(
+      id: 'diseno_sonrisa',
+      name: 'Diseño de sonrisa',
+      normalizedName: 'diseno_sonrisa',
+      category: 'estetica',
+      baseType: 'diseno_sonrisa',
+      requiresSubtype: false,
+      allowedSubtypes: <String>[],
+      active: true,
+    ),
+  ];
+
+  factory TreatmentCatalogItem.fromJson(Map<String, dynamic> json) {
     return TreatmentCatalogItem(
-      id: id ?? (json['id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
-      normalizedName: (json['normalizedName'] ?? '').toString(),
-      category: (json['category'] ?? 'ortodoncia').toString(),
-      baseType: (json['baseType'] ?? json['normalizedName'] ?? '').toString(),
-      requiresSubtype: (json['requiresSubtype'] as bool?) ?? false,
-      allowedSubtypes: ((json['allowedSubtypes'] as List?) ?? const <dynamic>[])
-          .map((item) => item.toString())
-          .where((item) => item.trim().isNotEmpty)
+      id: json['id'] as String,
+      name: json['name'] as String? ?? '',
+      normalizedName: json['normalizedName'] as String? ?? '',
+      category: json['category'] as String? ?? 'ortodoncia',
+      baseType: json['baseType'] as String? ?? 'convencional',
+      requiresSubtype: json['requiresSubtype'] as bool? ?? false,
+      allowedSubtypes: (json['allowedSubtypes'] as List<dynamic>? ?? const [])
+          .map((e) => e.toString())
           .toList(),
-      isSystemDefault: (json['isSystemDefault'] as bool?) ?? false,
-      active: (json['active'] as bool?) ?? true,
+      active: json['active'] as bool? ?? true,
       createdAt: _parseDate(json['createdAt']),
-      createdBy: json['createdBy']?.toString(),
+      updatedAt: _parseDate(json['updatedAt']),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-      'name': name,
-      'normalizedName': normalizedName,
-      'category': category,
-      'baseType': baseType,
-      'requiresSubtype': requiresSubtype,
-      'allowedSubtypes': allowedSubtypes,
-      'isSystemDefault': isSystemDefault,
-      'active': active,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'createdBy': createdBy,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'normalizedName': normalizedName,
+    'category': category,
+    'baseType': baseType,
+    'requiresSubtype': requiresSubtype,
+    'allowedSubtypes': allowedSubtypes,
+    'active': active,
+    'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
+    'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
+  };
 
-  static DateTime _parseDate(dynamic value) {
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
-    return DateTime.now();
+    return null;
   }
 }
