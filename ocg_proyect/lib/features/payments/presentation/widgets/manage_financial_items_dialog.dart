@@ -4,10 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/utils/currency_input_formatter.dart';
-import '../../../auth/providers/auth_providers.dart';
-import '../../../treatment/data/models/patient_treatment.dart';
 import '../../data/models/financial_item_model.dart';
 import '../../providers/treatment_financial_provider.dart';
+import '../../../treatment/data/models/patient_treatment.dart';
 
 class ManageFinancialItemsDialog extends ConsumerStatefulWidget {
   const ManageFinancialItemsDialog({
@@ -28,423 +27,283 @@ class ManageFinancialItemsDialog extends ConsumerStatefulWidget {
 
 class _ManageFinancialItemsDialogState
     extends ConsumerState<ManageFinancialItemsDialog> {
-  late List<_EditableFinancialItem> _items;
+  final Map<String, TextEditingController> _amountCtrls = {};
+  final Map<String, TextEditingController> _qtyCtrls = {};
+  late List<FinancialItemModel> _items;
+  bool _saving = false;
+
+  bool get _isOrtopedia => widget.treatment.tipoBase == 'ortopedia';
 
   @override
   void initState() {
     super.initState();
-    _items = widget.initialItems
-        .map((item) => _EditableFinancialItem.fromModel(item))
-        .toList();
+    _items = widget.initialItems.map((e) => e).toList();
+    for (final item in _items) {
+      _amountCtrls[item.id] = TextEditingController(
+        text: _toCurrencyInput(
+          item.kind == 'controls' ? item.effectiveUnitAmount : item.amount,
+        ),
+      );
+      _qtyCtrls[item.id] = TextEditingController(
+        text: '${item.effectiveQuantity}',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _amountCtrls.values) {
+      c.dispose();
+    }
+    for (final c in _qtyCtrls.values) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final saveState = ref.watch(saveTreatmentFinancialItemsProvider);
-    final total = _items
-        .where((item) => item.active)
-        .fold<double>(0, (sum, item) => sum + item.effectiveAmount);
-
-    return AlertDialog(
-      title: Text('Conceptos financieros · ${widget.treatment.displayName}'),
-      content: SizedBox(
+    final filtered = _visibleItems();
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
         width: 760,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < _items.length; i++) ...[
-                _FinancialItemEditorRow(
-                  item: _items[i],
-                  onChanged: (next) => setState(() => _items[i] = next),
-                  onRemove: _items[i].isRequired
-                      ? null
-                      : () => setState(() => _items.removeAt(i)),
-                ),
-                const SizedBox(height: 10),
-              ],
-              OutlinedButton.icon(
-                onPressed: saveState.isLoading ? null : _addItem,
-                icon: const Icon(Icons.add),
-                label: const Text('Agregar nuevo concepto'),
+        constraints: const BoxConstraints(maxHeight: 720),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFCF8F3),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE7DDD2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Editar conceptos financieros',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: OcgColors.mist,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Total calculado automáticamente: ${_formatCop(total)}',
-                  style: const TextStyle(
-                    color: OcgColors.espresso,
-                    fontWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              widget.treatment.displayName,
+              style: const TextStyle(
+                color: Color(0xFF8A6F59),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.separated(
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) =>
+                    _buildItemCard(filtered[index]),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: const Text('Cancelar'),
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OcgColors.espresso,
+                    ),
+                    child: Text(_saving ? 'Guardando...' : 'Guardar conceptos'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(FinancialItemModel item) {
+    final amountCtrl = _amountCtrls[item.id]!;
+    final qtyCtrl = _qtyCtrls[item.id]!;
+    final isControls = item.kind == 'controls';
+    final locked = item.kind == 'initial' || item.kind == 'controls';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8D8C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.name,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              Switch.adaptive(
+                value: item.active,
+                onChanged: locked
+                    ? null
+                    : (value) => setState(() {
+                        _replaceItem(item.copyWith(active: value));
+                      }),
               ),
             ],
           ),
-        ),
-      ),
-      actions: [
-        OutlinedButton(
-          onPressed: saveState.isLoading
-              ? null
-              : () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: OcgColors.espresso,
-            foregroundColor: OcgColors.ivory,
-          ),
-          onPressed: saveState.isLoading ? null : _save,
-          child: saveState.isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: OcgColors.ivory,
-                  ),
-                )
-              : const Text('Guardar conceptos'),
-        ),
-      ],
-    );
-  }
-
-  void _addItem() {
-    final index = _items.length + 1;
-    _items.add(
-      _EditableFinancialItem(
-        id: 'extra_${DateTime.now().microsecondsSinceEpoch}',
-        name: 'Concepto $index',
-        kind: 'extra',
-        amount: 0,
-        unitAmount: 0,
-        quantity: 1,
-        order: index,
-        active: true,
-        deletable: true,
-        editableName: true,
-        createdAt: DateTime.now(),
-      ),
-    );
-    setState(() {});
-  }
-
-  Future<void> _save() async {
-    try {
-      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
-      final models = <FinancialItemModel>[];
-      for (int i = 0; i < _items.length; i++) {
-        final item = _items[i];
-        final cleanName = item.name.trim();
-        if (cleanName.isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
-        if (item.amount < 0 || item.unitAmount < 0) {
-          throw Exception('FINANCIAL_ITEM_NEGATIVE_AMOUNT');
-        }
-        if (item.kind == 'controls' && item.quantity < 1) {
-          throw Exception('FINANCIAL_ITEM_INVALID_QUANTITY');
-        }
-        models.add(
-          FinancialItemModel(
-            id: item.id,
-            patientId: widget.patientId,
-            treatmentId: widget.treatment.id,
-            name: cleanName,
-            normalizedName: FinancialItemModel.normalizeName(cleanName),
-            kind: item.kind,
-            amount: item.effectiveAmount,
-            unitAmount: item.kind == 'controls' ? item.unitAmount : null,
-            quantity: item.kind == 'controls' ? item.quantity : null,
-            deletable: item.deletable,
-            editableName: item.editableName,
-            order: i + 1,
-            active: item.active,
-            createdByAdmin: true,
-            createdBy: item.createdBy ?? adminId,
-            updatedBy: adminId,
-            createdAt: item.createdAt,
-            updatedAt: DateTime.now(),
-          ),
-        );
-      }
-
-      await ref
-          .read(saveTreatmentFinancialItemsProvider.notifier)
-          .replaceItems(
-            patientId: widget.patientId,
-            treatment: widget.treatment,
-            items: models,
-            updatedBy: adminId,
-          );
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_mapError(e))));
-    }
-  }
-
-  String _mapError(Object error) {
-    final raw = error.toString();
-    if (raw.contains('REQUIRED_FINANCIAL_ITEMS_MISSING')) {
-      return 'Inicial y Controles son obligatorios.';
-    }
-    if (raw.contains('FINANCIAL_ITEM_NAME_REQUIRED')) {
-      return 'Todos los conceptos deben tener nombre.';
-    }
-    if (raw.contains('FINANCIAL_ITEM_NEGATIVE_AMOUNT')) {
-      return 'No se permiten montos negativos.';
-    }
-    if (raw.contains('FINANCIAL_ITEM_DUPLICATE_NAME')) {
-      return 'No repitas nombres de conceptos.';
-    }
-    if (raw.contains('FINANCIAL_ITEM_INVALID_QUANTITY')) {
-      return 'Controles debe tener una cantidad válida mayor o igual a 1.';
-    }
-    return raw;
-  }
-
-  String _formatCop(double amount) {
-    final value = amount.round().toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < value.length; i++) {
-      final posFromEnd = value.length - i;
-      buffer.write(value[i]);
-      if (posFromEnd > 1 && posFromEnd % 3 == 1) buffer.write('.');
-    }
-    return '\$${buffer.toString()} COP';
-  }
-}
-
-class _FinancialItemEditorRow extends StatelessWidget {
-  const _FinancialItemEditorRow({
-    required this.item,
-    required this.onChanged,
-    required this.onRemove,
-  });
-
-  final _EditableFinancialItem item;
-  final ValueChanged<_EditableFinancialItem> onChanged;
-  final VoidCallback? onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final nameController = TextEditingController(text: item.name);
-    final amountController = TextEditingController(
-      text: item.unitAmount == 0
-          ? ''
-          : CurrencyInputFormatter.formatDigits(
-              item.unitAmount.toStringAsFixed(0),
-            ),
-    );
-    final quantityController = TextEditingController(
-      text: item.kind == 'controls' ? item.quantity.toString() : '',
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        children: [
+          const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 4,
-                child: TextFormField(
-                  controller: nameController,
-                  enabled: item.editableName,
-                  decoration: InputDecoration(
-                    labelText: item.isRequired
-                        ? '${item.kind == 'initial' ? 'Inicial' : 'Controles'} (obligatorio)'
-                        : 'Concepto',
-                  ),
-                  onChanged: (value) => onChanged(item.copyWith(name: value)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: item.kind == 'controls' ? 2 : 3,
-                child: TextFormField(
-                  controller: amountController,
+                flex: 2,
+                child: TextField(
+                  controller: amountCtrl,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     CurrencyInputFormatter(),
                   ],
                   decoration: InputDecoration(
-                    labelText: item.kind == 'controls'
-                        ? 'Valor unitario COP'
-                        : 'Monto COP',
-                  ),
-                  onChanged: (value) => onChanged(
-                    item.copyWith(
-                      unitAmount:
-                          CurrencyInputFormatter.parseToDouble(value) ?? 0,
+                    labelText: isControls ? 'Valor unitario' : 'Monto',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
+                  onChanged: (value) {
+                    final parsed = _parseMoney(value);
+                    setState(() {
+                      if (isControls) {
+                        _replaceItem(item.copyWith(unitAmount: parsed));
+                      } else {
+                        _replaceItem(item.copyWith(amount: parsed));
+                      }
+                    });
+                  },
                 ),
               ),
-              if (item.kind == 'controls') ...[
-                const SizedBox(width: 10),
+              if (isControls) ...[
+                const SizedBox(width: 12),
                 Expanded(
-                  flex: 1,
-                  child: TextFormField(
-                    controller: quantityController,
+                  child: TextField(
+                    controller: qtyCtrl,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(labelText: 'Cantidad'),
-                    onChanged: (value) => onChanged(
-                      item.copyWith(quantity: int.tryParse(value.trim()) ?? 1),
+                    decoration: InputDecoration(
+                      labelText: 'Cantidad',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
+                    onChanged: (value) {
+                      final qty = int.tryParse(value.trim()) ?? 0;
+                      setState(() {
+                        _replaceItem(
+                          item.copyWith(quantity: qty <= 0 ? 1 : qty),
+                        );
+                      });
+                    },
                   ),
                 ),
               ],
-              const SizedBox(width: 8),
-              Switch(
-                value: item.active,
-                onChanged: item.isRequired
-                    ? null
-                    : (value) => onChanged(item.copyWith(active: value)),
-              ),
-              IconButton(
-                onPressed: onRemove,
-                icon: const Icon(Icons.delete_outline),
-              ),
             ],
           ),
-          if (item.kind == 'controls') ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Fórmula: ${_formatCop(item.unitAmount)} × ${item.quantity} = ${_formatCop(item.effectiveAmount)}',
-                style: const TextStyle(
-                  color: OcgColors.espresso,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          const SizedBox(height: 10),
+          Text(
+            isControls
+                ? 'Total: ${_money(item.effectiveUnitAmount * item.effectiveQuantity)}'
+                : 'Total: ${_money(item.amount)}',
+            style: const TextStyle(
+              color: Color(0xFF8A6F59),
+              fontWeight: FontWeight.w700,
             ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  String _formatCop(double amount) {
-    final value = amount.round().toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < value.length; i++) {
-      final posFromEnd = value.length - i;
-      buffer.write(value[i]);
-      if (posFromEnd > 1 && posFromEnd % 3 == 1) buffer.write('.');
+  List<FinancialItemModel> _visibleItems() {
+    final base = _items.where((item) {
+      if (_isOrtopedia) {
+        return item.kind == 'initial' ||
+            item.kind == 'controls' ||
+            item.normalizedName.contains('aparato') ||
+            (item.active && item.kind == 'extra');
+      }
+      return item.kind == 'initial' ||
+          item.kind == 'controls' ||
+          item.normalizedName.contains('reten') ||
+          (item.active && item.kind == 'extra');
+    }).toList();
+    base.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    return base;
+  }
+
+  void _replaceItem(FinancialItemModel updated) {
+    final index = _items.indexWhere((i) => i.id == updated.id);
+    if (index >= 0) _items[index] = updated;
+  }
+
+  Future<void> _save() async {
+    final initial = _items.where((i) => i.kind == 'initial').first;
+    final controls = _items.where((i) => i.kind == 'controls').first;
+    if (initial.amount <= 0 || controls.effectiveUnitAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicial y Controles son obligatorios.')),
+      );
+      return;
     }
-    return '\$${buffer.toString()}';
-  }
-}
-
-class _EditableFinancialItem {
-  const _EditableFinancialItem({
-    required this.id,
-    required this.name,
-    required this.kind,
-    required this.amount,
-    required this.unitAmount,
-    required this.quantity,
-    required this.order,
-    required this.active,
-    required this.deletable,
-    required this.editableName,
-    this.createdBy,
-    required this.createdAt,
-  });
-
-  final String id;
-  final String name;
-  final String kind;
-  final double amount;
-  final double unitAmount;
-  final int quantity;
-  final int order;
-  final bool active;
-  final bool deletable;
-  final bool editableName;
-  final String? createdBy;
-  final DateTime createdAt;
-
-  bool get isRequired => kind == 'initial' || kind == 'controls';
-  double get effectiveAmount =>
-      kind == 'controls' ? unitAmount * quantity : amount;
-
-  factory _EditableFinancialItem.fromModel(FinancialItemModel item) {
-    return _EditableFinancialItem(
-      id: item.id,
-      name: item.name,
-      kind: item.kind,
-      amount: item.kind == 'controls' ? item.effectiveUnitAmount : item.amount,
-      unitAmount: item.kind == 'controls'
-          ? item.effectiveUnitAmount
-          : item.amount,
-      quantity: item.kind == 'controls' ? item.effectiveQuantity : 1,
-      order: item.order,
-      active: item.active,
-      deletable: item.deletable,
-      editableName: item.editableName,
-      createdBy: item.createdBy,
-      createdAt: item.createdAt,
-    );
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(treatmentFinancialRepositoryProvider);
+      for (final item in _visibleItems()) {
+        await repo.upsertItem(
+          patientId: widget.patientId,
+          treatmentId: widget.treatment.id,
+          item: item,
+        );
+      }
+      if (mounted) Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
-  _EditableFinancialItem copyWith({
-    String? id,
-    String? name,
-    String? kind,
-    double? amount,
-    double? unitAmount,
-    int? quantity,
-    int? order,
-    bool? active,
-    bool? deletable,
-    bool? editableName,
-    String? createdBy,
-    DateTime? createdAt,
-  }) {
-    final nextKind = kind ?? this.kind;
-    final nextUnit = nextKind == 'controls'
-        ? (unitAmount ?? this.unitAmount)
-        : (amount ?? this.amount);
-    final nextQty = nextKind == 'controls'
-        ? ((quantity ?? this.quantity) < 1 ? 1 : (quantity ?? this.quantity))
-        : 1;
-    final nextAmount = nextKind == 'controls'
-        ? nextUnit * nextQty
-        : (amount ?? this.amount);
-
-    return _EditableFinancialItem(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      kind: nextKind,
-      amount: nextAmount,
-      unitAmount: nextUnit,
-      quantity: nextQty,
-      order: order ?? this.order,
-      active: active ?? this.active,
-      deletable: deletable ?? this.deletable,
-      editableName: editableName ?? this.editableName,
-      createdBy: createdBy ?? this.createdBy,
-      createdAt: createdAt ?? this.createdAt,
-    );
+  double _parseMoney(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return double.tryParse(digits) ?? 0;
   }
+
+  String _toCurrencyInput(double value) {
+    final integer = value.round();
+    if (integer <= 0) return '';
+    final text = integer.toString();
+    final chars = text.split('').reversed.toList();
+    final buffer = StringBuffer();
+    for (var i = 0; i < chars.length; i++) {
+      if (i > 0 && i % 3 == 0) buffer.write('.');
+      buffer.write(chars[i]);
+    }
+    return buffer.toString().split('').reversed.join();
+  }
+
+  String _money(double value) => _toCurrencyInput(value);
 }
