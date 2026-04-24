@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../shared/theme/ocg_colors.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../patients/data/models/patient_model.dart';
+import '../../../payments/data/models/financial_item_model.dart';
+import '../../../payments/data/models/treatment_financial_summary_model.dart';
+import '../../../payments/providers/treatment_financial_provider.dart';
 import '../../data/models/patient_treatment.dart';
 import '../../providers/patient_treatments_provider.dart';
 
@@ -26,8 +31,16 @@ class ManagePatientTreatmentDialog extends ConsumerStatefulWidget {
 class _ManagePatientTreatmentDialogState
     extends ConsumerState<ManagePatientTreatmentDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _currency = NumberFormat.currency(
+    locale: 'es_CO',
+    symbol: r'$ ',
+    decimalDigits: 0,
+  );
+
   late final TextEditingController _nameCtrl;
   late final TextEditingController _notesCtrl;
+  late final TextEditingController _cleaningCtrl;
+  late final TextEditingController _controlCtrl;
   late String _baseType;
   String? _subtype;
   late String _status;
@@ -35,8 +48,9 @@ class _ManagePatientTreatmentDialogState
   late DateTime _startDate;
   late DateTime _nextCleaningDate;
   late DateTime _nextControlDate;
-  bool _isPrimary = false;
+  late bool _isPrimary;
 
+  bool get _editing => widget.initialTreatment != null;
   bool get _requiresSubtype =>
       kSubtypeRequiredBaseTreatments.contains(_baseType);
 
@@ -46,6 +60,12 @@ class _ManagePatientTreatmentDialogState
     final initial = widget.initialTreatment;
     _nameCtrl = TextEditingController(text: initial?.nombre ?? '');
     _notesCtrl = TextEditingController(text: initial?.notas ?? '');
+    _cleaningCtrl = TextEditingController(
+      text: (initial?.suggestedCleaningEveryMonths ?? 3).toString(),
+    );
+    _controlCtrl = TextEditingController(
+      text: (initial?.suggestedControlEveryMonths ?? 6).toString(),
+    );
     _baseType = initial?.tipoBase ?? 'convencional';
     _subtype = initial?.subtipo;
     _status = initial?.estado ?? 'activo';
@@ -63,220 +83,657 @@ class _ManagePatientTreatmentDialogState
   void dispose() {
     _nameCtrl.dispose();
     _notesCtrl.dispose();
+    _cleaningCtrl.dispose();
+    _controlCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final saveState = ref.watch(savePatientTreatmentProvider);
-    final editing = widget.initialTreatment != null;
+    final existingTreatments =
+        ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
+        const <PatientTreatment>[];
+    final otherPrimary = existingTreatments
+        .where((t) => t.id != widget.initialTreatment?.id && t.isPrimary)
+        .cast<PatientTreatment?>()
+        .firstWhere((t) => t != null, orElse: () => null);
+    final canTogglePrimary = !_editing || !_isPrimary || otherPrimary != null;
 
-    ref.listen<AsyncValue<void>>(savePatientTreatmentProvider, (
-      previous,
-      next,
-    ) {
+    ref.listen<AsyncValue<void>>(savePatientTreatmentProvider, (prev, next) {
       next.whenOrNull(
         data: (_) {
-          if (previous?.isLoading == true && mounted) {
+          if (prev?.isLoading == true && mounted) {
             Navigator.of(context).pop(true);
           }
         },
         error: (error, _) {
-          final message = _mapTreatmentError(error);
+          if (!mounted) return;
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text(message)));
+          ).showSnackBar(SnackBar(content: Text(_mapTreatmentError(error))));
         },
       );
     });
 
-    return AlertDialog(
-      title: Text(editing ? 'Editar tratamiento' : 'Crear tratamiento'),
-      content: SizedBox(
-        width: 460,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
+    final financialItemsAsync = widget.initialTreatment == null
+        ? const AsyncValue<List<FinancialItemModel>>.data(
+            <FinancialItemModel>[],
+          )
+        : ref.watch(
+            treatmentFinancialItemsProvider((
+              patientId: widget.patientId,
+              treatmentId: widget.initialTreatment!.id,
+            )),
+          );
+
+    final financialSummary = _buildFinancialSummary(
+      widget.initialTreatment,
+      financialItemsAsync.asData?.value ?? const <FinancialItemModel>[],
+    );
+
+    final media = MediaQuery.sizeOf(context);
+    final wide = media.width >= 980;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: wide ? 1080 : media.width - 32,
+        constraints: BoxConstraints(maxHeight: media.height - 48),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFCF8F3),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE7DDD2)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1F2C2016),
+              blurRadius: 28,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.patientName,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre del tratamiento',
-                    hintText: 'Ej. Brackets metálicos',
-                  ),
-                  validator: (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return 'Ingresa el nombre del tratamiento';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _baseType,
-                  decoration: const InputDecoration(labelText: 'Tipo base'),
-                  items: kBaseTreatmentOptions
-                      .map(
-                        (item) => DropdownMenuItem<String>(
-                          value: item,
-                          child: Text(
-                            PatientTreatment.labelForBaseTreatment(item),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: saveState.isLoading
-                      ? null
-                      : (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _baseType = value;
-                            if (!_requiresSubtype) {
-                              _subtype = null;
-                            } else {
-                              _subtype ??= 'metalico';
-                            }
-                          });
-                        },
-                ),
-                if (_requiresSubtype) ...[
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: (_subtype != null && _subtype!.isNotEmpty)
-                        ? _subtype
-                        : 'metalico',
-                    decoration: const InputDecoration(labelText: 'Subtipo'),
-                    items: kTreatmentSubtypes
-                        .map(
-                          (item) => DropdownMenuItem<String>(
-                            value: item,
-                            child: Text(
-                              PatientTreatment.labelForBaseTreatment(item),
+                _buildHeader(otherPrimary),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final split = constraints.maxWidth >= 900;
+                      if (split) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _buildClinicalColumn(
+                                  saveState.isLoading,
+                                  canTogglePrimary,
+                                  otherPrimary,
+                                ),
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: saveState.isLoading
-                        ? null
-                        : (value) => setState(() => _subtype = value),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(labelText: 'Estado'),
-                  items: kTreatmentStatusOptions
-                      .map(
-                        (item) => DropdownMenuItem<String>(
-                          value: item,
-                          child: Text(
-                            PatientTreatment.labelForBaseTreatment(item),
-                          ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              flex: 4,
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: _buildFinancialColumn(
+                                  financialItemsAsync,
+                                  financialSummary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildClinicalColumn(
+                              saveState.isLoading,
+                              canTogglePrimary,
+                              otherPrimary,
+                            ),
+                            const SizedBox(height: 18),
+                            _buildFinancialColumn(
+                              financialItemsAsync,
+                              financialSummary,
+                            ),
+                          ],
                         ),
-                      )
-                      .toList(),
-                  onChanged: saveState.isLoading
-                      ? null
-                      : (value) {
-                          if (value != null) setState(() => _status = value);
-                        },
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<TreatmentStage>(
-                  initialValue: _stage,
-                  decoration: const InputDecoration(labelText: 'Etapa actual'),
-                  items: TreatmentStage.values
-                      .map(
-                        (stage) => DropdownMenuItem<TreatmentStage>(
-                          value: stage,
-                          child: Text(stageNames[stage] ?? stage.name),
+                const SizedBox(height: 18),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton(
+                      onPressed: saveState.isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: Color(0xFFD9CCBE)),
+                        foregroundColor: OcgColors.espresso,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      )
-                      .toList(),
-                  onChanged: saveState.isLoading
-                      ? null
-                      : (value) {
-                          if (value != null) setState(() => _stage = value);
-                        },
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Fecha de inicio'),
-                  subtitle: Text(_formatDate(_startDate)),
-                  trailing: const Icon(Icons.calendar_today_outlined, size: 18),
-                  onTap: saveState.isLoading ? null : _pickStartDate,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Próxima limpieza'),
-                  subtitle: Text(_formatDate(_nextCleaningDate)),
-                  trailing: const Icon(
-                    Icons.event_available_outlined,
-                    size: 18,
-                  ),
-                  onTap: saveState.isLoading
-                      ? null
-                      : () => _pickRecurringDate(isCleaning: true),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Próximo control'),
-                  subtitle: Text(_formatDate(_nextControlDate)),
-                  trailing: const Icon(Icons.event_repeat_outlined, size: 18),
-                  onTap: saveState.isLoading
-                      ? null
-                      : () => _pickRecurringDate(isCleaning: false),
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _isPrimary,
-                  onChanged: saveState.isLoading
-                      ? null
-                      : (value) => setState(() => _isPrimary = value ?? false),
-                  title: const Text('Marcar como tratamiento principal'),
-                  subtitle: const Text(
-                    'Si es el primer tratamiento del paciente, se guardará como principal automáticamente.',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _notesCtrl,
-                  minLines: 3,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas clínicas',
-                    hintText:
-                        'Observaciones, recomendaciones o contexto inicial',
-                  ),
+                      ),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton(
+                      onPressed: saveState.isLoading ? null : _submit,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OcgColors.espresso,
+                        foregroundColor: OcgColors.ivory,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        saveState.isLoading
+                            ? 'Guardando...'
+                            : (_editing
+                                  ? 'Guardar cambios'
+                                  : 'Guardar tratamiento'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: saveState.isLoading
-              ? null
-              : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+    );
+  }
+
+  Widget _buildHeader(PatientTreatment? otherPrimary) {
+    final badgeText = _isPrimary
+        ? 'Tratamiento principal activo.'
+        : (otherPrimary != null
+              ? 'Secundario. Principal actual: ${otherPrimary.displayName}.'
+              : 'Tratamiento secundario.');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: OcgColors.mist,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: OcgColors.espresso.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _editing ? 'Editar tratamiento' : 'Crear tratamiento',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Paciente: ${widget.patientName}',
+            style: const TextStyle(
+              color: Color(0xFF6E5644),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Configura el tratamiento clínico y su estructura de costos.',
+            style: TextStyle(color: Color(0xFF8A6F59)),
+          ),
+          const SizedBox(height: 12),
+          if (_isPrimary || otherPrimary != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E7DB),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.star_rounded,
+                    size: 16,
+                    color: OcgColors.espresso,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      badgeText,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClinicalColumn(
+    bool isLoading,
+    bool canTogglePrimary,
+    PatientTreatment? otherPrimary,
+  ) {
+    return Column(
+      children: [
+        _sectionCard(
+          title: 'Configuración clínica',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: _inputDecoration('Nombre del tratamiento'),
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? 'Ingresa el nombre del tratamiento'
+                    : null,
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: _baseType,
+                decoration: _inputDecoration('Tipo base'),
+                items: kBaseTreatmentOptions
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(
+                          PatientTreatment.labelForBaseTreatment(item),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isLoading
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _baseType = value;
+                          if (!_requiresSubtype) {
+                            _subtype = null;
+                          }
+                        });
+                      },
+              ),
+              if (_requiresSubtype) ...[
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: (_subtype?.isNotEmpty ?? false)
+                      ? _subtype
+                      : 'metalico',
+                  decoration: _inputDecoration('Subtipo'),
+                  items: kTreatmentSubtypes
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            PatientTreatment.labelForBaseTreatment(item),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: isLoading
+                      ? null
+                      : (value) => setState(() => _subtype = value),
+                ),
+              ],
+              const SizedBox(height: 14),
+              DropdownButtonFormField<TreatmentStage>(
+                initialValue: _stage,
+                decoration: _inputDecoration('Etapa actual'),
+                items: TreatmentStage.values
+                    .map(
+                      (stage) => DropdownMenuItem(
+                        value: stage,
+                        child: Text(stageNames[stage] ?? stage.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isLoading
+                    ? null
+                    : (value) {
+                        if (value != null) setState(() => _stage = value);
+                      },
+              ),
+              const SizedBox(height: 14),
+              _dateRow('Inicio', _startDate, isLoading, _pickStartDate),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cleaningCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration('Limpieza cada (meses)'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _controlCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: _inputDecoration('Control cada (meses)'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _dateRow(
+                'Próxima limpieza',
+                _nextCleaningDate,
+                isLoading,
+                () => _pickRecurringDate(isCleaning: true),
+              ),
+              const SizedBox(height: 10),
+              _dateRow(
+                'Próximo control',
+                _nextControlDate,
+                isLoading,
+                () => _pickRecurringDate(isCleaning: false),
+              ),
+            ],
+          ),
         ),
-        FilledButton(
-          onPressed: saveState.isLoading ? null : _submit,
-          child: Text(saveState.isLoading ? 'Guardando...' : 'Guardar'),
+        const SizedBox(height: 18),
+        _sectionCard(
+          title: 'Indicador de tratamiento principal',
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  _isPrimary && !canTogglePrimary
+                      ? 'Este es el único tratamiento principal actual. Para cambiarlo, marca otro tratamiento como principal.'
+                      : 'Activa este switch si deseas que este tratamiento sea el principal del paciente.',
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    height: 1.45,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Switch.adaptive(
+                value: _isPrimary,
+                onChanged: (!canTogglePrimary || isLoading)
+                    ? null
+                    : (value) => setState(() => _isPrimary = value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _sectionCard(
+          title: 'Notas clínicas',
+          child: TextFormField(
+            controller: _notesCtrl,
+            minLines: 5,
+            maxLines: 7,
+            decoration: _inputDecoration(
+              'Notas clínicas',
+              hint: 'Notas clínicas',
+            ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFinancialColumn(
+    AsyncValue<List<FinancialItemModel>> financialItemsAsync,
+    TreatmentFinancialSummaryModel summary,
+  ) {
+    return Column(
+      children: [
+        _sectionCard(
+          title: 'Resultado autocalculado',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Resultado autocalculado con Inicial + Controles + concepto base + extras activos.',
+                style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _currency.format(summary.totalAmount),
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Este valor no se edita manualmente. Se genera a partir de los conceptos financieros activos.',
+                style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _sectionCard(
+          title: 'Resumen financiero',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Snapshot antes de guardar, separado de los pagos reales del paciente.',
+                style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              _summaryRow('Moneda', summary.currency),
+              _summaryRow('Subtotal', _currency.format(summary.subtotalAmount)),
+              _summaryRow(
+                'Descuento',
+                _currency.format(summary.discountAmount),
+              ),
+              _summaryRow(
+                'Total',
+                _currency.format(summary.totalAmount),
+                emphasized: true,
+              ),
+              const SizedBox(height: 12),
+              financialItemsAsync.when(
+                loading: () => const LinearProgressIndicator(minHeight: 2),
+                error: (_, __) => const Text(
+                  'No se pudo cargar el detalle financiero.',
+                  style: TextStyle(color: Color(0xFF8A6F59)),
+                ),
+                data: (items) {
+                  final active = items.where((i) => i.active).length;
+                  return Text(
+                    '$active concepto(s) financiero(s) activo(s).',
+                    style: const TextStyle(color: Color(0xFF8A6F59)),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE9DED2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _dateRow(
+    String label,
+    DateTime value,
+    bool isLoading,
+    Future<void> Function() onTap,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatDate(value),
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: isLoading ? null : onTap,
+            child: const Text('Cambiar fecha'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, String value, {bool emphasized = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF6E5644)),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: emphasized ? OcgColors.espresso : OcgColors.bronze,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: const Color(0xFFF9F4EE),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE4D8CB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE4D8CB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: OcgColors.bronze, width: 1.4),
+      ),
+    );
+  }
+
+  TreatmentFinancialSummaryModel _buildFinancialSummary(
+    PatientTreatment? treatment,
+    List<FinancialItemModel> items,
+  ) {
+    final activeItems = items.where((item) => item.active).toList();
+    if (activeItems.isEmpty) {
+      final total = treatment?.totalTratamiento ?? 0;
+      final pending = treatment?.saldoPendiente ?? total;
+      final paid = (total - pending).clamp(0, double.infinity).toDouble();
+      return TreatmentFinancialSummaryModel(
+        currency: 'COP',
+        subtotalAmount: total,
+        discountAmount: 0,
+        totalAmount: total,
+        paidAmount: paid,
+        pendingAmount: pending,
+        itemsCount: 0,
+        lastPricingUpdateAt: DateTime.now(),
+      );
+    }
+
+    final total = activeItems.fold<double>(
+      0,
+      (sum, item) => sum + item.computedAmount,
+    );
+    final pending = treatment?.saldoPendiente ?? total;
+    final paid = (total - pending).clamp(0, double.infinity).toDouble();
+
+    return TreatmentFinancialSummaryModel(
+      currency: 'COP',
+      subtotalAmount: total,
+      discountAmount: 0,
+      totalAmount: total,
+      paidAmount: paid,
+      pendingAmount: pending,
+      itemsCount: activeItems.length,
+      lastPricingUpdateAt: DateTime.now(),
     );
   }
 
@@ -290,10 +747,6 @@ class _ManagePatientTreatmentDialogState
     if (picked != null) {
       setState(() {
         _startDate = picked;
-        if (widget.initialTreatment == null) {
-          _nextCleaningDate = _addMonths(picked, 3);
-          _nextControlDate = _addMonths(picked, 6);
-        }
       });
     }
   }
@@ -349,8 +802,9 @@ class _ManagePatientTreatmentDialogState
       isPrimary: _isPrimary,
       createdBy: previous?.createdBy ?? authUser?.uid ?? 'system',
       updatedBy: authUser?.uid ?? previous?.updatedBy ?? 'system',
-      suggestedCleaningEveryMonths: previous?.suggestedCleaningEveryMonths ?? 3,
-      suggestedControlEveryMonths: previous?.suggestedControlEveryMonths ?? 6,
+      suggestedCleaningEveryMonths:
+          int.tryParse(_cleaningCtrl.text.trim()) ?? 3,
+      suggestedControlEveryMonths: int.tryParse(_controlCtrl.text.trim()) ?? 6,
       nextCleaningDate: _nextCleaningDate,
       nextControlDate: _nextControlDate,
       totalTratamiento: previous?.totalTratamiento,

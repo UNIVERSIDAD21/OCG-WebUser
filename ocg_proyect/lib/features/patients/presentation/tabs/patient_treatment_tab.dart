@@ -422,6 +422,17 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 alignment: WrapAlignment.end,
                 children: [
                   _HeroActionButton(
+                    icon: Icons.add_circle_outline,
+                    label: 'Nuevo tratamiento',
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => ManagePatientTreatmentDialog(
+                        patientId: widget.patientId,
+                        patientName: widget.patient.nombre,
+                      ),
+                    ),
+                  ),
+                  _HeroActionButton(
                     icon: Icons.edit_outlined,
                     label: 'Editar tratamiento',
                     onPressed: () => showDialog<void>(
