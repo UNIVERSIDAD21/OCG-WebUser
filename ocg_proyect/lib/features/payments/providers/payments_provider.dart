@@ -377,40 +377,42 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
       notas: notas,
     );
 
-    try {
-      final tx = await repository.getLatestTransaction(
-        patientId,
-        treatmentId: treatmentId,
-      );
-      final summary = await repository.getPatientPayment(
-        patientId,
-        treatmentId: treatmentId,
-      );
-      final patientDoc = await FirebaseFirestore.instance
-          .collection(FirestorePaths.patients)
-          .doc(patientId)
-          .get();
-
-      if (tx != null && summary != null && patientDoc.exists) {
-        final patientData = patientDoc.data() ?? <String, dynamic>{};
-        final patientName = (patientData['nombre'] ?? '').toString();
-        final patientDocument =
-            (patientData['numeroDocumento'] ?? patientData['documento'] ?? '')
-                .toString();
-
-        await pdfService.generateAndUpload(
-          patientId: patientId,
-          transactionId: tx.id,
-          transaction: tx,
-          paymentSummary: summary,
-          patientName: patientName,
-          patientDocument: patientDocument,
+    unawaited(() async {
+      try {
+        final tx = await repository.getLatestTransaction(
+          patientId,
           treatmentId: treatmentId,
         );
+        final summary = await repository.getPatientPayment(
+          patientId,
+          treatmentId: treatmentId,
+        );
+        final patientDoc = await FirebaseFirestore.instance
+            .collection(FirestorePaths.patients)
+            .doc(patientId)
+            .get();
+
+        if (tx != null && summary != null && patientDoc.exists) {
+          final patientData = patientDoc.data() ?? <String, dynamic>{};
+          final patientName = (patientData['nombre'] ?? '').toString();
+          final patientDocument =
+              (patientData['numeroDocumento'] ?? patientData['documento'] ?? '')
+                  .toString();
+
+          await pdfService.generateAndUpload(
+            patientId: patientId,
+            transactionId: tx.id,
+            transaction: tx,
+            paymentSummary: summary,
+            patientName: patientName,
+            patientDocument: patientDocument,
+            treatmentId: treatmentId,
+          );
+        }
+      } catch (_) {
+        // El pago ya fue registrado; no revertir por fallo en PDF.
       }
-    } catch (_) {
-      // El pago ya fue registrado; no revertir por fallo en PDF.
-    }
+    }());
   }
 }
 

@@ -35,7 +35,7 @@ class PdfReceiptService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'OCG Clínica Dental',
+                'OCG Clinica Dental',
                 style: pw.TextStyle(
                   fontSize: 22,
                   fontWeight: pw.FontWeight.bold,
@@ -43,7 +43,7 @@ class PdfReceiptService {
               ),
               pw.SizedBox(height: 4),
               pw.Text('NIT: 901.234.567-8'),
-              pw.Text('Teléfono: +57 300 000 0000'),
+              pw.Text('Telefono: +57 300 000 0000'),
               pw.SizedBox(height: 10),
               pw.Divider(),
               pw.SizedBox(height: 8),
@@ -58,16 +58,16 @@ class PdfReceiptService {
               pw.SizedBox(height: 8),
               pw.Divider(),
               pw.SizedBox(height: 8),
-              pw.Text('Paciente: $patientName'),
+              pw.Text('Paciente: ${_ascii(patientName)}'),
               pw.Text(
-                'Documento: ${patientDocument.isEmpty ? 'No registrado' : patientDocument}',
+                'Documento: ${patientDocument.isEmpty ? 'No registrado' : _ascii(patientDocument)}',
               ),
               pw.SizedBox(height: 8),
               pw.Divider(),
               pw.SizedBox(height: 8),
-              pw.Text('Concepto: Tratamiento de ortodoncia OCG Clínica'),
+              pw.Text('Concepto: Tratamiento de ortodoncia OCG Clinica'),
               pw.Text(
-                'Método de pago: ${_paymentMethodLabel(transaction.metodo)}',
+                'Metodo de pago: ${_paymentMethodLabel(transaction.metodo)}',
               ),
               if ((transaction.referencia ?? '').isNotEmpty)
                 pw.Text('Referencia: ${transaction.referencia}'),
@@ -115,4 +115,20 @@ class PdfReceiptService {
     PaymentMethod.transferencia => 'Transferencia bancaria',
     PaymentMethod.payu => 'PayU',
   };
+
+  String _ascii(String value) {
+    return value
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('Á', 'A')
+        .replaceAll('É', 'E')
+        .replaceAll('Í', 'I')
+        .replaceAll('Ó', 'O')
+        .replaceAll('Ú', 'U')
+        .replaceAll('ñ', 'n')
+        .replaceAll('Ñ', 'N');
+  }
 }

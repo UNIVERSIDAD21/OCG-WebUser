@@ -1453,7 +1453,6 @@ class _ManagePatientTreatmentDialogState
 
     setState(() {
       _draftFinancialItems = normalized;
-      _syncFinancialControllers(normalized);
     });
   }
 
