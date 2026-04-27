@@ -1227,7 +1227,11 @@ class _ManagePatientTreatmentDialogState
     PatientTreatment treatment,
   ) {
     final normalized = _ensureRequiredFinancialItems(items, treatment);
-    return _sanitizeFinancialItems(normalized, treatment);
+    return _sanitizeFinancialItems(
+      normalized,
+      treatment,
+      allowInvalidDrafts: true,
+    );
   }
 
   List<FinancialItemModel> _ensureRequiredFinancialItems(
@@ -1463,23 +1467,37 @@ class _ManagePatientTreatmentDialogState
 
   List<FinancialItemModel> _sanitizeFinancialItems(
     List<FinancialItemModel> items,
-    PatientTreatment treatment,
-  ) {
+    PatientTreatment treatment, {
+    bool allowInvalidDrafts = false,
+  }) {
     final now = DateTime.now();
     final result = <FinancialItemModel>[];
     final normalizedNames = <String>{};
 
     for (var index = 0; index < _orderedFinancialItems(items).length; index++) {
       final item = _orderedFinancialItems(items)[index];
-      final rawName =
-          (_financialNameCtrls[item.id]?.text ?? item.name).trim();
-      if (rawName.isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
-      final normalizedName = FinancialItemModel.normalizeName(rawName);
+      final controllerText = (_financialNameCtrls[item.id]?.text ?? item.name).trim();
+      final fallbackName = item.name.trim().isEmpty ? 'Concepto ${index + 1}' : item.name.trim();
+      String rawName = controllerText;
+      if (rawName.isEmpty) {
+        if (!allowInvalidDrafts) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+        rawName = fallbackName;
+      }
+
+      var normalizedName = FinancialItemModel.normalizeName(rawName);
       if (normalizedName.isEmpty) {
-        throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+        if (!allowInvalidDrafts) {
+          throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+        }
+        rawName = fallbackName;
+        normalizedName = FinancialItemModel.normalizeName(rawName);
       }
       if (normalizedNames.contains(normalizedName)) {
-        throw Exception('FINANCIAL_ITEM_DUPLICATE_NAME');
+        if (!allowInvalidDrafts) {
+          throw Exception('FINANCIAL_ITEM_DUPLICATE_NAME');
+        }
+        rawName = '$rawName ${index + 1}'.trim();
+        normalizedName = FinancialItemModel.normalizeName(rawName);
       }
       normalizedNames.add(normalizedName);
 
@@ -1492,10 +1510,12 @@ class _ManagePatientTreatmentDialogState
       final quantity = isControls
           ? (int.tryParse(_financialQtyCtrls[item.id]?.text.trim() ?? '') ?? 1)
           : 1;
-      if (amount < 0 || quantity < 1) {
+      if ((amount < 0 || quantity < 1) && !allowInvalidDrafts) {
         throw Exception('FINANCIAL_ITEM_INVALID_AMOUNT');
       }
 
+      final safeQuantity = quantity < 1 ? 1 : quantity;
+      final safeAmount = amount < 0 ? 0 : amount;
       final required = item.kind == 'initial' || item.kind == 'controls';
       result.add(
         item.copyWith(
@@ -1503,9 +1523,9 @@ class _ManagePatientTreatmentDialogState
           treatmentId: treatment.id,
           name: rawName,
           normalizedName: normalizedName,
-          amount: isControls ? amount * quantity : amount,
-          unitAmount: isControls ? amount : null,
-          quantity: isControls ? quantity : null,
+          amount: isControls ? safeAmount * safeQuantity : safeAmount,
+          unitAmount: isControls ? safeAmount : null,
+          quantity: isControls ? safeQuantity : null,
           active: required ? true : item.active,
           deletable: required ? false : item.deletable,
           order: index + 1,
