@@ -233,7 +233,6 @@ class PatientDataResolutionService {
     return PaymentModel(
       id: treatment.id,
       patientId: patient.id,
-      treatmentId: treatment.id,
       totalTratamiento: total,
       montoPagado: paid,
       saldoPendiente: pending,

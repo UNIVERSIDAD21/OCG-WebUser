@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/providers/auth_providers.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
 
 import '../../../shared/constants/firestore_paths.dart';
 import '../../patients/data/models/patient_data_resolution.dart';
