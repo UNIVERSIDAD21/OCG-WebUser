@@ -39,6 +39,7 @@ class PatientPaymentsScreen extends ConsumerStatefulWidget {
 class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
   _PaymentsFilter _filter = _PaymentsFilter.todos;
   String? _selectedTreatmentId;
+  final Set<String> _ensuredTreatmentAccounts = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -354,6 +355,18 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
           )),
         );
         final treatments = resolution.treatments;
+        for (final treatment in treatments.where(
+          (item) => !item.id.startsWith('legacy-primary-'),
+        )) {
+          if (_ensuredTreatmentAccounts.add(treatment.id)) {
+            Future.microtask(
+              () => ref.read(ensureTreatmentPaymentAccountProvider)(
+                patientId,
+                treatment,
+              ),
+            );
+          }
+        }
         if (treatments.isEmpty) {
           return Scaffold(
             body: SafeArea(

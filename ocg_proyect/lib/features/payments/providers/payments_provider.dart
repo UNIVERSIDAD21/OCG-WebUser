@@ -82,6 +82,17 @@ final patientTransactionsProvider =
       }
     });
 
+final ensureTreatmentPaymentAccountProvider =
+    Provider<Future<void> Function(String patientId, PatientTreatment treatment)>(
+      (ref) {
+        final repository = ref.watch(paymentsRepositoryProvider);
+        return (patientId, treatment) => repository.ensureTreatmentPaymentAccount(
+          patientId: patientId,
+          treatment: treatment,
+        );
+      },
+    );
+
 final effectivePatientPaymentsProvider =
     Provider.family<
       EffectivePatientDataResolution,

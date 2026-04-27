@@ -125,17 +125,32 @@ class PatientDataResolutionService {
     required List<PaymentModel> treatmentPayments,
   }) {
     final accounts = <String, EffectivePatientPaymentAccount>{};
+    final paymentsByTreatmentId = <String, PaymentModel>{};
 
     for (final payment in treatmentPayments) {
       final treatmentId = (payment.id == patient.id || payment.id.isEmpty)
           ? null
           : payment.id;
+      if (treatmentId != null) {
+        paymentsByTreatmentId[treatmentId] = payment;
+      }
       final key = treatmentId ?? 'payment:${payment.patientId}:${payment.id}';
       accounts[key] = EffectivePatientPaymentAccount(
         payment: payment,
         treatmentId: treatmentId,
         isLegacy: false,
         source: 'treatment-payment',
+      );
+    }
+
+    for (final treatment in treatments) {
+      if (treatment.id.startsWith('legacy-primary-')) continue;
+      if (paymentsByTreatmentId.containsKey(treatment.id)) continue;
+      accounts[treatment.id] = EffectivePatientPaymentAccount(
+        payment: _paymentFromTreatment(patient, treatment),
+        treatmentId: treatment.id,
+        isLegacy: false,
+        source: 'treatment-fallback',
       );
     }
 
@@ -155,7 +170,36 @@ class PatientDataResolutionService {
       }
     }
 
-    return accounts.values.toList();
+    final sorted = accounts.values.toList()
+      ..sort((a, b) {
+        final treatmentA = a.treatmentId == null
+            ? null
+            : treatments.cast<PatientTreatment?>().firstWhere(
+                (item) => item?.id == a.treatmentId,
+                orElse: () => null,
+              );
+        final treatmentB = b.treatmentId == null
+            ? null
+            : treatments.cast<PatientTreatment?>().firstWhere(
+                (item) => item?.id == b.treatmentId,
+                orElse: () => null,
+              );
+
+        if (treatmentA != null && treatmentB != null) {
+          if (treatmentA.isPrimary != treatmentB.isPrimary) {
+            return treatmentA.isPrimary ? -1 : 1;
+          }
+          if (treatmentA.isFinished != treatmentB.isFinished) {
+            return treatmentA.isFinished ? 1 : -1;
+          }
+          return treatmentB.updatedAt.compareTo(treatmentA.updatedAt);
+        }
+        if (treatmentA != null) return -1;
+        if (treatmentB != null) return 1;
+        return 0;
+      });
+
+    return sorted;
   }
 
   List<PaymentTransaction> _resolveTransactions(
@@ -172,6 +216,36 @@ class PatientDataResolutionService {
     final items = merged.values.toList()
       ..sort((a, b) => b.fecha.compareTo(a.fecha));
     return items;
+  }
+
+  PaymentModel _paymentFromTreatment(
+    PatientModel patient,
+    PatientTreatment treatment,
+  ) {
+    final now = DateTime.now();
+    final total = (treatment.totalTratamiento ?? 0).clamp(0, double.infinity)
+        .toDouble();
+    final pending = (treatment.saldoPendiente ?? total)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final paid = (total - pending).clamp(0, double.infinity).toDouble();
+
+    return PaymentModel(
+      id: treatment.id,
+      patientId: patient.id,
+      treatmentId: treatment.id,
+      totalTratamiento: total,
+      montoPagado: paid,
+      saldoPendiente: pending,
+      fechaProximoPago: treatment.nextControlDate ?? patient.fechaProximoPago,
+      estado: PaymentModel.calcularEstado(
+        saldoPendiente: pending,
+        fechaProximoPago: treatment.nextControlDate ?? patient.fechaProximoPago,
+        now: now,
+      ),
+      createdAt: treatment.createdAt,
+      updatedAt: treatment.updatedAt,
+    );
   }
 
   bool _sameTreatment(PatientTreatment a, PatientTreatment b) {

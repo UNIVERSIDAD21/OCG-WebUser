@@ -25,6 +25,7 @@ class PatientPaymentsTab extends ConsumerStatefulWidget {
 
 class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
   String? _selectedTreatmentId;
+  final Set<String> _ensuredTreatmentAccounts = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +49,18 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
           )),
         );
         final treatments = resolution.treatments;
+        for (final treatment in treatments.where(
+          (item) => !item.id.startsWith('legacy-primary-'),
+        )) {
+          if (_ensuredTreatmentAccounts.add(treatment.id)) {
+            Future.microtask(
+              () => ref.read(ensureTreatmentPaymentAccountProvider)(
+                widget.patientId,
+                treatment,
+              ),
+            );
+          }
+        }
         final selectedTreatment = _resolveSelectedTreatment(treatments);
 
         if (!selectedTreatment.id.startsWith('legacy-primary-')) {
