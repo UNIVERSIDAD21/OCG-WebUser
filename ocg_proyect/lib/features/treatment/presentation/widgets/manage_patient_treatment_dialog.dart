@@ -1515,7 +1515,10 @@ class _ManagePatientTreatmentDialogState
       }
 
       final safeQuantity = quantity < 1 ? 1 : quantity;
-      final safeAmount = amount < 0 ? 0 : amount;
+      final safeAmount = amount < 0 ? 0.0 : amount.toDouble();
+      final computedAmount = isControls
+          ? (safeAmount * safeQuantity).toDouble()
+          : safeAmount;
       final required = item.kind == 'initial' || item.kind == 'controls';
       result.add(
         item.copyWith(
@@ -1523,7 +1526,7 @@ class _ManagePatientTreatmentDialogState
           treatmentId: treatment.id,
           name: rawName,
           normalizedName: normalizedName,
-          amount: isControls ? safeAmount * safeQuantity : safeAmount,
+          amount: computedAmount,
           unitAmount: isControls ? safeAmount : null,
           quantity: isControls ? safeQuantity : null,
           active: required ? true : item.active,
