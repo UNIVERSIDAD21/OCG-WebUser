@@ -32,10 +32,14 @@ class TreatmentCatalogRepository {
 
   Future<TreatmentCatalogItem> createCatalogItem({
     required String name,
-    String category = 'ortodoncia',
+    required String category,
+    required String baseType,
+    required bool requiresSubtype,
+    required List<String> allowedSubtypes,
     String? createdBy,
   }) async {
     final normalized = _normalize(name);
+    final normalizedBaseType = _normalize(baseType);
     final existing = await _catalogRef
         .where('normalizedName', isEqualTo: normalized)
         .limit(1)
@@ -51,9 +55,9 @@ class TreatmentCatalogRepository {
       name: name.trim(),
       normalizedName: normalized,
       category: category,
-      baseType: normalized,
-      requiresSubtype: false,
-      allowedSubtypes: const <String>[],
+      baseType: normalizedBaseType,
+      requiresSubtype: requiresSubtype,
+      allowedSubtypes: requiresSubtype ? allowedSubtypes : const <String>[],
       active: true,
       createdAt: now,
       updatedAt: now,

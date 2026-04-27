@@ -67,6 +67,7 @@ class _ManagePatientTreatmentDialogState
 
   List<FinancialItemModel>? _draftFinancialItems;
   bool _saving = false;
+  bool _creatingCatalogItem = false;
   bool _didSyncInitialFinancialItems = false;
   bool _updatingControllers = false;
 
@@ -449,26 +450,42 @@ class _ManagePatientTreatmentDialogState
                   final catalog = _catalogOrDefaults(rawCatalog);
                   final selected = _resolveCatalogSelection(catalog);
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DropdownButtonFormField<String>(
-                        key: ValueKey('catalog-${selected?.id ?? _baseType}'),
-                        initialValue: selected?.id,
-                        decoration: _inputDecoration('Tratamiento clínico'),
-                        items: catalog
-                            .map(
-                              (item) => DropdownMenuItem<String>(
-                                value: item.id,
-                                child: Text(item.name),
+                      _buildCatalogSelectorField(catalog, selected),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              selected == null
+                                  ? 'Selecciona un tratamiento del catálogo o crea uno nuevo.'
+                                  : 'Catálogo activo: ${selected.name} · ${_categoryLabel(selected.category)}',
+                              style: const TextStyle(
+                                color: Color(0xFF8A6F59),
+                                height: 1.35,
                               ),
-                            )
-                            .toList(),
-                        onChanged: _saving
-                            ? null
-                            : (value) =>
-                                  _handleCatalogSelection(value, catalog),
-                        validator: (value) => (value == null || value.isEmpty)
-                            ? 'Selecciona el tratamiento clínico'
-                            : null,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            onPressed: (_saving || _creatingCatalogItem)
+                                ? null
+                                : () => _openCreateCatalogTreatmentDialog(catalog),
+                            icon: _creatingCatalogItem
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.add_business_outlined, size: 18),
+                            label: Text(
+                              _creatingCatalogItem
+                                  ? 'Creando...'
+                                  : 'Nuevo tratamiento',
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -786,6 +803,54 @@ class _ManagePatientTreatmentDialogState
                 _adaptThirdConceptForBaseType();
               });
             },
+    );
+  }
+
+  Widget _buildCatalogSelectorField(
+    List<TreatmentCatalogItem> catalog,
+    TreatmentCatalogItem? selected,
+  ) {
+    return FormField<String>(
+      initialValue: selected?.id,
+      validator: (_) {
+        if (((_selectedCatalogId ?? '').trim().isEmpty) && selected == null) {
+          return 'Selecciona el tratamiento clínico';
+        }
+        return null;
+      },
+      builder: (field) {
+        final text = selected?.name ?? _clinicalTreatmentName ?? 'Seleccionar';
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: (_saving || _creatingCatalogItem)
+              ? null
+              : () async {
+                  final picked = await _showCatalogPickerSheet(catalog);
+                  if (picked != null) {
+                    _handleCatalogSelection(picked.id, catalog);
+                    field.didChange(picked.id);
+                  }
+                },
+          child: InputDecorator(
+            decoration: _inputDecoration(
+              'Tratamiento clínico',
+              hint: 'Busca o selecciona un tratamiento',
+            ).copyWith(
+              errorText: field.errorText,
+              suffixIcon: const Icon(Icons.search_rounded),
+            ),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: text == 'Seleccionar'
+                    ? const Color(0xFF8A6F59)
+                    : OcgColors.espresso,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1801,6 +1866,430 @@ class _ManagePatientTreatmentDialogState
     final parsed = int.tryParse((value ?? '').trim());
     if (parsed == null || parsed <= 0) return 'Inválido';
     return null;
+  }
+
+  String _categoryLabel(String value) {
+    switch (value) {
+      case 'ortodoncia':
+        return 'Ortodoncia';
+      case 'estetica':
+        return 'Estética';
+      case 'rehabilitacion':
+        return 'Rehabilitación';
+      case 'general':
+        return 'General';
+      default:
+        return PatientTreatment.labelForBaseTreatment(value);
+    }
+  }
+
+  String _normalizeCatalogName(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9áéíóúñü\s]'), '')
+        .replaceAll(RegExp(r'\s+'), '_');
+  }
+
+  Future<TreatmentCatalogItem?> _showCatalogPickerSheet(
+    List<TreatmentCatalogItem> catalog,
+  ) async {
+    return showModalBottomSheet<TreatmentCatalogItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final searchCtrl = TextEditingController();
+        var filtered = catalog.toList();
+
+        void applySearch(StateSetter setSheetState, String query) {
+          final normalized = query.trim().toLowerCase();
+          setSheetState(() {
+            filtered = catalog.where((item) {
+              if (normalized.isEmpty) return true;
+              return item.name.toLowerCase().contains(normalized) ||
+                  item.category.toLowerCase().contains(normalized) ||
+                  item.baseType.toLowerCase().contains(normalized);
+            }).toList();
+          });
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Container(
+                height: MediaQuery.sizeOf(context).height * 0.82,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFFCF8),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Seleccionar tratamiento clínico',
+                              style: TextStyle(
+                                color: OcgColors.espresso,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Busca en el catálogo y elige el tratamiento correcto para este paciente.',
+                        style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: searchCtrl,
+                        onChanged: (value) => applySearch(setSheetState, value),
+                        decoration: _inputDecoration(
+                          'Buscar tratamiento',
+                          hint: 'Ej. ortodoncia, retenedores, alineadores',
+                        ).copyWith(prefixIcon: const Icon(Icons.search_rounded)),
+                      ),
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final created = await _openCreateCatalogTreatmentDialog(catalog);
+                            if (created != null && context.mounted) {
+                              Navigator.of(context).pop(created);
+                            }
+                          },
+                          icon: const Icon(Icons.add_business_outlined),
+                          label: const Text('Nuevo tratamiento'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No hay resultados. Usa “Nuevo tratamiento” para crear uno.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF8A6F59)),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final selected = item.id == _selectedCatalogId;
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(18),
+                                    onTap: () => Navigator.of(context).pop(item),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? const Color(0xFFF6EBDD)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: selected
+                                              ? OcgColors.espresso
+                                              : const Color(0xFFE7DBCF),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.name,
+                                                  style: const TextStyle(
+                                                    color: OcgColors.espresso,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    _catalogPill(_categoryLabel(item.category)),
+                                                    _catalogPill(
+                                                      PatientTreatment.labelForBaseTreatment(item.baseType),
+                                                    ),
+                                                    if (item.requiresSubtype)
+                                                      _catalogPill('Requiere subtipo'),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Icon(
+                                            selected
+                                                ? Icons.check_circle_rounded
+                                                : Icons.chevron_right_rounded,
+                                            color: selected
+                                                ? OcgColors.espresso
+                                                : OcgColors.bronze,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _catalogPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6EFE7),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: OcgColors.bronze,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<TreatmentCatalogItem?> _openCreateCatalogTreatmentDialog(
+    List<TreatmentCatalogItem> existingCatalog,
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController();
+    String category = 'ortodoncia';
+    String baseType = 'convencional';
+    bool requiresSubtype = true;
+    final selectedSubtypes = <String>{'metalico', 'estetico'};
+
+    final created = await showDialog<TreatmentCatalogItem>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFFFFCF8),
+              title: const Text('Nuevo tratamiento clínico'),
+              content: SizedBox(
+                width: 560,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Crea un tipo de tratamiento reutilizable para el catálogo clínico.',
+                          style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: nameCtrl,
+                          decoration: _inputDecoration('Nombre del tratamiento'),
+                          validator: (value) {
+                            final text = (value ?? '').trim();
+                            if (text.isEmpty) return 'Obligatorio';
+                            final normalized = _normalizeCatalogName(text);
+                            final exists = existingCatalog.any(
+                              (item) => item.normalizedName == normalized,
+                            );
+                            if (exists) return 'Ya existe en el catálogo';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          initialValue: category,
+                          decoration: _inputDecoration('Categoría'),
+                          items: const [
+                            DropdownMenuItem(value: 'ortodoncia', child: Text('Ortodoncia')),
+                            DropdownMenuItem(value: 'estetica', child: Text('Estética')),
+                            DropdownMenuItem(value: 'rehabilitacion', child: Text('Rehabilitación')),
+                            DropdownMenuItem(value: 'general', child: Text('General')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setDialogState(() => category = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          initialValue: baseType,
+                          decoration: _inputDecoration('Tipo base operativo'),
+                          items: kBaseTreatmentOptions
+                              .map(
+                                (item) => DropdownMenuItem(
+                                  value: item,
+                                  child: Text(PatientTreatment.labelForBaseTreatment(item)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() {
+                              baseType = value;
+                              requiresSubtype =
+                                  value == 'convencional' || value == 'autoligado';
+                              if (requiresSubtype && selectedSubtypes.isEmpty) {
+                                selectedSubtypes.addAll({'metalico', 'estetico'});
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Requiere subtipo'),
+                          subtitle: const Text('Úsalo para tratamientos como convencional o autoligado.'),
+                          value: requiresSubtype,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              requiresSubtype = value;
+                              if (requiresSubtype && selectedSubtypes.isEmpty) {
+                                selectedSubtypes.addAll({'metalico', 'estetico'});
+                              }
+                            });
+                          },
+                        ),
+                        if (requiresSubtype) ...[
+                          const SizedBox(height: 8),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: selectedSubtypes.contains('metalico'),
+                            title: const Text('Metálico'),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  selectedSubtypes.add('metalico');
+                                } else {
+                                  selectedSubtypes.remove('metalico');
+                                }
+                              });
+                            },
+                          ),
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: selectedSubtypes.contains('estetico'),
+                            title: const Text('Estético'),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  selectedSubtypes.add('estetico');
+                                } else {
+                                  selectedSubtypes.remove('estetico');
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: _creatingCatalogItem ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: _creatingCatalogItem
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          if (requiresSubtype && selectedSubtypes.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Selecciona al menos un subtipo.'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setState(() => _creatingCatalogItem = true);
+                          try {
+                            final item = await ref.read(createTreatmentCatalogItemProvider)(
+                              name: nameCtrl.text.trim(),
+                              category: category,
+                              baseType: baseType,
+                              requiresSubtype: requiresSubtype,
+                              allowedSubtypes: selectedSubtypes.toList(),
+                              createdBy: _currentAdminId(),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop(item);
+                            }
+                          } catch (error) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('No se pudo crear el tratamiento: $error'),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _creatingCatalogItem = false);
+                          }
+                        },
+                  child: Text(_creatingCatalogItem ? 'Creando...' : 'Crear'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameCtrl.dispose();
+
+    if (created != null) {
+      setState(() {
+        _selectedCatalogId = created.id;
+        _clinicalTreatmentName = created.name;
+        _baseType = created.baseType;
+        _subtype = created.requiresSubtype
+            ? (created.allowedSubtypes.isNotEmpty
+                  ? created.allowedSubtypes.first
+                  : 'metalico')
+            : null;
+        if (_visibleNameCtrl.text.trim().isEmpty) {
+          _visibleNameCtrl.text = created.name;
+        }
+        _adaptThirdConceptForBaseType();
+      });
+    }
+
+    return created;
   }
 
   String _mapTreatmentError(Object error) {
