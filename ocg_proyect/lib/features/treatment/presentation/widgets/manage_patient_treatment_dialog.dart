@@ -8,8 +8,8 @@ import '../../../../shared/utils/currency_input_formatter.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
-import '../../../payments/providers/treatment_financial_provider.dart';
 import '../../../payments/presentation/widgets/manage_financial_items_dialog.dart';
+import '../../../payments/providers/treatment_financial_provider.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../../data/models/patient_treatment.dart';
 import '../../data/models/treatment_catalog_item.dart';
@@ -62,6 +62,11 @@ class _ManagePatientTreatmentDialogState
   late String _baseType;
   String? _subtype;
 
+  List<FinancialItemModel>? _draftFinancialItems;
+  bool _saving = false;
+  bool _didSyncInitialFinancialItems = false;
+  bool _updatingControllers = false;
+
   bool get _editing => widget.initialTreatment != null;
   bool get _isOrtopedia => _baseType == 'ortopedia';
   bool get _requiresSubtype =>
@@ -94,7 +99,16 @@ class _ManagePatientTreatmentDialogState
     _selectedCatalogId = initial?.catalogTreatmentId;
     _clinicalTreatmentName = initial?.clinicalTreatmentName ?? initial?.nombre;
     _baseType = initial?.tipoBase ?? 'convencional';
-    _subtype = initial?.subtipo;
+    _subtype = initial?.subtipo ?? (_requiresSubtype ? 'metalico' : null);
+
+    for (final controller in [
+      _initialAmountCtrl,
+      _controlsUnitCtrl,
+      _controlsQtyCtrl,
+      _thirdConceptCtrl,
+    ]) {
+      controller.addListener(_onFinancialFieldChanged);
+    }
   }
 
   @override
@@ -110,20 +124,19 @@ class _ManagePatientTreatmentDialogState
     super.dispose();
   }
 
+  void _onFinancialFieldChanged() {
+    if (_updatingControllers || !mounted) return;
+    setState(() {
+      _draftFinancialItems = _mergeInlineValuesIntoItems(
+        _currentFinancialItems(const <FinancialItemModel>[]),
+        _previewTreatment(),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final saveState = ref.watch(savePatientTreatmentProvider);
     final catalogAsync = ref.watch(treatmentCatalogProvider);
-    final itemsAsync = widget.initialTreatment == null
-        ? const AsyncValue<List<FinancialItemModel>>.data(
-            <FinancialItemModel>[],
-          )
-        : ref.watch(
-            treatmentFinancialItemsProvider((
-              patientId: widget.patientId,
-              treatmentId: widget.initialTreatment!.id,
-            )),
-          );
     final existingTreatments =
         ref.watch(patientTreatmentsProvider(widget.patientId)).asData?.value ??
         const <PatientTreatment>[];
@@ -133,31 +146,34 @@ class _ManagePatientTreatmentDialogState
         .firstWhere((t) => t != null, orElse: () => null);
     final canTogglePrimary = !_editing || !_isPrimary || otherPrimary != null;
 
-    ref.listen<AsyncValue<void>>(savePatientTreatmentProvider, (prev, next) {
-      next.whenOrNull(
-        data: (_) {
-          if (prev?.isLoading == true && mounted) {
-            Navigator.of(context).pop(true);
-          }
-        },
-        error: (error, _) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(_mapTreatmentError(error))));
-        },
-      );
-    });
+    final remoteItemsAsync = widget.initialTreatment == null
+        ? AsyncValue<List<FinancialItemModel>>.data(
+            _draftFinancialItems ??
+                _defaultDraftFinancialItems(_previewTreatment()),
+          )
+        : ref.watch(
+            treatmentFinancialItemsProvider((
+              patientId: widget.patientId,
+              treatmentId: widget.initialTreatment!.id,
+            )),
+          );
 
-    _syncFinancialControllers(
-      itemsAsync.asData?.value ?? const <FinancialItemModel>[],
+    final remoteItems =
+        remoteItemsAsync.asData?.value ?? const <FinancialItemModel>[];
+    if (_editing && remoteItems.isNotEmpty && !_didSyncInitialFinancialItems) {
+      _syncFinancialControllers(remoteItems);
+      _didSyncInitialFinancialItems = true;
+    }
+
+    final previewTreatment = widget.initialTreatment ?? _previewTreatment();
+    final effectiveFinancialItems = _mergeInlineValuesIntoItems(
+      _currentFinancialItems(remoteItems),
+      previewTreatment,
     );
+    final summary = _buildFinancialSummary(effectiveFinancialItems);
 
     final media = MediaQuery.sizeOf(context);
     final wide = media.width >= 980;
-    final summary = _buildFinancialSummary(
-      itemsAsync.asData?.value ?? const <FinancialItemModel>[],
-    );
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -202,7 +218,6 @@ class _ManagePatientTreatmentDialogState
                               child: SingleChildScrollView(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: _buildClinicalColumn(
-                                  saveState.isLoading,
                                   canTogglePrimary,
                                   otherPrimary,
                                   catalogAsync,
@@ -215,8 +230,8 @@ class _ManagePatientTreatmentDialogState
                               child: SingleChildScrollView(
                                 padding: const EdgeInsets.only(left: 8),
                                 child: _buildFinancialColumn(
-                                  saveState.isLoading,
-                                  itemsAsync,
+                                  remoteItemsAsync,
+                                  effectiveFinancialItems,
                                   summary,
                                 ),
                               ),
@@ -228,15 +243,14 @@ class _ManagePatientTreatmentDialogState
                         child: Column(
                           children: [
                             _buildClinicalColumn(
-                              saveState.isLoading,
                               canTogglePrimary,
                               otherPrimary,
                               catalogAsync,
                             ),
                             const SizedBox(height: 18),
                             _buildFinancialColumn(
-                              saveState.isLoading,
-                              itemsAsync,
+                              remoteItemsAsync,
+                              effectiveFinancialItems,
                               summary,
                             ),
                           ],
@@ -250,7 +264,7 @@ class _ManagePatientTreatmentDialogState
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     OutlinedButton(
-                      onPressed: saveState.isLoading
+                      onPressed: _saving
                           ? null
                           : () => Navigator.of(context).pop(false),
                       style: OutlinedButton.styleFrom(
@@ -269,7 +283,9 @@ class _ManagePatientTreatmentDialogState
                     ),
                     const SizedBox(height: 10),
                     FilledButton(
-                      onPressed: saveState.isLoading ? null : _submit,
+                      onPressed: _saving
+                          ? null
+                          : () => _submit(effectiveFinancialItems, summary),
                       style: FilledButton.styleFrom(
                         backgroundColor: OcgColors.espresso,
                         foregroundColor: OcgColors.ivory,
@@ -280,7 +296,7 @@ class _ManagePatientTreatmentDialogState
                         ),
                       ),
                       child: Text(
-                        saveState.isLoading
+                        _saving
                             ? 'Guardando...'
                             : (_editing
                                   ? 'Guardar cambios'
@@ -361,38 +377,37 @@ class _ManagePatientTreatmentDialogState
                   style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
                 ),
                 const SizedBox(height: 14),
-                if (_isPrimary || otherPrimary != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEE1D3),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFFE0C7AF)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 16,
-                          color: OcgColors.espresso,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            badgeText,
-                            style: const TextStyle(
-                              color: OcgColors.espresso,
-                              fontWeight: FontWeight.w800,
-                            ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEE1D3),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFE0C7AF)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: OcgColors.espresso,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -402,7 +417,6 @@ class _ManagePatientTreatmentDialogState
   }
 
   Widget _buildClinicalColumn(
-    bool isLoading,
     bool canTogglePrimary,
     PatientTreatment? otherPrimary,
     AsyncValue<List<TreatmentCatalogItem>> catalogAsync,
@@ -416,30 +430,25 @@ class _ManagePatientTreatmentDialogState
             children: [
               catalogAsync.when(
                 loading: () => const LinearProgressIndicator(minHeight: 2),
-                error: (_, __) => const Text(
-                  'No se pudo cargar el catálogo de tratamientos.',
-                  style: TextStyle(color: Color(0xFF8A6F59)),
-                ),
-                data: (catalog) {
+                error: (_, __) => _buildCatalogFallbackSelector(),
+                data: (rawCatalog) {
+                  final catalog = _catalogOrDefaults(rawCatalog);
                   final selected = _resolveCatalogSelection(catalog);
                   return Column(
                     children: [
                       DropdownButtonFormField<String>(
+                        key: ValueKey('catalog-${selected?.id ?? _baseType}'),
                         initialValue: selected?.id,
                         decoration: _inputDecoration('Tratamiento clínico'),
-                        items: [
-                          ...catalog.map(
-                            (item) => DropdownMenuItem<String>(
-                              value: item.id,
-                              child: Text(item.name),
-                            ),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: '__create_new__',
-                            child: Text('Crear nuevo tratamiento...'),
-                          ),
-                        ],
-                        onChanged: isLoading
+                        items: catalog
+                            .map(
+                              (item) => DropdownMenuItem<String>(
+                                value: item.id,
+                                child: Text(item.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _saving
                             ? null
                             : (value) =>
                                   _handleCatalogSelection(value, catalog),
@@ -464,6 +473,7 @@ class _ManagePatientTreatmentDialogState
               const SizedBox(height: 14),
               if (_requiresSubtype)
                 DropdownButtonFormField<String>(
+                  key: ValueKey('subtype-$_subtype'),
                   initialValue: _subtype,
                   decoration: _inputDecoration('Subtipo'),
                   items: const [
@@ -476,7 +486,7 @@ class _ManagePatientTreatmentDialogState
                       child: Text('Estético'),
                     ),
                   ],
-                  onChanged: isLoading
+                  onChanged: _saving
                       ? null
                       : (value) => setState(() => _subtype = value),
                   validator: (value) => (value == null || value.isEmpty)
@@ -485,6 +495,7 @@ class _ManagePatientTreatmentDialogState
                 ),
               if (_requiresSubtype) const SizedBox(height: 14),
               DropdownButtonFormField<TreatmentStage>(
+                key: ValueKey('stage-${_stage.name}'),
                 initialValue: _stage,
                 decoration: _inputDecoration('Etapa actual'),
                 items: TreatmentStage.values
@@ -495,14 +506,14 @@ class _ManagePatientTreatmentDialogState
                       ),
                     )
                     .toList(),
-                onChanged: isLoading
+                onChanged: _saving
                     ? null
                     : (value) {
                         if (value != null) setState(() => _stage = value);
                       },
               ),
               const SizedBox(height: 14),
-              _dateRow('Inicio', _startDate, isLoading, _pickStartDate),
+              _dateRow('Inicio', _startDate, _saving, _pickStartDate),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -512,12 +523,7 @@ class _ManagePatientTreatmentDialogState
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: _inputDecoration('Limpieza cada (meses)'),
-                      validator: (value) {
-                        final parsed = int.tryParse((value ?? '').trim());
-                        return (parsed == null || parsed <= 0)
-                            ? 'Inválido'
-                            : null;
-                      },
+                      validator: _positiveIntValidator,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -527,12 +533,7 @@ class _ManagePatientTreatmentDialogState
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: _inputDecoration('Control cada (meses)'),
-                      validator: (value) {
-                        final parsed = int.tryParse((value ?? '').trim());
-                        return (parsed == null || parsed <= 0)
-                            ? 'Inválido'
-                            : null;
-                      },
+                      validator: _positiveIntValidator,
                     ),
                   ),
                 ],
@@ -541,14 +542,14 @@ class _ManagePatientTreatmentDialogState
               _dateRow(
                 'Próxima limpieza',
                 _nextCleaningDate,
-                isLoading,
+                _saving,
                 () => _pickRecurringDate(isCleaning: true),
               ),
               const SizedBox(height: 10),
               _dateRow(
                 'Próximo control',
                 _nextControlDate,
-                isLoading,
+                _saving,
                 () => _pickRecurringDate(isCleaning: false),
               ),
             ],
@@ -574,7 +575,7 @@ class _ManagePatientTreatmentDialogState
               const SizedBox(width: 12),
               Switch.adaptive(
                 value: _isPrimary,
-                onChanged: (!canTogglePrimary || isLoading)
+                onChanged: (!canTogglePrimary || _saving)
                     ? null
                     : (value) => setState(() => _isPrimary = value),
               ),
@@ -599,11 +600,12 @@ class _ManagePatientTreatmentDialogState
   }
 
   Widget _buildFinancialColumn(
-    bool isLoading,
     AsyncValue<List<FinancialItemModel>> financialItemsAsync,
+    List<FinancialItemModel> effectiveItems,
     TreatmentFinancialSummaryModel summary,
   ) {
     final thirdLabel = _isOrtopedia ? 'Aparato 1' : 'Retenedores';
+    final activeCount = effectiveItems.where((item) => item.active).length;
 
     return Column(
       children: [
@@ -613,7 +615,7 @@ class _ManagePatientTreatmentDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Configura los conceptos que alimentan el resultado autocalculado.',
+                'Inicial y Controles son obligatorios. Retenedores, Aparato 1 y extras se activan o desactivan desde el editor.',
                 style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
               ),
               const SizedBox(height: 14),
@@ -640,40 +642,37 @@ class _ManagePatientTreatmentDialogState
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: _inputDecoration('Cantidad'),
-                      validator: (value) {
-                        final parsed = int.tryParse((value ?? '').trim());
-                        return (parsed == null || parsed <= 0)
-                            ? 'Inválido'
-                            : null;
-                      },
+                      validator: _positiveIntValidator,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _moneyField(
-                controller: _thirdConceptCtrl,
-                label: thirdLabel,
-                validator: _requiredMoneyValidator,
-              ),
+              _moneyField(controller: _thirdConceptCtrl, label: thirdLabel),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: widget.initialTreatment == null
+                  onPressed: _saving
                       ? null
-                      : () => showDialog<void>(
-                          context: context,
-                          builder: (_) => ManageFinancialItemsDialog(
-                            patientId: widget.patientId,
-                            treatment: widget.initialTreatment!,
-                            initialItems:
-                                financialItemsAsync.asData?.value ??
-                                const <FinancialItemModel>[],
-                          ),
-                        ),
+                      : () => _openFinancialItemsDialog(effectiveItems),
                   icon: const Icon(Icons.tune_outlined),
                   label: const Text('Editar conceptos financieros'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              financialItemsAsync.when(
+                loading: () => const LinearProgressIndicator(minHeight: 2),
+                error: (_, __) => const Text(
+                  'No se pudo cargar el detalle financiero.',
+                  style: TextStyle(color: Color(0xFF8A6F59)),
+                ),
+                data: (_) => Text(
+                  '$activeCount concepto(s) financiero(s) activo(s).',
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -712,8 +711,8 @@ class _ManagePatientTreatmentDialogState
               const SizedBox(height: 8),
               Text(
                 _isOrtopedia
-                    ? 'Resultado autocalculado con Inicial + Controles + Aparato 1 + extras activos.'
-                    : 'Resultado autocalculado con Inicial + Controles + Retenedores + extras activos.',
+                    ? 'Resultado con Inicial + Controles + Aparato 1 + extras activos.'
+                    : 'Resultado con Inicial + Controles + Retenedores + extras activos.',
                 style: const TextStyle(color: Color(0xFFE4D6CA), height: 1.45),
               ),
               const SizedBox(height: 18),
@@ -757,6 +756,10 @@ class _ManagePatientTreatmentDialogState
               _summaryRow('Moneda', summary.currency),
               _summaryRow('Subtotal', _currency.format(summary.subtotalAmount)),
               _summaryRow(
+                'Descuento',
+                _currency.format(summary.discountAmount),
+              ),
+              _summaryRow(
                 'Total',
                 _currency.format(summary.totalAmount),
                 emphasized: true,
@@ -765,6 +768,36 @@ class _ManagePatientTreatmentDialogState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCatalogFallbackSelector() {
+    return DropdownButtonFormField<String>(
+      key: ValueKey('base-$_baseType'),
+      initialValue: _baseType,
+      decoration: _inputDecoration('Tratamiento clínico'),
+      items: kBaseTreatmentOptions
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(PatientTreatment.labelForBaseTreatment(item)),
+            ),
+          )
+          .toList(),
+      onChanged: _saving
+          ? null
+          : (value) {
+              if (value == null) return;
+              setState(() {
+                _baseType = value;
+                _clinicalTreatmentName = PatientTreatment.labelForBaseTreatment(
+                  value,
+                );
+                _selectedCatalogId = value;
+                _subtype = _requiresSubtype ? (_subtype ?? 'metalico') : null;
+                _adaptThirdConceptForBaseType();
+              });
+            },
     );
   }
 
@@ -798,13 +831,15 @@ class _ManagePatientTreatmentDialogState
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: OcgColors.espresso,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ],
@@ -964,6 +999,13 @@ class _ManagePatientTreatmentDialogState
     );
   }
 
+  List<TreatmentCatalogItem> _catalogOrDefaults(
+    List<TreatmentCatalogItem> raw,
+  ) {
+    final active = raw.where((item) => item.active).toList();
+    return active.isEmpty ? TreatmentCatalogItem.defaults : active;
+  }
+
   TreatmentCatalogItem? _resolveCatalogSelection(
     List<TreatmentCatalogItem> catalog,
   ) {
@@ -985,29 +1027,11 @@ class _ManagePatientTreatmentDialogState
     return catalog.isEmpty ? null : catalog.first;
   }
 
-  Future<void> _handleCatalogSelection(
+  void _handleCatalogSelection(
     String? value,
     List<TreatmentCatalogItem> catalog,
-  ) async {
+  ) {
     if (value == null) return;
-    if (value == '__create_new__') {
-      final created = await _createCatalogItem();
-      if (created == null || !mounted) return;
-      setState(() {
-        _selectedCatalogId = created.id;
-        _clinicalTreatmentName = created.name;
-        _baseType = created.baseType;
-        _subtype = created.requiresSubtype
-            ? (created.allowedSubtypes.isNotEmpty
-                  ? created.allowedSubtypes.first
-                  : 'metalico')
-            : null;
-        if (_visibleNameCtrl.text.trim().isEmpty) {
-          _visibleNameCtrl.text = created.name;
-        }
-      });
-      return;
-    }
     final selected = catalog.firstWhere((item) => item.id == value);
     setState(() {
       _selectedCatalogId = selected.id;
@@ -1020,148 +1044,412 @@ class _ManagePatientTreatmentDialogState
                       ? selected.allowedSubtypes.first
                       : 'metalico'))
           : null;
-      if (_visibleNameCtrl.text.trim().isEmpty ||
-          _visibleNameCtrl.text.trim() == widget.initialTreatment?.nombre) {
+      if (_visibleNameCtrl.text.trim().isEmpty) {
         _visibleNameCtrl.text = selected.name;
       }
+      _adaptThirdConceptForBaseType();
     });
   }
 
-  Future<TreatmentCatalogItem?> _createCatalogItem() async {
-    final ctrl = TextEditingController();
-    final result = await showDialog<String>(
+  void _adaptThirdConceptForBaseType() {
+    final current =
+        _draftFinancialItems ??
+        _defaultDraftFinancialItems(_previewTreatment());
+    final amount =
+        CurrencyInputFormatter.parseToDouble(_thirdConceptCtrl.text) ??
+        _findThirdConcept(current)?.amount ??
+        0;
+    final active = _findThirdConcept(current)?.active ?? true;
+    final treatment = _previewTreatment();
+    final base = _defaultDraftFinancialItems(treatment);
+    final baseThirdIndex = base.indexWhere((item) => _isThirdConcept(item));
+    if (baseThirdIndex != -1) {
+      base[baseThirdIndex] = base[baseThirdIndex].copyWith(
+        amount: amount,
+        active: active,
+      );
+    }
+    _draftFinancialItems = _mergeExtras(current, base);
+    _syncFinancialControllers(_draftFinancialItems!);
+  }
+
+  List<FinancialItemModel> _mergeExtras(
+    List<FinancialItemModel> oldItems,
+    List<FinancialItemModel> baseItems,
+  ) {
+    final extras = oldItems.where((item) {
+      return item.kind != 'initial' &&
+          item.kind != 'controls' &&
+          !_isThirdConcept(item);
+    }).toList();
+    return <FinancialItemModel>[...baseItems, ...extras];
+  }
+
+  Future<void> _openFinancialItemsDialog(
+    List<FinancialItemModel> currentItems,
+  ) async {
+    final treatment = widget.initialTreatment ?? _previewTreatment();
+    final initialItems = currentItems.isNotEmpty
+        ? currentItems
+        : (_draftFinancialItems ?? _defaultDraftFinancialItems(treatment));
+
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Crear nuevo tratamiento'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Nombre del tratamiento',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
-            child: const Text('Crear'),
-          ),
-        ],
+      builder: (_) => ManageFinancialItemsDialog(
+        patientId: widget.patientId,
+        treatment: treatment,
+        initialItems: _rebindFinancialItems(initialItems, treatment.id),
+        persistOnSave: widget.initialTreatment != null,
+        onDraftSaved: widget.initialTreatment == null
+            ? (items) {
+                setState(() {
+                  _draftFinancialItems = _rebindFinancialItems(
+                    items,
+                    treatment.id,
+                  );
+                  _syncFinancialControllers(_draftFinancialItems!);
+                });
+              }
+            : null,
       ),
     );
-    final name = (result ?? '').trim();
-    if (name.isEmpty) return null;
-    final authUser = ref.read(authStateProvider).asData?.value;
-    return ref
-        .read(treatmentCatalogRepositoryProvider)
-        .createCatalogItem(name: name, createdBy: authUser?.uid);
+  }
+
+  List<FinancialItemModel> _currentFinancialItems(
+    List<FinancialItemModel> remoteItems,
+  ) {
+    if (widget.initialTreatment != null && remoteItems.isNotEmpty)
+      return remoteItems;
+    return _draftFinancialItems ??
+        _defaultDraftFinancialItems(_previewTreatment());
+  }
+
+  List<FinancialItemModel> _mergeInlineValuesIntoItems(
+    List<FinancialItemModel> items,
+    PatientTreatment treatment,
+  ) {
+    final normalized = _ensureRequiredFinancialItems(items, treatment);
+    final initialAmount =
+        CurrencyInputFormatter.parseToDouble(_initialAmountCtrl.text) ?? 0;
+    final controlUnit =
+        CurrencyInputFormatter.parseToDouble(_controlsUnitCtrl.text) ?? 0;
+    final controlQty = int.tryParse(_controlsQtyCtrl.text.trim()) ?? 1;
+    final thirdAmount =
+        CurrencyInputFormatter.parseToDouble(_thirdConceptCtrl.text) ?? 0;
+
+    return normalized.map((item) {
+      if (item.kind == 'initial') {
+        return item.copyWith(amount: initialAmount, active: true);
+      }
+      if (item.kind == 'controls') {
+        return item.copyWith(
+          unitAmount: controlUnit,
+          quantity: controlQty <= 0 ? 1 : controlQty,
+          active: true,
+        );
+      }
+      if (_isThirdConcept(item)) {
+        return item.copyWith(amount: thirdAmount);
+      }
+      return item;
+    }).toList();
+  }
+
+  List<FinancialItemModel> _ensureRequiredFinancialItems(
+    List<FinancialItemModel> items,
+    PatientTreatment treatment,
+  ) {
+    final result = items.toList();
+    final defaults = _defaultDraftFinancialItems(treatment);
+    for (final defaultItem in defaults) {
+      final exists = result.any(
+        (item) =>
+            item.id == defaultItem.id ||
+            item.kind == defaultItem.kind && item.kind != 'extra',
+      );
+      if (!exists) result.add(defaultItem);
+    }
+    result.sort((a, b) => a.order.compareTo(b.order));
+    return result;
+  }
+
+  List<FinancialItemModel> _defaultDraftFinancialItems(
+    PatientTreatment treatment,
+  ) {
+    final now = DateTime.now();
+    final thirdIsAppliance = treatment.tipoBase == 'ortopedia';
+    final controlsQty = int.tryParse(_controlsQtyCtrl.text.trim()) ?? 1;
+    final controlsUnit =
+        CurrencyInputFormatter.parseToDouble(_controlsUnitCtrl.text) ?? 0;
+
+    return <FinancialItemModel>[
+      FinancialItemModel(
+        id: 'initial',
+        patientId: widget.patientId,
+        treatmentId: treatment.id,
+        name: 'Inicial',
+        normalizedName: 'inicial',
+        kind: 'initial',
+        amount:
+            CurrencyInputFormatter.parseToDouble(_initialAmountCtrl.text) ?? 0,
+        deletable: false,
+        editableName: false,
+        order: 1,
+        active: true,
+        createdByAdmin: true,
+        createdBy: _currentAdminId(),
+        updatedBy: _currentAdminId(),
+        createdAt: now,
+        updatedAt: now,
+      ),
+      FinancialItemModel(
+        id: 'controls',
+        patientId: widget.patientId,
+        treatmentId: treatment.id,
+        name: 'Controles',
+        normalizedName: 'controles',
+        kind: 'controls',
+        amount: controlsUnit * (controlsQty <= 0 ? 1 : controlsQty),
+        unitAmount: controlsUnit,
+        quantity: controlsQty <= 0 ? 1 : controlsQty,
+        deletable: false,
+        editableName: false,
+        order: 2,
+        active: true,
+        createdByAdmin: true,
+        createdBy: _currentAdminId(),
+        updatedBy: _currentAdminId(),
+        createdAt: now,
+        updatedAt: now,
+      ),
+      FinancialItemModel(
+        id: thirdIsAppliance ? 'appliance_1' : 'retainers',
+        patientId: widget.patientId,
+        treatmentId: treatment.id,
+        name: thirdIsAppliance ? 'Aparato 1' : 'Retenedores',
+        normalizedName: thirdIsAppliance ? 'aparato_1' : 'retenedores',
+        kind: thirdIsAppliance ? 'appliance' : 'retainers',
+        amount:
+            CurrencyInputFormatter.parseToDouble(_thirdConceptCtrl.text) ?? 0,
+        deletable: true,
+        editableName: true,
+        order: 3,
+        active: true,
+        createdByAdmin: true,
+        createdBy: _currentAdminId(),
+        updatedBy: _currentAdminId(),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    ];
+  }
+
+  List<FinancialItemModel> _rebindFinancialItems(
+    List<FinancialItemModel> items,
+    String treatmentId,
+  ) {
+    final now = DateTime.now();
+    return items.map((item) {
+      return item.copyWith(
+        patientId: widget.patientId,
+        treatmentId: treatmentId,
+        updatedBy: _currentAdminId(),
+        updatedAt: now,
+      );
+    }).toList();
+  }
+
+  FinancialItemModel? _findThirdConcept(List<FinancialItemModel> items) {
+    for (final item in items) {
+      if (_isThirdConcept(item)) return item;
+    }
+    return null;
+  }
+
+  bool _isThirdConcept(FinancialItemModel item) {
+    final normalized = item.normalizedName.toLowerCase();
+    final name = item.name.toLowerCase();
+    return item.kind == 'retainers' ||
+        item.kind == 'appliance' ||
+        item.id == 'retainers' ||
+        item.id == 'appliance_1' ||
+        normalized.contains('reten') ||
+        normalized.contains('aparato') ||
+        name.contains('reten') ||
+        name.contains('aparato');
   }
 
   void _syncFinancialControllers(List<FinancialItemModel> items) {
-    if (items.isEmpty) return;
-    final initial = _findItem(items, 'initial');
-    final controls = _findItem(items, 'controls');
-    final third = _findThirdItem(items);
-    _setIfDifferent(
-      _initialAmountCtrl,
-      initial == null ? '' : _toCurrencyInput(initial.amount),
-    );
-    _setIfDifferent(
-      _controlsUnitCtrl,
-      controls == null ? '' : _toCurrencyInput(controls.effectiveUnitAmount),
-    );
-    _setIfDifferent(
-      _controlsQtyCtrl,
-      controls == null ? '10' : '${controls.effectiveQuantity}',
-    );
-    _setIfDifferent(
-      _thirdConceptCtrl,
-      third == null ? '' : _toCurrencyInput(third.amount),
-    );
-  }
-
-  FinancialItemModel? _findItem(List<FinancialItemModel> items, String kind) {
-    return items.cast<FinancialItemModel?>().firstWhere(
-      (i) => i?.kind == kind,
-      orElse: () => null,
-    );
-  }
-
-  FinancialItemModel? _findThirdItem(List<FinancialItemModel> items) {
-    return items.cast<FinancialItemModel?>().firstWhere(
-      (i) => _isOrtopedia
-          ? (i?.normalizedName.contains('aparato') ?? false)
-          : ((i?.normalizedName.contains('reten') ?? false) ||
-                (i?.name.toLowerCase().contains('reten') ?? false)),
-      orElse: () => null,
-    );
-  }
-
-  void _setIfDifferent(TextEditingController controller, String value) {
-    if (controller.text != value && controller.selection.baseOffset <= 0) {
-      controller.text = value;
+    _updatingControllers = true;
+    try {
+      for (final item in items) {
+        if (item.kind == 'initial') {
+          _initialAmountCtrl.text = _formatInputMoney(item.amount);
+        } else if (item.kind == 'controls') {
+          _controlsUnitCtrl.text = _formatInputMoney(item.effectiveUnitAmount);
+          _controlsQtyCtrl.text = item.effectiveQuantity.toString();
+        } else if (_isThirdConcept(item)) {
+          _thirdConceptCtrl.text = _formatInputMoney(item.amount);
+        }
+      }
+    } finally {
+      _updatingControllers = false;
     }
   }
 
   TreatmentFinancialSummaryModel _buildFinancialSummary(
     List<FinancialItemModel> items,
   ) {
-    final initial = _parseMoney(_initialAmountCtrl.text);
-    final controlsUnit = _parseMoney(_controlsUnitCtrl.text);
-    final controlsQty = int.tryParse(_controlsQtyCtrl.text.trim()) ?? 0;
-    final thirdAmount = _parseMoney(_thirdConceptCtrl.text);
-    final extrasTotal = items
-        .where(
-          (item) =>
-              item.active &&
-              item.kind != 'initial' &&
-              item.kind != 'controls' &&
-              !_isThirdConcept(item),
-        )
-        .fold<double>(0, (sum, item) => sum + item.computedAmount);
-    final subtotal =
-        initial + (controlsUnit * controlsQty) + thirdAmount + extrasTotal;
+    final activeItems = items.where((item) => item.active).toList();
+    final total = activeItems.fold<double>(
+      0,
+      (sum, item) => sum + item.computedAmount,
+    );
+    final previous = widget.initialTreatment;
+    final paid = previous == null
+        ? 0.0
+        : ((previous.totalTratamiento ?? 0) - (previous.saldoPendiente ?? 0))
+              .clamp(0, double.infinity)
+              .toDouble();
+    final pending = (total - paid).clamp(0, double.infinity).toDouble();
+
     return TreatmentFinancialSummaryModel(
       currency: 'COP',
-      subtotalAmount: subtotal,
+      subtotalAmount: total,
       discountAmount: 0,
-      totalAmount: subtotal,
-      paidAmount: 0,
-      pendingAmount: subtotal,
-      itemsCount: 3,
+      totalAmount: total,
+      paidAmount: paid,
+      pendingAmount: pending,
+      itemsCount: activeItems.length,
       lastPricingUpdateAt: DateTime.now(),
     );
   }
 
-  bool _isThirdConcept(FinancialItemModel item) {
-    return _isOrtopedia
-        ? item.normalizedName.contains('aparato')
-        : item.normalizedName.contains('reten') ||
-              item.name.toLowerCase().contains('reten');
+  PatientTreatment _previewTreatment() {
+    final now = DateTime.now();
+    final visibleName = _resolvedVisibleName();
+    return PatientTreatment(
+      id: widget.initialTreatment?.id ?? 'draft-treatment-${widget.patientId}',
+      patientId: widget.patientId,
+      nombre: visibleName,
+      visibleName: visibleName,
+      clinicalTreatmentName: _clinicalTreatmentName ?? visibleName,
+      catalogTreatmentId: _selectedCatalogId,
+      categoria: 'ortodoncia',
+      tipoBase: _baseType,
+      subtipo: _requiresSubtype ? (_subtype ?? 'metalico') : null,
+      estado: _status,
+      etapaActual: _stage,
+      fechaInicio: _startDate,
+      fechaFin: (_status == 'finalizado' || _status == 'cancelado')
+          ? now
+          : null,
+      createdAt: widget.initialTreatment?.createdAt ?? now,
+      updatedAt: now,
+      isPrimary: _isPrimary,
+      createdBy: widget.initialTreatment?.createdBy ?? _currentAdminId(),
+      updatedBy: _currentAdminId(),
+      suggestedCleaningEveryMonths:
+          int.tryParse(_cleaningMonthsCtrl.text.trim()) ?? 3,
+      suggestedControlEveryMonths:
+          int.tryParse(_controlMonthsCtrl.text.trim()) ?? 6,
+      nextCleaningDate: _nextCleaningDate,
+      nextControlDate: _nextControlDate,
+      notas: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+    );
   }
 
-  double _parseMoney(String value) {
-    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-    return double.tryParse(digits) ?? 0;
-  }
-
-  String _toCurrencyInput(double value) {
-    if (value <= 0) return '';
-    final integer = value.round().toString();
-    final chars = integer.split('').reversed.toList();
-    final buffer = StringBuffer();
-    for (var i = 0; i < chars.length; i++) {
-      if (i > 0 && i % 3 == 0) buffer.write('.');
-      buffer.write(chars[i]);
+  Future<void> _submit(
+    List<FinancialItemModel> effectiveItems,
+    TreatmentFinancialSummaryModel summary,
+  ) async {
+    if (!_formKey.currentState!.validate()) return;
+    final initial = effectiveItems.firstWhere((item) => item.kind == 'initial');
+    final controls = effectiveItems.firstWhere(
+      (item) => item.kind == 'controls',
+    );
+    if (initial.amount <= 0 || controls.effectiveUnitAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicial y Controles son obligatorios.')),
+      );
+      return;
     }
-    return buffer.toString().split('').reversed.join();
+
+    setState(() => _saving = true);
+    try {
+      final now = DateTime.now();
+      final previous = widget.initialTreatment;
+      final treatmentId = previous?.id ?? _generateTreatmentId(now);
+      final paidBefore = previous == null
+          ? 0.0
+          : ((previous.totalTratamiento ?? 0) - (previous.saldoPendiente ?? 0))
+                .clamp(0, double.infinity)
+                .toDouble();
+      final pending = (summary.totalAmount - paidBefore)
+          .clamp(0, double.infinity)
+          .toDouble();
+
+      final treatment = _previewTreatment().copyWith(
+        id: treatmentId,
+        totalTratamiento: summary.totalAmount,
+        saldoPendiente: pending,
+        updatedAt: now,
+        updatedBy: _currentAdminId(),
+      );
+
+      String? previousPrimaryId;
+      if (previous != null && previous.isPrimary != treatment.isPrimary) {
+        previousPrimaryId = previous.id;
+      }
+
+      await ref
+          .read(patientTreatmentsRepositoryProvider)
+          .saveTreatment(
+            patientId: widget.patientId,
+            treatment: treatment,
+            previousPrimaryId: previousPrimaryId,
+          );
+
+      await ref
+          .read(treatmentFinancialRepositoryProvider)
+          .replaceFinancialItems(
+            patientId: widget.patientId,
+            treatment: treatment,
+            items: _rebindFinancialItems(effectiveItems, treatment.id),
+            updatedBy: _currentAdminId(),
+          );
+
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_mapTreatmentError(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
-  String? _requiredMoneyValidator(String? value) {
-    return _parseMoney(value ?? '') <= 0 ? 'Obligatorio' : null;
+  String _generateTreatmentId(DateTime now) {
+    final prefix = widget.patientId.length >= 6
+        ? widget.patientId.substring(0, 6)
+        : widget.patientId;
+    return 'treatment-${now.millisecondsSinceEpoch}-$prefix';
+  }
+
+  String _resolvedVisibleName() {
+    final typed = _visibleNameCtrl.text.trim();
+    if (typed.isNotEmpty) return typed;
+    if (_clinicalTreatmentName != null &&
+        _clinicalTreatmentName!.trim().isNotEmpty) {
+      return _clinicalTreatmentName!.trim();
+    }
+    return PatientTreatment.labelForBaseTreatment(_baseType);
+  }
+
+  String _currentAdminId() {
+    return ref.read(authStateProvider).asData?.value?.uid ?? 'system';
   }
 
   Future<void> _pickStartDate() async {
@@ -1172,13 +1460,7 @@ class _ManagePatientTreatmentDialogState
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      setState(() {
-        _startDate = picked;
-        if (!_editing) {
-          _nextCleaningDate = _addMonths(picked, 3);
-          _nextControlDate = _addMonths(picked, 6);
-        }
-      });
+      setState(() => _startDate = picked);
     }
   }
 
@@ -1202,170 +1484,55 @@ class _ManagePatientTreatmentDialogState
   }
 
   DateTime _addMonths(DateTime date, int months) {
-    return DateTime(date.year, date.month + months, date.day);
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final now = DateTime.now();
-    final authUser = ref.read(authStateProvider).asData?.value;
-    final previous = widget.initialTreatment;
-    final treatmentId =
-        previous?.id ??
-        'treatment-${now.millisecondsSinceEpoch}-${widget.patientId.substring(0, widget.patientId.length.clamp(0, 6))}';
-
-    final visibleName = _visibleNameCtrl.text.trim();
-    final clinicalName = _clinicalTreatmentName ?? visibleName;
-    final treatment = PatientTreatment(
-      id: treatmentId,
-      patientId: widget.patientId,
-      nombre: visibleName.isEmpty ? clinicalName : visibleName,
-      catalogTreatmentId: _selectedCatalogId,
-      clinicalTreatmentName: clinicalName,
-      visibleName: visibleName.isEmpty ? clinicalName : visibleName,
-      categoria: 'ortodoncia',
-      tipoBase: _baseType,
-      subtipo: _requiresSubtype ? _subtype : null,
-      estado: _status,
-      etapaActual: _stage,
-      fechaInicio: _startDate,
-      fechaFin: (_status == 'finalizado' || _status == 'cancelado')
-          ? now
-          : null,
-      createdAt: previous?.createdAt ?? now,
-      updatedAt: now,
-      isPrimary: _isPrimary,
-      createdBy: previous?.createdBy ?? authUser?.uid ?? 'system',
-      updatedBy: authUser?.uid ?? previous?.updatedBy ?? 'system',
-      suggestedCleaningEveryMonths:
-          int.tryParse(_cleaningMonthsCtrl.text.trim()) ?? 3,
-      suggestedControlEveryMonths:
-          int.tryParse(_controlMonthsCtrl.text.trim()) ?? 6,
-      nextCleaningDate: _nextCleaningDate,
-      nextControlDate: _nextControlDate,
-      totalTratamiento: _buildFinancialSummary(
-        widget.initialTreatment == null
-            ? const <FinancialItemModel>[]
-            : (ref
-                      .read(
-                        treatmentFinancialItemsProvider((
-                          patientId: widget.patientId,
-                          treatmentId: widget.initialTreatment!.id,
-                        )),
-                      )
-                      .asData
-                      ?.value ??
-                  const <FinancialItemModel>[]),
-      ).totalAmount,
-      saldoPendiente: _buildFinancialSummary(
-        widget.initialTreatment == null
-            ? const <FinancialItemModel>[]
-            : (ref
-                      .read(
-                        treatmentFinancialItemsProvider((
-                          patientId: widget.patientId,
-                          treatmentId: widget.initialTreatment!.id,
-                        )),
-                      )
-                      .asData
-                      ?.value ??
-                  const <FinancialItemModel>[]),
-      ).totalAmount,
-      notas: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-    );
-
-    String? previousPrimaryId;
-    if (previous != null && previous.isPrimary != treatment.isPrimary) {
-      previousPrimaryId = previous.id;
-    }
-
-    await ref
-        .read(savePatientTreatmentProvider.notifier)
-        .saveTreatment(
-          patientId: widget.patientId,
-          treatment: treatment,
-          previousPrimaryId: previousPrimaryId,
-        );
-
-    final financialRepo = ref.read(treatmentFinancialRepositoryProvider);
-    final targetTreatment = previous == null
-        ? treatment
-        : previous.copyWith(tipoBase: treatment.tipoBase);
-
-    // FIX 1: eliminado parámetro 'overwriteMissingOnly' que no existe en ensureBaseItems
-    await financialRepo.ensureBaseItems(
-      patientId: widget.patientId,
-      treatment: targetTreatment,
-    );
-
-    final items =
-        ref
-            .read(
-              treatmentFinancialItemsProvider((
-                patientId: widget.patientId,
-                treatmentId: treatment.id,
-              )),
-            )
-            .asData
-            ?.value ??
-        const <FinancialItemModel>[];
-
-    final initialItem = _findItem(items, 'initial');
-    final controlsItem = _findItem(items, 'controls');
-    final thirdItem = _findThirdItem(items);
-
-    // FIX 2: eliminadas las llamadas a upsertItem (no existe en TreatmentFinancialRepository).
-    // Se construye la lista actualizada y se persiste de una sola vez con replaceFinancialItems.
-    final updatedItems = items.map((item) {
-      if (initialItem != null && item.id == initialItem.id) {
-        return item.copyWith(
-          amount: _parseMoney(_initialAmountCtrl.text),
-          active: true,
-        );
-      }
-      if (controlsItem != null && item.id == controlsItem.id) {
-        return item.copyWith(
-          unitAmount: _parseMoney(_controlsUnitCtrl.text),
-          quantity: int.tryParse(_controlsQtyCtrl.text.trim()) ?? 1,
-          active: true,
-        );
-      }
-      if (thirdItem != null && item.id == thirdItem.id) {
-        return item.copyWith(
-          amount: _parseMoney(_thirdConceptCtrl.text),
-          active: true,
-        );
-      }
-      return item;
-    }).toList();
-
-    if (updatedItems.isNotEmpty) {
-      // FIX: replaceFinancialItems recibe 'treatment' (PatientTreatment), no 'treatmentId'
-      await financialRepo.replaceFinancialItems(
-        patientId: widget.patientId,
-        treatment: treatment,
-        items: updatedItems,
-      );
-    }
+    return DateTime(date.year, date.month + months, date.day, 9, 0);
   }
 
   String _formatDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
+  String _formatInputMoney(double value) {
+    final integer = value.round();
+    if (integer <= 0) return '';
+    return CurrencyInputFormatter.formatDigits(integer.toString());
+  }
+
+  String? _requiredMoneyValidator(String? value) {
+    final parsed = CurrencyInputFormatter.parseToDouble(value ?? '');
+    if (parsed == null || parsed <= 0) return 'Obligatorio';
+    return null;
+  }
+
+  String? _positiveIntValidator(String? value) {
+    final parsed = int.tryParse((value ?? '').trim());
+    if (parsed == null || parsed <= 0) return 'Inválido';
+    return null;
+  }
+
   String _mapTreatmentError(Object error) {
     final raw = error.toString();
     if (raw.contains('TREATMENT_NAME_REQUIRED')) {
-      return 'Debes seleccionar el tratamiento clínico.';
+      return 'Debes ingresar el nombre del tratamiento.';
     }
     if (raw.contains('TREATMENT_BASE_REQUIRED')) {
       return 'Debes seleccionar el tipo base del tratamiento.';
+    }
+    if (raw.contains('TREATMENT_CATEGORY_REQUIRED')) {
+      return 'La categoría del tratamiento es obligatoria.';
     }
     if (raw.contains('TREATMENT_SUBTYPE_REQUIRED')) {
       return 'Debes seleccionar el subtipo para este tratamiento.';
     }
     if (raw.contains('TREATMENT_STATUS_INVALID')) {
       return 'El estado seleccionado no es válido.';
+    }
+    if (raw.contains('REQUIRED_FINANCIAL_ITEMS_MISSING')) {
+      return 'Inicial y Controles son obligatorios.';
+    }
+    if (raw.contains('FINANCIAL_ITEM_DUPLICATE_NAME')) {
+      return 'No repitas nombres de conceptos financieros.';
+    }
+    if (raw.contains('FINANCIAL_ITEM_NEGATIVE_AMOUNT')) {
+      return 'No se permiten montos negativos.';
     }
     return 'No se pudo guardar el tratamiento. Intenta de nuevo.';
   }
