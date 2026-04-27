@@ -8,7 +8,6 @@ import '../../../../shared/utils/currency_input_formatter.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
-import '../../../payments/presentation/widgets/manage_financial_items_dialog.dart';
 import '../../../payments/providers/treatment_financial_provider.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../../data/models/patient_treatment.dart';
@@ -61,6 +60,10 @@ class _ManagePatientTreatmentDialogState
   String? _clinicalTreatmentName;
   late String _baseType;
   String? _subtype;
+
+  final Map<String, TextEditingController> _financialNameCtrls = {};
+  final Map<String, TextEditingController> _financialAmountCtrls = {};
+  final Map<String, TextEditingController> _financialQtyCtrls = {};
 
   List<FinancialItemModel>? _draftFinancialItems;
   bool _saving = false;
@@ -121,6 +124,15 @@ class _ManagePatientTreatmentDialogState
     _controlsUnitCtrl.dispose();
     _controlsQtyCtrl.dispose();
     _thirdConceptCtrl.dispose();
+    for (final controller in _financialNameCtrls.values) {
+      controller.dispose();
+    }
+    for (final controller in _financialAmountCtrls.values) {
+      controller.dispose();
+    }
+    for (final controller in _financialQtyCtrls.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -161,7 +173,9 @@ class _ManagePatientTreatmentDialogState
     final remoteItems =
         remoteItemsAsync.asData?.value ?? const <FinancialItemModel>[];
     if (_editing && remoteItems.isNotEmpty && !_didSyncInitialFinancialItems) {
-      _syncFinancialControllers(remoteItems);
+      _draftFinancialItems = remoteItems.map((item) => item.copyWith()).toList();
+      _syncFinancialItemControllers(_draftFinancialItems!);
+      _syncFinancialControllers(_draftFinancialItems!);
       _didSyncInitialFinancialItems = true;
     }
 
@@ -604,8 +618,9 @@ class _ManagePatientTreatmentDialogState
     List<FinancialItemModel> effectiveItems,
     TreatmentFinancialSummaryModel summary,
   ) {
-    final thirdLabel = _isOrtopedia ? 'Aparato 1' : 'Retenedores';
     final activeCount = effectiveItems.where((item) => item.active).length;
+    final orderedItems = _orderedFinancialItems(effectiveItems);
+    _syncFinancialItemControllers(orderedItems);
 
     return Column(
       children: [
@@ -615,64 +630,37 @@ class _ManagePatientTreatmentDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Inicial y Controles son obligatorios. Retenedores, Aparato 1 y extras se activan o desactivan desde el editor.',
+                'Edita aquí mismo los conceptos. Inicial y Controles son obligatorios; Retenedores, Aparato 1 y extras pueden activarse, desactivarse o eliminarse.',
                 style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
               ),
               const SizedBox(height: 14),
-              _moneyField(
-                controller: _initialAmountCtrl,
-                label: 'Inicial',
-                validator: _requiredMoneyValidator,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _moneyField(
-                      controller: _controlsUnitCtrl,
-                      label: 'Controles (valor unitario)',
-                      validator: _requiredMoneyValidator,
-                    ),
+              financialItemsAsync.when(
+                loading: () => const LinearProgressIndicator(minHeight: 2),
+                error: (_, __) => const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'No se pudo cargar el detalle financiero.',
+                    style: TextStyle(color: Color(0xFF8A6F59)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _controlsQtyCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: _inputDecoration('Cantidad'),
-                      validator: _positiveIntValidator,
-                    ),
-                  ),
-                ],
+                ),
+                data: (_) => const SizedBox.shrink(),
               ),
-              const SizedBox(height: 12),
-              _moneyField(controller: _thirdConceptCtrl, label: thirdLabel),
-              const SizedBox(height: 12),
+              ...orderedItems.map(_buildFinancialItemCard),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () => _openFinancialItemsDialog(effectiveItems),
-                  icon: const Icon(Icons.tune_outlined),
-                  label: const Text('Editar conceptos financieros'),
+                  onPressed: _saving ? null : _addExtraFinancialItem,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Agregar concepto financiero'),
                 ),
               ),
               const SizedBox(height: 10),
-              financialItemsAsync.when(
-                loading: () => const LinearProgressIndicator(minHeight: 2),
-                error: (_, __) => const Text(
-                  'No se pudo cargar el detalle financiero.',
-                  style: TextStyle(color: Color(0xFF8A6F59)),
-                ),
-                data: (_) => Text(
-                  '$activeCount concepto(s) financiero(s) activo(s).',
-                  style: const TextStyle(
-                    color: Color(0xFF8A6F59),
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                '$activeCount concepto(s) financiero(s) activo(s).',
+                style: const TextStyle(
+                  color: Color(0xFF8A6F59),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -798,6 +786,141 @@ class _ManagePatientTreatmentDialogState
                 _adaptThirdConceptForBaseType();
               });
             },
+    );
+  }
+
+  Widget _buildFinancialItemCard(FinancialItemModel item) {
+    final isControls = item.kind == 'controls';
+    final lockedRequired = item.kind == 'initial' || item.kind == 'controls';
+    final nameController = _financialNameCtrls[item.id]!;
+    final amountController = _financialAmountCtrls[item.id]!;
+    final qtyController = _financialQtyCtrls[item.id]!;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: item.active ? Colors.white : const Color(0xFFF8F2EC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: lockedRequired
+              ? const Color(0xFFD9C3AD)
+              : const Color(0xFFE8D8C8),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                lockedRequired
+                    ? Icons.lock_outline_rounded
+                    : Icons.tune_outlined,
+                color: lockedRequired ? OcgColors.bronze : OcgColors.espresso,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  lockedRequired
+                      ? '${item.name} · obligatorio'
+                      : item.active
+                      ? '${item.name} · activo'
+                      : '${item.name} · inactivo',
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              Switch.adaptive(
+                value: lockedRequired ? true : item.active,
+                onChanged: lockedRequired || _saving
+                    ? null
+                    : (value) => _updateFinancialItem(
+                        item.copyWith(active: value),
+                      ),
+              ),
+              if (!lockedRequired && item.deletable)
+                IconButton(
+                  tooltip: 'Eliminar concepto',
+                  onPressed: _saving ? null : () => _removeFinancialItem(item),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 620;
+              final nameField = TextFormField(
+                controller: nameController,
+                enabled: item.editableName && !lockedRequired && !_saving,
+                decoration: _inputDecoration('Nombre del concepto'),
+                validator: (value) {
+                  final text = (value ?? '').trim();
+                  if (text.isEmpty) return 'Obligatorio';
+                  return null;
+                },
+                onChanged: (value) => _updateFinancialItemName(item, value),
+              );
+              final amountField = _moneyField(
+                controller: amountController,
+                label: isControls ? 'Valor unitario' : 'Monto',
+                validator: lockedRequired ? _requiredMoneyValidator : null,
+                onChanged: (value) => _updateFinancialItemAmount(item, value),
+              );
+              final qtyField = TextFormField(
+                controller: qtyController,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: _inputDecoration('Cantidad'),
+                validator: isControls ? _positiveIntValidator : null,
+                onChanged: (value) => _updateFinancialItemQuantity(item, value),
+              );
+
+              if (compact) {
+                return Column(
+                  children: [
+                    nameField,
+                    const SizedBox(height: 10),
+                    amountField,
+                    if (isControls) ...[
+                      const SizedBox(height: 10),
+                      qtyField,
+                    ],
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: nameField),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 2, child: amountField),
+                  if (isControls) ...[
+                    const SizedBox(width: 10),
+                    Expanded(child: qtyField),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isControls
+                ? 'Fórmula: ${_currency.format(item.effectiveUnitAmount)} × ${item.effectiveQuantity} = ${_currency.format(item.computedAmount)}'
+                : 'Total: ${_currency.format(item.computedAmount)}',
+            style: const TextStyle(
+              color: Color(0xFF8A6F59),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -965,9 +1088,12 @@ class _ManagePatientTreatmentDialogState
     required TextEditingController controller,
     required String label,
     String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
+      enabled: enabled,
       keyboardType: TextInputType.number,
       inputFormatters: [
         FilteringTextInputFormatter.digitsOnly,
@@ -975,6 +1101,7 @@ class _ManagePatientTreatmentDialogState
       ],
       decoration: _inputDecoration(label),
       validator: validator,
+      onChanged: onChanged,
     );
   }
 
@@ -1085,43 +1212,14 @@ class _ManagePatientTreatmentDialogState
     return <FinancialItemModel>[...baseItems, ...extras];
   }
 
-  Future<void> _openFinancialItemsDialog(
-    List<FinancialItemModel> currentItems,
-  ) async {
-    final treatment = widget.initialTreatment ?? _previewTreatment();
-    final initialItems = currentItems.isNotEmpty
-        ? currentItems
-        : (_draftFinancialItems ?? _defaultDraftFinancialItems(treatment));
-
-    await showDialog<void>(
-      context: context,
-      builder: (_) => ManageFinancialItemsDialog(
-        patientId: widget.patientId,
-        treatment: treatment,
-        initialItems: _rebindFinancialItems(initialItems, treatment.id),
-        persistOnSave: widget.initialTreatment != null,
-        onDraftSaved: widget.initialTreatment == null
-            ? (items) {
-                setState(() {
-                  _draftFinancialItems = _rebindFinancialItems(
-                    items,
-                    treatment.id,
-                  );
-                  _syncFinancialControllers(_draftFinancialItems!);
-                });
-              }
-            : null,
-      ),
-    );
-  }
-
   List<FinancialItemModel> _currentFinancialItems(
     List<FinancialItemModel> remoteItems,
   ) {
-    if (widget.initialTreatment != null && remoteItems.isNotEmpty)
+    if (_draftFinancialItems != null) return _draftFinancialItems!;
+    if (widget.initialTreatment != null && remoteItems.isNotEmpty) {
       return remoteItems;
-    return _draftFinancialItems ??
-        _defaultDraftFinancialItems(_previewTreatment());
+    }
+    return _defaultDraftFinancialItems(_previewTreatment());
   }
 
   List<FinancialItemModel> _mergeInlineValuesIntoItems(
@@ -1129,30 +1227,7 @@ class _ManagePatientTreatmentDialogState
     PatientTreatment treatment,
   ) {
     final normalized = _ensureRequiredFinancialItems(items, treatment);
-    final initialAmount =
-        CurrencyInputFormatter.parseToDouble(_initialAmountCtrl.text) ?? 0;
-    final controlUnit =
-        CurrencyInputFormatter.parseToDouble(_controlsUnitCtrl.text) ?? 0;
-    final controlQty = int.tryParse(_controlsQtyCtrl.text.trim()) ?? 1;
-    final thirdAmount =
-        CurrencyInputFormatter.parseToDouble(_thirdConceptCtrl.text) ?? 0;
-
-    return normalized.map((item) {
-      if (item.kind == 'initial') {
-        return item.copyWith(amount: initialAmount, active: true);
-      }
-      if (item.kind == 'controls') {
-        return item.copyWith(
-          unitAmount: controlUnit,
-          quantity: controlQty <= 0 ? 1 : controlQty,
-          active: true,
-        );
-      }
-      if (_isThirdConcept(item)) {
-        return item.copyWith(amount: thirdAmount);
-      }
-      return item;
-    }).toList();
+    return _sanitizeFinancialItems(normalized, treatment);
   }
 
   List<FinancialItemModel> _ensureRequiredFinancialItems(
@@ -1259,6 +1334,196 @@ class _ManagePatientTreatmentDialogState
     }).toList();
   }
 
+  List<FinancialItemModel> _orderedFinancialItems(List<FinancialItemModel> items) {
+    final ordered = items.toList();
+    ordered.sort((a, b) => _financialSortKey(a).compareTo(_financialSortKey(b)));
+    return ordered;
+  }
+
+  int _financialSortKey(FinancialItemModel item) {
+    if (item.kind == 'initial') return 10;
+    if (item.kind == 'controls') return 20;
+    if (item.id == 'appliance_1' || item.kind == 'appliance') return 30;
+    if (item.id == 'retainers' || item.kind == 'retainers') return 40;
+    return 100 + item.order;
+  }
+
+  void _syncFinancialItemControllers(List<FinancialItemModel> items) {
+    for (final item in items) {
+      _financialNameCtrls.putIfAbsent(
+        item.id,
+        () => TextEditingController(text: item.name),
+      );
+      _financialAmountCtrls.putIfAbsent(
+        item.id,
+        () => TextEditingController(
+          text: _formatInputMoney(
+            item.kind == 'controls' ? item.effectiveUnitAmount : item.amount,
+          ),
+        ),
+      );
+      _financialQtyCtrls.putIfAbsent(
+        item.id,
+        () => TextEditingController(text: item.effectiveQuantity.toString()),
+      );
+    }
+  }
+
+  void _updateFinancialItem(FinancialItemModel updated) {
+    final treatment = _previewTreatment();
+    final normalized = _ensureRequiredFinancialItems(
+      _currentFinancialItems(const <FinancialItemModel>[]),
+      treatment,
+    ).map((item) {
+      if (item.id != updated.id) return item;
+      if (updated.kind == 'initial' || updated.kind == 'controls') {
+        return updated.copyWith(active: true, deletable: false);
+      }
+      return updated;
+    }).toList();
+
+    setState(() {
+      _draftFinancialItems = normalized;
+      _syncFinancialControllers(normalized);
+    });
+  }
+
+  void _updateFinancialItemName(FinancialItemModel item, String value) {
+    _updateFinancialItem(
+      item.copyWith(
+        name: value.trimLeft(),
+        normalizedName: FinancialItemModel.normalizeName(value),
+      ),
+    );
+  }
+
+  void _updateFinancialItemAmount(FinancialItemModel item, String value) {
+    final parsed = CurrencyInputFormatter.parseToDouble(value) ?? 0;
+    _updateFinancialItem(
+      item.kind == 'controls'
+          ? item.copyWith(unitAmount: parsed)
+          : item.copyWith(amount: parsed),
+    );
+  }
+
+  void _updateFinancialItemQuantity(FinancialItemModel item, String value) {
+    final parsed = int.tryParse(value.trim()) ?? 1;
+    _updateFinancialItem(item.copyWith(quantity: parsed <= 0 ? 1 : parsed));
+  }
+
+  void _addExtraFinancialItem() {
+    final now = DateTime.now();
+    final treatment = _previewTreatment();
+    final current = _orderedFinancialItems(
+      _ensureRequiredFinancialItems(
+        _currentFinancialItems(const <FinancialItemModel>[]),
+        treatment,
+      ),
+    );
+    final extraIndex = current.where((item) => item.kind == 'extra').length + 1;
+    final item = FinancialItemModel(
+      id: 'extra_${now.microsecondsSinceEpoch}',
+      patientId: widget.patientId,
+      treatmentId: treatment.id,
+      name: 'Concepto $extraIndex',
+      normalizedName: FinancialItemModel.normalizeName('Concepto $extraIndex'),
+      kind: 'extra',
+      amount: 0,
+      deletable: true,
+      editableName: true,
+      order: current.length + 1,
+      active: true,
+      createdByAdmin: true,
+      createdBy: _currentAdminId(),
+      updatedBy: _currentAdminId(),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    setState(() {
+      _draftFinancialItems = [...current, item];
+      _syncFinancialItemControllers(_draftFinancialItems!);
+      _syncFinancialControllers(_draftFinancialItems!);
+    });
+  }
+
+  void _removeFinancialItem(FinancialItemModel item) {
+    if (item.kind == 'initial' || item.kind == 'controls') return;
+    final current = _currentFinancialItems(const <FinancialItemModel>[]);
+    setState(() {
+      _draftFinancialItems = current
+          .where((candidate) => candidate.id != item.id)
+          .toList();
+      _financialNameCtrls.remove(item.id)?.dispose();
+      _financialAmountCtrls.remove(item.id)?.dispose();
+      _financialQtyCtrls.remove(item.id)?.dispose();
+      _syncFinancialControllers(_draftFinancialItems!);
+    });
+  }
+
+  List<FinancialItemModel> _sanitizeFinancialItems(
+    List<FinancialItemModel> items,
+    PatientTreatment treatment,
+  ) {
+    final now = DateTime.now();
+    final result = <FinancialItemModel>[];
+    final normalizedNames = <String>{};
+
+    for (var index = 0; index < _orderedFinancialItems(items).length; index++) {
+      final item = _orderedFinancialItems(items)[index];
+      final rawName =
+          (_financialNameCtrls[item.id]?.text ?? item.name).trim();
+      if (rawName.isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+      final normalizedName = FinancialItemModel.normalizeName(rawName);
+      if (normalizedName.isEmpty) {
+        throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+      }
+      if (normalizedNames.contains(normalizedName)) {
+        throw Exception('FINANCIAL_ITEM_DUPLICATE_NAME');
+      }
+      normalizedNames.add(normalizedName);
+
+      final isControls = item.kind == 'controls';
+      final amount =
+          CurrencyInputFormatter.parseToDouble(
+            _financialAmountCtrls[item.id]?.text ?? '',
+          ) ??
+          0;
+      final quantity = isControls
+          ? (int.tryParse(_financialQtyCtrls[item.id]?.text.trim() ?? '') ?? 1)
+          : 1;
+      if (amount < 0 || quantity < 1) {
+        throw Exception('FINANCIAL_ITEM_INVALID_AMOUNT');
+      }
+
+      final required = item.kind == 'initial' || item.kind == 'controls';
+      result.add(
+        item.copyWith(
+          patientId: widget.patientId,
+          treatmentId: treatment.id,
+          name: rawName,
+          normalizedName: normalizedName,
+          amount: isControls ? amount * quantity : amount,
+          unitAmount: isControls ? amount : null,
+          quantity: isControls ? quantity : null,
+          active: required ? true : item.active,
+          deletable: required ? false : item.deletable,
+          order: index + 1,
+          updatedBy: _currentAdminId(),
+          updatedAt: now,
+        ),
+      );
+    }
+
+    final hasInitial = result.any((item) => item.kind == 'initial' && item.active);
+    final hasControls = result.any((item) => item.kind == 'controls' && item.active);
+    if (!hasInitial || !hasControls) {
+      throw Exception('REQUIRED_FINANCIAL_ITEMS_MISSING');
+    }
+
+    return result;
+  }
+
   FinancialItemModel? _findThirdConcept(List<FinancialItemModel> items) {
     for (final item in items) {
       if (_isThirdConcept(item)) return item;
@@ -1283,13 +1548,20 @@ class _ManagePatientTreatmentDialogState
     _updatingControllers = true;
     try {
       for (final item in items) {
+        final amountText = _formatInputMoney(
+          item.kind == 'controls' ? item.effectiveUnitAmount : item.amount,
+        );
+        _financialNameCtrls[item.id]?.text = item.name;
+        _financialAmountCtrls[item.id]?.text = amountText;
+        _financialQtyCtrls[item.id]?.text = item.effectiveQuantity.toString();
+
         if (item.kind == 'initial') {
-          _initialAmountCtrl.text = _formatInputMoney(item.amount);
+          _initialAmountCtrl.text = amountText;
         } else if (item.kind == 'controls') {
-          _controlsUnitCtrl.text = _formatInputMoney(item.effectiveUnitAmount);
+          _controlsUnitCtrl.text = amountText;
           _controlsQtyCtrl.text = item.effectiveQuantity.toString();
         } else if (_isThirdConcept(item)) {
-          _thirdConceptCtrl.text = _formatInputMoney(item.amount);
+          _thirdConceptCtrl.text = amountText;
         }
       }
     } finally {
