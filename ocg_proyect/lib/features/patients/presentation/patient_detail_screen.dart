@@ -9,10 +9,14 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
+import '../../payments/providers/payments_provider.dart';
+import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
+import '../../simulator/providers/simulation_provider.dart';
 import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
 import '../data/models/patient_model.dart';
@@ -414,6 +418,36 @@ class _AdminPatientWorkspaceState
 
   @override
   Widget build(BuildContext context) {
+    final appointments = ref.watch(appointmentsProvider).asData?.value ?? const <AppointmentModel>[];
+    final patientAppointments = appointments
+        .where((item) => item.patientId == widget.patient.id)
+        .toList()
+      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final nextAppointment = patientAppointments.cast<AppointmentModel?>().firstWhere(
+      (item) => item != null && item.fechaHora.isAfter(DateTime.now()),
+      orElse: () => null,
+    );
+    final treatments = ref.watch(
+      effectivePatientTreatmentsProvider((
+        patientId: widget.patient.id,
+        patient: widget.patient,
+      )),
+    );
+    final activeTreatment = treatments.cast<dynamic?>().firstWhere(
+      (item) => item?.isFinished != true,
+      orElse: () => treatments.isNotEmpty ? treatments.first : null,
+    );
+    final paymentsResolution = ref.watch(
+      effectivePatientPaymentsProvider((
+        patientId: widget.patient.id,
+        patient: widget.patient,
+      )),
+    );
+    final simulations =
+        ref.watch(patientSimulationsProvider(widget.patient.id)).asData?.value ??
+        const <SimulationModel>[];
+    final latestSimulation = simulations.isEmpty ? null : simulations.first;
+
     return OcgAdaptiveScaffold(
       selectedIndex: 1,
       title: 'Paciente: ${widget.patient.nombre}',
@@ -429,38 +463,52 @@ class _AdminPatientWorkspaceState
           onPressed: widget.onDelete,
         ),
       ],
-      body: Column(
-        children: [
-          SizedBox(
-            height: 54,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              scrollDirection: Axis.horizontal,
-              children: [
-                _sectionChip('Perfil', 0),
-                _sectionChip('Tratamiento', 1),
-                _sectionChip('Historial', 2),
-                _sectionChip('Citas', 3),
-                _sectionChip('Pagos', 4),
-                _sectionChip('Simulador', 5),
-              ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSummaryCard(nextAppointment, latestSimulation),
+            const SizedBox(height: 16),
+            _buildQuickActionsCard(context),
+            const SizedBox(height: 16),
+            _buildTreatmentCard(activeTreatment),
+            const SizedBox(height: 16),
+            _buildPaymentsCard(paymentsResolution),
+            const SizedBox(height: 16),
+            _buildAppointmentsCard(nextAppointment),
+            const SizedBox(height: 16),
+            _buildSimulatorCard(latestSimulation),
+            const SizedBox(height: 16),
+            _buildPhotosCard(),
+            const SizedBox(height: 20),
+            _buildSectionShortcutRow(),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 720,
+              child: IndexedStack(
+                index: _section,
+                children: List.generate(6, (index) {
+                  if (!_loadedSections.contains(index)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey('patient-detail-section-$index'),
+                      child: _buildSection(index),
+                    ),
+                  );
+                }),
+              ),
             ),
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: _section,
-              children: List.generate(6, (index) {
-                if (!_loadedSections.contains(index)) {
-                  return const SizedBox.shrink();
-                }
-                return KeyedSubtree(
-                  key: ValueKey('patient-detail-section-$index'),
-                  child: _buildSection(index),
-                );
-              }),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -509,6 +557,428 @@ class _AdminPatientWorkspaceState
         }),
       ),
     );
+  }
+
+  Widget _buildSectionShortcutRow() {
+    return SizedBox(
+      height: 46,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _sectionChip('Resumen', 0),
+          _sectionChip('Tratamiento', 1),
+          _sectionChip('Citas', 3),
+          _sectionChip('Pagos', 4),
+          _sectionChip('Simulador', 5),
+          _sectionChip('Historial', 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+    AppointmentModel? nextAppointment,
+    SimulationModel? latestSimulation,
+  ) {
+    return _patientCard(
+      title: 'Resumen',
+      icon: Icons.person_outline,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.patient.nombre,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: OcgColors.espresso,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (widget.patient.telefono.trim().isNotEmpty)
+            Text(
+              'Contacto: ${widget.patient.telefono}',
+              style: const TextStyle(color: OcgColors.ink),
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _infoPill('Tratamiento', widget.patient.treatmentStatusLabel),
+              _infoPill('Saldo', _money(widget.patient.saldoPendiente)),
+              _infoPill(
+                'Próxima cita',
+                nextAppointment == null
+                    ? 'Sin agendar'
+                    : _dateTime(nextAppointment.fechaHora),
+              ),
+              _infoPill(
+                'Última simulación',
+                latestSimulation == null
+                    ? 'Sin simulaciones'
+                    : _simulationStatusLabel(latestSimulation.status),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(BuildContext context) {
+    return _patientCard(
+      title: 'Acciones rápidas',
+      icon: Icons.flash_on_outlined,
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          _quickActionButton(
+            icon: Icons.calendar_month_outlined,
+            label: 'Agendar cita',
+            onTap: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              preselectedPatient: widget.patient,
+              existingAppointments: ref.watch(appointmentsProvider).asData?.value ?? const [],
+            ),
+          ),
+          _quickActionButton(
+            icon: Icons.payments_outlined,
+            label: 'Registrar pago',
+            onTap: () => _openSection(4),
+          ),
+          _quickActionButton(
+            icon: Icons.photo_camera_outlined,
+            label: 'Tomar foto',
+            onTap: () => _openSection(5),
+          ),
+          _quickActionButton(
+            icon: Icons.auto_awesome_outlined,
+            label: 'Abrir simulador',
+            onTap: () => _openSection(5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentCard(dynamic activeTreatment) {
+    final treatmentName = activeTreatment?.displayName ??
+        widget.patient.tipoTratamiento?.name ??
+        'Sin tratamiento activo';
+    final stageName = activeTreatment?.stageLabel ?? stageNames[widget.patient.etapaActual] ?? 'Sin etapa';
+    final total = activeTreatment?.totalTratamiento ?? widget.patient.totalTratamiento;
+    final pending = activeTreatment?.saldoPendiente ?? widget.patient.saldoPendiente;
+    final lastNote = activeTreatment?.notas?.toString().trim().isNotEmpty == true
+        ? activeTreatment.notas.toString().trim()
+        : widget.patient.notasClinicas.trim().isNotEmpty
+            ? widget.patient.notasClinicas.trim()
+            : 'Sin notas clínicas registradas.';
+
+    return _patientCard(
+      title: 'Tratamiento',
+      icon: Icons.monitor_heart_outlined,
+      actionText: 'Ver tratamiento',
+      onAction: () => _openSection(1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(treatmentName, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          const SizedBox(height: 8),
+          Text('Etapa actual: $stageName', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Valor total: ${_money(total)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Saldo pendiente: ${_money(pending)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 10),
+          Text(
+            lastNote,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: OcgColors.bronze),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Para edición completa del tratamiento, usa la versión de escritorio.',
+            style: TextStyle(color: OcgColors.bronze, fontSize: 12, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentsCard(dynamic paymentsResolution) {
+    final total = paymentsResolution.paymentAccounts.fold<double>(
+      0,
+      (sum, item) => sum + item.payment.totalTratamiento,
+    );
+    final paid = paymentsResolution.paymentAccounts.fold<double>(
+      0,
+      (sum, item) => sum + item.payment.montoPagado,
+    );
+    final pending = paymentsResolution.paymentAccounts.fold<double>(
+      0,
+      (sum, item) => sum + item.payment.saldoPendiente,
+    );
+    final latestTx = paymentsResolution.transactions.isEmpty
+        ? null
+        : paymentsResolution.transactions.first;
+
+    return _patientCard(
+      title: 'Pagos',
+      icon: Icons.payments_outlined,
+      actionText: 'Ver pagos',
+      onAction: () => _openSection(4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Total tratamiento: ${_money(total)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Total pagado: ${_money(paid)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Saldo pendiente: ${_money(pending)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 10),
+          Text(
+            latestTx == null
+                ? 'Último pago: sin registros.'
+                : 'Último pago: ${_money(latestTx.monto)} · ${_date(latestTx.fecha)}',
+            style: const TextStyle(color: OcgColors.bronze),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentsCard(AppointmentModel? nextAppointment) {
+    return _patientCard(
+      title: 'Citas',
+      icon: Icons.calendar_month_outlined,
+      actionText: 'Ver agenda',
+      onAction: () => _openSection(3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            nextAppointment == null
+                ? 'Sin próxima cita agendada.'
+                : 'Próxima cita: ${_dateTime(nextAppointment.fechaHora)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            nextAppointment == null
+                ? 'Estado: pendiente de programación'
+                : 'Estado: ${nextAppointment.estado.name}',
+            style: const TextStyle(color: OcgColors.bronze),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              preselectedPatient: widget.patient,
+              existingAppointments: ref.watch(appointmentsProvider).asData?.value ?? const [],
+            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Agendar cita'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimulatorCard(SimulationModel? latestSimulation) {
+    return _patientCard(
+      title: 'Simulador',
+      icon: Icons.auto_awesome_outlined,
+      actionText: 'Abrir simulador',
+      onAction: () => _openSection(5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            latestSimulation == null
+                ? 'Crea una simulación de sonrisa a partir de una foto del paciente.'
+                : 'Última simulación: ${_simulationStatusLabel(latestSimulation.status)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            latestSimulation?.hasResult == true
+                ? 'Hay una simulación lista para revisión.'
+                : 'Toma una foto frontal del paciente para iniciar la simulación.',
+            style: const TextStyle(color: OcgColors.bronze),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _openSection(5),
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Tomar foto'),
+              ),
+              FilledButton.icon(
+                onPressed: () => _openSection(5),
+                icon: const Icon(Icons.auto_awesome_outlined),
+                label: const Text('Abrir simulador'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotosCard() {
+    return _patientCard(
+      title: 'Fotos',
+      icon: Icons.photo_library_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Acceso rápido a fotos clínicas del paciente.',
+            style: TextStyle(color: OcgColors.ink),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _openSection(0),
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Ver fotos'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openSection(5),
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Tomar foto'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openSection(5),
+                icon: const Icon(Icons.upload_outlined),
+                label: const Text('Subir foto'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _patientCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    String? actionText,
+    VoidCallback? onAction,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: OcgColors.espresso),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                ),
+                if (actionText != null && onAction != null)
+                  TextButton(onPressed: onAction, child: Text(actionText)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _quickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: 148,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label, textAlign: TextAlign.center),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          backgroundColor: OcgColors.espresso,
+          foregroundColor: OcgColors.ivory,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoPill(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2EC),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(color: OcgColors.bronze, fontSize: 12)),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
+  void _openSection(int index) {
+    setState(() {
+      _section = index;
+      _loadedSections.add(index);
+    });
+  }
+
+  String _money(num value) => '\$${value.toStringAsFixed(0)}';
+
+  String _date(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+
+  String _dateTime(DateTime value) =>
+      '${_date(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  String _simulationStatusLabel(SimulationStatus status) {
+    return switch (status) {
+      SimulationStatus.draft => 'Borrador',
+      SimulationStatus.generating => 'Generando',
+      SimulationStatus.ready => 'Lista',
+      SimulationStatus.shared => 'Compartida',
+      SimulationStatus.failed => 'Con error',
+      SimulationStatus.archived => 'Archivada',
+    };
   }
 }
 

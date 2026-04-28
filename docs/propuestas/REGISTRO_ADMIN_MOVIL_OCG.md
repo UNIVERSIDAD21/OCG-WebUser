@@ -241,15 +241,100 @@ flutter analyze
 ### Commit
 - Pendiente hasta cerrar commit de este bloque.
 
+## Bloque 03 — Detalle de paciente móvil
+
+### Fecha
+- 2026-04-28
+
+### Estado
+- completado
+
+### Problema trabajado
+El detalle del paciente en móvil estaba heredando una estructura de desktop, haciendo que Tratamientos, Pagos y Simulador se vieran pesados o se rompieran.
+
+### Decisión UX
+Desktop mantiene detalle completo.
+Móvil usa ficha clínica por cards.
+
+### Archivos revisados
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `lib/features/dashboard/presentation/admin_patients_screen.dart`
+- `lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `lib/features/patients/presentation/tabs/patient_payments_tab.dart`
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `lib/features/simulator/presentation/patient_simulations_screen.dart`
+- `lib/shared/widgets/ocg_adaptive_scaffold.dart`
+
+### Archivos modificados
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `docs/propuestas/REGISTRO_ADMIN_MOVIL_OCG.md`
+
+### Secciones móviles implementadas
+- Resumen: card con nombre, contacto, estado de tratamiento, saldo, próxima cita y última simulación.
+- Tratamiento: card resumida con tratamiento activo, etapa, valor total, saldo pendiente y última nota clínica visible.
+- Pagos: card resumida con total, pagado, saldo pendiente y último pago.
+- Citas: card resumida con próxima cita, estado y CTA para agendar/ver agenda.
+- Simulador: card con estado de última simulación, mensaje de contexto y accesos rápidos al simulador.
+- Fotos: card de acceso simple a ver/tomar/subir foto.
+
+### Acciones rápidas implementadas
+- Agendar cita
+- Registrar pago
+- Tomar foto
+- Abrir simulador
+
+### Qué se mantuvo igual en desktop
+- Se mantuvo la pantalla existente y sus secciones completas embebidas.
+- No se rediseñó el flujo amplio de desktop.
+- El detalle completo por secciones sigue disponible mediante acceso interno.
+
+### Qué cambió en móvil
+- El detalle ahora abre con una ficha clínica vertical por cards.
+- Se añadieron acciones rápidas prioritarias para consulta.
+- Se dejó una fila de atajos a secciones completas (Resumen, Tratamiento, Citas, Pagos, Simulador, Historial) sin depender de tabs pesadas como punto de entrada principal.
+- Se evita que el usuario caiga de frente a contenido denso desktop-first.
+
+### Riesgos detectados
+- Algunas secciones profundas siguen siendo pesadas cuando se abren completas dentro del bloque embebido.
+- Tratamientos, Pagos y Simulador todavía requieren bloques propios de refinamiento móvil.
+- La validación visual real en dispositivos sigue pendiente.
+
+### Pendientes para siguientes bloques
+- Tratamientos móvil completo
+- Pagos móvil completo
+- Simulador móvil completo
+
+### Pruebas responsive realizadas
+- Revisión estructural del detalle móvil pensando en:
+  - 360x800
+  - 390x844
+  - 412x915
+  - tablet pequeña
+  - desktop
+- En esta sesión la validación fue de estructura y composición; la validación visual final queda pendiente para Erik.
+
+### Resultado flutter analyze
+- No ejecutable en esta sesión porque `flutter` no está disponible en el PATH del entorno actual.
+- Comando para Erik:
+```bash
+cd ocg_proyect
+flutter analyze
+```
+
+### Commit
+- Pendiente hasta cerrar commit de este bloque.
+
 ## Estado actual
 - Bloque 01 (auditoría): completado.
 - Bloque 02 (shell admin móvil): completado.
+- Bloque 03 (detalle de paciente móvil): completado.
 
 ## Pruebas realizadas
 - Revisión estructural inicial de shell admin, módulos admin, tabs de paciente y pantallas del simulador.
 - Inspección de archivos clave responsive/desktop-first.
 - Ajuste del scaffold adaptativo para navegación móvil compacta.
+- Conversión del detalle del paciente móvil a ficha clínica por cards.
 
 ## Pendientes inmediatos
-- Ejecutar Bloque 03: detalle de paciente móvil.
+- Ejecutar Bloque 04: tratamientos móvil.
 - Validación visual final de responsive por Erik en tamaños objetivo.
