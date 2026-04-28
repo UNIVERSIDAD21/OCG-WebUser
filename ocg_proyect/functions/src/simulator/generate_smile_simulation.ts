@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
+import OpenAI, {toFile} from 'openai';
 
 import {buildSmilePrompt} from './build_smile_prompt';
 import {loadSimulatorConfig} from './simulator_config';
@@ -58,6 +59,41 @@ function parseAttemptCount(value: unknown): number {
   return 0;
 }
 
+function sanitizeErrorMessage(error: unknown): string {
+  if (error instanceof HttpsError) {
+    return error.message;
+  }
+
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalized = message.replace(/\s+/g, ' ').trim();
+
+  if (!normalized) {
+    return 'No se pudo generar la simulación con IA.';
+  }
+  if (normalized.includes('OPENAI_API_KEY')) {
+    return 'OPENAI_API_KEY no está configurada en backend.';
+  }
+  if (normalized.length > 220) {
+    return `${normalized.slice(0, 217)}...`;
+  }
+  return normalized;
+}
+
+function decodeGeneratedImage(response: unknown): Buffer {
+  const candidate = response as {
+    data?: Array<{
+      b64_json?: string | null;
+    }>;
+  };
+
+  const base64 = candidate.data?.[0]?.b64_json?.trim();
+  if (!base64) {
+    throw new Error('OpenAI no devolvió una imagen generada válida.');
+  }
+
+  return Buffer.from(base64, 'base64');
+}
+
 export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
   {region: 'us-central1', cors: true},
   async (request: CallableRequest<GenerateSmileSimulationData>) => {
@@ -76,6 +112,7 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
     }
 
     const db = admin.firestore();
+    const storage = admin.storage().bucket();
     const patientRef = db.collection('patients').doc(patientId);
     const simulationRef = patientRef.collection('simulations').doc(simulationId);
 
@@ -93,7 +130,7 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
 
     const simulation = simulationSnap.data()!;
     const simulationPatientId = (simulation['patientId'] ?? '').toString().trim();
-    if (simulationPatientId != patientId) {
+    if (simulationPatientId !== patientId) {
       throw new HttpsError(
         'failed-precondition',
         'La simulación no pertenece al paciente indicado.',
@@ -120,8 +157,8 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
     }
 
     const config = loadSimulatorConfig();
-    const attemptCount = parseAttemptCount(simulation['attemptCount']);
-    if (attemptCount >= config.maxSimulationAttempts) {
+    const currentAttemptCount = parseAttemptCount(simulation['attemptCount']);
+    if (currentAttemptCount >= config.maxSimulationAttempts) {
       throw new HttpsError(
         'failed-precondition',
         'La simulación superó el máximo de intentos permitidos.',
@@ -143,31 +180,94 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
     }
 
     const prompt = buildSmilePrompt({
-      treatmentType,
-      notes,
+      treatmentType: treatmentType || (simulation['treatmentType'] ?? '').toString(),
+      notes: notes || (simulation['notes'] ?? '').toString(),
     });
+
+    const nextAttemptCount = currentAttemptCount + 1;
 
     await simulationRef.set(
       {
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'generating',
+        attemptCount: nextAttemptCount,
+        errorMessage: null,
         promptUsed: prompt.promptUsed,
         promptVersion: prompt.promptVersion,
         generationProvider: 'openai',
         modelUsed: config.openAiImageModel ?? 'gpt-image-2',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         lastGenerationRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       {merge: true},
     );
 
-    return {
-      ok: true,
-      patientId,
-      simulationId,
-      generationProvider: 'openai',
-      modelUsed: config.openAiImageModel ?? 'gpt-image-2',
-      promptVersion: prompt.promptVersion,
-      message:
-        'Base backend lista. La conexión real con GPT-Image-2 se implementará en el siguiente bloque.',
-    };
+    try {
+      const [originalBytes] = await storage.file(originalPath).download();
+      if (!originalBytes || originalBytes.length === 0) {
+        throw new Error('No se pudo leer la imagen original desde Storage.');
+      }
+
+      const client = new OpenAI({apiKey: config.openAiApiKey});
+      const originalFile = await toFile(originalBytes, 'original.jpg', {
+        type: 'image/jpeg',
+      });
+
+      const response = await client.images.edit({
+        model: config.openAiImageModel ?? 'gpt-image-2',
+        image: originalFile,
+        prompt: prompt.promptUsed,
+        size: config.openAiImageSize,
+        quality: config.openAiImageQuality,
+      });
+
+      const resultBytes = decodeGeneratedImage(response);
+      const resultPath = `simulations/${patientId}/${simulationId}/result.jpg`;
+      await storage.file(resultPath).save(resultBytes, {
+        metadata: {
+          contentType: 'image/jpeg',
+          cacheControl: 'private, max-age=31536000',
+        },
+        resumable: false,
+      });
+
+      await simulationRef.set(
+        {
+          resultPath,
+          status: 'ready',
+          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          promptUsed: prompt.promptUsed,
+          promptVersion: prompt.promptVersion,
+          modelUsed: config.openAiImageModel ?? 'gpt-image-2',
+          generationProvider: 'openai',
+          errorMessage: null,
+          compartidaConPaciente: false,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+
+      return {
+        ok: true,
+        patientId,
+        simulationId,
+        resultPath,
+        status: 'ready',
+        generationProvider: 'openai',
+        modelUsed: config.openAiImageModel ?? 'gpt-image-2',
+        promptVersion: prompt.promptVersion,
+      };
+    } catch (error) {
+      const safeMessage = sanitizeErrorMessage(error);
+      await simulationRef.set(
+        {
+          status: 'failed',
+          errorMessage: safeMessage,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+
+      throw new HttpsError('internal', safeMessage);
+    }
   },
 );

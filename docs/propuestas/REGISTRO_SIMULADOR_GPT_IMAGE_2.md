@@ -424,6 +424,103 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 ### Estado del bloque
 - Bloque 03: Listo como base backend segura y compilando.
 
+## Bloque 04 — Conexión real GPT-Image-2
+
+### Archivos modificados
+- `ocg_proyect/functions/src/simulator/generate_smile_simulation.ts`
+- `ocg_proyect/functions/src/simulator/simulator_config.ts`
+- `ocg_proyect/functions/package.json`
+- `ocg_proyect/functions/package-lock.json`
+- `docs/propuestas/REGISTRO_SIMULADOR_GPT_IMAGE_2.md`
+
+### SDK/OpenAI usado
+- SDK oficial `openai` para Node.js en Firebase Functions.
+- Integración implementada usando `OpenAI` + `toFile(...)` para enviar la imagen original descargada desde Storage a `gpt-image-2`.
+
+### Variables configuradas o pendientes
+- Requeridas:
+  - `OPENAI_API_KEY`
+  - `OPENAI_IMAGE_MODEL` (default operativo: `gpt-image-2`)
+  - `AI_SIMULATOR_ENABLED`
+  - `MAX_SIMULATION_ATTEMPTS`
+- Opcionales con defaults conservadores:
+  - `OPENAI_IMAGE_QUALITY` (default: `medium`)
+  - `OPENAI_IMAGE_SIZE` (default: `1024x1024`)
+
+### Flujo implementado
+1. Valida auth.
+2. Valida admin.
+3. Valida `patientId` y `simulationId`.
+4. Busca paciente y simulación en Firestore.
+5. Valida pertenencia de la simulación al paciente.
+6. Valida `originalPath`.
+7. Valida estado permitido (`draft`, `ready`, `failed`).
+8. Valida límite de intentos.
+9. Valida `AI_SIMULATOR_ENABLED`.
+10. Valida `OPENAI_API_KEY`.
+11. Marca simulación en `generating` y aumenta `attemptCount`.
+12. Descarga la imagen original desde Firebase Storage.
+13. Construye prompt clínico con `buildSmilePrompt(...)`.
+14. Llama a OpenAI `gpt-image-2` con edición de imagen.
+15. Decodifica la imagen generada.
+16. Guarda `result.jpg` en Storage en:
+   - `simulations/{patientId}/{simulationId}/result.jpg`
+17. Actualiza Firestore a:
+   - `status = ready`
+   - `resultPath`
+   - `generatedAt`
+   - `promptUsed`
+   - `promptVersion`
+   - `modelUsed`
+   - `generationProvider = openai`
+   - `errorMessage = null`
+   - `compartidaConPaciente = false`
+
+### Prompt usado
+- Se usa el prompt builder existente.
+- Prompt base clínico intacto.
+- `notes` solo complementa, no reemplaza el prompt base.
+- `promptVersion` actual:
+  - `ocg-smile-v1`
+
+### Configuración de calidad/tamaño
+- Configuración inicial conservadora:
+  - `quality = medium`
+  - `size = 1024x1024`
+- Ambas pueden ajustarse por variable de entorno sin tocar código.
+
+### Manejo de errores
+- Si falla cualquier paso después de `generating`, Firestore se actualiza a:
+  - `status = failed`
+  - `errorMessage = mensaje controlado`
+  - `updatedAt = serverTimestamp()`
+- No se guardan payloads sensibles ni errores largos sin sanitizar.
+- Si falta API Key:
+  - error controlado: `OPENAI_API_KEY no está configurada en backend.`
+- Si IA está deshabilitada:
+  - error controlado: `La generación con IA no está habilitada.`
+
+### Resultado npm run build
+- Ejecutado desde `ocg_proyect/functions`.
+- `npm install` ejecutado correctamente.
+- `npm run build` compiló correctamente después de ajustar tipos del SDK para `size`.
+- Warning observado:
+  - `EBADENGINE` por correr con Node `v22` en entorno actual mientras `package.json` declara Node `20`.
+  - No bloqueó instalación ni compilación.
+
+### Prueba con API Key
+- No se pudo ejecutar prueba real contra OpenAI porque en esta sesión no se confirmó ni expuso una `OPENAI_API_KEY` válida de backend para pruebas.
+- El código quedó compilando y listo para prueba real cuando la key segura esté configurada.
+
+### Bloqueos actuales
+- Falta `OPENAI_API_KEY` real y segura en backend para prueba end-to-end.
+- Falta confirmación/validación del paciente ficticio e imagen autorizada para prueba real.
+- Falta conectar Flutter al botón `Generar con IA` invocando esta callable.
+
+### Estado del bloque
+- Bloque 04: Implementado a nivel backend y compilando.
+- Prueba real contra OpenAI: bloqueada por falta de API Key confirmada para esta sesión.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.
@@ -434,7 +531,7 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 ## Estado actual
 Estoy **bloqueado parcialmente**.
 
-Puedo continuar con la fase de backend base y estructura del módulo, pero **no puedo implementar la conexión real y desplegable** con GPT-Image-2 hasta que Erik entregue o confirme los accesos y datos faltantes indicados arriba, especialmente:
+Puedo continuar con la fase de integración Flutter↔Function y con ajustes de observabilidad/UX, pero **la prueba real y definitiva** con GPT-Image-2 depende todavía de:
 - Firebase Project ID correcto
 - permiso de despliegue de Functions
 - OpenAI API Key segura en backend

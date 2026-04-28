@@ -1,6 +1,17 @@
+type OpenAiImageQuality = 'low' | 'medium' | 'high' | 'auto';
+type OpenAiImageSize =
+  | 'auto'
+  | '1024x1024'
+  | '256x256'
+  | '512x512'
+  | '1536x1024'
+  | '1024x1536';
+
 type SimulatorConfig = {
   openAiApiKey?: string;
   openAiImageModel?: string;
+  openAiImageQuality: OpenAiImageQuality;
+  openAiImageSize: OpenAiImageSize;
   aiSimulatorEnabled: boolean;
   maxSimulationAttempts: number;
 };
@@ -17,10 +28,40 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return Math.floor(parsed);
 }
 
+function parseQuality(value: string | undefined): OpenAiImageQuality {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (
+    normalized === 'low' ||
+    normalized === 'medium' ||
+    normalized === 'high' ||
+    normalized === 'auto'
+  ) {
+    return normalized;
+  }
+  return 'medium';
+}
+
+function parseSize(value: string | undefined): OpenAiImageSize {
+  const normalized = (value ?? '').trim();
+  if (
+    normalized === 'auto' ||
+    normalized === '1024x1024' ||
+    normalized === '256x256' ||
+    normalized === '512x512' ||
+    normalized === '1536x1024' ||
+    normalized === '1024x1536'
+  ) {
+    return normalized;
+  }
+  return '1024x1024';
+}
+
 export function loadSimulatorConfig(): SimulatorConfig {
   return {
     openAiApiKey: process.env.OPENAI_API_KEY,
     openAiImageModel: process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-2',
+    openAiImageQuality: parseQuality(process.env.OPENAI_IMAGE_QUALITY),
+    openAiImageSize: parseSize(process.env.OPENAI_IMAGE_SIZE),
     aiSimulatorEnabled: parseBoolean(process.env.AI_SIMULATOR_ENABLED),
     maxSimulationAttempts: parsePositiveInt(
       process.env.MAX_SIMULATION_ATTEMPTS,
