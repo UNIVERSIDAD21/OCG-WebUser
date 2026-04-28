@@ -313,6 +313,37 @@ Migraré el simulador actual **sin reconstruirlo desde cero** así:
 - Resultado en esta sesión: **no ejecutable** porque `flutter` no está disponible en el PATH del entorno actual (`/bin/bash: flutter: command not found`).
 - `dart test test/features/simulator/` también fue intentado y tampoco pudo ejecutarse porque `dart` no está disponible en el PATH del entorno actual (`/bin/bash: dart: command not found`).
 
+## Cierre Bloque 02.5 — Legacy aceptado vs legacy eliminado
+
+### Legacy aceptado temporalmente
+- mode en lectura fromJson: Sí, solo para compatibilidad con documentos antiguos.
+- originalUrl en lectura fromJson: Sí, solo como fallback hacia `originalPath`.
+- resultUrl en lectura fromJson: Sí, solo como fallback hacia `resultPath`.
+- tests de compatibilidad: Sí, se mantienen para validar lectura legacy sin romper migración.
+
+### Legacy eliminado o marcado obsoleto
+- mock_simulation_service.dart: Eliminado.
+- mock_simulation_service_test.dart: Eliminado.
+
+### Motivo
+Se mantiene compatibilidad de lectura para documentos antiguos, pero el flujo principal queda exclusivamente orientado a GPT-Image-2.
+
+### Estado
+- Bloque 02.5: Cerrado.
+
+## Comandos de validación para Erik
+
+Desde la raíz del proyecto:
+
+```bash
+cd ocg_proyect
+flutter pub get
+flutter analyze
+flutter test test/features/simulator/
+```
+
+Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backend.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.
