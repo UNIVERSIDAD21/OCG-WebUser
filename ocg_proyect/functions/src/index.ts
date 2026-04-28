@@ -21,6 +21,7 @@ import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_i
 import {processPaymentDueNotifications} from './payments/payment_due_scheduler';
 import {onPatientStageHistoryCreate} from './treatments/on_stage_history_create';
 import {onPatientStageChangeWrite} from './treatments/on_patient_stage_change_write';
+import {generateSmileSimulation} from './simulator/generate_smile_simulation';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -50,4 +51,5 @@ export {
   processPaymentDueNotifications,
   onPatientStageHistoryCreate,
   onPatientStageChangeWrite,
+  generateSmileSimulation,
 };

@@ -344,6 +344,86 @@ flutter test test/features/simulator/
 
 Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backend.
 
+## Bloque 03 — Cloud Function base generateSmileSimulation
+
+### Archivos creados
+- `ocg_proyect/functions/src/simulator/generate_smile_simulation.ts`
+- `ocg_proyect/functions/src/simulator/build_smile_prompt.ts`
+- `ocg_proyect/functions/src/simulator/simulator_config.ts`
+
+### Archivos modificados
+- `ocg_proyect/functions/src/index.ts`
+- `docs/propuestas/REGISTRO_SIMULADOR_GPT_IMAGE_2.md`
+
+### Validaciones implementadas
+- Usuario autenticado.
+- Usuario con rol admin.
+- `patientId` presente.
+- `simulationId` presente.
+- El paciente existe en Firestore.
+- La simulación existe en `patients/{patientId}/simulations/{simulationId}`.
+- La simulación pertenece al paciente.
+- Existe `originalPath` válido (con fallback legacy a `originalUrl` solo para lectura).
+- Estado permitido para generación:
+  - `draft`
+  - `ready`
+  - `failed`
+- `attemptCount` menor que `MAX_SIMULATION_ATTEMPTS`.
+- `AI_SIMULATOR_ENABLED` activo.
+
+### Variables requeridas
+- `OPENAI_API_KEY`
+- `OPENAI_IMAGE_MODEL` (esperado: `gpt-image-2`)
+- `AI_SIMULATOR_ENABLED`
+- `MAX_SIMULATION_ATTEMPTS`
+
+### Prompt builder creado
+- Se creó `buildSmilePrompt(...)` con:
+  - prompt clínico base obligatorio
+  - soporte para `treatmentType`
+  - soporte para `notes` como complemento
+- Devuelve:
+  - `promptUsed`
+  - `promptVersion`
+- Versión actual:
+  - `ocg-smile-v1`
+
+### Export en index.ts
+- La Function quedó exportada como:
+  - `generateSmileSimulation`
+
+### Comportamiento si falta API Key
+- No genera imagen.
+- No modifica `resultPath`.
+- No deja la simulación pegada en `generating`.
+- Responde error controlado:
+  - `OPENAI_API_KEY no está configurada en backend.`
+
+### Comportamiento si IA está desactivada
+- No genera imagen.
+- No modifica `resultPath`.
+- No deja la simulación pegada en `generating`.
+- Responde error controlado:
+  - `La generación con IA no está habilitada.`
+
+### Resultado npm run build
+- Ejecutado desde: `ocg_proyect/functions`
+- Comandos corridos:
+  - `npm install`
+  - `npm run build`
+- Resultado:
+  - compilación TypeScript exitosa
+- Observación:
+  - hubo warning de engine porque el entorno actual corre Node `v22.22.2` y el package declara Node `20`, pero **no bloqueó la compilación**.
+
+### Bloqueos actuales
+- Falta `OPENAI_API_KEY` segura para conectar GPT-Image-2 real.
+- Falta confirmación operativa de variables reales en backend.
+- Falta implementar la llamada real a OpenAI y escritura del resultado en Storage.
+
+### Estado del bloque
+- Bloque 03: Listo como base backend segura y compilando.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.
@@ -354,7 +434,7 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 ## Estado actual
 Estoy **bloqueado parcialmente**.
 
-Puedo continuar con la fase de revisión y diseño técnico del módulo, y también con el **ajuste del modelo/repositorio/provider**, pero **no puedo implementar de forma real y desplegable** el simulador con GPT-Image-2 hasta que Erik entregue o confirme los accesos y datos faltantes indicados arriba, especialmente:
+Puedo continuar con la fase de backend base y estructura del módulo, pero **no puedo implementar la conexión real y desplegable** con GPT-Image-2 hasta que Erik entregue o confirme los accesos y datos faltantes indicados arriba, especialmente:
 - Firebase Project ID correcto
 - permiso de despliegue de Functions
 - OpenAI API Key segura en backend
