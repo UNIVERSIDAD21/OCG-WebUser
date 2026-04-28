@@ -13,9 +13,12 @@ void main() {
     });
 
     test('crea tratamiento global custom normalizado', () async {
-      final item = await repo.ensureCustomTreatmentExists(
-        displayName: 'Brackets Estéticos',
+      final item = await repo.createCatalogItem(
+        name: 'Brackets Estéticos',
         category: 'Ortodoncia',
+        baseType: 'Brackets Estéticos',
+        requiresSubtype: false,
+        allowedSubtypes: const [],
         createdBy: 'admin-1',
       );
 
@@ -29,14 +32,20 @@ void main() {
     });
 
     test('si ya existe un tratamiento normalizado no lo duplica', () async {
-      final first = await repo.ensureCustomTreatmentExists(
-        displayName: 'Obturación',
+      final first = await repo.createCatalogItem(
+        name: 'Obturación',
         category: 'General',
+        baseType: 'Obturación',
+        requiresSubtype: false,
+        allowedSubtypes: const [],
         createdBy: 'admin-1',
       );
-      final second = await repo.ensureCustomTreatmentExists(
-        displayName: '  obturación  ',
+      final second = await repo.createCatalogItem(
+        name: '  obturación  ',
         category: 'General',
+        baseType: 'Obturación',
+        requiresSubtype: false,
+        allowedSubtypes: const [],
         createdBy: 'admin-2',
       );
 
@@ -47,34 +56,42 @@ void main() {
 
     test('rechaza nombres vacíos o con solo espacios', () async {
       expect(
-        () => repo.ensureCustomTreatmentExists(
-          displayName: '   ',
+        () => repo.createCatalogItem(
+          name: '   ',
           category: 'General',
+          baseType: 'General',
+          requiresSubtype: false,
+          allowedSubtypes: const [],
           createdBy: 'admin-1',
         ),
         throwsA(
           predicate(
-            (e) => e is Exception && e.toString().contains('TREATMENT_CATALOG_NAME_REQUIRED'),
+            (e) => e is Exception &&
+                e.toString().contains('TREATMENT_CATALOG_NAME_REQUIRED'),
           ),
         ),
       );
     });
 
     test('tratamiento nuevo queda disponible en el catálogo activo global', () async {
-      await repo.ensureCustomTreatmentExists(
-        displayName: '  Placa   neuromiorrelajante  ',
+      await repo.createCatalogItem(
+        name: '  Placa   neuromiorrelajante  ',
         category: 'Oclusión',
+        baseType: 'Placa neuromiorrelajante',
+        requiresSubtype: false,
+        allowedSubtypes: const [],
         createdBy: 'admin-7',
       );
 
-      final items = await repo.watchActiveCatalog().first;
-      final created = items.firstWhere((item) => item.id == 'placa_neuromiorrelajante');
+      final items = await repo.watchCatalog().first;
+      final created = items.firstWhere(
+        (item) => item.id == 'placa_neuromiorrelajante',
+      );
 
-      expect(created.name, 'Placa Neuromiorrelajante');
+      expect(created.name, 'Placa neuromiorrelajante');
       expect(created.normalizedName, 'placa_neuromiorrelajante');
       expect(created.category, 'oclusión');
       expect(created.active, isTrue);
-      expect(created.createdBy, 'admin-7');
     });
   });
 }

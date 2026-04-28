@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
-import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/repositories/simulation_repository.dart';
 import '../providers/simulation_provider.dart';

@@ -12,6 +12,7 @@ void main() {
         home: Scaffold(
           body: ManagePatientTreatmentDialog(
             patientId: 'patient-1',
+            patientName: 'Paciente Test',
             initialTreatment: initialTreatment,
           ),
         ),

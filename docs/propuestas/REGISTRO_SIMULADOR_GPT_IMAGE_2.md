@@ -620,6 +620,33 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 - Bloque 05: Implementado a nivel Flutter para invocar `generateSmileSimulation` y escuchar estados reales desde Firestore.
 - Validación local Flutter: pendiente por limitación del entorno actual.
 
+## Bloque 05.5 — Corrección de validación local
+
+### Resultado validación Erik
+- Functions npm install: previamente ejecutado correctamente.
+- Functions npm run build: previamente compilando correctamente.
+- Simulator tests: pendientes de reejecución local por Erik.
+- Flutter analyze: pendiente de reejecución local por Erik.
+
+### Correcciones realizadas
+- Simulator unused import: eliminado `../../../shared/utils/ui_formatters.dart` de `patient_simulations_screen.dart` porque ya no se usaba.
+- Treatment dialog test: se actualizó `manage_patient_treatment_dialog_test.dart` para enviar `patientName`, requerido por la firma actual de `ManagePatientTreatmentDialog`.
+- Treatment catalog repository tests: se actualizaron los tests para usar el API actual (`createCatalogItem` y `watchCatalog`) en vez de métodos antiguos (`ensureCustomTreatmentExists`, `watchActiveCatalog`).
+- Warnings menores: se eliminó `_isSameCalendarDay` no referenciado en `appointments_business_rules.dart`.
+
+### Comandos para que Erik vuelva a ejecutar
+```bash
+cd ocg_proyect
+flutter analyze
+flutter test test/features/simulator/
+
+cd functions
+npm run build
+```
+
+### Estado
+Pendiente hasta que Erik confirme flutter analyze sin errores.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.
@@ -630,13 +657,35 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 ## Estado actual
 Estoy **bloqueado parcialmente**.
 
-Puedo continuar con ajustes finos o soporte a validación local, pero la validación completa del flujo Flutter depende todavía de correr localmente:
-- `flutter pub get`
-- `flutter analyze`
-- `flutter test test/features/simulator/`
+Borlty, del simulador como flujo base ya no quiero que agregues más funcionalidades nuevas por ahora.
 
-y la prueba real definitiva sigue dependiendo de:
-- Firebase Project ID correcto
-- permiso de despliegue de Functions
-- OpenAI API Key segura en backend
-- paciente ficticio e imagen autorizada de prueba
+El simulador queda en este estado:
+- Modelo preparado para GPT-Image-2.
+- Mock eliminado.
+- Manual doctora eliminado.
+- Cloud Function base creada.
+- GPT-Image-2 conectado desde backend.
+- Flutter conectado a generateSmileSimulation.
+- Tests del simulador pendientes de revalidación local.
+- Functions build pasando después de npm install.
+
+Ahora NO debo avanzar más funcionalidades del simulador.
+
+Lo único pendiente antes de prueba real es:
+1. Corregir los errores de `flutter analyze`.
+2. Dejar registrado que Functions ya compila.
+3. Esperar que Erik configure la API Key segura en backend.
+4. Hacer prueba end-to-end con paciente ficticio e imagen autorizada.
+
+No conectar pacientes reales todavía.
+No hacer más rediseños.
+No meter API Key en Flutter.
+No cambiar arquitectura.
+No agregar modos nuevos.
+
+Después de eso quedamos a la espera de:
+- `OPENAI_API_KEY` configurada en backend.
+- `OPENAI_IMAGE_MODEL=gpt-image-2`.
+- `AI_SIMULATOR_ENABLED=true`.
+- Paciente ficticio.
+- Imagen autorizada de prueba.

@@ -38,8 +38,14 @@ class TreatmentCatalogRepository {
     required List<String> allowedSubtypes,
     String? createdBy,
   }) async {
-    final normalized = _normalize(name);
+    final displayName = _displayName(name);
+    if (displayName.isEmpty) {
+      throw Exception('TREATMENT_CATALOG_NAME_REQUIRED');
+    }
+
+    final normalized = _normalize(displayName);
     final normalizedBaseType = _normalize(baseType);
+    final normalizedCategory = category.trim().toLowerCase();
     final existing = await _catalogRef
         .where('normalizedName', isEqualTo: normalized)
         .limit(1)
@@ -52,9 +58,9 @@ class TreatmentCatalogRepository {
     final ref = _catalogRef.doc(normalized);
     final item = TreatmentCatalogItem(
       id: ref.id,
-      name: name.trim(),
+      name: displayName,
       normalizedName: normalized,
-      category: category,
+      category: normalizedCategory,
       baseType: normalizedBaseType,
       requiresSubtype: requiresSubtype,
       allowedSubtypes: requiresSubtype ? allowedSubtypes : const <String>[],
@@ -76,5 +82,9 @@ class TreatmentCatalogRepository {
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9áéíóúñü\s]'), '')
         .replaceAll(RegExp(r'\s+'), '_');
+  }
+
+  String _displayName(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }
