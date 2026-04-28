@@ -496,12 +496,117 @@ flutter analyze
 ### Commit
 - Pendiente hasta cerrar commit de este bloque.
 
+## Bloque 06 — Simulador móvil admin
+
+### Fecha
+- 2026-04-28
+
+### Estado
+- completado
+
+### Problema trabajado
+El simulador móvil del admin no estaba listo para consulta real: debía permitir tomar/subir foto, crear simulación, generar con IA, revisar before/after y compartir con paciente.
+
+### Decisión UX
+Desktop mantiene simulador completo.
+Móvil usa flujo guiado: foto → preview → generar IA → revisar → compartir.
+
+### Archivos revisados
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `lib/features/simulator/presentation/simulator_screen.dart`
+- `lib/features/simulator/presentation/patient_simulations_screen.dart`
+- `lib/features/simulator/providers/simulation_provider.dart`
+- `lib/features/simulator/data/repositories/simulation_repository.dart`
+- `lib/services/firebase/image_picker_service.dart`
+
+### Archivos modificados
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `lib/features/simulator/presentation/simulator_screen.dart`
+- `docs/propuestas/REGISTRO_ADMIN_MOVIL_OCG.md`
+
+### Flujo móvil implementado
+- Sin simulaciones: empty state profesional + card principal con botones `Tomar foto` y `Subir desde galería`.
+- Tomar foto: reutiliza `ImagePickerService` vía `pickOriginalFromCamera(...)` del provider.
+- Subir desde galería: reutiliza `ImagePickerService` vía `pickOriginalFromGallery(...)`.
+- Draft: muestra preview de foto original + texto `Foto lista para generar simulación.` + botón `Generar con IA`.
+- Generating: loading claro + texto `Generando simulación con IA...` + acciones bloqueadas.
+- Ready: preview original, resultado, before/after slider, botones de compartir, regenerar y archivar según estado.
+- Failed: mensaje amigable + botón `Reintentar generación` + botón `Cambiar foto`.
+- Shared: before/after + mensaje de simulación compartida.
+- Historial: simulaciones recientes como cards con estado, provider/modelo, abrir, compartir y eliminar.
+
+### Manejo de cámara/galería
+- Se reutilizó el servicio existente `ImagePickerService`.
+- Flutter solo toma/sube foto y crea draft; no envía imagen directa a OpenAI.
+
+### Manejo de errores
+- Si backend indica falta de API Key: se muestra mensaje amigable ya mapeado por provider.
+- Si IA está desactivada: mensaje amigable.
+- Si falla la generación: estado `failed` visible con reintento.
+- No se permite doble clic mientras está en `generating`.
+
+### Compatibilidad con datos legacy
+- La resolución de media sigue tolerando `originalPath/resultPath` y fallbacks legacy ya soportados por repository/model.
+- Si falta `resultPath`, el flujo sigue mostrando preview original sin romperse.
+
+### Qué se mantuvo igual en desktop
+- Se mantuvo el simulador completo existente.
+- No se creó otro simulador paralelo.
+- No se tocó backend real ni API Key.
+
+### Qué cambió en móvil
+- Header móvil más claro con estado reciente y CTA `Nueva simulación`.
+- Card principal de acción para cámara/galería.
+- Flujo visual guiado por estado dentro de `SimulatorScreen`.
+- Cambio de foto accesible cuando la simulación falla.
+- Historial más útil para consulta rápida.
+
+### Riesgos detectados
+- La validación visual final en dispositivos reales sigue pendiente.
+- Algunos accesos como descompartir siguen viviendo en cards/historial y podrían refinarse después.
+- La prueba real con GPT-Image-2 continúa bloqueada por configuración backend/API key.
+
+### Pendientes
+- API Key real
+- prueba end-to-end con GPT-Image-2
+- paciente ficticio
+- imagen autorizada
+
+### Pruebas responsive realizadas
+- Revisión estructural para:
+  - paciente sin simulaciones
+  - simulación draft
+  - simulación generating
+  - simulación ready
+  - simulación failed
+  - simulación shared
+  - tomar foto desde móvil
+  - subir foto desde galería
+  - 360x800
+  - 390x844
+  - 412x915
+  - tablet pequeña
+  - desktop
+- Validación visual final pendiente para Erik.
+
+### Resultado flutter analyze
+- No ejecutable en esta sesión porque `flutter` no está disponible en el PATH del entorno actual.
+- Comando para Erik:
+```bash
+cd ocg_proyect
+flutter analyze
+```
+
+### Commit
+- Pendiente hasta cerrar commit de este bloque.
+
 ## Estado actual
 - Bloque 01 (auditoría): completado.
 - Bloque 02 (shell admin móvil): completado.
 - Bloque 03 (detalle de paciente móvil): completado.
 - Bloque 04 (tratamientos móvil): completado.
 - Bloque 05 (pagos móvil): completado.
+- Bloque 06 (simulador móvil admin): completado.
 
 ## Pruebas realizadas
 - Revisión estructural inicial de shell admin, módulos admin, tabs de paciente y pantallas del simulador.
@@ -510,7 +615,8 @@ flutter analyze
 - Conversión del detalle del paciente móvil a ficha clínica por cards.
 - Simplificación del tab de tratamientos para móvil con cards y estados vacíos seguros.
 - Simplificación del tab de pagos para móvil con cards y fallbacks legacy.
+- Optimización del simulador móvil admin con flujo guiado de cámara/galería → preview → generar → revisar → compartir.
 
 ## Pendientes inmediatos
-- Ejecutar Bloque 06: simulador móvil admin.
 - Validación visual final de responsive por Erik en tamaños objetivo.
+- Configuración backend real para la prueba con GPT-Image-2.

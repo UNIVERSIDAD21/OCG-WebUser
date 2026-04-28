@@ -57,44 +57,57 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
       error: (e, _) =>
           Center(child: Text('No se pudieron cargar simulaciones: $e')),
       data: (items) {
+        final latest = items.isEmpty ? null : items.first;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Simulador de sonrisa',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.espresso,
-                    ),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() => _openedSimulation = null);
-                    ref.read(simulatorFlowProvider.notifier).resetFlow();
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nueva'),
-                ),
-              ],
+            _SimulatorMobileHeader(
+              patientName: widget.patient.nombre,
+              latestSimulation: latest,
+              onNew: () {
+                setState(() => _openedSimulation = null);
+                ref.read(simulatorFlowProvider.notifier).resetFlow();
+              },
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'La simulación es una referencia visual orientativa para apoyar la explicación del tratamiento.',
-              style: TextStyle(color: OcgColors.ink),
+            const SizedBox(height: 14),
+            _SimulatorPrimaryActionsCard(
+              hasSimulations: items.isNotEmpty,
+              onCamera: () {
+                setState(() => _openedSimulation = null);
+                ref.read(simulatorFlowProvider.notifier).resetFlow();
+                ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
+                  patientId: widget.patient.id,
+                  adminId: adminId,
+                  treatmentType: widget.patient.tipoTratamiento,
+                );
+              },
+              onGallery: () {
+                setState(() => _openedSimulation = null);
+                ref.read(simulatorFlowProvider.notifier).resetFlow();
+                ref.read(simulatorFlowProvider.notifier).pickOriginalFromGallery(
+                  patientId: widget.patient.id,
+                  adminId: adminId,
+                  treatmentType: widget.patient.tipoTratamiento,
+                );
+              },
             ),
             const SizedBox(height: 14),
             if (items.isEmpty)
               const OcgEmptyState(
                 icon: Icons.auto_awesome_outlined,
-                title: 'Sin simulaciones todavía',
-                subtitle: 'Crea la primera simulación para este paciente.',
+                title: 'Todavía no hay simulaciones para este paciente.',
+                subtitle: 'Toma una foto frontal o súbela desde galería para iniciar una simulación.',
               )
-            else
+            else ...[
+              const Text(
+                'Historial de simulaciones',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: OcgColors.espresso,
+                ),
+              ),
+              const SizedBox(height: 10),
               ...items.map(
                 (s) => _AdminSimulationCard(
                   simulation: s,
@@ -203,6 +216,132 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
           ],
         );
       },
+    );
+  }
+}
+
+class _SimulatorMobileHeader extends StatelessWidget {
+  const _SimulatorMobileHeader({
+    required this.patientName,
+    required this.latestSimulation,
+    required this.onNew,
+  });
+
+  final String patientName;
+  final SimulationModel? latestSimulation;
+  final VoidCallback onNew;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8DED2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Simulador de sonrisa',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: onNew,
+                icon: const Icon(Icons.add),
+                label: const Text('Nueva simulación'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            patientName,
+            style: const TextStyle(
+              color: OcgColors.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            latestSimulation == null
+                ? 'Crea una simulación de sonrisa a partir de una foto del paciente.'
+                : 'Estado más reciente: ${formatSimulationStatus(latestSimulation!.status)}',
+            style: const TextStyle(color: OcgColors.bronze),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimulatorPrimaryActionsCard extends StatelessWidget {
+  const _SimulatorPrimaryActionsCard({
+    required this.hasSimulations,
+    required this.onCamera,
+    required this.onGallery,
+  });
+
+  final bool hasSimulations;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8DED2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Acción principal',
+            style: TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasSimulations
+                ? 'Toma una nueva foto o sube otra desde galería para crear una nueva simulación.'
+                : 'Toma una foto frontal del paciente para iniciar la simulación.',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: onCamera,
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Tomar foto'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onGallery,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Subir desde galería'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

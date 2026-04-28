@@ -143,7 +143,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                     SizedBox(width: 10),
-                    Expanded(child: Text('Procesando imagen original...')),
+                    Expanded(child: Text('Preparando foto original...')),
                   ],
                 ),
               ],
@@ -196,6 +196,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     repository: repo,
                   ),
                 const SizedBox(height: 12),
+                _flowStateHint(flow),
+                const SizedBox(height: 12),
                 _regionCard(flow),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -228,6 +230,16 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                                   ),
                         icon: const Icon(Icons.auto_awesome_outlined),
                         label: const Text('Generar con IA'),
+                      ),
+                    if (flow.status == SimulationStatus.failed)
+                      OutlinedButton.icon(
+                        onPressed: isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .resetFlow(),
+                        icon: const Icon(Icons.photo_camera_back_outlined),
+                        label: const Text('Cambiar foto'),
                       ),
                     if (flow.status == SimulationStatus.failed)
                       ElevatedButton.icon(
@@ -363,6 +375,30 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         border: Border.all(color: OcgColors.error.withOpacity(0.25)),
       ),
       child: Text(message, style: const TextStyle(color: OcgColors.error)),
+    );
+  }
+
+  Widget _flowStateHint(SimulatorFlowState flow) {
+    final text = switch (flow.status) {
+      SimulationStatus.draft => 'Foto lista para generar simulación.',
+      SimulationStatus.generating => 'Generando simulación con IA...',
+      SimulationStatus.ready => 'Simulación lista para revisión.',
+      SimulationStatus.failed => 'La simulación falló. Revisa el mensaje y vuelve a intentarlo.',
+      SimulationStatus.shared => 'Esta simulación ya fue compartida con el paciente.',
+      SimulationStatus.archived => 'La simulación está archivada y no permite nuevas acciones.',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
