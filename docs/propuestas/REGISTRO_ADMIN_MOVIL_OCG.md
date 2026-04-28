@@ -407,11 +407,101 @@ flutter analyze
 ### Commit
 - Pendiente hasta cerrar commit de este bloque.
 
+## Bloque 05 — Pagos móvil
+
+### Fecha
+- 2026-04-28
+
+### Estado
+- completado
+
+### Problema trabajado
+La vista de pagos en móvil estaba desactualizada frente a desktop y no estaba optimizada para consulta rápida.
+
+### Decisión UX
+Desktop mantiene gestión financiera completa.
+Móvil muestra resumen financiero y pagos en cards.
+
+### Archivos revisados
+- `lib/features/patients/presentation/tabs/patient_payments_tab.dart`
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- providers y modelos de pagos/transacciones existentes
+
+### Archivos modificados
+- `lib/features/patients/presentation/tabs/patient_payments_tab.dart`
+- `docs/propuestas/REGISTRO_ADMIN_MOVIL_OCG.md`
+
+### Cards implementadas
+- Resumen financiero: valor total, total pagado, saldo pendiente, porcentaje pagado y estado.
+- Último pago: fecha, valor, método, concepto y estado.
+- Historial de pagos: cards verticales con pagos recientes y CTA `Ver todos` como placeholder seguro.
+- Acciones: registrar pago, ver historial completo, ir a tratamiento y mensaje para usar escritorio en gestión completa.
+
+### Compatibilidad con pacientes sin pagos
+- Si no existen transacciones, la vista muestra: `No hay pagos registrados para este paciente.`
+- No queda cargando infinito ni intenta renderizar tablas vacías.
+
+### Compatibilidad con datos incompletos o legacy
+- Si falta método de pago: muestra `Sin método`.
+- Si falta concepto: muestra `Sin concepto`.
+- Si faltan notas o estado de transacción: usa fallbacks seguros (`Registrado`).
+- Si total/pagado/saldo vienen incompletos, la suma agregada sigue usando valores por defecto de la resolución actual.
+
+### Estados vacíos manejados
+- Paciente sin pagos.
+- Paciente con datos antiguos o incompletos.
+- Paciente con saldo pendiente.
+- Paciente al día.
+
+### Qué se mantuvo igual en desktop
+- La vista completa de pagos con cuentas por tratamiento, resumen ampliado, conceptos y registro detallado permanece intacta fuera del flujo móvil.
+- No se cambió lógica financiera profunda ni integraciones existentes.
+
+### Qué cambió en móvil
+- El tab detecta móvil (`< 700`) y muestra una versión resumida por cards.
+- Se evita exponer de entrada bloques más pesados del flujo desktop.
+- El registro de pago básico se mantiene disponible si existe cuenta seleccionada.
+
+### Riesgos detectados
+- `Ver todos` e historial completo quedan como accesos placeholder/seguros mientras el bloque completo de pagos móvil siga evolucionando.
+- Si en ciertos datos legacy hay campos con nombres distintos a los esperados, puede requerirse un ajuste fino posterior tras validación real.
+
+### Pendientes para siguientes bloques
+- Simulador móvil admin
+- Prueba responsive completa
+- Prueba con GPT-Image-2 real cuando exista API Key
+
+### Pruebas responsive realizadas
+- Revisión estructural pensada para:
+  - paciente con pagos completos
+  - paciente sin pagos
+  - paciente con saldo pendiente
+  - paciente al día
+  - paciente con datos incompletos
+  - móvil 360x800
+  - móvil 390x844
+  - móvil 412x915
+  - tablet pequeña
+  - desktop
+- Validación visual final pendiente para Erik.
+
+### Resultado flutter analyze
+- No ejecutable en esta sesión porque `flutter` no está disponible en el PATH del entorno actual.
+- Comando para Erik:
+```bash
+cd ocg_proyect
+flutter analyze
+```
+
+### Commit
+- Pendiente hasta cerrar commit de este bloque.
+
 ## Estado actual
 - Bloque 01 (auditoría): completado.
 - Bloque 02 (shell admin móvil): completado.
 - Bloque 03 (detalle de paciente móvil): completado.
 - Bloque 04 (tratamientos móvil): completado.
+- Bloque 05 (pagos móvil): completado.
 
 ## Pruebas realizadas
 - Revisión estructural inicial de shell admin, módulos admin, tabs de paciente y pantallas del simulador.
@@ -419,7 +509,8 @@ flutter analyze
 - Ajuste del scaffold adaptativo para navegación móvil compacta.
 - Conversión del detalle del paciente móvil a ficha clínica por cards.
 - Simplificación del tab de tratamientos para móvil con cards y estados vacíos seguros.
+- Simplificación del tab de pagos para móvil con cards y fallbacks legacy.
 
 ## Pendientes inmediatos
-- Ejecutar Bloque 05: pagos móvil.
+- Ejecutar Bloque 06: simulador móvil admin.
 - Validación visual final de responsive por Erik en tamaños objetivo.
