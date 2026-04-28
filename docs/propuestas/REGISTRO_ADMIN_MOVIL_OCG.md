@@ -324,17 +324,102 @@ flutter analyze
 ### Commit
 - Pendiente hasta cerrar commit de este bloque.
 
+## Bloque 04 — Tratamientos móvil
+
+### Fecha
+- 2026-04-28
+
+### Estado
+- completado
+
+### Problema trabajado
+La vista de tratamientos en móvil heredaba lógica visual pesada de desktop y podía romperse o ser incómoda en consulta.
+
+### Decisión UX
+Desktop mantiene edición completa.
+Móvil muestra resumen clínico operativo por cards.
+
+### Archivos revisados
+- `lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- widgets/modales relacionados con tratamiento y conceptos financieros
+
+### Archivos modificados
+- `lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `docs/propuestas/REGISTRO_ADMIN_MOVIL_OCG.md`
+
+### Cards implementadas
+- Estado del tratamiento: nombre, estado, etapa actual, progreso y fecha de inicio.
+- Resumen financiero: valor total, total pagado, saldo pendiente y próximo pago.
+- Conceptos: lista vertical resumida de conceptos principales con CTA “Ver todos” como placeholder seguro.
+- Notas clínicas: última nota visible y último movimiento del historial si existe.
+- Acciones: ver tratamiento completo, agregar nota (mensaje controlado), ir a pagos y aviso de usar escritorio para edición completa.
+
+### Compatibilidad con pacientes legacy
+- Si el tratamiento existe pero no tiene conceptos, la vista muestra: `No hay conceptos registrados para este tratamiento.`
+- Si faltan notas, historial o fechas, se muestran estados vacíos claros sin trabarse.
+- Se reutiliza el fallback financiero previo para tratamientos con datos incompletos.
+
+### Estados vacíos manejados
+- Sin tratamiento activo: se mantiene el empty state general del tab (`No hay tratamiento activo registrado.` / flujo existente del módulo).
+- Sin conceptos: mensaje claro sin loading infinito.
+- Sin notas: mensaje claro.
+- Sin próximo pago: `Sin fecha programada`.
+
+### Qué se mantuvo igual en desktop
+- El flujo completo premium de tratamiento, timeline, historial y edición profunda permanece intacto para desktop/tablet amplia.
+- No se tocaron los modales pesados como flujo principal desktop.
+
+### Qué cambió en móvil
+- El tab de tratamientos ahora detecta móvil (`< 700`) y renderiza una vista resumida por cards.
+- Se evita mostrar de entrada la composición pesada desktop-first.
+- Las acciones móviles son seguras y orientadas a consulta, no a edición profunda.
+
+### Riesgos detectados
+- `Ver todos` en conceptos todavía no abre una vista específica móvil; queda como placeholder seguro mientras el detalle completo siga viviendo abajo o en escritorio.
+- La nota rápida todavía no tiene flujo dedicado móvil; por ahora deja mensaje controlado.
+
+### Pendientes para siguientes bloques
+- Pagos móvil completo
+- Simulador móvil admin
+
+### Pruebas responsive realizadas
+- Revisión estructural pensada para:
+  - paciente con tratamiento activo completo
+  - paciente con tratamiento sin conceptos
+  - paciente antiguo con datos incompletos
+  - paciente sin tratamiento activo
+  - 360x800
+  - 390x844
+  - 412x915
+  - tablet pequeña
+  - desktop
+- Validación visual final pendiente para Erik.
+
+### Resultado flutter analyze
+- No ejecutable en esta sesión porque `flutter` no está disponible en el PATH del entorno actual.
+- Comando para Erik:
+```bash
+cd ocg_proyect
+flutter analyze
+```
+
+### Commit
+- Pendiente hasta cerrar commit de este bloque.
+
 ## Estado actual
 - Bloque 01 (auditoría): completado.
 - Bloque 02 (shell admin móvil): completado.
 - Bloque 03 (detalle de paciente móvil): completado.
+- Bloque 04 (tratamientos móvil): completado.
 
 ## Pruebas realizadas
 - Revisión estructural inicial de shell admin, módulos admin, tabs de paciente y pantallas del simulador.
 - Inspección de archivos clave responsive/desktop-first.
 - Ajuste del scaffold adaptativo para navegación móvil compacta.
 - Conversión del detalle del paciente móvil a ficha clínica por cards.
+- Simplificación del tab de tratamientos para móvil con cards y estados vacíos seguros.
 
 ## Pendientes inmediatos
-- Ejecutar Bloque 04: tratamientos móvil.
+- Ejecutar Bloque 05: pagos móvil.
 - Validación visual final de responsive por Erik en tamaños objetivo.

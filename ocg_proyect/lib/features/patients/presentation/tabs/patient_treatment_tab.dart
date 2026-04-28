@@ -164,86 +164,395 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
               subtitle: '$error',
             ),
           ),
-          data: (history) => SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+          data: (history) => LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 700;
+              if (isMobile) {
+                return _buildMobileTreatmentView(
+                  context,
+                  selectedTreatment,
+                  summary,
+                  activeItems,
+                  history,
+                  saveState.isLoading,
+                );
+              }
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHero(
+                      context,
+                      treatments,
+                      selectedTreatment,
+                      summary,
+                      saveState.isLoading,
+                    ),
+                    const SizedBox(height: 18),
+                    _buildTreatmentSelector(
+                      treatments,
+                      selectedTreatment,
+                      patientDataMode,
+                    ),
+                    const SizedBox(height: 18),
+                    _buildSummaryGrid(selectedTreatment, treatments, summary),
+                    const SizedBox(height: 18),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final singleColumn = constraints.maxWidth < 1180;
+                        if (singleColumn) {
+                          return Column(
+                            children: [
+                              _buildClinicalColumn(
+                                context,
+                                selectedTreatment,
+                                treatments,
+                                history,
+                                adminId,
+                              ),
+                              const SizedBox(height: 18),
+                              _buildFinancialColumn(
+                                context,
+                                selectedTreatment,
+                                summary,
+                                activeItems,
+                                financialItems,
+                                saveState.isLoading,
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 11,
+                              child: _buildClinicalColumn(
+                                context,
+                                selectedTreatment,
+                                treatments,
+                                history,
+                                adminId,
+                              ),
+                            ),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              flex: 9,
+                              child: _buildFinancialColumn(
+                                context,
+                                selectedTreatment,
+                                summary,
+                                activeItems,
+                                financialItems,
+                                saveState.isLoading,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileTreatmentView(
+    BuildContext context,
+    PatientTreatment selectedTreatment,
+    TreatmentFinancialSummaryModel summary,
+    List<FinancialItemModel> activeItems,
+    List<StageHistoryEntry> history,
+    bool isSaving,
+  ) {
+    final stageLabel =
+        stageNames[selectedTreatment.etapaActual] ??
+        selectedTreatment.etapaActual.name;
+    final latestHistory = history.isEmpty ? null : history.first;
+    final visibleItems = activeItems.take(3).toList();
+    final hasMoreItems = activeItems.length > visibleItems.length;
+    final latestNote = (selectedTreatment.notas ?? '').trim();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMobileTreatmentCard(
+            title: 'Estado del tratamiento',
+            icon: Icons.monitor_heart_outlined,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHero(
-                  context,
-                  treatments,
-                  selectedTreatment,
-                  summary,
-                  saveState.isLoading,
+                Text(
+                  selectedTreatment.displayName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: OcgColors.espresso,
+                  ),
                 ),
-                const SizedBox(height: 18),
-                _buildTreatmentSelector(
-                  treatments,
-                  selectedTreatment,
-                  patientDataMode,
+                const SizedBox(height: 10),
+                _mobileInfoRow('Estado', selectedTreatment.statusLabel),
+                _mobileInfoRow('Etapa actual', stageLabel),
+                _mobileInfoRow(
+                  'Progreso',
+                  '${_stageProgress(selectedTreatment.etapaActual)}%',
                 ),
-                const SizedBox(height: 18),
-                _buildSummaryGrid(selectedTreatment, treatments, summary),
-                const SizedBox(height: 18),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final singleColumn = constraints.maxWidth < 1180;
-                    if (singleColumn) {
-                      return Column(
-                        children: [
-                          _buildClinicalColumn(
-                            context,
-                            selectedTreatment,
-                            treatments,
-                            history,
-                            adminId,
-                          ),
-                          const SizedBox(height: 18),
-                          _buildFinancialColumn(
-                            context,
-                            selectedTreatment,
-                            summary,
-                            activeItems,
-                            financialItems,
-                            saveState.isLoading,
-                          ),
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 11,
-                          child: _buildClinicalColumn(
-                            context,
-                            selectedTreatment,
-                            treatments,
-                            history,
-                            adminId,
-                          ),
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          flex: 9,
-                          child: _buildFinancialColumn(
-                            context,
-                            selectedTreatment,
-                            summary,
-                            activeItems,
-                            financialItems,
-                            saveState.isLoading,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                _mobileInfoRow(
+                  'Fecha de inicio',
+                  _formatDate(selectedTreatment.fechaInicio),
                 ),
               ],
             ),
           ),
-        );
-      },
+          const SizedBox(height: 14),
+          _buildMobileTreatmentCard(
+            title: 'Resumen financiero del tratamiento',
+            icon: Icons.payments_outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _mobileInfoRow(
+                  'Valor total',
+                  _currency.format(summary.totalAmount),
+                ),
+                _mobileInfoRow(
+                  'Total pagado',
+                  _currency.format(summary.paidAmount),
+                ),
+                _mobileInfoRow(
+                  'Saldo pendiente',
+                  _currency.format(summary.pendingAmount),
+                ),
+                _mobileInfoRow(
+                  'Próximo pago',
+                  widget.patient.fechaProximoPago == null
+                      ? 'Sin fecha programada'
+                      : _formatDate(widget.patient.fechaProximoPago!),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildMobileTreatmentCard(
+            title: 'Conceptos del tratamiento',
+            icon: Icons.receipt_long_outlined,
+            child: activeItems.isEmpty
+                ? const Text(
+                    'No hay conceptos registrados para este tratamiento.',
+                    style: TextStyle(color: OcgColors.bronze),
+                  )
+                : Column(
+                    children: [
+                      for (final item in visibleItems)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F3ED),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: const TextStyle(
+                                  color: OcgColors.espresso,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _currency.format(item.computedAmount),
+                                style: const TextStyle(color: OcgColors.ink),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                item.active ? 'Activo' : 'Pendiente',
+                                style: const TextStyle(color: OcgColors.bronze),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (hasMoreItems)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () {},
+                            child: const Text('Ver todos'),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 14),
+          _buildMobileTreatmentCard(
+            title: 'Notas clínicas',
+            icon: Icons.notes_outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  latestNote.isEmpty
+                      ? 'No hay notas clínicas registradas.'
+                      : latestNote,
+                  style: const TextStyle(color: OcgColors.ink),
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  latestHistory == null
+                      ? 'Sin historial reciente.'
+                      : 'Último movimiento: ${_formatDate(latestHistory.fecha)}',
+                  style: const TextStyle(color: OcgColors.bronze),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildMobileTreatmentCard(
+            title: 'Acciones',
+            icon: Icons.flash_on_outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => ManagePatientTreatmentDialog(
+                          patientId: widget.patientId,
+                          patientName: widget.patient.nombre,
+                          initialTreatment: selectedTreatment,
+                        ),
+                      ),
+                      icon: const Icon(Icons.visibility_outlined, size: 18),
+                      label: const Text('Ver tratamiento completo'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('La nota rápida se habilitará en un bloque posterior. Usa escritorio para edición clínica completa.'),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.note_add_outlined, size: 18),
+                      label: const Text('Agregar nota'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ve a la ficha del paciente y abre Pagos para el detalle completo.'),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.payments_outlined, size: 18),
+                      label: const Text('Ir a pagos'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Para edición completa del tratamiento, usa la versión de escritorio.',
+                  style: TextStyle(
+                    color: OcgColors.bronze,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                if (isSaving) ...[
+                  const SizedBox(height: 10),
+                  const LinearProgressIndicator(minHeight: 3),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileTreatmentCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8DED2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: OcgColors.espresso),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: OcgColors.bronze,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: OcgColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
