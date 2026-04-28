@@ -84,7 +84,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'La simulación es orientativa y no representa una promesa clínica exacta.',
+              'La simulación es una referencia visual orientativa para apoyar la explicación del tratamiento.',
               style: TextStyle(color: OcgColors.ink),
             ),
             const SizedBox(height: 14),
@@ -105,11 +105,18 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                     try {
                       await ref
                           .read(simulationRepositoryProvider)
-                          .toggleShare(
-                            patientId: widget.patient.id,
-                            simulationId: s.id,
-                            compartida: value,
+                          .unshareSimulationWithPatient(
+                            widget.patient.id,
+                            s.id,
                           );
+                      if (value) {
+                        await ref
+                            .read(simulationRepositoryProvider)
+                            .shareSimulationWithPatient(
+                              widget.patient.id,
+                              s.id,
+                            );
+                      }
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -234,7 +241,9 @@ class _AdminSimulationCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text('Origen: ${formatSimulationMode(simulation.mode)}'),
+            Text(
+              'Provider: ${simulation.generationProvider} · Modelo: ${simulation.modelUsed}',
+            ),
             if ((simulation.notes ?? '').trim().isNotEmpty)
               Text('Notas: ${simulation.notes!.trim()}'),
             const SizedBox(height: 8),

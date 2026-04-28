@@ -10,23 +10,18 @@ String formatTreatmentStage(TreatmentStage stage) {
   return stageNames[stage] ?? stage.name;
 }
 
-String formatSimulationMode(SimulationMode mode) {
-  switch (mode) {
-    case SimulationMode.mock:
-      return 'Mock interno';
-    case SimulationMode.manualDoctora:
-      return 'Manual doctora';
-  }
-}
-
 String formatSimulationStatus(SimulationStatus status) {
   switch (status) {
     case SimulationStatus.draft:
       return 'Borrador';
+    case SimulationStatus.generating:
+      return 'Generando';
     case SimulationStatus.ready:
       return 'Lista';
     case SimulationStatus.shared:
       return 'Compartida';
+    case SimulationStatus.failed:
+      return 'Error';
     case SimulationStatus.archived:
       return 'Archivada';
   }

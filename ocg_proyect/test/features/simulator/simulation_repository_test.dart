@@ -17,74 +17,104 @@ void main() {
   SimulationModel base({
     required String id,
     required String patientId,
-    String? resultUrl,
+    String? resultPath,
     SimulationStatus status = SimulationStatus.draft,
     bool shared = false,
   }) {
     return SimulationModel(
       id: id,
       patientId: patientId,
-      originalUrl: 'https://x/original.jpg',
-      resultUrl: resultUrl,
-      mode: SimulationMode.manualDoctora,
+      originalPath: 'simulations/$patientId/$id/original.jpg',
+      resultPath: resultPath,
       compartidaConPaciente: shared,
       createdAt: DateTime(2026, 3, 23, 12),
       updatedAt: null,
-      creadoPor: 'admin',
+      createdBy: 'admin',
       treatmentType: null,
       status: status,
       notes: null,
+      generationProvider: 'openai',
+      modelUsed: 'gpt-image-2',
+      attemptCount: 0,
+      errorMessage: null,
+      generatedAt: null,
+      promptUsed: null,
+      promptVersion: null,
       mlKitUsed: false,
       detectedRegion: null,
       promptMetadata: null,
+      fechaCompartida: null,
     );
   }
 
-  test('saveSimulation guarda draft ligado a patientId', () async {
-    final saved = await repo.saveSimulation(base(id: '', patientId: 'p-1'));
+  test('createDraftSimulation guarda draft ligado a patientId', () async {
+    final saved = await repo.createDraftSimulation(
+      patientId: 'p-1',
+      createdBy: 'admin-1',
+      originalPath: 'simulations/p-1/sim-1/original.jpg',
+    );
 
     expect(saved.id, isNotEmpty);
     expect(saved.status, SimulationStatus.draft);
 
-    final doc = await db.collection(FirestorePaths.patientSimulations('p-1')).doc(saved.id).get();
+    final doc = await db
+        .collection(FirestorePaths.patientSimulations('p-1'))
+        .doc(saved.id)
+        .get();
     expect(doc.exists, isTrue);
     expect(doc.data()!['patientId'], 'p-1');
     expect(doc.data()!['status'], SimulationStatus.draft.name);
   });
 
-  test('updateSimulation al poner resultUrl normaliza draft -> ready', () async {
-    final saved = await repo.saveSimulation(base(id: 'sim-1', patientId: 'p-2'));
+  test('updateSimulationStatus cambia draft -> generating', () async {
+    final saved = await repo.createDraftSimulation(
+      patientId: 'p-2',
+      createdBy: 'admin-2',
+      originalPath: 'simulations/p-2/sim-2/original.jpg',
+    );
 
-    await repo.updateSimulation(
+    await repo.updateSimulationStatus(
       patientId: 'p-2',
       simulationId: saved.id,
-      resultUrl: 'https://x/result.jpg',
+      status: SimulationStatus.generating,
+      attemptCount: 1,
     );
 
-    final doc = await db.collection(FirestorePaths.patientSimulations('p-2')).doc(saved.id).get();
-    expect(doc.data()!['resultUrl'], 'https://x/result.jpg');
-    expect(doc.data()!['status'], SimulationStatus.ready.name);
+    final doc = await db
+        .collection(FirestorePaths.patientSimulations('p-2'))
+        .doc(saved.id)
+        .get();
+    expect(doc.data()!['status'], SimulationStatus.generating.name);
+    expect(doc.data()!['attemptCount'], 1);
   });
 
-  test('toggleShare cambia ready <-> shared', () async {
-    final saved = await repo.saveSimulation(
-      base(
-        id: 'sim-2',
+  test('share/unshare cambia ready <-> shared', () async {
+    final saved = await repo.updateSimulation(
+      patientId: 'p-3',
+      simulationId: (await repo.createDraftSimulation(
         patientId: 'p-3',
-        resultUrl: 'https://x/result.jpg',
-        status: SimulationStatus.ready,
-      ),
+        createdBy: 'admin-3',
+        originalPath: 'simulations/p-3/sim-3/original.jpg',
+      )).id,
+      resultPath: 'simulations/p-3/sim-3/result.jpg',
+      status: SimulationStatus.ready,
     );
 
-    await repo.toggleShare(patientId: 'p-3', simulationId: saved.id, compartida: true);
+    await repo.shareSimulationWithPatient('p-3', saved.id);
 
-    var doc = await db.collection(FirestorePaths.patientSimulations('p-3')).doc(saved.id).get();
+    var doc = await db
+        .collection(FirestorePaths.patientSimulations('p-3'))
+        .doc(saved.id)
+        .get();
     expect(doc.data()!['compartidaConPaciente'], true);
     expect(doc.data()!['status'], SimulationStatus.shared.name);
 
-    await repo.toggleShare(patientId: 'p-3', simulationId: saved.id, compartida: false);
+    await repo.unshareSimulationWithPatient('p-3', saved.id);
 
-    doc = await db.collection(FirestorePaths.patientSimulations('p-3')).doc(saved.id).get();
+    doc = await db
+        .collection(FirestorePaths.patientSimulations('p-3'))
+        .doc(saved.id)
+        .get();
     expect(doc.data()!['compartidaConPaciente'], false);
     expect(doc.data()!['status'], SimulationStatus.ready.name);
   });
@@ -111,7 +141,7 @@ void main() {
       ...base(
         id: 'shared-ok',
         patientId: 'p-5',
-        resultUrl: 'https://x/result.jpg',
+        resultPath: 'simulations/p-5/shared-ok/result.jpg',
         status: SimulationStatus.shared,
         shared: true,
       ).toJson(),
@@ -123,7 +153,7 @@ void main() {
       ...base(
         id: 'ready-no-share',
         patientId: 'p-5',
-        resultUrl: 'https://x/result.jpg',
+        resultPath: 'simulations/p-5/ready-no-share/result.jpg',
         status: SimulationStatus.ready,
         shared: true,
       ).toJson(),

@@ -83,7 +83,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                         children: [
                           Text('Simulación ${_fmtDate(s.createdAt)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text('Origen: ${formatSimulationMode(s.mode)}'),
+                          Text('Provider: ${s.generationProvider} · Modelo: ${s.modelUsed}'),
                           if ((s.notes ?? '').trim().isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text('Notas: ${s.notes!.trim()}'),

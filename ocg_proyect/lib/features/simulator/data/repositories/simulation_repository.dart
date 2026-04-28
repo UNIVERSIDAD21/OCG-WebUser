@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../../../shared/constants/storage_paths.dart';
+import '../../../patients/data/models/patient_model.dart';
 import '../models/simulation_model.dart';
 
 class SimulationRepository {
@@ -24,7 +25,11 @@ class SimulationRepository {
     return _simulationsRef(patientId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList());
+        .map(
+          (snap) => snap.docs
+              .map((d) => SimulationModel.fromJson(d.data()))
+              .toList(),
+        );
   }
 
   Stream<List<SimulationModel>> watchSharedSimulations(String patientId) {
@@ -33,7 +38,11 @@ class SimulationRepository {
         .where('status', isEqualTo: SimulationStatus.shared.name)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList());
+        .map(
+          (snap) => snap.docs
+              .map((d) => SimulationModel.fromJson(d.data()))
+              .toList(),
+        );
   }
 
   Future<String> uploadOriginalImage({
@@ -45,59 +54,80 @@ class SimulationRepository {
     final path = StoragePaths.simulationOriginal(patientId, simulationId);
     final ref = (_storage ?? FirebaseStorage.instance).ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: contentType));
-    return ref.getDownloadURL();
+    return path;
   }
 
-  Future<String> uploadResultImage({
+  Future<SimulationModel> createDraftSimulation({
     required String patientId,
-    required String simulationId,
-    required Uint8List bytes,
-    String contentType = 'image/jpeg',
+    required String createdBy,
+    required String originalPath,
+    TreatmentType? treatmentType,
+    String? notes,
+    bool mlKitUsed = false,
+    Map<String, dynamic>? detectedRegion,
+    String? promptUsed,
+    String? promptVersion,
+    Map<String, dynamic>? promptMetadata,
   }) async {
-    final path = StoragePaths.simulationResult(patientId, simulationId);
-    final ref = (_storage ?? FirebaseStorage.instance).ref(path);
-    await ref.putData(bytes, SettableMetadata(contentType: contentType));
-    return ref.getDownloadURL();
-  }
-
-  Future<SimulationModel> saveSimulation(SimulationModel simulation) async {
-    if (simulation.patientId.trim().isEmpty) {
-      throw Exception('SIMULATION_PATIENT_REQUIRED');
-    }
+    if (patientId.trim().isEmpty) throw Exception('SIMULATION_PATIENT_REQUIRED');
+    if (originalPath.trim().isEmpty) throw Exception('SIMULATION_ORIGINAL_REQUIRED');
 
     final now = DateTime.now();
-    final ref = simulation.id.trim().isEmpty
-        ? _simulationsRef(simulation.patientId).doc()
-        : _simulationsRef(simulation.patientId).doc(simulation.id);
-
-    final safeStatus = _normalizeStatus(simulation.status, simulation.resultUrl);
-
-    final entity = simulation.copyWith(
+    final ref = _simulationsRef(patientId).doc();
+    final entity = SimulationModel(
       id: ref.id,
-      status: safeStatus,
-      createdAt: simulation.createdAt,
+      patientId: patientId,
+      originalPath: originalPath,
+      resultPath: null,
+      compartidaConPaciente: false,
+      createdAt: now,
       updatedAt: now,
+      createdBy: createdBy,
+      treatmentType: treatmentType,
+      status: SimulationStatus.draft,
+      notes: notes,
+      generationProvider: 'openai',
+      modelUsed: 'gpt-image-2',
+      attemptCount: 0,
+      errorMessage: null,
+      generatedAt: null,
+      promptUsed: promptUsed,
+      promptVersion: promptVersion,
+      mlKitUsed: mlKitUsed,
+      detectedRegion: detectedRegion,
+      promptMetadata: promptMetadata,
+      fechaCompartida: null,
     );
 
     await ref.set(entity.toJson(), SetOptions(merge: true));
     return entity;
   }
 
-  Future<void> updateSimulation({
+  Future<SimulationModel> updateSimulation({
     required String patientId,
     required String simulationId,
-    String? resultUrl,
-    bool clearResultUrl = false,
-    SimulationMode? mode,
     SimulationStatus? status,
     String? notes,
     bool clearNotes = false,
     bool? compartidaConPaciente,
+    String? resultPath,
+    bool clearResultPath = false,
+    int? attemptCount,
+    String? errorMessage,
+    bool clearErrorMessage = false,
+    DateTime? generatedAt,
+    bool clearGeneratedAt = false,
+    String? promptUsed,
+    bool clearPromptUsed = false,
+    String? promptVersion,
+    bool clearPromptVersion = false,
+    bool? mlKitUsed,
     Map<String, dynamic>? detectedRegion,
     bool clearDetectedRegion = false,
     Map<String, dynamic>? promptMetadata,
     bool clearPromptMetadata = false,
-    bool? mlKitUsed,
+    DateTime? fechaCompartida,
+    bool clearFechaCompartida = false,
   }) async {
     final ref = _simulationsRef(patientId).doc(simulationId);
     final snap = await ref.get();
@@ -106,37 +136,85 @@ class SimulationRepository {
     }
 
     final current = SimulationModel.fromJson(snap.data()!);
-
-    final nextResultUrl = clearResultUrl ? null : (resultUrl ?? current.resultUrl);
-    final nextStatus = _normalizeStatus(status ?? current.status, nextResultUrl);
-
     final next = current.copyWith(
-      resultUrl: resultUrl,
-      clearResultUrl: clearResultUrl,
-      mode: mode,
-      status: nextStatus,
+      status: status,
       notes: notes,
       clearNotes: clearNotes,
       compartidaConPaciente: compartidaConPaciente,
+      resultPath: resultPath,
+      clearResultPath: clearResultPath,
+      attemptCount: attemptCount,
+      errorMessage: errorMessage,
+      clearErrorMessage: clearErrorMessage,
+      generatedAt: generatedAt,
+      clearGeneratedAt: clearGeneratedAt,
+      promptUsed: promptUsed,
+      clearPromptUsed: clearPromptUsed,
+      promptVersion: promptVersion,
+      clearPromptVersion: clearPromptVersion,
+      mlKitUsed: mlKitUsed,
       detectedRegion: detectedRegion,
       clearDetectedRegion: clearDetectedRegion,
       promptMetadata: promptMetadata,
       clearPromptMetadata: clearPromptMetadata,
-      mlKitUsed: mlKitUsed,
+      fechaCompartida: fechaCompartida,
+      clearFechaCompartida: clearFechaCompartida,
       updatedAt: DateTime.now(),
     );
 
     await ref.set(next.toJson(), SetOptions(merge: true));
+    return next;
+  }
+
+  Future<SimulationModel> updateSimulationStatus({
+    required String patientId,
+    required String simulationId,
+    required SimulationStatus status,
+    String? errorMessage,
+    int? attemptCount,
+  }) {
+    final shouldClearError = errorMessage == null || errorMessage.trim().isEmpty;
+    return updateSimulation(
+      patientId: patientId,
+      simulationId: simulationId,
+      status: status,
+      errorMessage: shouldClearError ? null : errorMessage,
+      clearErrorMessage: shouldClearError,
+      attemptCount: attemptCount,
+      generatedAt: status == SimulationStatus.ready ? DateTime.now() : null,
+      clearGeneratedAt: status != SimulationStatus.ready,
+    );
+  }
+
+  Future<void> shareSimulationWithPatient(
+    String patientId,
+    String simulationId,
+  ) async {
+    await _simulationsRef(patientId).doc(simulationId).update({
+      'compartidaConPaciente': true,
+      'status': SimulationStatus.shared.name,
+      'fechaCompartida': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> unshareSimulationWithPatient(
+    String patientId,
+    String simulationId,
+  ) async {
+    await _simulationsRef(patientId).doc(simulationId).update({
+      'compartidaConPaciente': false,
+      'status': SimulationStatus.ready.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> deleteSimulation({
     required String patientId,
     required String simulationId,
   }) async {
-    // Borrar documento Firestore
     await _simulationsRef(patientId).doc(simulationId).delete();
 
-    // Intentar limpiar archivos en Storage (best-effort)
     final storage = _storage ?? FirebaseStorage.instance;
     final paths = [
       StoragePaths.simulationOriginal(patientId, simulationId),
@@ -148,44 +226,7 @@ class SimulationRepository {
     for (final path in paths) {
       try {
         await storage.ref(path).delete();
-      } catch (_) {
-        // Puede no existir el archivo; no bloquea el borrado principal.
-      }
+      } catch (_) {}
     }
-  }
-
-  Future<void> toggleShare({
-    required String patientId,
-    required String simulationId,
-    required bool compartida,
-  }) async {
-    final ref = _simulationsRef(patientId).doc(simulationId);
-    final snap = await ref.get();
-    if (!snap.exists || snap.data() == null) {
-      throw Exception('SIMULATION_NOT_FOUND');
-    }
-
-    final current = SimulationModel.fromJson(snap.data()!);
-    final newStatus = compartida
-        ? (current.resultUrl == null ? SimulationStatus.draft : SimulationStatus.shared)
-        : (current.resultUrl == null ? SimulationStatus.draft : SimulationStatus.ready);
-
-    await ref.update({
-      'compartidaConPaciente': compartida,
-      'status': newStatus.name,
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
-    });
-  }
-
-  SimulationStatus _normalizeStatus(SimulationStatus status, String? resultUrl) {
-    if (resultUrl == null || resultUrl.trim().isEmpty) {
-      return SimulationStatus.draft;
-    }
-
-    if (status == SimulationStatus.draft) {
-      return SimulationStatus.ready;
-    }
-
-    return status;
   }
 }

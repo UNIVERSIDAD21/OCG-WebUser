@@ -53,7 +53,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         widget.initialSimulation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(widget.initialSimulation!);
+        ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(
+              widget.initialSimulation!,
+            );
       });
     }
   }
@@ -69,17 +71,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         onRetry: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
       ),
       data: (flow) {
-        if (flow.uiState == SimulatorUiState.error) {
-          return _ErrorState(
-            message: flow.errorMessage ?? 'No se pudo completar la operación.',
-            onRetry: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
-          );
-        }
-
-        final inPreview = flow.uiState == SimulatorUiState.previewReady ||
-            flow.uiState == SimulatorUiState.saving ||
-            flow.uiState == SimulatorUiState.saved ||
-            flow.uiState == SimulatorUiState.generatingMock;
+        final showErrorCard =
+            flow.uiState == SimulatorUiState.error &&
+            (flow.errorMessage ?? '').trim().isNotEmpty;
+        final inPreview = flow.hasOriginal;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -88,45 +83,40 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             children: [
               _disclaimer(),
               const SizedBox(height: 12),
-              SegmentedButton<SimulationMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: SimulationMode.manualDoctora,
-                    icon: Icon(Icons.edit_outlined),
-                    label: Text('Manual doctora'),
-                  ),
-                  ButtonSegment(
-                    value: SimulationMode.mock,
-                    icon: Icon(Icons.auto_awesome_outlined),
-                    label: Text('Mock interno'),
-                  ),
-                ],
-                selected: {flow.selectedMode},
-                onSelectionChanged: (sel) {
-                  ref.read(simulatorFlowProvider.notifier).setMode(sel.first);
-                },
-              ),
-              const SizedBox(height: 10),
-              if (flow.uiState == SimulatorUiState.idle) ...[
+              _statusBanner(flow),
+              const SizedBox(height: 12),
+              if (!inPreview) ...[
                 const Text(
-                  'Paso 1: carga imagen original',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                  'Paso 1: subir foto original',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tipo de simulación/tratamiento: ${_treatmentLabel(widget.treatmentType)}',
+                  style: const TextStyle(color: OcgColors.ink),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () => ref.read(simulatorFlowProvider.notifier).pickOriginalFromGallery(
+                      onPressed: () => ref
+                          .read(simulatorFlowProvider.notifier)
+                          .pickOriginalFromGallery(
                             patientId: widget.patientId,
                             adminId: widget.adminId,
                             treatmentType: widget.treatmentType,
                           ),
                       icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Subir desde galería'),
+                      label: const Text('Subir foto original'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
+                      onPressed: () => ref
+                          .read(simulatorFlowProvider.notifier)
+                          .pickOriginalFromCamera(
                             patientId: widget.patientId,
                             adminId: widget.adminId,
                             treatmentType: widget.treatmentType,
@@ -137,17 +127,41 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ],
                 ),
               ],
-              if (flow.uiState == SimulatorUiState.generatingMock) ...[
+              if (flow.uiState == SimulatorUiState.pickingImage) ...[
                 const SizedBox(height: 12),
                 const Row(
                   children: [
-                    SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Procesando imagen original...')),
+                  ],
+                ),
+              ],
+              if (flow.uiState == SimulatorUiState.generating) ...[
+                const SizedBox(height: 12),
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 10),
                     Expanded(
-                      child: Text('Generando simulación mock orientativa...'),
+                      child: Text(
+                        'Generación marcada como pendiente de backend. La conexión real se hará en el siguiente bloque.',
+                      ),
                     ),
                   ],
                 ),
+              ],
+              if (showErrorCard) ...[
+                const SizedBox(height: 12),
+                _inlineError(flow.errorMessage!),
               ],
               if (inPreview) ...[
                 const SizedBox(height: 12),
@@ -157,72 +171,32 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     children: [
                       const Text(
                         'Comparación visual',
-                        style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: OcgColors.espresso,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       BeforeAfterSlider(
                         before: Image.network(
-                          flow.originalUrl!,
+                          flow.originalPath!,
                           fit: BoxFit.contain,
                           alignment: Alignment.center,
                         ),
                         after: Image.network(
-                          flow.resultUrl!,
+                          flow.resultPath!,
                           fit: BoxFit.contain,
                           alignment: Alignment.center,
                         ),
                       ),
                     ],
                   )
-                else ...[
+                else
                   _previewCard(
                     title: 'Imagen original',
-                    imageUrl: flow.originalUrl,
+                    imageUrl: flow.originalPath,
                     emptyLabel: 'Aún no cargada',
                   ),
-                  const SizedBox(height: 12),
-                  _previewCard(
-                    title: 'Imagen resultado',
-                    imageUrl: flow.resultUrl,
-                    emptyLabel: flow.selectedMode == SimulationMode.mock
-                        ? 'Pendiente de generación mock'
-                        : 'Pendiente por cargar manualmente',
-                  ),
-                ],
-                if (flow.selectedMode == SimulationMode.manualDoctora) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Paso 2: carga o reemplaza imagen resultado manual',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: flow.uiState == SimulatorUiState.saving
-                            ? null
-                            : () => ref.read(simulatorFlowProvider.notifier).uploadOrReplaceManualResult(
-                                  patientId: widget.patientId,
-                                  fromCamera: false,
-                                ),
-                        icon: const Icon(Icons.upload_file),
-                        label: Text(flow.hasResult ? 'Reemplazar resultado' : 'Subir resultado manual'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: flow.uiState == SimulatorUiState.saving
-                            ? null
-                            : () => ref.read(simulatorFlowProvider.notifier).uploadOrReplaceManualResult(
-                                  patientId: widget.patientId,
-                                  fromCamera: true,
-                                ),
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('Tomar foto resultado'),
-                      ),
-                    ],
-                  ),
-                ],
                 const SizedBox(height: 12),
                 _regionCard(flow),
                 const SizedBox(height: 12),
@@ -231,13 +205,16 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   value: flow.shareWithPatient,
                   onChanged: flow.uiState == SimulatorUiState.saving
                       ? null
-                      : (value) => ref.read(simulatorFlowProvider.notifier).setShareWithPatient(value),
+                      : (value) => ref
+                          .read(simulatorFlowProvider.notifier)
+                          .setShareWithPatient(value),
                   contentPadding: EdgeInsets.zero,
                 ),
                 TextFormField(
                   initialValue: flow.notes,
                   enabled: flow.uiState != SimulatorUiState.saving,
-                  onChanged: (value) => ref.read(simulatorFlowProvider.notifier).setNotes(value),
+                  onChanged: (value) =>
+                      ref.read(simulatorFlowProvider.notifier).setNotes(value),
                   minLines: 2,
                   maxLines: 3,
                   decoration: const InputDecoration(
@@ -246,27 +223,43 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: (!flow.hasResult || flow.uiState == SimulatorUiState.saving)
-                      ? null
-                      : () => ref.read(simulatorFlowProvider.notifier).saveFinalSimulation(patientId: widget.patientId),
-                  icon: flow.uiState == SimulatorUiState.saving
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: OcgColors.ivory),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(flow.uiState == SimulatorUiState.saved ? 'Guardado' : 'Guardar simulación final'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: flow.uiState == SimulatorUiState.saving ||
+                              flow.uiState == SimulatorUiState.generating
+                          ? null
+                          : () => ref
+                              .read(simulatorFlowProvider.notifier)
+                              .generateWithAi(patientId: widget.patientId),
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      label: const Text('Generar con IA'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: flow.uiState == SimulatorUiState.saving
+                          ? null
+                          : () => ref
+                              .read(simulatorFlowProvider.notifier)
+                              .saveFinalSimulation(patientId: widget.patientId),
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Guardar estado actual'),
+                    ),
+                  ],
                 ),
                 if (flow.uiState == SimulatorUiState.saved) ...[
                   const SizedBox(height: 10),
                   const Text(
                     'Simulación guardada correctamente.',
-                    style: TextStyle(color: OcgColors.success, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: OcgColors.success,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   TextButton(
-                    onPressed: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
+                    onPressed: () =>
+                        ref.read(simulatorFlowProvider.notifier).resetFlow(),
                     child: const Text('Crear nueva simulación'),
                   ),
                 ],
@@ -288,13 +281,54 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         border: Border.all(color: OcgColors.warning.withOpacity(0.30)),
       ),
       child: const Text(
-        'Esta simulación es orientativa y no representa una promesa clínica exacta de resultado final.',
+        'Esta simulación es una referencia visual orientativa para apoyar la explicación del tratamiento. No representa una promesa exacta del resultado final.',
         style: TextStyle(
           color: OcgColors.warning,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+
+  Widget _statusBanner(SimulatorFlowState flow) {
+    final text = switch (flow.status) {
+      SimulationStatus.draft => 'Estado: Borrador',
+      SimulationStatus.generating => 'Estado: Generando',
+      SimulationStatus.ready => 'Estado: Lista',
+      SimulationStatus.shared => 'Estado: Compartida',
+      SimulationStatus.failed => 'Estado: Error',
+      SimulationStatus.archived => 'Estado: Archivada',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.sand),
+        color: const Color(0xFFF9F5F0),
+      ),
+      child: Text(
+        '$text · Provider: ${flow.generationProvider} · Modelo: ${flow.modelUsed}',
+        style: const TextStyle(
+          color: OcgColors.espresso,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _inlineError(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OcgColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.error.withOpacity(0.25)),
+      ),
+      child: Text(message, style: const TextStyle(color: OcgColors.error)),
     );
   }
 
@@ -345,7 +379,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   }
 
   Future<void> _openAdjustRegionDialog(SimulatorFlowState flow) async {
-    final region = flow.detectedRegion ?? {'x': 0.0, 'y': 0.0, 'w': 0.0, 'h': 0.0};
+    final region =
+        flow.detectedRegion ?? {'x': 0.0, 'y': 0.0, 'w': 0.0, 'h': 0.0};
 
     double x = (region['x'] as num?)?.toDouble() ?? 0;
     double y = (region['y'] as num?)?.toDouble() ?? 0;
@@ -370,8 +405,14 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Guardar')),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Guardar'),
+            ),
           ],
         ),
       ),
@@ -393,7 +434,12 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('$label: ${value.toStringAsFixed(1)}'),
-        Slider(value: value.clamp(0, 4000), min: 0, max: 4000, onChanged: onChanged),
+        Slider(
+          value: value.clamp(0, 4000),
+          min: 0,
+          max: 4000,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
@@ -413,7 +459,13 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
           const SizedBox(height: 8),
           if ((imageUrl ?? '').isEmpty)
             Text(emptyLabel, style: const TextStyle(color: OcgColors.ink))
@@ -430,7 +482,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   alignment: Alignment.center,
                   errorBuilder: (_, __, ___) => const SizedBox(
                     height: 120,
-                    child: Center(child: Text('No se pudo cargar la imagen.')),
+                    child: Center(
+                      child: Text('No se pudo cargar la imagen.'),
+                    ),
                   ),
                 ),
               ),
@@ -438,6 +492,26 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         ],
       ),
     );
+  }
+
+  String _treatmentLabel(TreatmentType? type) {
+    if (type == null) return 'No definido';
+    switch (type) {
+      case TreatmentType.convencional:
+        return 'Ortodoncia convencional';
+      case TreatmentType.estetico:
+        return 'Ortodoncia estética';
+      case TreatmentType.autoligado:
+        return 'Ortodoncia autoligado';
+      case TreatmentType.alineadores:
+        return 'Alineadores';
+      case TreatmentType.ortopedia:
+        return 'Ortopedia';
+      case TreatmentType.interceptivo:
+        return 'Interceptivo';
+      case TreatmentType.retenedores:
+        return 'Retenedores';
+    }
   }
 }
 
