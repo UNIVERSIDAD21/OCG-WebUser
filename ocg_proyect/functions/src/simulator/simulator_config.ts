@@ -1,3 +1,5 @@
+import {defineSecret} from 'firebase-functions/params';
+
 type OpenAiImageQuality = 'low' | 'medium' | 'high' | 'auto';
 type OpenAiImageSize =
   | 'auto'
@@ -15,6 +17,8 @@ type SimulatorConfig = {
   aiSimulatorEnabled: boolean;
   maxSimulationAttempts: number;
 };
+
+export const openAiApiKeySecret = defineSecret('OPENAI_API_KEY');
 
 function parseBoolean(value: string | undefined): boolean {
   if (!value) return false;
@@ -58,7 +62,7 @@ function parseSize(value: string | undefined): OpenAiImageSize {
 
 export function loadSimulatorConfig(): SimulatorConfig {
   return {
-    openAiApiKey: process.env.OPENAI_API_KEY,
+    openAiApiKey: openAiApiKeySecret.value(),
     openAiImageModel: process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-2',
     openAiImageQuality: parseQuality(process.env.OPENAI_IMAGE_QUALITY),
     openAiImageSize: parseSize(process.env.OPENAI_IMAGE_SIZE),

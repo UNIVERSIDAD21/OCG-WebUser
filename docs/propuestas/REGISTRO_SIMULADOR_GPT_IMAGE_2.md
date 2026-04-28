@@ -647,6 +647,76 @@ npm run build
 ### Estado
 Pendiente hasta que Erik confirme flutter analyze sin errores.
 
+## Bloque 06 — Configuración backend y despliegue
+
+### Proyecto Firebase
+ocg-humanbionics
+
+### Configuración requerida
+- OPENAI_API_KEY: pendiente
+- OPENAI_IMAGE_MODEL: configurado localmente para deploy como `gpt-image-2`
+- AI_SIMULATOR_ENABLED: configurado localmente para deploy como `true`
+- MAX_SIMULATION_ATTEMPTS: configurado localmente para deploy como `3`
+
+### Método de configuración usado
+- Secret Manager: sí, migrado para `OPENAI_API_KEY` usando `defineSecret('OPENAI_API_KEY')` y `secrets: [openAiApiKeySecret]` en la Function.
+- Env vars: sí, variables no sensibles preparadas vía archivo local no versionado `functions/.env.ocg-humanbionics`.
+- Firebase params: no usado en este bloque.
+
+### Comandos ejecutados
+```bash
+cd ocg_proyect/functions
+npm run build
+
+cd ..
+firebase --project ocg-humanbionics deploy --only functions:generateSmileSimulation
+firebase --project ocg-humanbionics functions:list
+```
+
+### Comandos exactos para Erik
+```bash
+firebase functions:secrets:set OPENAI_API_KEY --project ocg-humanbionics
+
+cd ocg_proyect/functions
+cat > .env.ocg-humanbionics <<'EOF'
+OPENAI_IMAGE_MODEL=gpt-image-2
+AI_SIMULATOR_ENABLED=true
+MAX_SIMULATION_ATTEMPTS=3
+EOF
+
+npm run build
+cd ..
+firebase --project ocg-humanbionics deploy --only functions:generateSmileSimulation
+firebase --project ocg-humanbionics functions:list
+```
+
+### Resultado npm run build
+- Ejecutado correctamente desde `ocg_proyect/functions`.
+- Resultado: compilación TypeScript exitosa.
+
+### Resultado deploy generateSmileSimulation
+- Deploy intentado.
+- Resultado: falló porque falta el secreto `OPENAI_API_KEY` en Secret Manager.
+- Error exacto:
+  - `Error: In non-interactive mode but have no value for the secret: OPENAI_API_KEY`
+  - `Set this secret before deploying: firebase functions:secrets:set OPENAI_API_KEY`
+
+### Resultado functions:list
+- `generateSmileSimulation` todavía **no aparece** en la lista de Functions desplegadas.
+- Esto es consistente con el fallo del deploy por secreto faltante.
+
+### Bloqueos encontrados
+- `OPENAI_API_KEY` no está configurada todavía en Secret Manager del proyecto `ocg-humanbionics`.
+- Hasta que ese secreto no exista, `generateSmileSimulation` no puede desplegarse.
+- Todavía no hay paciente ficticio ni imagen autorizada confirmados para prueba real.
+
+### Estado del bloque
+- Bloque 06: parcialmente avanzado.
+- Build: correcto.
+- Método de configuración: definido.
+- Deploy: bloqueado por secreto faltante.
+- Prueba real: todavía no debe ejecutarse.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.

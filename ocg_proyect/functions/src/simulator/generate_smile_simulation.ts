@@ -3,7 +3,7 @@ import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
 import OpenAI, {toFile} from 'openai';
 
 import {buildSmilePrompt} from './build_smile_prompt';
-import {loadSimulatorConfig} from './simulator_config';
+import {loadSimulatorConfig, openAiApiKeySecret} from './simulator_config';
 
 type GenerateSmileSimulationData = {
   patientId?: string;
@@ -95,7 +95,11 @@ function decodeGeneratedImage(response: unknown): Buffer {
 }
 
 export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
-  {region: 'us-central1', cors: true},
+  {
+    region: 'us-central1',
+    cors: true,
+    secrets: [openAiApiKeySecret],
+  },
   async (request: CallableRequest<GenerateSmileSimulationData>) => {
     await assertAdmin(request);
 
