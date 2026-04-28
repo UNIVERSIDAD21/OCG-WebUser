@@ -17,6 +17,7 @@ import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
 import '../../simulator/providers/simulation_provider.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
 import '../data/models/patient_model.dart';
@@ -433,8 +434,8 @@ class _AdminPatientWorkspaceState
         patient: widget.patient,
       )),
     );
-    final activeTreatment = treatments.cast<dynamic?>().firstWhere(
-      (item) => item?.isFinished != true,
+    final dynamic activeTreatment = treatments.cast<dynamic>().firstWhere(
+      (item) => item.isFinished != true,
       orElse: () => treatments.isNotEmpty ? treatments.first : null,
     );
     final paymentsResolution = ref.watch(

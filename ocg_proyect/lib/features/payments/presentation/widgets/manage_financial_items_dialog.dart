@@ -621,8 +621,9 @@ class _ManageFinancialItemsDialogState
       final rawName = _nameCtrls[item.id]?.text.trim() ?? item.name.trim();
       if (rawName.isEmpty) throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
       final normalizedName = FinancialItemModel.normalizeName(rawName);
-      if (normalizedName.isEmpty)
+      if (normalizedName.isEmpty) {
         throw Exception('FINANCIAL_ITEM_NAME_REQUIRED');
+      }
       if (normalizedNames.contains(normalizedName)) {
         throw Exception('FINANCIAL_ITEM_DUPLICATE_NAME');
       }

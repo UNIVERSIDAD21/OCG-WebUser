@@ -158,18 +158,6 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     );
   }
 
-  BottomNavigationBarItem _mobileItem({
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-  }) {
-    return BottomNavigationBarItem(
-      icon: Icon(icon),
-      activeIcon: Icon(activeIcon),
-      label: label,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 800;

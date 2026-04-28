@@ -413,7 +413,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 Text(
                   latestHistory == null
                       ? 'Sin historial reciente.'
-                      : 'Último movimiento: ${_formatDate(latestHistory.fecha)}',
+                      : 'Último movimiento: ${_formatDate(latestHistory.fechaCambio)}',
                   style: const TextStyle(color: OcgColors.bronze),
                 ),
               ],

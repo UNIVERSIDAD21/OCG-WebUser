@@ -206,6 +206,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                   },
                 ),
               ),
+            ],
             const SizedBox(height: 16),
             SimulatorScreen(
               patientId: widget.patient.id,

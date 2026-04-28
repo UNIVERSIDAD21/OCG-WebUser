@@ -600,6 +600,51 @@ flutter analyze
 ### Commit
 - Pendiente hasta cerrar commit de este bloque.
 
+## Corrección post-validación local Erik
+
+### Fecha
+- 2026-04-28
+
+### Resultado recibido
+- flutter analyze: falló con 15 issues
+- flutter test test/features/simulator/: pasó
+- functions npm run build: pasó
+
+### Errores corregidos
+- Provider real de tratamientos efectivos reimportado/corregido en `patient_detail_screen.dart`.
+- Getter `hasResult` agregado a `SimulationModel` para soportar el uso actual de la UI.
+- Imports/tipos reales de pagos corregidos en `patient_payments_tab.dart`.
+- Helper móvil de pagos corregido para no depender de `widget` fuera de contexto.
+- Error de sintaxis (`]`) corregido en `patient_simulator_tab.dart`.
+- Campo correcto de `StageHistoryEntry` usado en lugar de `fecha` inexistente.
+- Warning de llaves corregido en `manage_financial_items_dialog.dart`.
+- Código muerto `_mobileItem` eliminado de `ocg_adaptive_scaffold.dart`.
+
+### Archivos modificados
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `lib/features/simulator/data/models/simulation_model.dart`
+- `lib/features/patients/presentation/tabs/patient_payments_tab.dart`
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `lib/features/payments/presentation/widgets/manage_financial_items_dialog.dart`
+- `lib/shared/widgets/ocg_adaptive_scaffold.dart`
+
+### Decisiones tomadas
+- No se inventaron providers ni modelos nuevos; se usaron los tipos reales del proyecto.
+- No se tocaron Cloud Functions ni GPT-Image-2.
+- No se cambió arquitectura; solo correcciones de compilación y warnings seguros.
+
+### Warnings corregidos
+- `dynamic?` innecesario en `patient_detail_screen.dart`.
+- `curly_braces_in_flow_control_structures` en `manage_financial_items_dialog.dart`.
+- `_mobileItem` no referenciado en `ocg_adaptive_scaffold.dart`.
+
+### Pendientes
+- Erik debe reejecutar `flutter analyze` para confirmar que ya no queden issues adicionales fuera de este lote.
+
+### Resultado final esperado
+flutter analyze sin errores críticos
+
 ## Estado actual
 - Bloque 01 (auditoría): completado.
 - Bloque 02 (shell admin móvil): completado.

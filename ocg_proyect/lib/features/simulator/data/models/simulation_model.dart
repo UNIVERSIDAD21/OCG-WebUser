@@ -62,6 +62,9 @@ class SimulationModel {
 
   String get originalUrl => originalPath;
   String? get resultUrl => resultPath;
+  bool get hasResult =>
+      resultPath?.trim().isNotEmpty == true ||
+      resultUrl?.trim().isNotEmpty == true;
 
   factory SimulationModel.fromJson(Map<String, dynamic> json) {
     final now = DateTime.now();

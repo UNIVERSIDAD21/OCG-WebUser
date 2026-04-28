@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../features/patients/data/models/patient_data_resolution.dart';
 import '../../../../features/payments/data/models/financial_item_model.dart';
+import '../../../../features/payments/data/models/payment_model.dart';
 import '../../../../features/payments/providers/payments_provider.dart';
 import '../../../../features/payments/presentation/widgets/manage_financial_items_dialog.dart';
 import '../../../../features/payments/presentation/widgets/register_payment_dialog.dart';
@@ -103,7 +104,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
             if (isMobile) {
               return _buildMobilePaymentsView(
                 context,
-                patient,
+                widget.patientId,
                 resolution,
                 selectedTreatment,
                 selectedAccount,
@@ -378,7 +379,7 @@ class _SummaryMetric extends StatelessWidget {
 
   Widget _buildMobilePaymentsView(
     BuildContext context,
-    PatientModel patient,
+    String patientId,
     EffectivePatientPaymentsResolution resolution,
     PatientTreatment selectedTreatment,
     EffectivePatientPaymentAccount? selectedAccount,
@@ -544,7 +545,7 @@ class _SummaryMetric extends StatelessWidget {
                           : () => showDialog<void>(
                               context: context,
                               builder: (_) => RegisterPaymentDialog(
-                                patientId: widget.patientId,
+                                patientId: patientId,
                                 treatmentId: selectedAccount!.treatmentId,
                                 saldoPendiente:
                                     selectedAccount.payment.saldoPendiente,
