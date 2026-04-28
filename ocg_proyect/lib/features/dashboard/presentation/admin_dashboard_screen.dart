@@ -145,11 +145,6 @@ class AdminDashboardScreen extends ConsumerWidget {
           onPressed: () => _seedAvailability(context),
           icon: const Icon(Icons.auto_awesome_motion_outlined),
         ),
-        IconButton(
-          tooltip: 'Cerrar sesión',
-          onPressed: loading ? null : () => _handleSignOut(context, ref),
-          icon: const Icon(Icons.logout, color: OcgColors.error),
-        ),
       ],
       onSignOut: () => _handleSignOut(context, ref),
       railTrailing: OutlinedButton.icon(

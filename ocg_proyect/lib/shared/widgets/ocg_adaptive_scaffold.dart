@@ -7,7 +7,7 @@ import '../theme/ocg_colors.dart';
 /// Scaffold adaptivo para pantallas del admin.
 ///
 /// - Pantallas > 800px: [NavigationRail] (240px) a la izquierda + [Expanded(child: body)]
-/// - Pantallas ≤ 800px: [Scaffold] normal con [AppBar]
+/// - Pantallas ≤ 800px: [Scaffold] móvil con navegación inferior compacta
 class OcgAdaptiveScaffold extends StatelessWidget {
   const OcgAdaptiveScaffold({
     super.key,
@@ -22,31 +22,13 @@ class OcgAdaptiveScaffold extends StatelessWidget {
   });
 
   final Widget body;
-
-  /// Índice del destino activo en el NavigationRail.
-  /// 0 = Dashboard, 1 = Pacientes, 2 = Agenda,
-  /// 3 = Tratamientos, 4 = Pagos, 5 = Simulador
   final int selectedIndex;
-
-  /// Título que aparece en el AppBar (pantallas pequeñas).
   final String? title;
-
-  /// Acciones del AppBar en pantallas pequeñas.
   final List<Widget>? appBarActions;
-
-  /// FAB opcional.
   final Widget? floatingActionButton;
-
-  /// Widget opcional al final del NavigationRail (pantallas anchas).
   final Widget? railTrailing;
-
-  /// Acción de cerrar sesión usada por el Drawer móvil admin.
   final VoidCallback? onSignOut;
-
-  /// Permite ocultar el AppBar en móvil para pantallas con header custom.
   final bool showMobileAppBar;
-
-  // ─── Destinos admin (fuente única de verdad para rail + drawer) ─────────
 
   static const _destinations = [
     NavigationRailDestination(
@@ -96,97 +78,97 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     }
   }
 
-  Widget _buildAdminDrawer(BuildContext context) {
-    return Drawer(
-      child: Container(
-        color: OcgColors.espresso,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'OCG',
-                      style: TextStyle(
-                        color: OcgColors.bronze,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Panel Clínico',
-                      style: TextStyle(color: OcgColors.ivory),
-                    ),
-                  ],
-                ),
+  int _mobileSelectedIndex() {
+    if (selectedIndex == 5) return 3; // Simulador
+    if (selectedIndex == 3 || selectedIndex == 4) return 4; // Más
+    return selectedIndex.clamp(0, 2);
+  }
+
+  Future<void> _openMoreSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (sheetContext) {
+        Widget tile({
+          required IconData icon,
+          required String label,
+          VoidCallback? onTap,
+          Color? color,
+        }) {
+          return ListTile(
+            leading: Icon(icon, color: color ?? OcgColors.espresso),
+            title: Text(
+              label,
+              style: TextStyle(
+                color: color ?? OcgColors.espresso,
+                fontWeight: FontWeight.w600,
               ),
-              const Divider(color: Color(0x33FFFFFF), height: 1),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _destinations.length,
-                  itemBuilder: (context, index) {
-                    final item = _destinations[index];
-                    final active = selectedIndex == index;
-                    return ListTile(
-                      selected: active,
-                      selectedTileColor: OcgColors.bronze.withOpacity(0.18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      leading: Icon(
-                        active
-                            ? (item.selectedIcon as Icon).icon
-                            : (item.icon as Icon).icon,
-                        color: active ? OcgColors.bronze : OcgColors.ivory,
-                      ),
-                      title: DefaultTextStyle(
-                        style: TextStyle(
-                          color: active ? OcgColors.bronze : OcgColors.ivory,
-                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
+            onTap: onTap == null
+                ? null
+                : () {
+                    Navigator.of(sheetContext).pop();
+                    onTap();
+                  },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                tile(
+                  icon: Icons.payments_outlined,
+                  label: 'Pagos',
+                  onTap: () => context.go(RouteNames.adminPayments),
+                ),
+                tile(
+                  icon: Icons.monitor_heart_outlined,
+                  label: 'Tratamientos',
+                  onTap: () => context.go(RouteNames.adminTreatments),
+                ),
+                tile(
+                  icon: Icons.settings_outlined,
+                  label: 'Configuración',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'La configuración completa estará disponible en escritorio.',
                         ),
-                        child: item.label,
                       ),
-                      onTap: () {
-                        Navigator.of(context).maybePop();
-                        _onDestinationSelected(context, index);
-                      },
                     );
                   },
                 ),
-              ),
-              const Divider(color: Color(0x33FFFFFF), height: 1),
-              ListTile(
-                enabled: onSignOut != null,
-                leading: const Icon(Icons.logout, color: Color(0xFFFFD9D9)),
-                title: const Text(
-                  'Cerrar sesión',
-                  style: TextStyle(
-                    color: Color(0xFFFFD9D9),
-                    fontWeight: FontWeight.w600,
+                if (onSignOut != null)
+                  tile(
+                    icon: Icons.logout,
+                    label: 'Cerrar sesión',
+                    color: OcgColors.error,
+                    onTap: onSignOut,
                   ),
-                ),
-                onTap: onSignOut == null
-                    ? null
-                    : () {
-                        Navigator.of(context).maybePop();
-                        onSignOut!();
-                      },
-              ),
-              const SizedBox(height: 8),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // ─── Build ───────────────────────────────────────────────────────────────
+  BottomNavigationBarItem _mobileItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    return BottomNavigationBarItem(
+      icon: Icon(icon),
+      activeIcon: Icon(activeIcon),
+      label: label,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,15 +179,13 @@ class OcgAdaptiveScaffold extends StatelessWidget {
         floatingActionButton: floatingActionButton,
         body: Row(
           children: [
-            // ── NavigationRail lateral ──────────────────────────────────────
             SizedBox(
               width: 240,
               child: NavigationRail(
                 extended: true,
                 backgroundColor: OcgColors.espresso,
                 selectedIndex: selectedIndex,
-                onDestinationSelected: (i) =>
-                    _onDestinationSelected(context, i),
+                onDestinationSelected: (i) => _onDestinationSelected(context, i),
                 leading: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
                   child: Column(
@@ -253,18 +233,14 @@ class OcgAdaptiveScaffold extends StatelessWidget {
                       ),
               ),
             ),
-            // ── Separador ───────────────────────────────────────────────────
             const VerticalDivider(width: 1, thickness: 1),
-            // ── Contenido principal ─────────────────────────────────────────
             Expanded(child: body),
           ],
         ),
       );
     }
 
-    // ── Layout compacto (≤ 800px) ──────────────────────────────────────────
     return Scaffold(
-      drawer: _buildAdminDrawer(context),
       appBar: showMobileAppBar
           ? AppBar(
               title: title != null ? Text(title!) : null,
@@ -272,7 +248,62 @@ class OcgAdaptiveScaffold extends StatelessWidget {
             )
           : null,
       floatingActionButton: floatingActionButton,
-      body: body,
+      body: SafeArea(
+        top: !showMobileAppBar,
+        bottom: false,
+        child: body,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _mobileSelectedIndex(),
+        height: 72,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
+          switch (index) {
+            case 0:
+              _onDestinationSelected(context, 0);
+              break;
+            case 1:
+              _onDestinationSelected(context, 1);
+              break;
+            case 2:
+              _onDestinationSelected(context, 2);
+              break;
+            case 3:
+              _onDestinationSelected(context, 5);
+              break;
+            case 4:
+              _openMoreSheet(context);
+              break;
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Pacientes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Agenda',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Simulador',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.more_horiz),
+            selectedIcon: Icon(Icons.more_horiz),
+            label: 'Más',
+          ),
+        ],
+      ),
     );
   }
 }
