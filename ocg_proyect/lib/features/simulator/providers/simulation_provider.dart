@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -84,6 +86,16 @@ class SimulatorFlowState {
 
   bool get hasOriginal => (originalPath ?? '').isNotEmpty;
   bool get hasResult => (resultPath ?? '').isNotEmpty;
+  bool get canGenerate =>
+      hasOriginal &&
+      (status == SimulationStatus.draft ||
+          status == SimulationStatus.ready ||
+          status == SimulationStatus.failed);
+  bool get canShare =>
+      hasResult &&
+      status == SimulationStatus.ready &&
+      !compartidaBloqueada;
+  bool get compartidaBloqueada => status == SimulationStatus.archived;
 
   SimulatorFlowState copyWith({
     SimulatorUiState? uiState,
@@ -141,8 +153,11 @@ class SimulatorFlowState {
 }
 
 class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
+  StreamSubscription<SimulationModel?>? _simulationSubscription;
+
   @override
   Future<SimulatorFlowState> build() async {
+    ref.onDispose(() => _simulationSubscription?.cancel());
     return const SimulatorFlowState(uiState: SimulatorUiState.idle);
   }
 
@@ -151,6 +166,32 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
   FaceDetectionService get _face => ref.read(faceDetectionServiceProvider);
 
   void loadExistingSimulation(SimulationModel simulation) {
+    _applySimulation(simulation, preserveTransientError: false);
+    _bindSimulation(simulation.patientId, simulation.id);
+  }
+
+  void _bindSimulation(String patientId, String simulationId) {
+    _simulationSubscription?.cancel();
+    _simulationSubscription = _repo
+        .watchSimulation(patientId: patientId, simulationId: simulationId)
+        .listen((simulation) {
+          if (simulation == null) return;
+          _applySimulation(simulation);
+        });
+  }
+
+  void _applySimulation(
+    SimulationModel simulation, {
+    bool preserveTransientError = true,
+  }) {
+    final current = state.asData?.value;
+    final nextError = preserveTransientError &&
+            current != null &&
+            (current.errorMessage ?? '').trim().isNotEmpty &&
+            (simulation.errorMessage ?? '').trim().isEmpty
+        ? current.errorMessage
+        : simulation.errorMessage;
+
     state = AsyncData(
       SimulatorFlowState(
         uiState: _uiStateForStatus(simulation.status),
@@ -159,7 +200,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         originalPath: simulation.originalPath,
         resultPath: simulation.resultPath,
         shareWithPatient: simulation.compartidaConPaciente,
-        errorMessage: simulation.errorMessage,
+        errorMessage: nextError,
         notes: simulation.notes,
         detectedRegion: simulation.detectedRegion,
         mlKitUsed: simulation.mlKitUsed,
@@ -208,7 +249,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     required bool fromCamera,
   }) async {
     final current =
-        state.asData?.value ?? const SimulatorFlowState(uiState: SimulatorUiState.idle);
+        state.asData?.value ??
+        const SimulatorFlowState(uiState: SimulatorUiState.idle);
     state = AsyncData(
       current.copyWith(uiState: SimulatorUiState.pickingImage, clearError: true),
     );
@@ -250,26 +292,19 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         },
       );
 
-      state = AsyncData(
-        SimulatorFlowState(
-          uiState: SimulatorUiState.draftReady,
-          patientId: patientId,
-          simulationId: simulation.id,
-          originalPath: simulation.originalPath,
-          resultPath: simulation.resultPath,
-          shareWithPatient: false,
-          notes: simulation.notes,
+      _applySimulation(
+        simulation.copyWith(
           detectedRegion: detection.detectedRegion,
           mlKitUsed: detection.hasFace,
-          faceDetectionSource: detection.source,
-          status: SimulationStatus.draft,
-          generationProvider: simulation.generationProvider,
-          modelUsed: simulation.modelUsed,
-          attemptCount: simulation.attemptCount,
-          promptUsed: simulation.promptUsed,
-          promptVersion: simulation.promptVersion,
+          promptMetadata: {
+            'faceDetectionSource': detection.source,
+            'generationProvider': 'openai',
+            'modelUsed': 'gpt-image-2',
+          },
         ),
+        preserveTransientError: false,
       );
+      _bindSimulation(patientId, simulation.id);
     } catch (e) {
       state = AsyncData(
         current.copyWith(
@@ -280,9 +315,17 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     }
   }
 
-  Future<void> generateWithAi({required String patientId}) async {
+  Future<void> generateWithAi({
+    required String patientId,
+    required String treatmentType,
+  }) async {
     final current = state.asData?.value;
-    if (current == null || (current.simulationId ?? '').isEmpty || !current.hasOriginal) {
+    if (current == null) return;
+    if ((current.patientId ?? patientId).trim().isEmpty) return;
+    if ((current.simulationId ?? '').trim().isEmpty || !current.hasOriginal) {
+      return;
+    }
+    if (!current.canGenerate || current.status == SimulationStatus.generating) {
       return;
     }
 
@@ -290,43 +333,44 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       current.copyWith(
         uiState: SimulatorUiState.generating,
         status: SimulationStatus.generating,
-        attemptCount: current.attemptCount + 1,
         clearError: true,
       ),
     );
 
     try {
-      await _repo.updateSimulation(
+      await _repo.generateWithAi(
         patientId: patientId,
         simulationId: current.simulationId!,
-        status: SimulationStatus.generating,
-        attemptCount: current.attemptCount + 1,
-        clearErrorMessage: true,
-        promptMetadata: {
-          'faceDetectionSource': current.faceDetectionSource,
-          'generationProvider': 'openai',
-          'modelUsed': 'gpt-image-2',
-          'pendingBackend': true,
-        },
-      );
-
-      state = AsyncData(
-        current.copyWith(
-          uiState: SimulatorUiState.error,
-          status: SimulationStatus.generating,
-          attemptCount: current.attemptCount + 1,
-          errorMessage:
-              'La generación con GPT-Image-2 se conectará en el siguiente bloque mediante Cloud Functions.',
-        ),
+        treatmentType: treatmentType,
+        notes: current.notes,
       );
     } catch (e) {
       state = AsyncData(
         current.copyWith(
           uiState: SimulatorUiState.error,
-          errorMessage: e.toString(),
+          status: current.status,
+          errorMessage: _friendlyGenerateError(e),
         ),
       );
     }
+  }
+
+  String _friendlyGenerateError(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+    if (raw == 'OPENAI_API_KEY no está configurada en backend.' ||
+        raw == 'La generación con IA aún no está configurada en el backend.') {
+      return 'La generación con IA aún no está configurada en el backend.';
+    }
+    if (raw == 'La generación con IA no está habilitada.' ||
+        raw == 'La generación con IA está temporalmente desactivada.') {
+      return 'La generación con IA está temporalmente desactivada.';
+    }
+    if (raw == 'La simulación superó el máximo de intentos permitidos.' ||
+        raw == 'La simulación ya alcanzó el máximo de intentos permitidos.') {
+      return 'La simulación ya alcanzó el máximo de intentos permitidos.';
+    }
+    if (raw.isEmpty) return 'No se pudo iniciar la generación con IA.';
+    return raw;
   }
 
   void setShareWithPatient(bool value) {
@@ -372,57 +416,23 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         'regionAdjusted': true,
       },
     );
-
-    state = AsyncData(current.copyWith(detectedRegion: region));
   }
 
-  Future<void> saveFinalSimulation({required String patientId}) async {
+  Future<void> shareCurrentSimulation({required String patientId}) async {
     final current = state.asData?.value;
-    if (current == null || (current.simulationId ?? '').isEmpty) {
-      return;
-    }
+    if (current == null || (current.simulationId ?? '').isEmpty) return;
+    await _repo.shareSimulationWithPatient(patientId, current.simulationId!);
+  }
 
-    state = AsyncData(current.copyWith(uiState: SimulatorUiState.saving, clearError: true));
-
-    try {
-      await _repo.updateSimulation(
-        patientId: patientId,
-        simulationId: current.simulationId!,
-        status: current.shareWithPatient
-            ? SimulationStatus.shared
-            : current.status,
-        notes: current.notes,
-        mlKitUsed: current.mlKitUsed,
-        detectedRegion: current.detectedRegion,
-        promptMetadata: {
-          'faceDetectionSource': current.faceDetectionSource,
-          'generationProvider': current.generationProvider,
-          'modelUsed': current.modelUsed,
-        },
-      );
-
-      if (current.shareWithPatient) {
-        await _repo.shareSimulationWithPatient(patientId, current.simulationId!);
-      }
-
-      state = AsyncData(
-        current.copyWith(
-          uiState: SimulatorUiState.saved,
-          status: current.shareWithPatient ? SimulationStatus.shared : current.status,
-          clearError: true,
-        ),
-      );
-    } catch (e) {
-      state = AsyncData(
-        current.copyWith(
-          uiState: SimulatorUiState.error,
-          errorMessage: e.toString(),
-        ),
-      );
-    }
+  Future<void> archiveCurrentSimulation({required String patientId}) async {
+    final current = state.asData?.value;
+    if (current == null || (current.simulationId ?? '').isEmpty) return;
+    await _repo.archiveSimulation(patientId, current.simulationId!);
   }
 
   void resetFlow() {
+    _simulationSubscription?.cancel();
+    _simulationSubscription = null;
     state = const AsyncData(SimulatorFlowState(uiState: SimulatorUiState.idle));
   }
 

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
@@ -12,10 +13,13 @@ class SimulationRepository {
   SimulationRepository(
     this._db, {
     FirebaseStorage? storage,
-  }) : _storage = storage;
+    FirebaseFunctions? functions,
+  }) : _storage = storage,
+       _functions = functions;
 
   final FirebaseFirestore _db;
   final FirebaseStorage? _storage;
+  final FirebaseFunctions? _functions;
 
   CollectionReference<Map<String, dynamic>> _simulationsRef(String patientId) {
     return _db.collection(FirestorePaths.patientSimulations(patientId));
@@ -45,6 +49,17 @@ class SimulationRepository {
         );
   }
 
+  Stream<SimulationModel?> watchSimulation({
+    required String patientId,
+    required String simulationId,
+  }) {
+    return _simulationsRef(patientId).doc(simulationId).snapshots().map((snap) {
+      final data = snap.data();
+      if (!snap.exists || data == null) return null;
+      return SimulationModel.fromJson(data);
+    });
+  }
+
   Future<String> uploadOriginalImage({
     required String patientId,
     required String simulationId,
@@ -55,6 +70,13 @@ class SimulationRepository {
     final ref = (_storage ?? FirebaseStorage.instance).ref(path);
     await ref.putData(bytes, SettableMetadata(contentType: contentType));
     return path;
+  }
+
+  Future<String?> resolveMediaUrl(String? pathOrUrl) async {
+    final raw = (pathOrUrl ?? '').trim();
+    if (raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    return (_storage ?? FirebaseStorage.instance).ref(raw).getDownloadURL();
   }
 
   Future<SimulationModel> createDraftSimulation({
@@ -101,6 +123,42 @@ class SimulationRepository {
 
     await ref.set(entity.toJson(), SetOptions(merge: true));
     return entity;
+  }
+
+  Future<void> generateWithAi({
+    required String patientId,
+    required String simulationId,
+    required String treatmentType,
+    String? notes,
+  }) async {
+    final callable = (_functions ?? FirebaseFunctions.instance)
+        .httpsCallable('generateSmileSimulation');
+
+    try {
+      await callable.call(<String, dynamic>{
+        'patientId': patientId,
+        'simulationId': simulationId,
+        'treatmentType': treatmentType,
+        'notes': notes,
+      });
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(_mapCallableError(error));
+    }
+  }
+
+  String _mapCallableError(FirebaseFunctionsException error) {
+    final message = (error.message ?? '').trim();
+    if (message == 'OPENAI_API_KEY no está configurada en backend.') {
+      return 'La generación con IA aún no está configurada en el backend.';
+    }
+    if (message == 'La generación con IA no está habilitada.') {
+      return 'La generación con IA está temporalmente desactivada.';
+    }
+    if (message == 'La simulación superó el máximo de intentos permitidos.') {
+      return 'La simulación ya alcanzó el máximo de intentos permitidos.';
+    }
+    if (message.isNotEmpty) return message;
+    return 'No se pudo iniciar la generación con IA.';
   }
 
   Future<SimulationModel> updateSimulation({
@@ -205,6 +263,17 @@ class SimulationRepository {
     await _simulationsRef(patientId).doc(simulationId).update({
       'compartidaConPaciente': false,
       'status': SimulationStatus.ready.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> archiveSimulation(
+    String patientId,
+    String simulationId,
+  ) async {
+    await _simulationsRef(patientId).doc(simulationId).update({
+      'status': SimulationStatus.archived.name,
+      'compartidaConPaciente': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

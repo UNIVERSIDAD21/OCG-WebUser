@@ -5,6 +5,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
+import '../data/repositories/simulation_repository.dart';
 import '../providers/simulation_provider.dart';
 
 class SimulatorScreen extends ConsumerStatefulWidget {
@@ -63,6 +64,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   @override
   Widget build(BuildContext context) {
     final flowAsync = ref.watch(simulatorFlowProvider);
+    final repo = ref.watch(simulationRepositoryProvider);
 
     return flowAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -71,10 +73,14 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         onRetry: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
       ),
       data: (flow) {
-        final showErrorCard =
-            flow.uiState == SimulatorUiState.error &&
-            (flow.errorMessage ?? '').trim().isNotEmpty;
+        final showErrorCard = (flow.errorMessage ?? '').trim().isNotEmpty;
         final inPreview = flow.hasOriginal;
+        final canGenerate = flow.canGenerate && flow.status != SimulationStatus.archived;
+        final isGenerating = flow.status == SimulationStatus.generating;
+        final canShare = flow.status == SimulationStatus.ready && flow.hasResult;
+        final canArchive =
+            flow.status == SimulationStatus.ready || flow.status == SimulationStatus.shared;
+        final treatmentLabel = _treatmentLabel(widget.treatmentType);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -95,7 +101,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Tipo de simulación/tratamiento: ${_treatmentLabel(widget.treatmentType)}',
+                  'Tipo de simulación/tratamiento: $treatmentLabel',
                   style: const TextStyle(color: OcgColors.ink),
                 ),
                 const SizedBox(height: 8),
@@ -141,7 +147,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ],
                 ),
               ],
-              if (flow.uiState == SimulatorUiState.generating) ...[
+              if (isGenerating) ...[
                 const SizedBox(height: 12),
                 const Row(
                   children: [
@@ -152,9 +158,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     ),
                     SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        'Generación marcada como pendiente de backend. La conexión real se hará en el siguiente bloque.',
-                      ),
+                      child: Text('Generando simulación con IA...'),
                     ),
                   ],
                 ),
@@ -177,42 +181,27 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      BeforeAfterSlider(
-                        before: Image.network(
-                          flow.originalPath!,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                        ),
-                        after: Image.network(
-                          flow.resultPath!,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                        ),
+                      _BeforeAfterFromStorage(
+                        originalPath: flow.originalPath!,
+                        resultPath: flow.resultPath!,
+                        repository: repo,
                       ),
                     ],
                   )
                 else
-                  _previewCard(
+                  _StoragePreviewCard(
                     title: 'Imagen original',
-                    imageUrl: flow.originalPath,
+                    path: flow.originalPath,
                     emptyLabel: 'Aún no cargada',
+                    repository: repo,
                   ),
                 const SizedBox(height: 12),
                 _regionCard(flow),
                 const SizedBox(height: 12),
-                SwitchListTile(
-                  title: const Text('Compartir con paciente al guardar'),
-                  value: flow.shareWithPatient,
-                  onChanged: flow.uiState == SimulatorUiState.saving
-                      ? null
-                      : (value) => ref
-                          .read(simulatorFlowProvider.notifier)
-                          .setShareWithPatient(value),
-                  contentPadding: EdgeInsets.zero,
-                ),
                 TextFormField(
+                  key: ValueKey('sim-notes-${flow.simulationId ?? 'new'}'),
                   initialValue: flow.notes,
-                  enabled: flow.uiState != SimulatorUiState.saving,
+                  enabled: !isGenerating,
                   onChanged: (value) =>
                       ref.read(simulatorFlowProvider.notifier).setNotes(value),
                   minLines: 2,
@@ -227,40 +216,85 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: flow.uiState == SimulatorUiState.saving ||
-                              flow.uiState == SimulatorUiState.generating
-                          ? null
-                          : () => ref
-                              .read(simulatorFlowProvider.notifier)
-                              .generateWithAi(patientId: widget.patientId),
-                      icon: const Icon(Icons.auto_awesome_outlined),
-                      label: const Text('Generar con IA'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: flow.uiState == SimulatorUiState.saving
-                          ? null
-                          : () => ref
-                              .read(simulatorFlowProvider.notifier)
-                              .saveFinalSimulation(patientId: widget.patientId),
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Guardar estado actual'),
-                    ),
+                    if (flow.status == SimulationStatus.draft)
+                      ElevatedButton.icon(
+                        onPressed: !canGenerate || isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .generateWithAi(
+                                    patientId: widget.patientId,
+                                    treatmentType: treatmentLabel,
+                                  ),
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('Generar con IA'),
+                      ),
+                    if (flow.status == SimulationStatus.failed)
+                      ElevatedButton.icon(
+                        onPressed: !canGenerate || isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .generateWithAi(
+                                    patientId: widget.patientId,
+                                    treatmentType: treatmentLabel,
+                                  ),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Reintentar generación'),
+                      ),
+                    if (flow.status == SimulationStatus.ready)
+                      ElevatedButton.icon(
+                        onPressed: !canGenerate || isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .generateWithAi(
+                                    patientId: widget.patientId,
+                                    treatmentType: treatmentLabel,
+                                  ),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Regenerar'),
+                      ),
+                    if (canShare)
+                      OutlinedButton.icon(
+                        onPressed: isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .shareCurrentSimulation(patientId: widget.patientId),
+                        icon: const Icon(Icons.share_outlined),
+                        label: const Text('Compartir con paciente'),
+                      ),
+                    if (canArchive)
+                      OutlinedButton.icon(
+                        onPressed: isGenerating
+                            ? null
+                            : () => ref
+                                  .read(simulatorFlowProvider.notifier)
+                                  .archiveCurrentSimulation(patientId: widget.patientId),
+                        icon: const Icon(Icons.archive_outlined),
+                        label: const Text('Archivar'),
+                      ),
                   ],
                 ),
-                if (flow.uiState == SimulatorUiState.saved) ...[
+                if (flow.status == SimulationStatus.shared) ...[
                   const SizedBox(height: 10),
                   const Text(
-                    'Simulación guardada correctamente.',
+                    'La simulación ya fue compartida con el paciente.',
                     style: TextStyle(
                       color: OcgColors.success,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () =>
-                        ref.read(simulatorFlowProvider.notifier).resetFlow(),
-                    child: const Text('Crear nueva simulación'),
+                ],
+                if (flow.status == SimulationStatus.archived) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    'La simulación está archivada y ya no permite nuevas acciones.',
+                    style: TextStyle(
+                      color: OcgColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ],
@@ -310,7 +344,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         color: const Color(0xFFF9F5F0),
       ),
       child: Text(
-        '$text · Provider: ${flow.generationProvider} · Modelo: ${flow.modelUsed}',
+        '$text · Provider: ${flow.generationProvider} · Modelo: ${flow.modelUsed} · Intentos: ${flow.attemptCount}',
         style: const TextStyle(
           color: OcgColors.espresso,
           fontWeight: FontWeight.w700,
@@ -369,7 +403,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => _openAdjustRegionDialog(flow),
+            onPressed: flow.status == SimulationStatus.generating ||
+                    flow.status == SimulationStatus.archived
+                ? null
+                : () => _openAdjustRegionDialog(flow),
             icon: const Icon(Icons.tune),
             label: const Text('Ajustar región manualmente'),
           ),
@@ -444,56 +481,6 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     );
   }
 
-  Widget _previewCard({
-    required String title,
-    required String? imageUrl,
-    required String emptyLabel,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: OcgColors.sand),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: OcgColors.espresso,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if ((imageUrl ?? '').isEmpty)
-            Text(emptyLabel, style: const TextStyle(color: OcgColors.ink))
-          else
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                height: 220,
-                width: double.infinity,
-                color: const Color(0xFFF7F3EE),
-                child: Image.network(
-                  imageUrl!,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 120,
-                    child: Center(
-                      child: Text('No se pudo cargar la imagen.'),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   String _treatmentLabel(TreatmentType? type) {
     if (type == null) return 'No definido';
     switch (type) {
@@ -512,6 +499,132 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       case TreatmentType.retenedores:
         return 'Retenedores';
     }
+  }
+}
+
+class _StoragePreviewCard extends StatelessWidget {
+  const _StoragePreviewCard({
+    required this.title,
+    required this.path,
+    required this.emptyLabel,
+    required this.repository,
+  });
+
+  final String title;
+  final String? path;
+  final String emptyLabel;
+  final SimulationRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: OcgColors.sand),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: OcgColors.espresso,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if ((path ?? '').isEmpty)
+            Text(emptyLabel, style: const TextStyle(color: OcgColors.ink))
+          else
+            FutureBuilder<String?>(
+              future: repository.resolveMediaUrl(path),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final url = snapshot.data;
+                if ((url ?? '').isEmpty) {
+                  return Text(emptyLabel, style: const TextStyle(color: OcgColors.ink));
+                }
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 220,
+                    width: double.infinity,
+                    color: const Color(0xFFF7F3EE),
+                    child: Image.network(
+                      url!,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      errorBuilder: (_, __, ___) => const SizedBox(
+                        height: 120,
+                        child: Center(
+                          child: Text('No se pudo cargar la imagen.'),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BeforeAfterFromStorage extends StatelessWidget {
+  const _BeforeAfterFromStorage({
+    required this.originalPath,
+    required this.resultPath,
+    required this.repository,
+  });
+
+  final String originalPath;
+  final String resultPath;
+  final SimulationRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<String?>>(
+      future: Future.wait([
+        repository.resolveMediaUrl(originalPath),
+        repository.resolveMediaUrl(resultPath),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            height: 220,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final originalUrl = snapshot.data![0];
+        final resultUrl = snapshot.data![1];
+        if ((originalUrl ?? '').isEmpty || (resultUrl ?? '').isEmpty) {
+          return const SizedBox(
+            height: 160,
+            child: Center(child: Text('No se pudieron resolver las imágenes.')),
+          );
+        }
+        return BeforeAfterSlider(
+          before: Image.network(
+            originalUrl!,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          ),
+          after: Image.network(
+            resultUrl!,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+          ),
+        );
+      },
+    );
   }
 }
 

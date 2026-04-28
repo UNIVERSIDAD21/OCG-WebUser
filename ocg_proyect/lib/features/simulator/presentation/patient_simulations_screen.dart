@@ -6,6 +6,7 @@ import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../data/repositories/simulation_repository.dart';
 import '../providers/simulation_provider.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
 
@@ -26,6 +27,8 @@ class PatientSimulationsScreen extends ConsumerWidget {
     final isAdminViewer = viewerMode == PatientViewerMode.adminViewer;
     final authUid = ref.watch(authStateProvider).asData?.value?.uid ?? '';
     final userId = (patientIdOverride?.isNotEmpty == true) ? patientIdOverride! : authUid;
+
+    final repo = ref.watch(simulationRepositoryProvider);
 
     Widget body;
     if (userId.isEmpty) {
@@ -89,25 +92,18 @@ class PatientSimulationsScreen extends ConsumerWidget {
                             Text('Notas: ${s.notes!.trim()}'),
                           ],
                           const SizedBox(height: 8),
-                          if ((s.originalUrl).trim().isNotEmpty && (s.resultUrl ?? '').trim().isNotEmpty)
-                            BeforeAfterSlider(
-                              before: Image.network(
-                                s.originalUrl,
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                              ),
-                              after: Image.network(
-                                s.resultUrl!,
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                              ),
+                          if ((s.originalPath).trim().isNotEmpty && (s.resultPath ?? '').trim().isNotEmpty)
+                            _PatientBeforeAfter(
+                              originalPath: s.originalPath,
+                              resultPath: s.resultPath!,
+                              repository: repo,
                             )
                           else
                             Row(
                               children: [
-                                Expanded(child: _img(s.originalUrl, 'Original')),
+                                Expanded(child: _img(repo, s.originalPath, 'Original')),
                                 const SizedBox(width: 8),
-                                Expanded(child: _img(s.resultUrl ?? '', 'Resultado')),
+                                Expanded(child: _img(repo, s.resultPath ?? '', 'Resultado')),
                               ],
                             ),
                         ],
@@ -174,7 +170,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _img(String url, String label) {
+  Widget _img(SimulationRepository repo, String url, String label) {
     if (url.trim().isEmpty) {
       return Container(
         height: 120,
@@ -183,25 +179,87 @@ class PatientSimulationsScreen extends ConsumerWidget {
         child: Text('$label pendiente'),
       );
     }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        height: 120,
-        color: const Color(0xFFF7F3EE),
-        child: Image.network(
-          url,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          errorBuilder: (_, __, ___) => Container(
+    return FutureBuilder<String?>(
+      future: repo.resolveMediaUrl(url),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final resolved = snapshot.data ?? '';
+        if (resolved.isEmpty) {
+          return Container(
             height: 120,
             alignment: Alignment.center,
             decoration: BoxDecoration(border: Border.all(color: const Color(0xFFD9C7B3))),
-            child: Text('No se pudo cargar $label'),
+            child: Text('$label pendiente'),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 120,
+            color: const Color(0xFFF7F3EE),
+            child: Image.network(
+              resolved,
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+              errorBuilder: (_, __, ___) => Container(
+                height: 120,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(border: Border.all(color: const Color(0xFFD9C7B3))),
+                child: Text('No se pudo cargar $label'),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   String _fmtDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+class _PatientBeforeAfter extends StatelessWidget {
+  const _PatientBeforeAfter({
+    required this.originalPath,
+    required this.resultPath,
+    required this.repository,
+  });
+
+  final String originalPath;
+  final String resultPath;
+  final SimulationRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<String?>>(
+      future: Future.wait([
+        repository.resolveMediaUrl(originalPath),
+        repository.resolveMediaUrl(resultPath),
+      ]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            height: 220,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final before = snapshot.data![0] ?? '';
+        final after = snapshot.data![1] ?? '';
+        if (before.isEmpty || after.isEmpty) {
+          return const SizedBox(
+            height: 120,
+            child: Center(child: Text('No se pudieron cargar las imágenes.')),
+          );
+        }
+        return BeforeAfterSlider(
+          before: Image.network(before, fit: BoxFit.contain, alignment: Alignment.center),
+          after: Image.network(after, fit: BoxFit.contain, alignment: Alignment.center),
+        );
+      },
+    );
+  }
 }

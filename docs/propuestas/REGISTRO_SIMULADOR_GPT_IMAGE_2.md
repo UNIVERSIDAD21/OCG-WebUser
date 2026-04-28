@@ -521,6 +521,105 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 - Bloque 04: Implementado a nivel backend y compilando.
 - Prueba real contra OpenAI: bloqueada por falta de API Key confirmada para esta sesión.
 
+## Bloque 05 — Conexión Flutter con generateSmileSimulation
+
+### Archivos modificados
+- `lib/features/simulator/data/repositories/simulation_repository.dart`
+- `lib/features/simulator/providers/simulation_provider.dart`
+- `lib/features/simulator/presentation/simulator_screen.dart`
+- `lib/features/simulator/presentation/patient_simulations_screen.dart`
+- `docs/propuestas/REGISTRO_SIMULADOR_GPT_IMAGE_2.md`
+
+### Dependencia cloud_functions
+- Ya existía en `pubspec.yaml`:
+  - `cloud_functions: ^6.0.0`
+- No fue necesario agregar una nueva dependencia.
+
+### Método repository creado
+- Se creó `generateWithAi({...})` en `SimulationRepository`.
+- Invoca la callable:
+  - `generateSmileSimulation`
+- Payload enviado:
+  - `patientId`
+  - `simulationId`
+  - `treatmentType`
+  - `notes`
+- No se envía API Key, base64 ni credenciales desde Flutter.
+
+### Cambios en provider
+- `simulation_provider.dart` ahora:
+  - valida `patientId`
+  - valida `simulationId`
+  - valida `originalPath`
+  - solo permite generar desde `draft`, `ready` o `failed`
+  - bloquea doble generación cuando el estado está en `generating`
+  - llama a `repository.generateWithAi(...)`
+  - ya no marca `ready` desde Flutter
+- Se añadió escucha en tiempo real del documento de simulación desde Firestore para reflejar estados reales del backend.
+
+### Cambios en UI admin
+- El botón `Generar con IA` quedó conectado a la callable.
+- Estado `generating` muestra loading real:
+  - `Generando simulación con IA...`
+- Estado `ready` muestra comparador before/after si existe `resultPath`.
+- Estado `failed` muestra `errorMessage` controlado y ofrece reintento.
+- Estado `shared` muestra que ya fue compartida.
+- Estado `archived` bloquea nuevas acciones.
+- Se añadieron acciones de:
+  - compartir con paciente
+  - regenerar
+  - archivar
+
+### Cambios en vista paciente
+- La vista paciente sigue consumiendo `watchSharedSimulations(...)`.
+- Solo muestra simulaciones con:
+  - `status == shared`
+  - `compartidaConPaciente == true`
+- El paciente no tiene botones para:
+  - generar
+  - regenerar
+  - editar
+  - archivar
+  - compartir
+
+### Manejo de estados
+- Estados manejados en Flutter:
+  - `draft`
+  - `generating`
+  - `ready`
+  - `failed`
+  - `shared`
+  - `archived`
+- La fuente de verdad del estado final es Firestore/backend.
+- Flutter ya no simula resultado ni transiciones finales.
+
+### Manejo de errores
+- Si backend devuelve:
+  - `OPENAI_API_KEY no está configurada en backend.`
+  - la UI muestra: `La generación con IA aún no está configurada en el backend.`
+- Si backend devuelve:
+  - `La generación con IA no está habilitada.`
+  - la UI muestra: `La generación con IA está temporalmente desactivada.`
+- Si backend devuelve límite de intentos:
+  - la UI muestra un mensaje amigable indicando que ya alcanzó el máximo permitido.
+
+### Resultado flutter analyze
+- No ejecutable en esta sesión porque `flutter` no está disponible en el PATH del entorno actual.
+
+### Resultado flutter test
+- No ejecutable en esta sesión porque `flutter`/`dart` no están disponibles en el PATH del entorno actual.
+
+### Bloqueos actuales
+- Falta ejecutar localmente:
+  - `flutter pub get`
+  - `flutter analyze`
+  - `flutter test test/features/simulator/`
+- Falta prueba end-to-end real con API Key activa y paciente/imagen autorizados.
+
+### Estado del bloque
+- Bloque 05: Implementado a nivel Flutter para invocar `generateSmileSimulation` y escuchar estados reales desde Firestore.
+- Validación local Flutter: pendiente por limitación del entorno actual.
+
 ## Reglas
 - No pongas API Keys en Flutter.
 - No subas claves al repositorio.
@@ -531,7 +630,12 @@ Si hay errores, Erik debe pegar aquí la salida exacta antes de avanzar a backen
 ## Estado actual
 Estoy **bloqueado parcialmente**.
 
-Puedo continuar con la fase de integración Flutter↔Function y con ajustes de observabilidad/UX, pero **la prueba real y definitiva** con GPT-Image-2 depende todavía de:
+Puedo continuar con ajustes finos o soporte a validación local, pero la validación completa del flujo Flutter depende todavía de correr localmente:
+- `flutter pub get`
+- `flutter analyze`
+- `flutter test test/features/simulator/`
+
+y la prueba real definitiva sigue dependiendo de:
 - Firebase Project ID correcto
 - permiso de despliegue de Functions
 - OpenAI API Key segura en backend
