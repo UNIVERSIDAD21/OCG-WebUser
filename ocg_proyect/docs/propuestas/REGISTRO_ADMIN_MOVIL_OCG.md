@@ -46,3 +46,27 @@ No debe verse:
 - **Solución aplicada:** se reemplazó la estructura por `Expanded` en el texto izquierdo, se eliminó el `Spacer()` y se agregó `TextOverflow.ellipsis` para mantener el layout estable en anchos estrechos.
 - **Prueba esperada:** al abrir Tratamientos en móvil ya no aparece `RenderFlex overflowed`, incluso en tarjetas con poco ancho disponible.
 - **Estado:** corregido en código y pendiente de validación visual/analyze en entorno con Flutter disponible.
+
+## Corrección puntual — Import y tipado PatientTreatment
+
+### Problema
+`patient_detail_screen.dart` usaba `PatientTreatment` sin importar el modelo real y Dart lo interpretaba como tipo indefinido/Object.
+
+### Archivo corregido
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `lib/features/dashboard/presentation/admin_dashboard_screen.dart`
+
+### Import agregado
+- `import '../../treatment/data/models/patient_treatment.dart';`
+
+### Tipado corregido
+- `treatments` se sigue consumiendo como lista tipada del provider.
+- `activeTreatment` quedó como `PatientTreatment?`.
+- La selección se hace con un loop seguro sin `dynamic`, sin `Object` y sin dependencias nuevas.
+
+### Warnings limpiados
+- Se eliminó `_seedAvailability`.
+- Se eliminó `_initializeAllPayments`.
+
+### Resultado esperado
+`flutter analyze` sin errores por `PatientTreatment`.

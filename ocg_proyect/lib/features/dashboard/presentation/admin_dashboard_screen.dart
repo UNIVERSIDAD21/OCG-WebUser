@@ -1,4 +1,3 @@
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,62 +19,6 @@ import '../../patients/providers/patients_provider.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
-
-  Future<void> _seedAvailability(BuildContext context) async {
-    try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'seedAvailability',
-      );
-      await callable.call(<String, dynamic>{'days': 90});
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Disponibilidad inicial creada para 90 días.'),
-        ),
-      );
-    } on FirebaseFunctionsException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? 'No se pudo inicializar disponibilidad.'),
-        ),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo inicializar disponibilidad.')),
-      );
-    }
-  }
-
-  Future<void> _initializeAllPayments(BuildContext context) async {
-    try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'initializeAllPaymentDocuments',
-      );
-      final result = await callable.call();
-      final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
-      final created = data['created'];
-      final message =
-          data['message']?.toString() ?? 'Inicialización completada.';
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$message (creados: $created)')));
-    } on FirebaseFunctionsException catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'No se pudo inicializar pagos.')),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo inicializar pagos.')),
-      );
-    }
-  }
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
