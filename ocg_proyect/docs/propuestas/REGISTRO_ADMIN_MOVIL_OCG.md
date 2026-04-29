@@ -160,3 +160,40 @@ Móvil usa encabezado + acciones rápidas + selector de secciones + una sección
 
 ### Resultado flutter analyze
 - Pendiente de validación local por Erik, porque en esta sesión no hay `flutter` disponible en PATH.
+
+## Corrección UX móvil — Pagos multi-tratamiento
+
+### Problema
+Al tocar “Ir a pagos” desde el detalle móvil del paciente, la vista podía quedar trabada y no mostraba de forma clara las cuentas/pagos por múltiples tratamientos.
+
+### Alcance
+Solo móvil. Desktop intacto.
+
+### Causa encontrada
+La sección móvil de pagos estaba intentando renderizar una pantalla embebida más pesada de lo necesario para el detalle del paciente, en lugar de usar una vista móvil directa con la resolución de pagos ya disponible.
+
+### Solución aplicada para “Ir a pagos”
+La sección **Pagos** del detalle móvil ahora cambia inmediatamente a una vista local liviana basada en `EffectivePatientDataResolution`, sin abrir una pantalla embebida pesada ni duplicar shells.
+
+### Cómo se muestran ahora las cuentas por tratamiento
+Se agregó una sección **Cuentas por tratamiento** con una card por cuenta, mostrando nombre del tratamiento, badge principal/secundario/legacy, estado, total, pagado, saldo pendiente, próximo pago y botón de registrar pago.
+
+### Cómo se muestra historial de pagos
+El historial reciente ahora muestra fecha, valor, método, estado y tratamiento asociado cuando puede resolverse; si no, se indica que es legacy o no identificado.
+
+### Casos cubiertos
+- paciente sin pagos: mensaje claro de ausencia de pagos.
+- paciente con un tratamiento: una cuenta clara con su resumen.
+- paciente con varios tratamientos: varias cards separadas por tratamiento.
+- paciente legacy: cuenta legacy / migrada visible sin romper.
+- paciente con cuentas sin transacciones: mensaje de que ese tratamiento aún no tiene pagos registrados.
+
+### Archivos modificados
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `docs/propuestas/REGISTRO_ADMIN_MOVIL_OCG.md`
+
+### Qué se mantuvo intacto en desktop
+- Flujo desktop y vistas de escritorio sin cambios.
+
+### Resultado flutter analyze
+- Pendiente de validación local por Erik, porque en esta sesión no hay `flutter` disponible en PATH.

@@ -12,7 +12,8 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
-import '../../payments/presentation/patient_payments_screen.dart';
+import '../../payments/data/models/payment_model.dart';
+import '../../payments/presentation/widgets/register_payment_dialog.dart';
 import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/presentation/patient_simulations_screen.dart';
@@ -484,11 +485,6 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      2 => PatientPaymentsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
       3 => PatientAppointmentsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
@@ -596,17 +592,9 @@ class _AdminPatientWorkspaceState
         paymentsResolution: paymentsResolution,
       ),
       1 => _buildTreatmentsSection(treatments),
-      2 => Card(
-        clipBehavior: Clip.antiAlias,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
-        ),
-        child: SizedBox(
-          height: 760,
-          child: _buildSection(2),
-        ),
+      2 => _buildMobilePaymentsSection(
+        treatments: treatments,
+        paymentsResolution: paymentsResolution,
       ),
       3 => Card(
         clipBehavior: Clip.antiAlias,
@@ -729,6 +717,97 @@ class _AdminPatientWorkspaceState
           _buildTreatmentListCard(treatment),
           const SizedBox(height: 12),
         ],
+      ],
+    );
+  }
+
+  Widget _buildMobilePaymentsSection({
+    required List<PatientTreatment> treatments,
+    required EffectivePatientDataResolution paymentsResolution,
+  }) {
+    double total = 0.0;
+    double paid = 0.0;
+    double pending = 0.0;
+
+    for (final EffectivePatientPaymentAccount account
+        in paymentsResolution.paymentAccounts) {
+      total += account.payment.totalTratamiento;
+      paid += account.payment.montoPagado;
+      pending += account.payment.saldoPendiente;
+    }
+
+    final transactions = paymentsResolution.transactions;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _patientCard(
+          title: 'Resumen global de pagos',
+          icon: Icons.account_balance_wallet_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _mobileMetricRow('Total del paciente', _money(total)),
+              _mobileMetricRow('Total pagado', _money(paid)),
+              _mobileMetricRow('Saldo pendiente', _money(pending)),
+              _mobileMetricRow(
+                'Cuentas activas',
+                paymentsResolution.paymentAccounts.isEmpty
+                    ? 'Sin cuentas'
+                    : '${paymentsResolution.paymentAccounts.length}',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _patientCard(
+          title: 'Cuentas por tratamiento',
+          icon: Icons.layers_outlined,
+          child: paymentsResolution.paymentAccounts.isEmpty
+              ? const Text(
+                  'No hay cuentas de pago registradas todavía.',
+                  style: TextStyle(color: OcgColors.ink),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final account in paymentsResolution.paymentAccounts) ...[
+                      _buildMobilePaymentAccountCard(
+                        account: account,
+                        treatment: _resolveTreatmentForAccount(treatments, account),
+                        allTransactions: transactions,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                ),
+        ),
+        const SizedBox(height: 12),
+        _patientCard(
+          title: 'Historial reciente',
+          icon: Icons.receipt_long_outlined,
+          child: transactions.isEmpty
+              ? const Text(
+                  'No hay pagos registrados para este paciente.',
+                  style: TextStyle(color: OcgColors.ink),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final tx in transactions.take(8)) ...[
+                      _buildMobileTransactionCard(
+                        tx,
+                        _resolveTreatmentForTransaction(
+                          treatments,
+                          paymentsResolution.paymentAccounts,
+                          tx,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                ),
+        ),
       ],
     );
   }
@@ -992,6 +1071,227 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  Widget _buildMobilePaymentAccountCard({
+    required EffectivePatientPaymentAccount account,
+    required PatientTreatment? treatment,
+    required List<PaymentTransaction> allTransactions,
+  }) {
+    final treatmentName = treatment?.displayName ??
+        (account.treatmentId == null ? 'Cuenta legacy / migrada' : 'Tratamiento sin identificar');
+    final roleLabel = account.treatmentId == null
+        ? 'Legacy'
+        : (treatment?.isPrimary == true ? 'Principal' : 'Secundario');
+    final stateLabel = treatment?.statusLabel ?? 'Cuenta migrada';
+    final relatedTransactions = allTransactions.where((tx) {
+      if (account.treatmentId == null) return tx.treatmentId == null;
+      return tx.treatmentId == account.treatmentId;
+    }).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            treatmentName,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusBadge(roleLabel),
+              _statusBadge(stateLabel),
+              if (account.treatmentId == null) _statusBadge('Migrado'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _mobileMetricRow('Total', _money(account.payment.totalTratamiento)),
+          _mobileMetricRow('Pagado', _money(account.payment.montoPagado)),
+          _mobileMetricRow('Pendiente', _money(account.payment.saldoPendiente)),
+          _mobileMetricRow(
+            'Próximo pago',
+            account.payment.fechaProximoPago == null
+                ? 'Sin fecha registrada'
+                : _date(account.payment.fechaProximoPago!),
+          ),
+          const SizedBox(height: 10),
+          if (relatedTransactions.isEmpty)
+            const Text(
+              'Este tratamiento aún no tiene pagos registrados.',
+              style: TextStyle(color: OcgColors.bronze),
+            )
+          else
+            Text(
+              '${relatedTransactions.length} pago${relatedTransactions.length == 1 ? '' : 's'} registrado${relatedTransactions.length == 1 ? '' : 's'} en esta cuenta.',
+              style: const TextStyle(color: OcgColors.bronze),
+            ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: account.treatmentId == null
+                    ? null
+                    : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => RegisterPaymentDialog(
+                          patientId: widget.patient.id,
+                          treatmentId: account.treatmentId!,
+                          saldoPendiente: account.payment.saldoPendiente,
+                        ),
+                      ),
+                icon: const Icon(Icons.add_card_outlined, size: 18),
+                label: const Text('Registrar pago'),
+              ),
+              OutlinedButton.icon(
+                onPressed: relatedTransactions.isEmpty
+                    ? null
+                    : () => _showAccountTransactionHistory(
+                        treatmentName,
+                        relatedTransactions,
+                        treatment,
+                      ),
+                icon: const Icon(Icons.history_outlined, size: 18),
+                label: Text(
+                  relatedTransactions.isEmpty
+                      ? 'Sin historial'
+                      : 'Historial de este tratamiento',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileTransactionCard(
+    PaymentTransaction tx,
+    PatientTreatment? treatment,
+  ) {
+    final treatmentLabel = treatment?.displayName ??
+        (tx.treatmentId == null
+            ? 'Tratamiento no identificado / cuenta legacy'
+            : 'Tratamiento asociado no encontrado');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _date(tx.fecha),
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _mobileMetricRow('Valor', _money(tx.monto)),
+          _mobileMetricRow('Método', _paymentMethodLabel(tx.metodo)),
+          _mobileMetricRow('Estado', _paymentStateLabel(tx)),
+          _mobileMetricRow('Tratamiento', treatmentLabel),
+          if ((tx.referencia ?? '').trim().isNotEmpty)
+            _mobileMetricRow('Referencia', tx.referencia!.trim()),
+          if ((tx.notas ?? '').trim().isNotEmpty)
+            _mobileMetricRow('Nota', tx.notas!.trim()),
+        ],
+      ),
+    );
+  }
+
+  PatientTreatment? _resolveTreatmentForAccount(
+    List<PatientTreatment> treatments,
+    EffectivePatientPaymentAccount account,
+  ) {
+    if (account.treatmentId == null) return null;
+    for (final treatment in treatments) {
+      if (treatment.id == account.treatmentId) return treatment;
+    }
+    return null;
+  }
+
+  PatientTreatment? _resolveTreatmentForTransaction(
+    List<PatientTreatment> treatments,
+    List<EffectivePatientPaymentAccount> accounts,
+    PaymentTransaction tx,
+  ) {
+    if (tx.treatmentId != null) {
+      for (final treatment in treatments) {
+        if (treatment.id == tx.treatmentId) return treatment;
+      }
+    }
+
+    for (final account in accounts) {
+      if (account.treatmentId == tx.treatmentId && account.treatmentId != null) {
+        return _resolveTreatmentForAccount(treatments, account);
+      }
+    }
+    return null;
+  }
+
+  Widget _mobileMetricRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 118,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: OcgColors.bronze,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: OcgColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _paymentMethodLabel(PaymentMethod method) {
+    return switch (method) {
+      PaymentMethod.efectivo => 'Efectivo',
+      PaymentMethod.transferencia => 'Transferencia',
+      PaymentMethod.payu => 'PayU',
+    };
+  }
+
+  String _paymentStateLabel(PaymentTransaction tx) {
+    if (tx.payuTransactionId?.trim().isNotEmpty == true) return 'Confirmado';
+    if (tx.payuOrderId?.trim().isNotEmpty == true) return 'Procesado';
+    return 'Registrado';
+  }
+
   Widget _statusBadge(String value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1037,6 +1337,56 @@ class _AdminPatientWorkspaceState
                       ? treatment.notas!.trim()
                       : 'Sin notas registradas para este tratamiento.',
                   style: const TextStyle(color: OcgColors.ink),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAccountTransactionHistory(
+    String title,
+    List<PaymentTransaction> transactions,
+    PatientTreatment? treatment,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  treatment?.statusLabel ?? 'Cuenta legacy / migrada',
+                  style: const TextStyle(color: OcgColors.bronze),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 360,
+                  child: ListView.separated(
+                    itemCount: transactions.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) => _buildMobileTransactionCard(
+                      transactions[index],
+                      treatment,
+                    ),
+                  ),
                 ),
               ],
             ),
