@@ -52,3 +52,30 @@
 - Push real en iOS: depende de APNs/Firebase iOS externos.
 - Permisos reales en iPhone: requiere dispositivo físico.
 - Navegación real desde tap: requiere notificación real entrante.
+
+## 2026-04-29 — Validación técnica final solicitada por Jefe
+### Comandos ejecutados
+- `flutter pub get`
+- `flutter analyze`
+- `flutter test`
+- `flutter build apk --debug`
+- `flutter build ios --debug --no-codesign` (solo si había Xcode)
+
+### Resultado real
+- En este entorno todos los comandos Flutter devolvieron `127` porque `flutter` no está disponible en PATH.
+- `flutter build ios --debug --no-codesign` quedó bloqueado además por ausencia de `xcodebuild`/entorno macOS.
+
+### Hallazgos técnicos importantes
+- El commit `4a98e1b` existe y corresponde a `Preparar soporte técnico de notificaciones push para iOS`.
+- La parte de proyecto dejó base Flutter/iOS/documentación, pero **no cerró validación fuerte de compilación**.
+- No se tocaron Cloud Functions/backend en ese commit de iOS push.
+- Por tanto, el estado no puede declararse A todavía.
+
+### Estado honesto
+- Estado B — Preparado parcialmente.
+
+### Qué falta antes de pasar a Apple/Firebase
+- Ejecutar validación real de Flutter en un entorno con SDK Flutter disponible.
+- Revisar/cerrar el wiring real del módulo push en el arranque de la app.
+- Revisar/cerrar backend y payloads FCM compatibles con iOS/Android.
+- Verificar alineación entre storage de tokens y consultas de backend.

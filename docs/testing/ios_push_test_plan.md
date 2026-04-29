@@ -3,6 +3,22 @@
 ## Objetivo
 Validar que Android siga funcionando y que iOS quede listo para push real cuando Apple/Firebase estén configurados.
 
+## Resultado de validación técnica actual
+
+| Prueba | Plataforma | Resultado | Evidencia | Observación |
+| --------------------------- | ---------------- | -------------------- | -------------------------- | ----------- |
+| `flutter pub get` | Flutter | FALLA | código 127 | `flutter` no está disponible en PATH del entorno actual |
+| `flutter analyze` | Flutter | FALLA | código 127 | `flutter` no está disponible en PATH del entorno actual |
+| `flutter test` | Flutter | FALLA | código 127 | `flutter` no está disponible en PATH del entorno actual |
+| `flutter build apk --debug` | Android | FALLA | código 127 | `flutter` no está disponible en PATH del entorno actual |
+| token FCM Android | Android | BLOQUEADO | sin prueba real | falta entorno Flutter/Android para validación directa |
+| guardado token | Firestore | PARCIAL | revisión de código | existe estructura propuesta en proyecto, falta validación real contra backend |
+| logout token | Flutter/Firebase | PARCIAL | revisión de código | existe método para inactivar tokens, falta prueba real |
+| payload backend revisado | Functions | FALLA/PENDIENTE | revisión de commit | no hubo cambios backend en `4a98e1b` |
+| payload iOS-ready | Functions | PENDIENTE | revisión técnica | falta cerrar payload y validarlo en backend |
+| iOS build no-codesign | iOS | BLOQUEADO | `BLOCKED_NO_XCODE` | sin Mac/Xcode en este entorno |
+| iPhone real | iOS | BLOQUEADO | pendiente externo | requiere Apple/APNs/iPhone |
+
 ## Casos Android
 - [ ] Android sigue obteniendo token.
 - [ ] Android recibe notificación con app abierta.
