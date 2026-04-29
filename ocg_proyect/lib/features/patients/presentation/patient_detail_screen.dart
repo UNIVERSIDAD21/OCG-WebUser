@@ -12,6 +12,7 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
+import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';

@@ -110,3 +110,17 @@ Solo corrección de runtime en la card de pagos del detalle móvil del paciente.
 
 ### Estado
 Pendiente de validación local por Erik.
+
+## Corrección puntual — Import PaymentTransaction
+
+### Problema
+`patient_detail_screen.dart` usaba `PaymentTransaction` sin importar el modelo real.
+
+### Archivo corregido
+`lib/features/patients/presentation/patient_detail_screen.dart`
+
+### Solución
+Se agregó el import de `payment_model.dart`.
+
+### Resultado esperado
+`flutter analyze` sin errores.
