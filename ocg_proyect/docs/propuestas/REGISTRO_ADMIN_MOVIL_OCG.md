@@ -37,3 +37,12 @@ No debe verse:
 - Tratamientos como módulo global móvil
 - Configuración como módulo global móvil
 - menú de tres puntos del sidebar
+
+## Corrección puntual — Overflow Tratamientos móvil
+
+- **Archivo:** `lib/features/dashboard/presentation/admin_modules_screens.dart`
+- **Línea aproximada:** 2131
+- **Causa:** un `Row` en la tarjeta móvil de tratamientos usaba texto de sesiones + `Spacer()` + porcentaje dentro de un ancho disponible muy pequeño, provocando overflow horizontal.
+- **Solución aplicada:** se reemplazó la estructura por `Expanded` en el texto izquierdo, se eliminó el `Spacer()` y se agregó `TextOverflow.ellipsis` para mantener el layout estable en anchos estrechos.
+- **Prueba esperada:** al abrir Tratamientos en móvil ya no aparece `RenderFlex overflowed`, incluso en tarjetas con poco ancho disponible.
+- **Estado:** corregido en código y pendiente de validación visual/analyze en entorno con Flutter disponible.

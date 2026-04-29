@@ -2112,16 +2112,22 @@ class _TreatmentPatientCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        '${(progress / 5).round()} sesiones',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF8A6F59),
+                      Expanded(
+                        child: Text(
+                          '${(progress / 5).round()} sesiones',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF8A6F59),
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 6),
                       Text(
                         '$progress%',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
