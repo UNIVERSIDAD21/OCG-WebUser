@@ -12,7 +12,6 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
-import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/patient_payments_screen.dart';
 import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';
@@ -20,7 +19,6 @@ import '../../simulator/presentation/patient_simulations_screen.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
-import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
 import '../data/models/patient_data_resolution.dart';
 import '../data/models/patient_model.dart';
@@ -411,13 +409,11 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
 class _AdminPatientWorkspaceState
     extends ConsumerState<_AdminPatientWorkspace> {
   late int _section;
-  late final Set<int> _loadedSections;
 
   @override
   void initState() {
     super.initState();
     _section = widget.initialSection.clamp(0, 5);
-    _loadedSections = {_section};
   }
 
   @override
@@ -437,14 +433,6 @@ class _AdminPatientWorkspaceState
         patient: widget.patient,
       )),
     );
-    PatientTreatment? activeTreatment;
-    for (final treatment in treatments) {
-      if (!treatment.isFinished) {
-        activeTreatment = treatment;
-        break;
-      }
-    }
-    activeTreatment ??= treatments.isNotEmpty ? treatments.first : null;
     final paymentsResolution = ref.watch(
       effectivePatientPaymentsProvider((
         patientId: widget.patient.id,
@@ -476,44 +464,17 @@ class _AdminPatientWorkspaceState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSummaryCard(nextAppointment, latestSimulation),
+            _buildPatientHeaderCard(nextAppointment, paymentsResolution),
             const SizedBox(height: 16),
             _buildQuickActionsCard(context),
             const SizedBox(height: 16),
-            _buildTreatmentCard(activeTreatment),
-            const SizedBox(height: 16),
-            _buildPaymentsCard(paymentsResolution),
-            const SizedBox(height: 16),
-            _buildAppointmentsCard(nextAppointment),
-            const SizedBox(height: 16),
-            _buildSimulatorCard(latestSimulation),
-            const SizedBox(height: 16),
-            _buildPhotosCard(),
-            const SizedBox(height: 20),
             _buildSectionShortcutRow(),
             const SizedBox(height: 14),
-            SizedBox(
-              height: 720,
-              child: IndexedStack(
-                index: _section,
-                children: List.generate(6, (index) {
-                  if (!_loadedSections.contains(index)) {
-                    return const SizedBox.shrink();
-                  }
-                  return Card(
-                    clipBehavior: Clip.antiAlias,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey('patient-detail-section-$index'),
-                      child: _buildSection(index),
-                    ),
-                  );
-                }),
-              ),
+            _buildVisibleMobileSection(
+              treatments: treatments,
+              nextAppointment: nextAppointment,
+              latestSimulation: latestSimulation,
+              paymentsResolution: paymentsResolution,
             ),
           ],
         ),
@@ -523,27 +484,17 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      0 => PatientProfileScreen(
+      2 => PatientPaymentsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
         viewerMode: PatientViewerMode.adminViewer,
-      ),
-      1 => _AdminTreatmentHost(patient: widget.patient),
-      2 => PatientClinicalHistoryTab(
-        patientId: widget.patient.id,
-        patient: widget.patient,
       ),
       3 => PatientAppointmentsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
         viewerMode: PatientViewerMode.adminViewer,
       ),
-      4 => PatientPaymentsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
-      5 => PatientSimulationsScreen(
+      4 => PatientSimulationsScreen(
         embedded: true,
         patientIdOverride: widget.patient.id,
         viewerMode: PatientViewerMode.adminViewer,
@@ -559,10 +510,7 @@ class _AdminPatientWorkspaceState
       child: ChoiceChip(
         selected: active,
         label: Text(text),
-        onSelected: (_) => setState(() {
-          _section = index;
-          _loadedSections.add(index);
-        }),
+        onSelected: (_) => setState(() => _section = index),
       ),
     );
   }
@@ -574,22 +522,32 @@ class _AdminPatientWorkspaceState
         scrollDirection: Axis.horizontal,
         children: [
           _sectionChip('Resumen', 0),
-          _sectionChip('Tratamiento', 1),
+          _sectionChip('Tratamientos', 1),
+          _sectionChip('Pagos', 2),
           _sectionChip('Citas', 3),
-          _sectionChip('Pagos', 4),
-          _sectionChip('Simulador', 5),
-          _sectionChip('Historial', 2),
+          _sectionChip('Simulador', 4),
+          _sectionChip('Fotos', 5),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(
+  Widget _buildPatientHeaderCard(
     AppointmentModel? nextAppointment,
-    SimulationModel? latestSimulation,
+    EffectivePatientDataResolution paymentsResolution,
   ) {
+    final contact = widget.patient.telefono.trim().isEmpty
+        ? 'Sin contacto registrado'
+        : widget.patient.telefono.trim();
+    final pending = paymentsResolution.paymentAccounts.isEmpty
+        ? widget.patient.saldoPendiente
+        : paymentsResolution.paymentAccounts.fold<double>(
+            0.0,
+            (sum, item) => sum + item.payment.saldoPendiente,
+          );
+
     return _patientCard(
-      title: 'Resumen',
+      title: 'Paciente',
       icon: Icons.person_outline,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,29 +561,19 @@ class _AdminPatientWorkspaceState
             ),
           ),
           const SizedBox(height: 6),
-          if (widget.patient.telefono.trim().isNotEmpty)
-            Text(
-              'Contacto: ${widget.patient.telefono}',
-              style: const TextStyle(color: OcgColors.ink),
-            ),
+          Text('Contacto: $contact', style: const TextStyle(color: OcgColors.ink)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              _infoPill('Tratamiento', widget.patient.treatmentStatusLabel),
-              _infoPill('Saldo', _money(widget.patient.saldoPendiente)),
+              _infoPill('Estado', widget.patient.treatmentStatusLabel),
+              _infoPill('Saldo pendiente', _money(pending)),
               _infoPill(
                 'Próxima cita',
                 nextAppointment == null
                     ? 'Sin agendar'
                     : _dateTime(nextAppointment.fechaHora),
-              ),
-              _infoPill(
-                'Última simulación',
-                latestSimulation == null
-                    ? 'Sin simulaciones'
-                    : _simulationStatusLabel(latestSimulation.status),
               ),
             ],
           ),
@@ -634,13 +582,168 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  Widget _buildVisibleMobileSection({
+    required List<PatientTreatment> treatments,
+    required AppointmentModel? nextAppointment,
+    required SimulationModel? latestSimulation,
+    required EffectivePatientDataResolution paymentsResolution,
+  }) {
+    return switch (_section) {
+      0 => _buildOverviewSection(
+        treatments: treatments,
+        nextAppointment: nextAppointment,
+        latestSimulation: latestSimulation,
+        paymentsResolution: paymentsResolution,
+      ),
+      1 => _buildTreatmentsSection(treatments),
+      2 => Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+        ),
+        child: SizedBox(
+          height: 760,
+          child: _buildSection(2),
+        ),
+      ),
+      3 => Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+        ),
+        child: SizedBox(
+          height: 760,
+          child: _buildSection(3),
+        ),
+      ),
+      4 => Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+        ),
+        child: SizedBox(
+          height: 760,
+          child: _buildSection(4),
+        ),
+      ),
+      5 => _buildPhotosSection(),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  Widget _buildOverviewSection({
+    required List<PatientTreatment> treatments,
+    required AppointmentModel? nextAppointment,
+    required SimulationModel? latestSimulation,
+    required EffectivePatientDataResolution paymentsResolution,
+  }) {
+    final activeCount = treatments.where((item) => !item.isFinished).length;
+    double pending = 0.0;
+    for (final account in paymentsResolution.paymentAccounts) {
+      pending += account.payment.saldoPendiente;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _summaryCtaCard(
+          title: 'Tratamientos activos',
+          value: activeCount == 0 ? 'Sin tratamientos activos' : '$activeCount activos',
+          subtitle: treatments.isEmpty
+              ? 'No hay tratamientos registrados para este paciente.'
+              : 'Revisa el estado y etapas actuales del paciente.',
+          cta: 'Ver tratamientos',
+          onTap: () => _openSection(1),
+        ),
+        const SizedBox(height: 12),
+        _summaryCtaCard(
+          title: 'Saldo pendiente',
+          value: _money(pending),
+          subtitle: paymentsResolution.paymentAccounts.isEmpty
+              ? 'No hay cuentas de pago registradas todavía.'
+              : 'Consulta el resumen global y pagos por tratamiento.',
+          cta: 'Ver pagos',
+          onTap: () => _openSection(2),
+        ),
+        const SizedBox(height: 12),
+        _summaryCtaCard(
+          title: 'Próxima cita',
+          value: nextAppointment == null
+              ? 'Sin cita agendada'
+              : _dateTime(nextAppointment.fechaHora),
+          subtitle: nextAppointment == null
+              ? 'Programa la próxima atención desde acciones rápidas.'
+              : 'Abre agenda para gestionar cambios o seguimiento.',
+          cta: 'Ver citas',
+          onTap: () => _openSection(3),
+        ),
+        const SizedBox(height: 12),
+        _summaryCtaCard(
+          title: 'Última simulación',
+          value: latestSimulation == null
+              ? 'Sin simulaciones'
+              : _simulationStatusLabel(latestSimulation.status),
+          subtitle: latestSimulation?.hasResult == true
+              ? 'Hay una simulación lista para revisar.'
+              : 'Puedes abrir el simulador para generar una nueva.',
+          cta: 'Ver simulador',
+          onTap: () => _openSection(4),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTreatmentsSection(List<PatientTreatment> treatments) {
+    if (treatments.isEmpty) {
+      return _patientCard(
+        title: 'Tratamientos',
+        icon: Icons.monitor_heart_outlined,
+        child: const Text(
+          'No hay tratamientos registrados para este paciente.',
+          style: TextStyle(color: OcgColors.ink),
+        ),
+      );
+    }
+
+    final legacyOnly = treatments.every((item) => item.id.startsWith('legacy-primary-'));
+    final summaryText = legacyOnly
+        ? 'Tratamiento principal migrado desde datos legacy.'
+        : 'Este paciente tiene ${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} registrado${treatments.length == 1 ? '' : 's'}.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _patientCard(
+          title: 'Tratamientos del paciente',
+          icon: Icons.monitor_heart_outlined,
+          child: Text(summaryText, style: const TextStyle(color: OcgColors.ink)),
+        ),
+        const SizedBox(height: 12),
+        for (final treatment in treatments) ...[
+          _buildTreatmentListCard(treatment),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
   Widget _buildQuickActionsCard(BuildContext context) {
     return _patientCard(
       title: 'Acciones rápidas',
       icon: Icons.flash_on_outlined,
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 2.1,
         children: [
           _quickActionButton(
             icon: Icons.calendar_month_outlined,
@@ -649,13 +752,14 @@ class _AdminPatientWorkspaceState
               context,
               ref,
               preselectedPatient: widget.patient,
-              existingAppointments: ref.watch(appointmentsProvider).asData?.value ?? const [],
+              existingAppointments:
+                  ref.watch(appointmentsProvider).asData?.value ?? const [],
             ),
           ),
           _quickActionButton(
             icon: Icons.payments_outlined,
             label: 'Registrar pago',
-            onTap: () => _openSection(4),
+            onTap: () => _openSection(2),
           ),
           _quickActionButton(
             icon: Icons.photo_camera_outlined,
@@ -665,184 +769,111 @@ class _AdminPatientWorkspaceState
           _quickActionButton(
             icon: Icons.auto_awesome_outlined,
             label: 'Abrir simulador',
-            onTap: () => _openSection(5),
+            onTap: () => _openSection(4),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTreatmentCard(PatientTreatment? activeTreatment) {
-    final treatmentName = activeTreatment?.displayName ??
-        widget.patient.tipoTratamiento?.name ??
-        'Sin tratamiento activo';
-    final stageName = activeTreatment?.currentStageName ??
-        stageNames[widget.patient.etapaActual] ??
-        'Sin etapa';
-    final total = activeTreatment?.totalTratamiento ?? widget.patient.totalTratamiento;
-    final pending = activeTreatment?.saldoPendiente ?? widget.patient.saldoPendiente;
-    final lastNote = activeTreatment?.notas?.toString().trim().isNotEmpty == true
-        ? activeTreatment!.notas.toString().trim()
-        : widget.patient.notasClinicas.trim().isNotEmpty
-            ? widget.patient.notasClinicas.trim()
-            : 'Sin notas clínicas registradas.';
+  Widget _summaryCtaCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required String cta,
+    required VoidCallback onTap,
+  }) {
+    return _patientCard(
+      title: title,
+      icon: Icons.insights_outlined,
+      actionText: cta,
+      onAction: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: OcgColors.bronze)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentListCard(PatientTreatment treatment) {
+    final note = treatment.notas?.trim();
+    final isLegacy = treatment.id.startsWith('legacy-primary-');
 
     return _patientCard(
-      title: 'Tratamiento',
+      title: treatment.displayName,
       icon: Icons.monitor_heart_outlined,
-      actionText: 'Ver tratamiento',
+      actionText: 'Ver detalle',
       onAction: () => _openSection(1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(treatmentName, style: const TextStyle(fontWeight: FontWeight.w700, color: OcgColors.espresso)),
-          const SizedBox(height: 8),
-          Text('Etapa actual: $stageName', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 6),
-          Text('Valor total: ${_money(total)}', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 6),
-          Text('Saldo pendiente: ${_money(pending)}', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 10),
-          Text(
-            lastNote,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: OcgColors.bronze),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Para edición completa del tratamiento, usa la versión de escritorio.',
-            style: TextStyle(color: OcgColors.bronze, fontSize: 12, fontStyle: FontStyle.italic),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentsCard(EffectivePatientDataResolution paymentsResolution) {
-    double total = 0.0;
-    double paid = 0.0;
-    double pending = 0.0;
-
-    for (final EffectivePatientPaymentAccount account
-        in paymentsResolution.paymentAccounts) {
-      total += account.payment.totalTratamiento;
-      paid += account.payment.montoPagado;
-      pending += account.payment.saldoPendiente;
-    }
-
-    final PaymentTransaction? latestTx = paymentsResolution.transactions.isEmpty
-        ? null
-        : paymentsResolution.transactions.first;
-
-    return _patientCard(
-      title: 'Pagos',
-      icon: Icons.payments_outlined,
-      actionText: 'Ver pagos',
-      onAction: () => _openSection(4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Total tratamiento: ${_money(total)}', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 6),
-          Text('Total pagado: ${_money(paid)}', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 6),
-          Text('Saldo pendiente: ${_money(pending)}', style: const TextStyle(color: OcgColors.ink)),
-          const SizedBox(height: 10),
-          Text(
-            latestTx == null
-                ? 'Último pago: sin registros.'
-                : 'Último pago: ${_money(latestTx.monto)} · ${_date(latestTx.fecha)}',
-            style: const TextStyle(color: OcgColors.bronze),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppointmentsCard(AppointmentModel? nextAppointment) {
-    return _patientCard(
-      title: 'Citas',
-      icon: Icons.calendar_month_outlined,
-      actionText: 'Ver agenda',
-      onAction: () => _openSection(3),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            nextAppointment == null
-                ? 'Sin próxima cita agendada.'
-                : 'Próxima cita: ${_dateTime(nextAppointment.fechaHora)}',
-            style: const TextStyle(color: OcgColors.ink),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            nextAppointment == null
-                ? 'Estado: pendiente de programación'
-                : 'Estado: ${nextAppointment.estado.name}',
-            style: const TextStyle(color: OcgColors.bronze),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusBadge(treatment.isPrimary || isLegacy ? 'Principal' : 'Secundario'),
+              _statusBadge(treatment.statusLabel),
+              _statusBadge(treatment.currentStageName),
+            ],
           ),
           const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () => AdminAppointmentsScreen.showCreateDialog(
-              context,
-              ref,
-              preselectedPatient: widget.patient,
-              existingAppointments: ref.watch(appointmentsProvider).asData?.value ?? const [],
+          Text('Inicio: ${_date(treatment.fechaInicio)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Valor total: ${_money(treatment.totalTratamiento ?? 0)}', style: const TextStyle(color: OcgColors.ink)),
+          const SizedBox(height: 6),
+          Text('Saldo pendiente: ${_money(treatment.saldoPendiente ?? 0)}', style: const TextStyle(color: OcgColors.ink)),
+          if (note != null && note.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              note,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: OcgColors.bronze),
             ),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Agendar cita'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimulatorCard(SimulationModel? latestSimulation) {
-    return _patientCard(
-      title: 'Simulador',
-      icon: Icons.auto_awesome_outlined,
-      actionText: 'Abrir simulador',
-      onAction: () => _openSection(5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            latestSimulation == null
-                ? 'Crea una simulación de sonrisa a partir de una foto del paciente.'
-                : 'Última simulación: ${_simulationStatusLabel(latestSimulation.status)}',
-            style: const TextStyle(color: OcgColors.ink),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            latestSimulation?.hasResult == true
-                ? 'Hay una simulación lista para revisión.'
-                : 'Toma una foto frontal del paciente para iniciar la simulación.',
-            style: const TextStyle(color: OcgColors.bronze),
-          ),
+          ],
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
               OutlinedButton.icon(
-                onPressed: () => _openSection(5),
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Tomar foto'),
+                onPressed: () => _openSection(2),
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: const Text('Ir a pagos'),
               ),
-              FilledButton.icon(
-                onPressed: () => _openSection(5),
-                icon: const Icon(Icons.auto_awesome_outlined),
-                label: const Text('Abrir simulador'),
+              OutlinedButton.icon(
+                onPressed: note == null || note.isEmpty ? null : () => _showTreatmentNotes(treatment),
+                icon: const Icon(Icons.notes_outlined, size: 18),
+                label: const Text('Ver notas'),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Para edición completa del tratamiento, usa la versión de escritorio.',
+            style: TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPhotosCard() {
+  Widget _buildPhotosSection() {
     return _patientCard(
       title: 'Fotos',
       icon: Icons.photo_library_outlined,
@@ -850,7 +881,7 @@ class _AdminPatientWorkspaceState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Acceso rápido a fotos clínicas del paciente.',
+            'Acceso rápido a fotos clínicas del paciente y captura para simulaciones.',
             style: TextStyle(color: OcgColors.ink),
           ),
           const SizedBox(height: 12),
@@ -859,19 +890,19 @@ class _AdminPatientWorkspaceState
             runSpacing: 10,
             children: [
               OutlinedButton.icon(
-                onPressed: () => _openSection(0),
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Ver fotos'),
+                onPressed: () => _openSection(4),
+                icon: const Icon(Icons.auto_awesome_outlined),
+                label: const Text('Ver simulaciones'),
               ),
               OutlinedButton.icon(
-                onPressed: () => _openSection(5),
+                onPressed: () => _openSection(4),
                 icon: const Icon(Icons.photo_camera_outlined),
                 label: const Text('Tomar foto'),
               ),
               OutlinedButton.icon(
-                onPressed: () => _openSection(5),
+                onPressed: () => _openSection(4),
                 icon: const Icon(Icons.upload_outlined),
-                label: const Text('Subir foto'),
+                label: const Text('Subir desde galería'),
               ),
             ],
           ),
@@ -929,18 +960,15 @@ class _AdminPatientWorkspaceState
     required String label,
     required VoidCallback onTap,
   }) {
-    return SizedBox(
-      width: 148,
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label, textAlign: TextAlign.center),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          backgroundColor: OcgColors.espresso,
-          foregroundColor: OcgColors.ivory,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label, textAlign: TextAlign.center),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        backgroundColor: OcgColors.espresso,
+        foregroundColor: OcgColors.ivory,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -964,10 +992,63 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  Widget _statusBadge(String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F2EC),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: OcgColors.espresso,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTreatmentNotes(PatientTreatment treatment) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  treatment.displayName,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  treatment.notas?.trim().isNotEmpty == true
+                      ? treatment.notas!.trim()
+                      : 'Sin notas registradas para este tratamiento.',
+                  style: const TextStyle(color: OcgColors.ink),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _openSection(int index) {
     setState(() {
       _section = index;
-      _loadedSections.add(index);
     });
   }
 
@@ -1110,57 +1191,6 @@ class PatientDetailDesktopWorkspaceTestHarness extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _AdminTreatmentHost extends StatelessWidget {
-  const _AdminTreatmentHost({required this.patient});
-
-  final PatientModel patient;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(
-            20,
-            MediaQuery.paddingOf(context).top + 16,
-            20,
-            14,
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [OcgColors.espresso, Color(0xFF4A3628)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tratamiento del paciente',
-                style: TextStyle(
-                  color: OcgColors.ivory,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Seguimiento clínico y etapas desde administración',
-                style: TextStyle(color: Color(0xCCF8F5F0), fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: PatientTreatmentTab(patientId: patient.id, patient: patient),
-        ),
-      ],
     );
   }
 }

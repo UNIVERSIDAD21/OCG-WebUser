@@ -124,3 +124,39 @@ Se agregó el import de `payment_model.dart`.
 
 ### Resultado esperado
 `flutter analyze` sin errores.
+
+## Corrección UX móvil — Detalle claro y multi-tratamiento
+
+### Problema
+La vista móvil del detalle del paciente funcionaba, pero estaba mostrando demasiadas secciones mezcladas y no hacía visible de forma intuitiva el caso de pacientes con múltiples tratamientos.
+
+### Alcance
+Solo móvil. Desktop intacto.
+
+### Decisión UX
+Móvil usa encabezado + acciones rápidas + selector de secciones + una sección visible a la vez.
+
+### Cambios realizados
+- Se eliminó la composición móvil donde se renderizaban varias cards resumen y además un `IndexedStack` con secciones profundas.
+- Se dejó un encabezado clínico resumido con nombre, contacto, estado, saldo pendiente y próxima cita.
+- Se reorganizaron las acciones rápidas en una cuadrícula 2x2 compacta.
+- Se reemplazó la navegación visual duplicada por un selector horizontal de secciones.
+- Solo se renderiza el contenido de la sección seleccionada en móvil.
+
+### Cómo se muestra multi-tratamiento
+- La sección **Tratamientos** ahora lista todos los tratamientos reales del paciente.
+- Cada tratamiento se muestra en una card independiente con nombre visible, badges de principal/secundario, estado, etapa actual, fecha de inicio, valor total, saldo pendiente y nota corta si existe.
+- Si el tratamiento proviene de datos legacy, se comunica como tratamiento migrado/principal sin romper la vista.
+
+### Casos cubiertos
+- paciente sin tratamientos: mensaje claro de que no hay tratamientos registrados.
+- paciente con un tratamiento: se muestra una única card completa.
+- paciente con varios tratamientos: se muestra contador resumido y una card por tratamiento.
+- paciente legacy: se conserva el caso migrado con card válida.
+- paciente con tratamientos finalizados: se muestran igual, usando su estado real.
+
+### Qué se mantuvo intacto en desktop
+- Flujo desktop, `AdminWebShell`, `TabBar`, `TabBarView` y layout de escritorio sin cambios.
+
+### Resultado flutter analyze
+- Pendiente de validación local por Erik, porque en esta sesión no hay `flutter` disponible en PATH.
