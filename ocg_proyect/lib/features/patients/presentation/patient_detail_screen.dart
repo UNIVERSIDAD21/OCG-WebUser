@@ -719,15 +719,15 @@ class _AdminPatientWorkspaceState
 
   Widget _buildPaymentsCard(dynamic paymentsResolution) {
     final total = paymentsResolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.totalTratamiento,
     );
     final paid = paymentsResolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.montoPagado,
     );
     final pending = paymentsResolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.saldoPendiente,
     );
     final latestTx = paymentsResolution.transactions.isEmpty

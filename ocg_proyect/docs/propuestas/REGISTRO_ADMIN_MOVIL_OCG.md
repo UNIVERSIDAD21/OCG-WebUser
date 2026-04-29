@@ -70,3 +70,23 @@ No debe verse:
 
 ### Resultado esperado
 `flutter analyze` sin errores por `PatientTreatment`.
+
+## Corrección puntual — TypeError fold double en card de pagos
+
+### Problema
+Al construir `_buildPaymentsCard`, Dart lanzaba `type 'int' is not a subtype of type 'double' of 'initialValue'`.
+
+### Archivo
+`lib/features/patients/presentation/patient_detail_screen.dart`
+
+### Causa
+Uso de `fold<double>(0, ...)` con valor inicial entero.
+
+### Solución
+Cambiar valores iniciales de acumuladores double a `0.0`.
+
+### Alcance
+Solo corrección de runtime en card móvil de pagos dentro del detalle del paciente.
+
+### Estado
+Pendiente de validación local por Erik.
