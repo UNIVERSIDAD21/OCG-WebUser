@@ -434,10 +434,12 @@ class _AdminPatientWorkspaceState
         patient: widget.patient,
       )),
     );
-    final dynamic activeTreatment = treatments.cast<dynamic>().firstWhere(
-      (item) => item.isFinished != true,
-      orElse: () => treatments.isNotEmpty ? treatments.first : null,
-    );
+    final PatientTreatment? activeTreatment = treatments
+        .cast<PatientTreatment?>()
+        .firstWhere(
+          (item) => item?.isFinished != true,
+          orElse: () => treatments.isNotEmpty ? treatments.first : null,
+        );
     final paymentsResolution = ref.watch(
       effectivePatientPaymentsProvider((
         patientId: widget.patient.id,
@@ -665,15 +667,17 @@ class _AdminPatientWorkspaceState
     );
   }
 
-  Widget _buildTreatmentCard(dynamic activeTreatment) {
+  Widget _buildTreatmentCard(PatientTreatment? activeTreatment) {
     final treatmentName = activeTreatment?.displayName ??
         widget.patient.tipoTratamiento?.name ??
         'Sin tratamiento activo';
-    final stageName = activeTreatment?.stageLabel ?? stageNames[widget.patient.etapaActual] ?? 'Sin etapa';
+    final stageName = activeTreatment?.currentStageName ??
+        stageNames[widget.patient.etapaActual] ??
+        'Sin etapa';
     final total = activeTreatment?.totalTratamiento ?? widget.patient.totalTratamiento;
     final pending = activeTreatment?.saldoPendiente ?? widget.patient.saldoPendiente;
     final lastNote = activeTreatment?.notas?.toString().trim().isNotEmpty == true
-        ? activeTreatment.notas.toString().trim()
+        ? activeTreatment!.notas.toString().trim()
         : widget.patient.notasClinicas.trim().isNotEmpty
             ? widget.patient.notasClinicas.trim()
             : 'Sin notas clínicas registradas.';
