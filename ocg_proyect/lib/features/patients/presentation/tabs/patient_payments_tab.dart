@@ -86,15 +86,15 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               orElse: () => null,
             );
         final globalTotal = resolution.paymentAccounts.fold<double>(
-          0,
+          0.0,
           (sum, account) => sum + account.payment.totalTratamiento,
         );
         final globalPaid = resolution.paymentAccounts.fold<double>(
-          0,
+          0.0,
           (sum, account) => sum + account.payment.montoPagado,
         );
         final globalPending = resolution.paymentAccounts.fold<double>(
-          0,
+          0.0,
           (sum, account) => sum + account.payment.saldoPendiente,
         );
 
@@ -390,15 +390,15 @@ class _SummaryMetric extends StatelessWidget {
       decimalDigits: 0,
     );
     final total = resolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.totalTratamiento,
     );
     final paid = resolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.montoPagado,
     );
     final pending = resolution.paymentAccounts.fold<double>(
-      0,
+      0.0,
       (sum, item) => sum + item.payment.saldoPendiente,
     );
     final latestTx = resolution.transactions.isEmpty
@@ -945,7 +945,7 @@ class _TreatmentFinanceSummary extends StatelessWidget {
       decimalDigits: 0,
     );
     final activeItems = items.where((item) => item.active).toList();
-    final total = activeItems.fold<double>(0, (sum, item) => sum + item.amount);
+    final total = activeItems.fold<double>(0.0, (sum, item) => sum + item.amount);
     final saldo = treatment.saldoPendiente ?? 0;
     final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
     final conditionalBase = treatment.tipoBase == 'ortopedia'

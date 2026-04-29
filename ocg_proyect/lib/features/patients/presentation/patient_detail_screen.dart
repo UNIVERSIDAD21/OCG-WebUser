@@ -21,6 +21,7 @@ import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 import 'patient_profile_screen.dart';
 import 'patient_viewer_mode.dart';
+import '../data/models/patient_data_resolution.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../providers/patients_provider.dart';
@@ -717,20 +718,19 @@ class _AdminPatientWorkspaceState
     );
   }
 
-  Widget _buildPaymentsCard(dynamic paymentsResolution) {
-    final total = paymentsResolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.totalTratamiento,
-    );
-    final paid = paymentsResolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.montoPagado,
-    );
-    final pending = paymentsResolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.saldoPendiente,
-    );
-    final latestTx = paymentsResolution.transactions.isEmpty
+  Widget _buildPaymentsCard(EffectivePatientDataResolution paymentsResolution) {
+    double total = 0.0;
+    double paid = 0.0;
+    double pending = 0.0;
+
+    for (final EffectivePatientPaymentAccount account
+        in paymentsResolution.paymentAccounts) {
+      total += account.payment.totalTratamiento;
+      paid += account.payment.montoPagado;
+      pending += account.payment.saldoPendiente;
+    }
+
+    final PaymentTransaction? latestTx = paymentsResolution.transactions.isEmpty
         ? null
         : paymentsResolution.transactions.first;
 

@@ -90,3 +90,23 @@ Solo corrección de runtime en card móvil de pagos dentro del detalle del pacie
 
 ### Estado
 Pendiente de validación local por Erik.
+
+## Corrección puntual — Tipado fuerte en card móvil de pagos
+
+### Problema
+La card de pagos del detalle del paciente seguía fallando porque el cálculo de acumulados usaba inferencia dinámica en una operación que esperaba `(double, EffectivePatientPaymentAccount) => double`.
+
+### Archivo
+`lib/features/patients/presentation/patient_detail_screen.dart`
+
+### Causa
+Uso de `dynamic` y/o `fold` con closure inferido dinámicamente.
+
+### Solución
+Tipar `paymentsResolution` como `EffectivePatientDataResolution` y reemplazar el cálculo por acumuladores explícitos fuertemente tipados.
+
+### Alcance
+Solo corrección de runtime en la card de pagos del detalle móvil del paciente.
+
+### Estado
+Pendiente de validación local por Erik.
