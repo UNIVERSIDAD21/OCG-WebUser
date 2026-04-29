@@ -1,0 +1,79 @@
+name: OCG Push Validation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  flutter-validation:
+    name: Flutter validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ocg_proyect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+  functions-validation:
+    name: Functions validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ocg_proyect/functions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ocg_proyect/functions/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  ios-nocodesign-validation:
+    name: iOS no-codesign validation
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ocg_proyect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: iOS no-codesign build
+        run: flutter build ios --debug --no-codesign
