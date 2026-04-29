@@ -380,7 +380,7 @@ class _SummaryMetric extends StatelessWidget {
   Widget _buildMobilePaymentsView(
     BuildContext context,
     String patientId,
-    EffectivePatientPaymentsResolution resolution,
+    EffectivePatientDataResolution resolution,
     PatientTreatment selectedTreatment,
     EffectivePatientPaymentAccount? selectedAccount,
   ) {
@@ -451,10 +451,10 @@ class _SummaryMetric extends StatelessWidget {
                       _mobileInfoRow('Valor', currency.format(latestTx.monto)),
                       _mobileInfoRow('Método', _methodLabel(latestTx.metodo)),
                       _mobileInfoRow(
-                        'Concepto',
-                        (latestTx.concepto ?? '').trim().isEmpty
-                            ? 'Sin concepto'
-                            : latestTx.concepto!.trim(),
+                        'Referencia',
+                        (latestTx.referencia ?? '').trim().isEmpty
+                            ? 'Sin referencia'
+                            : latestTx.referencia!.trim(),
                       ),
                       _mobileInfoRow('Estado', _transactionStateLabel(latestTx)),
                     ],
@@ -500,17 +500,17 @@ class _SummaryMetric extends StatelessWidget {
                                 '${_methodLabel(tx.metodo)} · ${_transactionStateLabel(tx)}',
                                 style: const TextStyle(color: OcgColors.bronze),
                               ),
-                              if ((tx.concepto ?? '').trim().isNotEmpty) ...[
+                              if ((tx.referencia ?? '').trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  tx.concepto!.trim(),
+                                  tx.referencia!.trim(),
                                   style: const TextStyle(color: OcgColors.ink),
                                 ),
                               ],
-                              if ((tx.nota ?? '').trim().isNotEmpty) ...[
+                              if ((tx.notas ?? '').trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  tx.nota!.trim(),
+                                  tx.notas!.trim(),
                                   style: const TextStyle(color: OcgColors.bronze),
                                 ),
                               ],
@@ -670,7 +670,12 @@ class _SummaryMetric extends StatelessWidget {
   }
 
   String _transactionStateLabel(PaymentTransaction tx) {
-    if ((tx.estado ?? '').trim().isNotEmpty) return tx.estado!.trim();
+    if (tx.payuTransactionId?.trim().isNotEmpty == true) {
+      return 'Confirmado';
+    }
+    if (tx.payuOrderId?.trim().isNotEmpty == true) {
+      return 'Procesado';
+    }
     return 'Registrado';
   }
 
