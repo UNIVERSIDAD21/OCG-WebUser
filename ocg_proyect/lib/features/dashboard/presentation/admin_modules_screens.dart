@@ -104,13 +104,7 @@ class AdminTreatmentsScreen extends ConsumerWidget {
       title: 'Tratamientos',
       showMobileAppBar: false,
       onSignOut: () => _signOutAdminModules(context, ref),
-      appBarActions: [
-        IconButton(
-          tooltip: 'Cerrar sesión',
-          onPressed: () => _signOutAdminModules(context, ref),
-          icon: const Icon(Icons.logout, color: OcgColors.error),
-        ),
-      ],
+      appBarActions: const [],
       railTrailing: _buildRailSignOutButton(context, ref),
       body: body,
     );
@@ -160,13 +154,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
       title: 'Pagos',
       showMobileAppBar: false,
       onSignOut: () => _signOutAdminModules(context, ref),
-      appBarActions: [
-        IconButton(
-          tooltip: 'Cerrar sesión',
-          onPressed: () => _signOutAdminModules(context, ref),
-          icon: const Icon(Icons.logout, color: OcgColors.error),
-        ),
-      ],
+      appBarActions: const [],
       railTrailing: _buildRailSignOutButton(context, ref),
       body: body,
     );
@@ -633,13 +621,7 @@ class AdminSimulatorScreen extends ConsumerWidget {
       selectedIndex: 5,
       title: 'Simulador',
       onSignOut: () => _signOutAdminModules(context, ref),
-      appBarActions: [
-        IconButton(
-          tooltip: 'Cerrar sesión',
-          onPressed: () => _signOutAdminModules(context, ref),
-          icon: const Icon(Icons.logout, color: OcgColors.error),
-        ),
-      ],
+      appBarActions: const [],
       railTrailing: _buildRailSignOutButton(context, ref),
       body: body,
     );
@@ -2587,66 +2569,15 @@ class _MobilePaymentsAdminViewState extends State<_MobilePaymentsAdminView> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
-                Builder(
-                  builder: (ctx) => InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => Scaffold.of(ctx).openDrawer(),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.menu,
-                        color: OcgColors.ivory,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Pagos',
                     style: TextStyle(
                       color: OcgColors.ivory,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: OcgColors.ivory.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_none,
-                    color: OcgColors.ivory,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 34,
-                  height: 34,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: OcgColors.bronze,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    'AD',
-                    style: TextStyle(
-                      color: OcgColors.ivory,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11.5,
                     ),
                   ),
                 ),

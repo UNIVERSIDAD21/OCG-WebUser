@@ -17,6 +17,7 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../notifications/providers/notifications_provider.dart';
 
 class AdminPatientsScreen extends ConsumerWidget {
   const AdminPatientsScreen({super.key});
@@ -274,26 +275,6 @@ class AdminPatientsScreen extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              Builder(
-                builder: (ctx) => InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () => Scaffold.of(ctx).openDrawer(),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: OcgColors.ivory.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.menu,
-                      color: OcgColors.ivory,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
               const Expanded(
                 child: Text(
                   'Pacientes',
@@ -304,37 +285,9 @@ class AdminPatientsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: OcgColors.ivory.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.notifications_none,
-                  color: OcgColors.ivory,
-                  size: 18,
-                ),
-              ),
+              _AdminMobileNotificationsAction(ref: ref),
               const SizedBox(width: 8),
-              Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: OcgColors.bronze,
-                  shape: BoxShape.circle,
-                ),
-                child: const Text(
-                  'AD',
-                  style: TextStyle(
-                    color: OcgColors.ivory,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11.5,
-                  ),
-                ),
-              ),
+              _AdminMobileProfileAction(ref: ref),
             ],
           ),
         ),
@@ -1477,6 +1430,95 @@ class _PatientCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AdminMobileNotificationsAction extends ConsumerWidget {
+  const _AdminMobileNotificationsAction({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final user = ref.watch(authStateProvider).asData?.value;
+    final unread = user == null
+        ? 0
+        : ref.watch(unreadNotificationsCountProvider(user.uid));
+
+    return IconButton(
+      tooltip: 'Notificaciones',
+      onPressed: () => context.push(RouteNames.adminNotifications),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none, color: OcgColors.ivory),
+          if (unread > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: OcgColors.error,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  unread > 99 ? '99+' : '$unread',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminMobileProfileAction extends ConsumerWidget {
+  const _AdminMobileProfileAction({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final user = ref.watch(authStateProvider).asData?.value;
+    final initials = _adminProfileInitials(user?.displayName, user?.email);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(99),
+      onTap: () => context.go(RouteNames.adminProfile),
+      child: Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: OcgColors.bronze,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: OcgColors.ivory,
+            fontWeight: FontWeight.w700,
+            fontSize: 11.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _adminProfileInitials(String? displayName, String? email) {
+  final source = (displayName?.trim().isNotEmpty == true)
+      ? displayName!.trim()
+      : (email?.trim().isNotEmpty == true ? email!.trim() : 'Administrador');
+  final parts = source.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) return 'AD';
+  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
 }
 
 String _tipoTratamientoLabel(TreatmentType value) => switch (value) {

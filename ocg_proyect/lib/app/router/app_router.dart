@@ -10,7 +10,9 @@ import '../../features/auth/providers/auth_providers.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
 import '../../features/dashboard/presentation/admin_modules_screens.dart';
+import '../../features/dashboard/presentation/admin_notifications_screen.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
+import '../../features/dashboard/presentation/admin_profile_screen.dart';
 import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
 import '../../features/notifications/presentation/patient_notifications_screen.dart';
@@ -148,6 +150,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.adminSimulator,
         builder: (context, state) => const AdminSimulatorScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminProfile,
+        builder: (context, state) => const AdminProfileScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.adminNotifications,
+        builder: (context, state) => const AdminNotificationsScreen(),
       ),
       GoRoute(
         path: RouteNames.adminPatientDetail,

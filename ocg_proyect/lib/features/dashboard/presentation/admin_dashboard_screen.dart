@@ -14,6 +14,7 @@ import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../notifications/providers/notifications_provider.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 
@@ -134,18 +135,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     return OcgAdaptiveScaffold(
       selectedIndex: 0,
       title: 'Dashboard',
-      appBarActions: [
-        TextButton.icon(
-          onPressed: () => _initializeAllPayments(context),
-          icon: const Icon(Icons.payments_outlined, size: 18),
-          label: const Text('Inicializar pagos'),
-        ),
-        IconButton(
-          tooltip: 'Inicializar disponibilidad (90 días)',
-          onPressed: () => _seedAvailability(context),
-          icon: const Icon(Icons.auto_awesome_motion_outlined),
-        ),
-      ],
+      appBarActions: const [],
       onSignOut: () => _handleSignOut(context, ref),
       railTrailing: OutlinedButton.icon(
         onPressed: loading ? null : () => _handleSignOut(context, ref),
@@ -356,26 +346,6 @@ class _MobileAdminDashboard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Builder(
-                      builder: (ctx) => InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () => Scaffold.of(ctx).openDrawer(),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: OcgColors.ivory.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.menu,
-                            color: OcgColors.ivory,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
                         'Panel Admin',
@@ -386,37 +356,9 @@ class _MobileAdminDashboard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.notifications_none,
-                        color: OcgColors.ivory,
-                        size: 19,
-                      ),
-                    ),
+                    _AdminNotificationsButton(ref: ref),
                     const SizedBox(width: 8),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: OcgColors.bronze,
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: const Text(
-                        'AD',
-                        style: TextStyle(
-                          color: OcgColors.ivory,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                    _AdminProfileButton(ref: ref),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -2046,6 +1988,95 @@ class _StatusPill extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AdminNotificationsButton extends ConsumerWidget {
+  const _AdminNotificationsButton({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final user = ref.watch(authStateProvider).asData?.value;
+    final unread = user == null
+        ? 0
+        : ref.watch(unreadNotificationsCountProvider(user.uid));
+
+    return IconButton(
+      tooltip: 'Notificaciones',
+      onPressed: () => context.push(RouteNames.adminNotifications),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none, color: OcgColors.ivory),
+          if (unread > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: OcgColors.error,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  unread > 99 ? '99+' : '$unread',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminProfileButton extends ConsumerWidget {
+  const _AdminProfileButton({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final user = ref.watch(authStateProvider).asData?.value;
+    final initials = _adminInitials(user?.displayName, user?.email);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(99),
+      onTap: () => context.go(RouteNames.adminProfile),
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: OcgColors.bronze,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: OcgColors.ivory,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _adminInitials(String? displayName, String? email) {
+  final source = (displayName?.trim().isNotEmpty == true)
+      ? displayName!.trim()
+      : (email?.trim().isNotEmpty == true ? email!.trim() : 'Administrador');
+  final parts = source.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) return 'AD';
+  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
 }
 
 class AdminDashboardDesktopTestHarness extends ConsumerWidget {

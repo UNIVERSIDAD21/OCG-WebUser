@@ -72,6 +72,14 @@ class OcgAdaptiveScaffold extends StatelessWidget {
     RouteNames.adminSimulator,
   ];
 
+  static const _mobileRoutes = [
+    RouteNames.adminDashboard,
+    RouteNames.adminPatients,
+    RouteNames.adminAppointments,
+    RouteNames.adminSimulator,
+    RouteNames.adminProfile,
+  ];
+
   void _onDestinationSelected(BuildContext context, int index) {
     if (index < _routes.length) {
       context.go(_routes[index]);
@@ -80,82 +88,9 @@ class OcgAdaptiveScaffold extends StatelessWidget {
 
   int _mobileSelectedIndex() {
     if (selectedIndex == 5) return 3; // Simulador
-    if (selectedIndex == 3 || selectedIndex == 4) return 4; // Más
+    if (selectedIndex >= 6) return 4; // Perfil / extras móviles
+    if (selectedIndex == 3 || selectedIndex == 4) return 1; // Mantener fuera de móvil
     return selectedIndex.clamp(0, 2);
-  }
-
-  Future<void> _openMoreSheet(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      builder: (sheetContext) {
-        Widget tile({
-          required IconData icon,
-          required String label,
-          VoidCallback? onTap,
-          Color? color,
-        }) {
-          return ListTile(
-            leading: Icon(icon, color: color ?? OcgColors.espresso),
-            title: Text(
-              label,
-              style: TextStyle(
-                color: color ?? OcgColors.espresso,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            onTap: onTap == null
-                ? null
-                : () {
-                    Navigator.of(sheetContext).pop();
-                    onTap();
-                  },
-          );
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                tile(
-                  icon: Icons.payments_outlined,
-                  label: 'Pagos',
-                  onTap: () => context.go(RouteNames.adminPayments),
-                ),
-                tile(
-                  icon: Icons.monitor_heart_outlined,
-                  label: 'Tratamientos',
-                  onTap: () => context.go(RouteNames.adminTreatments),
-                ),
-                tile(
-                  icon: Icons.settings_outlined,
-                  label: 'Configuración',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'La configuración completa estará disponible en escritorio.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                if (onSignOut != null)
-                  tile(
-                    icon: Icons.logout,
-                    label: 'Cerrar sesión',
-                    color: OcgColors.error,
-                    onTap: onSignOut,
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -246,22 +181,8 @@ class OcgAdaptiveScaffold extends StatelessWidget {
         height: 72,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              _onDestinationSelected(context, 0);
-              break;
-            case 1:
-              _onDestinationSelected(context, 1);
-              break;
-            case 2:
-              _onDestinationSelected(context, 2);
-              break;
-            case 3:
-              _onDestinationSelected(context, 5);
-              break;
-            case 4:
-              _openMoreSheet(context);
-              break;
+          if (index < _mobileRoutes.length) {
+            context.go(_mobileRoutes[index]);
           }
         },
         destinations: const [
@@ -286,9 +207,9 @@ class OcgAdaptiveScaffold extends StatelessWidget {
             label: 'Simulador',
           ),
           NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            selectedIcon: Icon(Icons.more_horiz),
-            label: 'Más',
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
           ),
         ],
       ),
