@@ -158,6 +158,8 @@ class AppointmentsRepository {
     AppointmentStatus newStatus, {
     String actorRole = 'admin',
     String? actorUserId,
+    String? updatedByRole,
+    String? updatedBy,
   }) async {
     final appointmentSnapshot = await _appointmentsRef.doc(appointmentId).get();
     if (!appointmentSnapshot.exists) return;
@@ -169,6 +171,8 @@ class AppointmentsRepository {
       'estado': newStatus.name,
       'lastActionByRole': actorRole,
       'lastActionBy': actorUserId,
+      'updatedByRole': updatedByRole ?? actorRole,
+      'updatedBy': updatedBy ?? actorUserId,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 

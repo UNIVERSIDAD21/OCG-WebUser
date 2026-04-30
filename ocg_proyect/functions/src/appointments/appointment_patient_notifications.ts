@@ -23,6 +23,23 @@ function appointmentChangedMeaningfully(
   return beforeStatus !== afterStatus || beforeAt !== afterAt || beforeTreatmentId !== afterTreatmentId;
 }
 
+function wasPatientActor(
+  data: Record<string, unknown>,
+  patientId: string,
+): boolean {
+  const creadoPor = String(data.creadoPor ?? '').trim();
+  const lastActionBy = String(data.lastActionBy ?? '').trim();
+  const lastActionByRole = String(data.lastActionByRole ?? '').trim();
+  const createdByRole = String(data.createdByRole ?? '').trim();
+
+  return (
+    lastActionByRole === 'patient' ||
+    createdByRole === 'patient' ||
+    creadoPor === patientId ||
+    lastActionBy === patientId
+  );
+}
+
 export async function notifyAppointmentPatientChanges(
   db: FirebaseFirestore.Firestore,
   input: {
@@ -57,7 +74,17 @@ export async function notifyAppointmentPatientChanges(
     afterAt: (after.fechaHora as admin.firestore.Timestamp | undefined)?.toDate?.()?.toISOString?.() ?? null,
   });
 
-  const createdByPatient = String(after.creadoPor ?? '').trim() == patientId;
+  const createdByPatient = wasPatientActor(after, patientId);
+  logger.info('ADMIN_APPOINTMENT_NOTIFICATION_DECISION', {
+    appointmentId,
+    patientId,
+    creadoPor: String(after.creadoPor ?? '').trim(),
+    lastActionBy: String(after.lastActionBy ?? '').trim(),
+    lastActionByRole: String(after.lastActionByRole ?? '').trim(),
+    createdByRole: String(after.createdByRole ?? '').trim(),
+    createdByPatient,
+    currentStatus,
+  });
 
   if (!before) {
     await notifyPatientAppointmentEvent(db, {
@@ -72,6 +99,12 @@ export async function notifyAppointmentPatientChanges(
     });
 
     if (createdByPatient) {
+      logger.info('ADMIN_APPOINTMENT_NOTIFICATION_WILL_SEND', {
+        appointmentId,
+        patientId,
+        patientName,
+        type: 'appointment_created',
+      });
       await notifyAdminAppointmentEvent(db, {
         notificationId: `admin_appointment_${appointmentId}_created`,
         patientId,
@@ -108,7 +141,14 @@ export async function notifyAppointmentPatientChanges(
       previousAppointmentAt: before.fechaHora,
     });
 
-    if (actionRole === 'patient') {
+    const actionByPatient = wasPatientActor(after, patientId);
+    if (actionByPatient) {
+      logger.info('ADMIN_APPOINTMENT_NOTIFICATION_WILL_SEND', {
+        appointmentId,
+        patientId,
+        patientName,
+        type: 'appointment_cancelled',
+      });
       await notifyAdminAppointmentEvent(db, {
         notificationId: `admin_appointment_${appointmentId}_cancelled`,
         patientId,
@@ -142,7 +182,14 @@ export async function notifyAppointmentPatientChanges(
       previousAppointmentAt: before.fechaHora,
     });
 
-    if (actionRole === 'patient') {
+    const actionByPatient = wasPatientActor(after, patientId);
+    if (actionByPatient) {
+      logger.info('ADMIN_APPOINTMENT_NOTIFICATION_WILL_SEND', {
+        appointmentId,
+        patientId,
+        patientName,
+        type: 'appointment_rescheduled',
+      });
       await notifyAdminAppointmentEvent(db, {
         notificationId: `admin_appointment_${appointmentId}_rescheduled_${afterMillis ?? 'na'}`,
         patientId,

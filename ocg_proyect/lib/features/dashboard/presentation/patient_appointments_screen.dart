@@ -764,6 +764,8 @@ class _PatientAppointmentsScreenState
                       AppointmentStatus.cancelada,
                       actorRole: 'patient',
                       actorUserId: currentUser?.uid,
+                      updatedByRole: 'patient',
+                      updatedBy: currentUser?.uid,
                     );
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import {logger} from 'firebase-functions';
 
 import {deliverAndroidNotification} from './android_notification_service';
 import {persistNotificationHistory} from './notification_history';
@@ -83,6 +84,12 @@ async function deliverAdminNotification(
   },
 ): Promise<void> {
   const adminIds = await resolveAdminIds(db);
+  logger.info('ADMIN_NOTIFICATION_RESOLVE_ADMINS', {
+    type: input.type,
+    adminIdsCount: adminIds.length,
+    adminIds,
+    targetRoute: input.targetRoute,
+  });
   if (adminIds.length == 0) return;
 
   await Promise.all(
