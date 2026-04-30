@@ -288,17 +288,8 @@ class _MobileAdminDashboard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Expanded(
-                      child: Text(
-                        'Panel Admin',
-                        style: TextStyle(
-                          color: OcgColors.ivory,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
                     _AdminNotificationsButton(ref: ref),
                     const SizedBox(width: 8),
                     _AdminProfileButton(ref: ref),
