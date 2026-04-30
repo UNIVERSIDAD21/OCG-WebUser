@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
@@ -1354,7 +1355,7 @@ class _AdminPatientWorkspaceState
   }
 
   Future<void> _startSimulatorCameraFlow() async {
-    final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
     if (adminId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1390,7 +1391,7 @@ class _AdminPatientWorkspaceState
     });
   }
 
-  String _money(num value) => '\$${value.toStringAsFixed(0)}';
+  String _money(num value) => '\$${formatCop(value)}';
 
   String _date(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';

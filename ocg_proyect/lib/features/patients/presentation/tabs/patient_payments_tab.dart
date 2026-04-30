@@ -12,6 +12,7 @@ import '../../../../features/payments/presentation/widgets/transaction_list.dart
 import '../../../../features/payments/providers/treatment_financial_provider.dart';
 import '../../../../features/treatment/data/models/patient_treatment.dart';
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../providers/patients_provider.dart';
 
@@ -292,6 +293,7 @@ class _GlobalPaymentsSummary extends StatelessWidget {
       locale: 'es_CO',
       symbol: r'$',
       decimalDigits: 0,
+      customPattern: '\u00A4#,##0',
     );
     return Container(
       width: double.infinity,
@@ -388,6 +390,7 @@ class _SummaryMetric extends StatelessWidget {
       locale: 'es_CO',
       symbol: r'$',
       decimalDigits: 0,
+      customPattern: '\u00A4#,##0',
     );
     final total = resolution.paymentAccounts.fold<double>(
       0.0,
@@ -703,6 +706,7 @@ class _PaymentAccountCard extends StatelessWidget {
       locale: 'es_CO',
       symbol: r'$',
       decimalDigits: 0,
+      customPattern: '\u00A4#,##0',
     );
     final treatmentTitle = account.treatmentId == null
         ? 'Cuenta legacy'
@@ -943,6 +947,7 @@ class _TreatmentFinanceSummary extends StatelessWidget {
       locale: 'es_CO',
       symbol: r'$',
       decimalDigits: 0,
+      customPattern: '\u00A4#,##0',
     );
     final activeItems = items.where((item) => item.active).toList();
     final total = activeItems.fold<double>(0.0, (sum, item) => sum + item.amount);
