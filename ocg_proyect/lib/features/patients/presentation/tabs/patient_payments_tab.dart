@@ -12,7 +12,6 @@ import '../../../../features/payments/presentation/widgets/transaction_list.dart
 import '../../../../features/payments/providers/treatment_financial_provider.dart';
 import '../../../../features/treatment/data/models/patient_treatment.dart';
 import '../../../../shared/theme/ocg_colors.dart';
-import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../providers/patients_provider.dart';
 
