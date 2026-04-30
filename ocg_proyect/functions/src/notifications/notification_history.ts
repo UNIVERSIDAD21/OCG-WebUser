@@ -11,7 +11,7 @@ export interface PersistNotificationHistoryInput extends AndroidNotificationPayl
 function buildDeliverySnapshot(delivery?: AndroidDeliveryResult): Record<string, unknown> {
   if (!delivery) {
     return {
-      status: 'failed',
+      status: 'internal_only',
       attempted: 0,
       successCount: 0,
       failureCount: 0,
@@ -54,10 +54,16 @@ export async function persistNotificationHistory(
       targetRoute: input.targetRoute ?? null,
       entityId: input.entityId ?? null,
       entityType: input.entityType ?? null,
+      route: input.targetRoute ?? null,
       appointmentId: input.entityType === 'appointment' ? input.entityId ?? null : null,
-      treatmentId: input.entityType === 'treatment' ? input.entityId ?? null : null,
+      treatmentId: input.entityType === 'treatment' ? input.entityId ?? null : (input.data?.treatmentId ?? null),
+      paymentId: input.entityType === 'payment' ? input.entityId ?? null : (input.data?.paymentId ?? null),
+      transactionId: input.data?.transactionId ?? null,
       payload: input.data ?? {},
       source: input.source,
+      sourceRole: input.data?.sourceRole ?? null,
+      sourceUserId: input.data?.sourceUserId ?? null,
+      pushSent: (input.delivery?.successCount ?? 0) > 0,
       delivery: buildDeliverySnapshot(input.delivery),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

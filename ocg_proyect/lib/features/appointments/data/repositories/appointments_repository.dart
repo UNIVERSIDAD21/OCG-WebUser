@@ -155,8 +155,10 @@ class AppointmentsRepository {
 
   Future<void> updateAppointmentStatus(
     String appointmentId,
-    AppointmentStatus newStatus,
-  ) async {
+    AppointmentStatus newStatus, {
+    String actorRole = 'admin',
+    String? actorUserId,
+  }) async {
     final appointmentSnapshot = await _appointmentsRef.doc(appointmentId).get();
     if (!appointmentSnapshot.exists) return;
 
@@ -165,6 +167,8 @@ class AppointmentsRepository {
 
     await _appointmentsRef.doc(appointmentId).update({
       'estado': newStatus.name,
+      'lastActionByRole': actorRole,
+      'lastActionBy': actorUserId,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 

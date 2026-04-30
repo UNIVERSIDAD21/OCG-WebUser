@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import {onRequest} from 'firebase-functions/v2/https';
 
-import {formatCop, notifyPatientPaymentEvent} from '../notifications/domain_notifications';
+import {formatCop, notifyAdminPaymentEvent, notifyPatientPaymentEvent} from '../notifications/domain_notifications';
 
 const SANDBOX_API_KEY = '4Vj8eK4rloUd272L48hsrarnUA';
 
@@ -50,6 +50,8 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
 
     const session = sessionSnap.data() as {patientId?: string; monto?: number} | undefined;
     const patientId = session?.patientId ?? '';
+    const patientSnap = patientId ? await db.collection('patients').doc(patientId).get() : null;
+    const patientName = String(patientSnap?.data()?.nombre ?? '').trim() || 'Paciente';
     const monto = Number(session?.monto ?? 0);
     const state = Number(statePol);
 
@@ -159,6 +161,24 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         reference,
       });
 
+      await notifyAdminPaymentEvent(db, {
+        notificationId: `admin_payment_reported_${reference}`,
+        patientId,
+        patientName,
+        paymentId: paymentRef.id,
+        treatmentId: String(payment.treatmentId ?? '').trim(),
+        transactionId: txRef.id,
+        type: 'payment_reported',
+        title: 'Nuevo pago reportado',
+        body: `${patientName} reportó un pago por ${formatCop(appliedMonto)}.`,
+        amount: appliedMonto,
+        dueDate: fechaProximoPago ?? undefined,
+        reference,
+        sourceRole: 'patient',
+        sourceUserId: patientId,
+        sendPush: true,
+      });
+
       console.info('payuWebhook pago aprobado', {patientId, reference, appliedMonto});
     } else if (state === 6) {
       await sessionRef.set(
@@ -170,6 +190,20 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         },
         {merge: true},
       );
+      await notifyAdminPaymentEvent(db, {
+        notificationId: `admin_payment_failed_${reference}`,
+        patientId,
+        patientName,
+        paymentId: reference,
+        transactionId: String(body.transaction_id ?? ''),
+        type: 'payment_failed',
+        title: 'Pago rechazado',
+        body: `El pago de ${patientName} por ${formatCop(monto)} fue rechazado o falló.`,
+        amount: monto,
+        reference,
+        sourceRole: 'system',
+        sendPush: true,
+      });
       console.info('payuWebhook pago rechazado', {patientId, reference});
     } else if (state === 7) {
       await sessionRef.set(
@@ -181,6 +215,20 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         },
         {merge: true},
       );
+      await notifyAdminPaymentEvent(db, {
+        notificationId: `admin_payment_pending_validation_${reference}`,
+        patientId,
+        patientName,
+        paymentId: reference,
+        transactionId: String(body.transaction_id ?? ''),
+        type: 'payment_pending_validation',
+        title: 'Pago pendiente de validación',
+        body: `Hay un pago de ${patientName} pendiente por validar.`,
+        amount: monto,
+        reference,
+        sourceRole: 'system',
+        sendPush: true,
+      });
       console.info('payuWebhook pago pendiente', {patientId, reference});
     } else {
       await sessionRef.set(

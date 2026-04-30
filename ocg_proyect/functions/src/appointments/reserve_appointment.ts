@@ -148,6 +148,8 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     duracionMinutos: clinicalMinutes,
     bufferMinutos: BUFFER_MINUTES,
     creadoPor: uid,
+    lastActionByRole: 'patient',
+    lastActionBy: uid,
     notas: (request.data?.notes ?? '').toString(),
     recordatorio24hEnviado: false,
     recordatorio2hEnviado: false,

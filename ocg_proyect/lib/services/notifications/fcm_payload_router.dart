@@ -26,12 +26,18 @@ class FcmPayloadRouter {
     final patientId = (data['patientId'] ?? data['recipientId'] ?? '').toString().trim();
 
     if (_isAppointmentType(type) || entityType == 'appointment') {
+      if (userRole == 'admin' && patientId.isNotEmpty) {
+        return '${RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId)}?section=citas';
+      }
       return userRole == 'admin'
           ? RouteNames.adminAppointments
           : RouteNames.patientAppointments;
     }
 
     if (_isPaymentType(type) || entityType == 'payment') {
+      if (userRole == 'admin' && patientId.isNotEmpty) {
+        return '${RouteNames.adminPatientDetail.replaceFirst(':patientId', patientId)}?section=pagos';
+      }
       return userRole == 'admin'
           ? RouteNames.adminPayments
           : RouteNames.patientPayments;

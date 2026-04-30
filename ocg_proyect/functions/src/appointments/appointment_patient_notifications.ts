@@ -3,6 +3,7 @@ import {logger} from 'firebase-functions';
 
 import {
   formatDateTimeBogota,
+  notifyAdminAppointmentEvent,
   notifyPatientAppointmentEvent,
 } from '../notifications/domain_notifications';
 
@@ -37,8 +38,11 @@ export async function notifyAppointmentPatientChanges(
 
   const appointmentId = String(after.id ?? '').trim();
   const patientId = String(after.patientId ?? '').trim();
+  const patientName = String(after.patientName ?? '').trim() || 'Paciente';
   const treatmentId = String(after.treatmentId ?? '').trim();
   const currentStatus = String(after.estado ?? '').trim();
+  const actionRole = String(after.lastActionByRole ?? '').trim();
+  const actionUserId = String(after.lastActionBy ?? '').trim();
 
   if (!appointmentId || !patientId) return;
 
@@ -48,9 +52,12 @@ export async function notifyAppointmentPatientChanges(
     treatmentId,
     previousStatus: String(before?.estado ?? '').trim() || null,
     currentStatus,
+    actionRole: actionRole || null,
     beforeAt: (before?.fechaHora as admin.firestore.Timestamp | undefined)?.toDate?.()?.toISOString?.() ?? null,
     afterAt: (after.fechaHora as admin.firestore.Timestamp | undefined)?.toDate?.()?.toISOString?.() ?? null,
   });
+
+  const createdByPatient = String(after.creadoPor ?? '').trim() == patientId;
 
   if (!before) {
     await notifyPatientAppointmentEvent(db, {
@@ -63,6 +70,23 @@ export async function notifyAppointmentPatientChanges(
       body: `Tu cita fue agendada para ${formatDateTimeBogota(after.fechaHora)}.`,
       appointmentAt: after.fechaHora,
     });
+
+    if (createdByPatient) {
+      await notifyAdminAppointmentEvent(db, {
+        notificationId: `admin_appointment_${appointmentId}_created`,
+        patientId,
+        patientName,
+        appointmentId,
+        treatmentId,
+        type: 'appointment_created',
+        title: 'Nueva cita agendada',
+        body: `${patientName} agendó una cita para ${formatDateTimeBogota(after.fechaHora)}.`,
+        appointmentAt: after.fechaHora,
+        sourceRole: 'patient',
+        sourceUserId: patientId,
+        sendPush: true,
+      });
+    }
     return;
   }
 
@@ -83,6 +107,24 @@ export async function notifyAppointmentPatientChanges(
       appointmentAt: after.fechaHora,
       previousAppointmentAt: before.fechaHora,
     });
+
+    if (actionRole === 'patient') {
+      await notifyAdminAppointmentEvent(db, {
+        notificationId: `admin_appointment_${appointmentId}_cancelled`,
+        patientId,
+        patientName,
+        appointmentId,
+        treatmentId,
+        type: 'appointment_cancelled',
+        title: 'Cita cancelada',
+        body: `${patientName} canceló su cita del ${formatDateTimeBogota(before.fechaHora ?? after.fechaHora)}.`,
+        appointmentAt: after.fechaHora,
+        previousAppointmentAt: before.fechaHora,
+        sourceRole: 'patient',
+        sourceUserId: actionUserId || patientId,
+        sendPush: true,
+      });
+    }
     return;
   }
 
@@ -99,5 +141,23 @@ export async function notifyAppointmentPatientChanges(
       appointmentAt: after.fechaHora,
       previousAppointmentAt: before.fechaHora,
     });
+
+    if (actionRole === 'patient') {
+      await notifyAdminAppointmentEvent(db, {
+        notificationId: `admin_appointment_${appointmentId}_rescheduled_${afterMillis ?? 'na'}`,
+        patientId,
+        patientName,
+        appointmentId,
+        treatmentId,
+        type: 'appointment_rescheduled',
+        title: 'Cita reprogramada',
+        body: `${patientName} reprogramó su cita para ${formatDateTimeBogota(after.fechaHora)}.`,
+        appointmentAt: after.fechaHora,
+        previousAppointmentAt: before.fechaHora,
+        sourceRole: 'patient',
+        sourceUserId: actionUserId || patientId,
+        sendPush: true,
+      });
+    }
   }
 }

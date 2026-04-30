@@ -756,11 +756,14 @@ class _PatientAppointmentsScreenState
             onPressed: () async {
               popDialog(ctx); // ✅ cerrar primero
               try {
+                final currentUser = ref.read(authStateProvider).asData?.value;
                 await ref
                     .read(appointmentsRepositoryProvider)
                     .updateAppointmentStatus(
                       appt.id,
                       AppointmentStatus.cancelada,
+                      actorRole: 'patient',
+                      actorUserId: currentUser?.uid,
                     );
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(

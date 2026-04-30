@@ -5,6 +5,7 @@ import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {
   formatCop,
   formatDateBogota,
+  notifyAdminPaymentEvent,
   notifyPatientPaymentEvent,
 } from '../notifications/domain_notifications';
 
@@ -44,6 +45,7 @@ export const processPaymentDueNotifications = onSchedule(
     for (const doc of paymentsSnap.docs) {
       const payment = doc.data() ?? {};
       const patientId = String(payment.patientId ?? doc.id).trim();
+      const treatmentId = String(payment.treatmentId ?? '').trim();
       const saldoPendiente = Number(payment.saldoPendiente ?? 0);
       const dueTs = payment.fechaProximoPago as admin.firestore.Timestamp | undefined;
       const dueDate = dueTs?.toDate();
@@ -52,10 +54,10 @@ export const processPaymentDueNotifications = onSchedule(
         continue;
       }
 
+      const patientSnap = await db().collection('patients').doc(patientId).get();
+      const patientName = String(patientSnap.data()?.nombre ?? '').trim() || 'Paciente';
       const daysUntilDue = diffInBogotaDays(dueDate, now);
-      if (daysUntilDue !== 3) continue;
-
-      const reminderKey = `${patientId}_${startOfBogotaDay(dueDate).toISOString().slice(0, 10)}`;
+      const reminderKey = `${doc.id}_${startOfBogotaDay(dueDate).toISOString().slice(0, 10)}`;
 
       logger.info('Processing payment due notification', {
         patientId,
@@ -66,17 +68,51 @@ export const processPaymentDueNotifications = onSchedule(
         reminderKey,
       });
 
-      await notifyPatientPaymentEvent(db(), {
-        notificationId: `payment_due_${reminderKey}`,
-        patientId,
-        paymentId: doc.id,
-        treatmentId: String(payment.treatmentId ?? '').trim(),
-        type: 'payment_due',
-        title: 'Tienes un pago próximo a vencer',
-        body: `Tu próximo pago vence el ${formatDateBogota(dueDate)}. Saldo pendiente: ${formatCop(saldoPendiente)}.`,
-        amount: saldoPendiente,
-        dueDate,
-      });
+      if (daysUntilDue === 3) {
+        await notifyPatientPaymentEvent(db(), {
+          notificationId: `payment_due_${reminderKey}`,
+          patientId,
+          paymentId: doc.id,
+          treatmentId,
+          type: 'payment_due',
+          title: 'Tienes un pago próximo a vencer',
+          body: `Tu próximo pago vence el ${formatDateBogota(dueDate)}. Saldo pendiente: ${formatCop(saldoPendiente)}.`,
+          amount: saldoPendiente,
+          dueDate,
+        });
+
+        await notifyAdminPaymentEvent(db(), {
+          notificationId: `admin_payment_due_soon_${reminderKey}`,
+          patientId,
+          patientName,
+          paymentId: doc.id,
+          treatmentId,
+          type: 'payment_due_soon',
+          title: 'Pago próximo a vencer',
+          body: `${patientName} tiene un pago próximo a vencer por ${formatCop(saldoPendiente)}.`,
+          amount: saldoPendiente,
+          dueDate,
+          sourceRole: 'system',
+          sendPush: false,
+        });
+      }
+
+      if (daysUntilDue === -1) {
+        await notifyAdminPaymentEvent(db(), {
+          notificationId: `admin_payment_overdue_${reminderKey}`,
+          patientId,
+          patientName,
+          paymentId: doc.id,
+          treatmentId,
+          type: 'payment_overdue',
+          title: 'Pago vencido',
+          body: `${patientName} tiene un pago vencido por ${formatCop(saldoPendiente)}.`,
+          amount: saldoPendiente,
+          dueDate,
+          sourceRole: 'system',
+          sendPush: true,
+        });
+      }
     }
   },
 );
