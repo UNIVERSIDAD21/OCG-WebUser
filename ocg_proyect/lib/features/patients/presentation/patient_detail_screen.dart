@@ -9,6 +9,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/patient_appointments_screen.dart';
@@ -16,7 +17,6 @@ import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/widgets/register_payment_dialog.dart';
 import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';
-import '../../simulator/presentation/patient_simulations_screen.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
@@ -164,10 +164,10 @@ class _PatientDetailView extends ConsumerWidget {
     final initialMobileSection = switch (sectionParam) {
       'perfil' => 0,
       'tratamiento' => 1,
-      'historial' => 2,
+      'historial' => 0,
       'citas' => 3,
-      'pagos' => 4,
-      'simulador' => 5,
+      'pagos' => 2,
+      'simulador' => 4,
       _ => 0,
     };
 
@@ -414,7 +414,7 @@ class _AdminPatientWorkspaceState
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection.clamp(0, 5);
+    _section = widget.initialSection.clamp(0, 4);
   }
 
   @override
@@ -490,11 +490,7 @@ class _AdminPatientWorkspaceState
         patientIdOverride: widget.patient.id,
         viewerMode: PatientViewerMode.adminViewer,
       ),
-      4 => PatientSimulationsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
+      4 => PatientSimulatorTab(patient: widget.patient),
       _ => const SizedBox.shrink(),
     };
   }
@@ -522,7 +518,6 @@ class _AdminPatientWorkspaceState
           _sectionChip('Pagos', 2),
           _sectionChip('Citas', 3),
           _sectionChip('Simulador', 4),
-          _sectionChip('Fotos', 5),
         ],
       ),
     );
@@ -616,11 +611,10 @@ class _AdminPatientWorkspaceState
           side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
         ),
         child: SizedBox(
-          height: 760,
+          height: 920,
           child: _buildSection(4),
         ),
       ),
-      5 => _buildPhotosSection(),
       _ => const SizedBox.shrink(),
     };
   }
@@ -843,7 +837,7 @@ class _AdminPatientWorkspaceState
           _quickActionButton(
             icon: Icons.photo_camera_outlined,
             label: 'Tomar foto',
-            onTap: () => _openSection(5),
+            onTap: () => _startSimulatorCameraFlow(),
           ),
           _quickActionButton(
             icon: Icons.auto_awesome_outlined,
@@ -952,43 +946,6 @@ class _AdminPatientWorkspaceState
     );
   }
 
-  Widget _buildPhotosSection() {
-    return _patientCard(
-      title: 'Fotos',
-      icon: Icons.photo_library_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Acceso rápido a fotos clínicas del paciente y captura para simulaciones.',
-            style: TextStyle(color: OcgColors.ink),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _openSection(4),
-                icon: const Icon(Icons.auto_awesome_outlined),
-                label: const Text('Ver simulaciones'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openSection(4),
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Tomar foto'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openSection(4),
-                icon: const Icon(Icons.upload_outlined),
-                label: const Text('Subir desde galería'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _patientCard({
     required String title,
@@ -1396,9 +1353,40 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  Future<void> _startSimulatorCameraFlow() async {
+    final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    if (adminId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo validar la sesión para abrir la cámara.'),
+        ),
+      );
+      return;
+    }
+
+    _openSection(4);
+    ref.read(simulatorFlowProvider.notifier).resetFlow();
+
+    try {
+      await ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
+        patientId: widget.patient.id,
+        adminId: adminId,
+        treatmentType: widget.patient.tipoTratamiento,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la cámara en este momento.'),
+        ),
+      );
+    }
+  }
+
   void _openSection(int index) {
     setState(() {
-      _section = index;
+      _section = index.clamp(0, 4);
     });
   }
 

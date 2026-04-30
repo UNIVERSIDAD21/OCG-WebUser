@@ -197,3 +197,32 @@ El historial reciente ahora muestra fecha, valor, método, estado y tratamiento 
 
 ### Resultado flutter analyze
 - Pendiente de validación local por Erik, porque en esta sesión no hay `flutter` disponible en PATH.
+
+## Corrección UX móvil — Flujo de foto y simulador en detalle de paciente
+
+### Problema
+En detalle de paciente móvil, el botón **Tomar foto** enviaba a una sección separada de Fotos y los índices de secciones dejaban el flujo del simulador mezclado o incorrecto.
+
+### Alcance
+Solo móvil. Desktop intacto.
+
+### Cambios realizados
+- Se eliminó el chip/tab **Fotos** del detalle móvil del paciente.
+- Se corrigieron los índices móviles para dejar solo: Resumen, Tratamientos, Pagos, Citas y Simulador.
+- Se corrigió el mapeo de `section=simulador` para abrir la sección correcta.
+- El botón **Abrir simulador** mantiene apertura directa del tab Simulador.
+- El botón **Tomar foto** ahora reutiliza el flujo real de cámara del simulador para ese paciente.
+- La sección móvil del simulador ahora usa directamente `PatientSimulatorTab`, que ya muestra simulaciones existentes y acciones de captura/subida.
+
+### Casos cubiertos
+- cancelar cámara: no rompe la pantalla.
+- abrir simulador desde acciones rápidas: abre el tab correcto.
+- tomar foto desde acciones rápidas: abre cámara en móvil y continúa el flujo del simulador.
+- simulaciones existentes: visibles dentro del tab Simulador.
+- nueva captura desde Simulador: disponible desde las acciones del tab.
+
+### Qué se mantuvo intacto en desktop
+- Layout desktop, tabs desktop y flujo de simulador en escritorio sin cambios.
+
+### Resultado flutter analyze
+- Pendiente de validación local por Erik, porque en esta sesión no hay `flutter` disponible en PATH.
