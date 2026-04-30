@@ -63,8 +63,8 @@ No incluye todavía:
   - scheduler diario detecta pagos a 3 días de vencer
   - admin recibe notificación **interna**
 - `payment_overdue`
-  - scheduler diario detecta pagos vencidos
-  - admin recibe notificación interna + push
+  - scheduler diario detecta pagos vencidos (`daysUntilDue < 0`)
+  - admin recibe notificación interna + push con idempotencia diaria por fecha
 
 ### Soportados / preparados
 - flujo de pago por paciente vía webhook PayU ya queda integrado al sistema de notificaciones admin
@@ -175,11 +175,34 @@ Ruta objetivo:
 
 Refuerzos implementados:
 - las notificaciones admin ya incluyen `targetRoute` explícita
-- además `FcmPayloadRouter` ahora tiene fallback coherente para admin con `patientId`
+- el payload FCM transporta `route`
+- la notificación interna conserva `targetRoute` y `route`
+- `FcmPayloadRouter` ahora reconoce explícitamente:
+  - `appointment_created`
+  - `appointment_cancelled`
+  - `appointment_rescheduled`
+  - `appointment_pending_confirmation`
+  - `payment_reported`
+  - `payment_pending_validation`
+  - `payment_failed`
+  - `payment_overdue`
+  - `payment_due_soon`
+- además tiene fallback coherente para admin con `patientId` incluso si faltara la ruta explícita
 
 ---
 
 ## 10. Pendientes reales Android/iOS
+
+### Seguridad Firestore (pendiente técnico real)
+- Las reglas actuales para cancelación de citas por paciente permiten update cuando el estado final es `cancelada`, pero no restringen con total precisión todos los demás campos que un cliente malicioso podría intentar incluir.
+- El flujo funcional actual escribe solo:
+  - `estado`
+  - `updatedAt`
+  - `lastActionByRole`
+  - `lastActionBy`
+- **Pendiente recomendado:** endurecer reglas para permitir únicamente esos campos en updates iniciados por paciente.
+- Este endurecimiento no se aplicó en este bloque para no arriesgar regresiones sin una validación completa de reglas.
+
 
 ### Android
 - flujo FCM operativo y reutilizado
@@ -248,17 +271,21 @@ Esto evita multiplicar documentos por el mismo disparo lógico.
 ## 14. Validación de entorno
 
 ### Flutter
-- Pendiente ejecutar localmente por Erik:
+- No se pudo ejecutar en esta sesión:
 ```bash
 cd ocg_proyect
 flutter analyze
 ```
+- Motivo real: `flutter` no está disponible en el PATH del entorno Linux actual.
 
 ### Functions
-- Pendiente ejecutar localmente por Erik:
+- Sí se ejecutó en esta sesión:
 ```bash
 cd ocg_proyect/functions
 npm run build
 ```
+- Resultado: **build exitoso** con TypeScript tras corregir un error menor de sintaxis/estilo en `domain_notifications.ts`.
 
-En esta sesión no se reporta build/analyze como exitoso porque no se ejecutó aquí.
+### Coherencia de validación
+- Functions: validado aquí.
+- Flutter analyze: pendiente de validación por Erik en su entorno con Flutter instalado.

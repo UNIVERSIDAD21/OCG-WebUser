@@ -73,13 +73,19 @@ class FcmPayloadRouter {
         type == 'appointment_created' ||
         type == 'appointment_cancelled' ||
         type == 'appointment_rescheduled' ||
-        type == 'appointment_reminder';
+        type == 'appointment_reminder' ||
+        type == 'appointment_pending_confirmation';
   }
 
   bool _isPaymentType(String type) {
     return type == 'payment' ||
         type == 'payment_received' ||
-        type == 'payment_due';
+        type == 'payment_due' ||
+        type == 'payment_reported' ||
+        type == 'payment_pending_validation' ||
+        type == 'payment_failed' ||
+        type == 'payment_overdue' ||
+        type == 'payment_due_soon';
   }
 
   bool _isTreatmentType(String type) {

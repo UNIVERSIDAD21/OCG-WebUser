@@ -97,9 +97,10 @@ export const processPaymentDueNotifications = onSchedule(
         });
       }
 
-      if (daysUntilDue === -1) {
+      if (daysUntilDue < 0) {
+        const overdueKey = `${doc.id}_${startOfBogotaDay(now).toISOString().slice(0, 10)}`;
         await notifyAdminPaymentEvent(db(), {
-          notificationId: `admin_payment_overdue_${reminderKey}`,
+          notificationId: `admin_payment_overdue_${overdueKey}`,
           patientId,
           patientName,
           paymentId: doc.id,

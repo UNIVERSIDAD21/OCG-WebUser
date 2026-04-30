@@ -161,23 +161,27 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         reference,
       });
 
-      await notifyAdminPaymentEvent(db, {
-        notificationId: `admin_payment_reported_${reference}`,
-        patientId,
-        patientName,
-        paymentId: paymentRef.id,
-        treatmentId: String(payment.treatmentId ?? '').trim(),
-        transactionId: txRef.id,
-        type: 'payment_reported',
-        title: 'Nuevo pago reportado',
-        body: `${patientName} reportó un pago por ${formatCop(appliedMonto)}.`,
-        amount: appliedMonto,
-        dueDate: fechaProximoPago ?? undefined,
-        reference,
-        sourceRole: 'patient',
-        sourceUserId: patientId,
-        sendPush: true,
-      });
+      if (patientId) {
+        await notifyAdminPaymentEvent(db, {
+          notificationId: `admin_payment_reported_${reference}`,
+          patientId,
+          patientName,
+          paymentId: paymentRef.id,
+          treatmentId: String(payment.treatmentId ?? '').trim(),
+          transactionId: txRef.id,
+          type: 'payment_reported',
+          title: 'Nuevo pago reportado',
+          body: `${patientName} reportó un pago por ${formatCop(appliedMonto)}.`,
+          amount: appliedMonto,
+          dueDate: fechaProximoPago ?? undefined,
+          reference,
+          sourceRole: 'patient',
+          sourceUserId: patientId,
+          sendPush: true,
+        });
+      } else {
+        console.warn('payuWebhook omitió notificación admin por patientId vacío', {reference});
+      }
 
       console.info('payuWebhook pago aprobado', {patientId, reference, appliedMonto});
     } else if (state === 6) {
@@ -190,20 +194,24 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         },
         {merge: true},
       );
-      await notifyAdminPaymentEvent(db, {
-        notificationId: `admin_payment_failed_${reference}`,
-        patientId,
-        patientName,
-        paymentId: reference,
-        transactionId: String(body.transaction_id ?? ''),
-        type: 'payment_failed',
-        title: 'Pago rechazado',
-        body: `El pago de ${patientName} por ${formatCop(monto)} fue rechazado o falló.`,
-        amount: monto,
-        reference,
-        sourceRole: 'system',
-        sendPush: true,
-      });
+      if (patientId) {
+        await notifyAdminPaymentEvent(db, {
+          notificationId: `admin_payment_failed_${reference}`,
+          patientId,
+          patientName,
+          paymentId: reference,
+          transactionId: String(body.transaction_id ?? ''),
+          type: 'payment_failed',
+          title: 'Pago rechazado',
+          body: `El pago de ${patientName} por ${formatCop(monto)} fue rechazado o falló.`,
+          amount: monto,
+          reference,
+          sourceRole: 'system',
+          sendPush: true,
+        });
+      } else {
+        console.warn('payuWebhook omitió notificación admin de pago fallido por patientId vacío', {reference});
+      }
       console.info('payuWebhook pago rechazado', {patientId, reference});
     } else if (state === 7) {
       await sessionRef.set(
@@ -215,20 +223,24 @@ export const payuWebhook = onRequest({region: 'us-central1', cors: false}, async
         },
         {merge: true},
       );
-      await notifyAdminPaymentEvent(db, {
-        notificationId: `admin_payment_pending_validation_${reference}`,
-        patientId,
-        patientName,
-        paymentId: reference,
-        transactionId: String(body.transaction_id ?? ''),
-        type: 'payment_pending_validation',
-        title: 'Pago pendiente de validación',
-        body: `Hay un pago de ${patientName} pendiente por validar.`,
-        amount: monto,
-        reference,
-        sourceRole: 'system',
-        sendPush: true,
-      });
+      if (patientId) {
+        await notifyAdminPaymentEvent(db, {
+          notificationId: `admin_payment_pending_validation_${reference}`,
+          patientId,
+          patientName,
+          paymentId: reference,
+          transactionId: String(body.transaction_id ?? ''),
+          type: 'payment_pending_validation',
+          title: 'Pago pendiente de validación',
+          body: `Hay un pago de ${patientName} pendiente por validar.`,
+          amount: monto,
+          reference,
+          sourceRole: 'system',
+          sendPush: true,
+        });
+      } else {
+        console.warn('payuWebhook omitió notificación admin de pago pendiente por patientId vacío', {reference});
+      }
       console.info('payuWebhook pago pendiente', {patientId, reference});
     } else {
       await sessionRef.set(
