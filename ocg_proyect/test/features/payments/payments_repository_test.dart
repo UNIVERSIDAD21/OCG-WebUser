@@ -37,6 +37,49 @@ void main() {
     });
   }
 
+  Future<void> seedTreatmentAccount({
+    required String patientId,
+    required String treatmentId,
+    required bool isPrimary,
+    double total = 1000,
+    double paid = 200,
+    double saldo = 800,
+    String name = 'Tratamiento',
+  }) async {
+    await db.collection(FirestorePaths.patients).doc(patientId).set({
+      'id': patientId,
+      'primaryTreatmentId': isPrimary ? treatmentId : null,
+      'saldoPendiente': saldo,
+    }, SetOptions(merge: true));
+    await db.collection(FirestorePaths.patientTreatments(patientId)).doc(treatmentId).set({
+      'id': treatmentId,
+      'patientId': patientId,
+      'nombre': name,
+      'categoria': 'ortodoncia',
+      'tipoBase': 'convencional',
+      'estado': 'activo',
+      'etapaActual': 'valoracionInicial',
+      'fechaInicio': Timestamp.fromDate(DateTime(2026, 4, 1)),
+      'createdAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
+      'updatedAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
+      'isPrimary': isPrimary,
+      'totalTratamiento': total,
+      'saldoPendiente': saldo,
+    });
+    await db.collection(FirestorePaths.treatmentPayments(patientId)).doc(treatmentId).set({
+      'id': treatmentId,
+      'patientId': patientId,
+      'treatmentId': treatmentId,
+      'totalTratamiento': total,
+      'montoPagado': paid,
+      'saldoPendiente': saldo,
+      'fechaProximoPago': Timestamp.fromDate(DateTime(2026, 4, 1)),
+      'estado': PaymentStatus.alDia.name,
+      'createdAt': Timestamp.fromDate(DateTime(2026, 3, 1)),
+      'updatedAt': Timestamp.fromDate(DateTime(2026, 3, 1)),
+    });
+  }
+
   group('watchers', () {
     test('watchPatientPayments usa acceso directo por patientId', () async {
       await seedPatientAndPayment(patientId: 'p1');
@@ -104,10 +147,15 @@ void main() {
 
   group('registerManualPayment', () {
     test('valida monto > 0', () async {
-      await seedPatientAndPayment(patientId: 'p2');
+      await seedTreatmentAccount(
+        patientId: 'p2',
+        treatmentId: 'tx-1',
+        isPrimary: true,
+      );
       await expectLater(
         () => repo.registerManualPayment(
           patientId: 'p2',
+          treatmentId: 'tx-1',
           monto: 0,
           metodo: PaymentMethod.efectivo,
           adminId: 'admin1',
@@ -117,10 +165,16 @@ void main() {
     });
 
     test('valida monto no supere saldo', () async {
-      await seedPatientAndPayment(patientId: 'p2', saldo: 50);
+      await seedTreatmentAccount(
+        patientId: 'p2',
+        treatmentId: 'tx-1',
+        isPrimary: true,
+        saldo: 50,
+      );
       await expectLater(
         () => repo.registerManualPayment(
           patientId: 'p2',
+          treatmentId: 'tx-1',
           monto: 100,
           metodo: PaymentMethod.efectivo,
           adminId: 'admin1',
@@ -129,32 +183,51 @@ void main() {
       );
     });
 
-    test('batch actualiza transaction + payments + patients', () async {
+    test('rechaza pago manual sin treatmentId', () async {
       await seedPatientAndPayment(patientId: 'p2', paid: 200, saldo: 800);
+
+      await expectLater(
+        () => repo.registerManualPayment(
+          patientId: 'p2',
+          monto: 300,
+          metodo: PaymentMethod.transferencia,
+          adminId: 'admin-1',
+          referencia: 'TRF-123',
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('batch actualiza cuenta/tratamiento primario y espejo legacy', () async {
+      await seedTreatmentAccount(
+        patientId: 'p2',
+        treatmentId: 'tx-1',
+        isPrimary: true,
+        total: 1000,
+        paid: 200,
+        saldo: 800,
+      );
 
       await repo.registerManualPayment(
         patientId: 'p2',
+        treatmentId: 'tx-1',
         monto: 300,
         metodo: PaymentMethod.transferencia,
         adminId: 'admin-1',
         referencia: 'TRF-123',
       );
 
-      final payDoc = await db
-          .collection(FirestorePaths.payments)
-          .doc('p2')
-          .get();
-      final patientDoc = await db
-          .collection(FirestorePaths.patients)
-          .doc('p2')
-          .get();
-      final txSnap = await db
-          .collection(FirestorePaths.transactions('p2'))
-          .get();
+      final payDoc = await db.doc(FirestorePaths.treatmentPaymentDoc('p2', 'tx-1')).get();
+      final legacyDoc = await db.collection(FirestorePaths.payments).doc('p2').get();
+      final patientDoc = await db.collection(FirestorePaths.patients).doc('p2').get();
+      final txSnap = await db.collection(FirestorePaths.treatmentTransactions('p2', 'tx-1')).get();
 
       expect(payDoc.data()!['montoPagado'], 500);
       expect(payDoc.data()!['saldoPendiente'], 500);
-      expect(patientDoc.data()!['saldoPendiente'], 500);
+      expect(legacyDoc.data()!['saldoPendiente'], 500);
+      final patientOverview = (patientDoc.data()!['treatmentOverview'] as Map<String, dynamic>?) ?? const {};
+      final patientFinancial = (patientOverview['financial'] as Map<String, dynamic>?) ?? const {};
+      expect(patientFinancial['saldoPendiente'], 500);
       expect(txSnap.docs.length, 1);
       expect(txSnap.docs.first.data()['registradoPor'], 'admin-1');
     });
@@ -162,29 +235,14 @@ void main() {
     test(
       'si recibe treatmentId actualiza saldo del tratamiento y marca la transacción',
       () async {
-        await seedPatientAndPayment(
+        await seedTreatmentAccount(
           patientId: 'p2',
+          treatmentId: 'tx-1',
+          isPrimary: true,
           total: 1800,
           paid: 300,
           saldo: 1500,
         );
-        await db
-            .collection(FirestorePaths.patientTreatments('p2'))
-            .doc('tx-1')
-            .set({
-              'id': 'tx-1',
-              'nombre': 'Convencional',
-              'categoria': 'ortodoncia',
-              'tipoBase': 'convencional',
-              'estado': 'activo',
-              'etapaActual': 'valoracionInicial',
-              'fechaInicio': Timestamp.fromDate(DateTime(2026, 4, 1)),
-              'createdAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
-              'updatedAt': Timestamp.fromDate(DateTime(2026, 4, 1)),
-              'isPrimary': true,
-              'totalTratamiento': 1800,
-              'saldoPendiente': 1500,
-            });
 
         await repo.registerManualPayment(
           patientId: 'p2',
@@ -199,7 +257,7 @@ void main() {
             .doc('tx-1')
             .get();
         final txSnap = await db
-            .collection(FirestorePaths.transactions('p2'))
+            .collection(FirestorePaths.treatmentTransactions('p2', 'tx-1'))
             .get();
         expect(treatmentDoc.data()!['saldoPendiente'], 1300);
         expect(txSnap.docs.first.data()['treatmentId'], 'tx-1');
@@ -209,17 +267,24 @@ void main() {
 
   group('registerGatewayPayment', () {
     test('registra tx con metadata payu y payu_webhook', () async {
-      await seedPatientAndPayment(patientId: 'p3', paid: 0, saldo: 1000);
+      await seedTreatmentAccount(
+        patientId: 'p3',
+        treatmentId: 'tx-main',
+        isPrimary: true,
+        paid: 0,
+        saldo: 1000,
+      );
 
       await repo.registerGatewayPayment(
         patientId: 'p3',
+        treatmentId: 'tx-main',
         monto: 400,
         payuOrderId: 'ORDER1',
         payuTransactionId: 'TX1',
       );
 
       final txSnap = await db
-          .collection(FirestorePaths.transactions('p3'))
+          .collection(FirestorePaths.treatmentTransactions('p3', 'tx-main'))
           .get();
       expect(txSnap.docs.length, 1);
       final tx = txSnap.docs.first.data();
@@ -227,6 +292,46 @@ void main() {
       expect(tx['metodo'], PaymentMethod.payu.name);
       expect(tx['payuOrderId'], 'ORDER1');
       expect(tx['payuTransactionId'], 'TX1');
+      expect(tx['treatmentId'], 'tx-main');
+    });
+
+    test('aplica pago PayU a tratamiento A sin afectar tratamiento B', () async {
+      await seedTreatmentAccount(
+        patientId: 'p-multi',
+        treatmentId: 'tx-a',
+        isPrimary: true,
+        total: 1200,
+        paid: 200,
+        saldo: 1000,
+        name: 'Tratamiento A',
+      );
+      await seedTreatmentAccount(
+        patientId: 'p-multi',
+        treatmentId: 'tx-b',
+        isPrimary: false,
+        total: 900,
+        paid: 100,
+        saldo: 800,
+        name: 'Tratamiento B',
+      );
+
+      await repo.registerGatewayPayment(
+        patientId: 'p-multi',
+        treatmentId: 'tx-a',
+        monto: 300,
+        payuOrderId: 'ORDER-A',
+        payuTransactionId: 'TX-A',
+      );
+
+      final paymentA = await db.doc(FirestorePaths.treatmentPaymentDoc('p-multi', 'tx-a')).get();
+      final paymentB = await db.doc(FirestorePaths.treatmentPaymentDoc('p-multi', 'tx-b')).get();
+      final txA = await db.collection(FirestorePaths.treatmentTransactions('p-multi', 'tx-a')).get();
+      final txB = await db.collection(FirestorePaths.treatmentTransactions('p-multi', 'tx-b')).get();
+
+      expect(paymentA.data()!['saldoPendiente'], 700);
+      expect(paymentB.data()!['saldoPendiente'], 800);
+      expect(txA.docs, hasLength(1));
+      expect(txB.docs, isEmpty);
     });
   });
 

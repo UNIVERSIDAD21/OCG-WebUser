@@ -2,19 +2,20 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
 
+import {resolvePayuConfig} from './payu_config';
+import {loadTreatmentPaymentAccount} from './payu_shared';
+
 type CreatePayuSessionData = {
   patientId?: string;
+  treatmentId?: string;
   monto?: number;
   patientEmail?: string;
   patientName?: string;
 };
 
-const SANDBOX = {
-  apiKey: '4Vj8eK4rloUd272L48hsrarnUA',
-  merchantId: '508029',
-  accountId: '512321',
-  checkoutUrl: 'https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/',
-};
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+}
 
 export const createPayuSession = onCall<CreatePayuSessionData>(
   {region: 'us-central1', cors: true},
@@ -23,19 +24,55 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
     }
 
-    const patientId = request.data?.patientId?.trim() ?? '';
+    const patientId = normalizeString(request.data?.patientId);
+    const treatmentId = normalizeString(request.data?.treatmentId);
     const monto = Number(request.data?.monto ?? 0);
-    const patientEmail = request.data?.patientEmail?.trim() ?? '';
-    const patientName = request.data?.patientName?.trim() ?? '';
+    const patientEmail = normalizeString(request.data?.patientEmail);
+    const patientName = normalizeString(request.data?.patientName);
 
-    if (!patientId || !patientEmail || !patientName || !Number.isFinite(monto) || monto <= 0) {
-      throw new HttpsError('invalid-argument', 'Parámetros inválidos.');
+    if (
+      !patientId ||
+      !treatmentId ||
+      !patientEmail ||
+      !patientName ||
+      !Number.isFinite(monto) ||
+      monto <= 0
+    ) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Debes enviar patientId, treatmentId, monto, patientEmail y patientName válidos.',
+      );
     }
 
-    const referencia = `OCG-${Date.now()}-${patientId.substring(0, 8)}`;
+    const db = admin.firestore();
+    const account = await loadTreatmentPaymentAccount(db, patientId, treatmentId);
+
+    if (!account) {
+      throw new HttpsError(
+        'failed-precondition',
+        'No existe el tratamiento o la cuenta de cobro asociada.',
+      );
+    }
+
+    if (account.saldoPendiente <= 0) {
+      throw new HttpsError(
+        'failed-precondition',
+        'La cuenta seleccionada ya no tiene saldo pendiente.',
+      );
+    }
+
+    if (monto > account.saldoPendiente) {
+      throw new HttpsError(
+        'failed-precondition',
+        'El monto no puede superar el saldo pendiente del tratamiento.',
+      );
+    }
+
+    const payu = resolvePayuConfig();
+    const referencia = `OCG-${Date.now()}-${patientId.substring(0, 8)}-${treatmentId.substring(0, 8)}`;
     const montoStr = monto.toFixed(2);
 
-    const signStr = `${SANDBOX.apiKey}~${SANDBOX.merchantId}~${referencia}~${montoStr}~COP`;
+    const signStr = `${payu.apiKey}~${payu.merchantId}~${referencia}~${montoStr}~COP`;
     const signature = crypto.createHash('md5').update(signStr).digest('hex');
 
     const projectId = process.env.GCLOUD_PROJECT ?? 'TU_PROYECTO';
@@ -43,9 +80,9 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     const responseUrl = `${confirmationUrl}?type=response`;
 
     const params = new URLSearchParams({
-      merchantId: SANDBOX.merchantId,
-      accountId: SANDBOX.accountId,
-      description: 'Tratamiento de ortodoncia - OCG Clínica',
+      merchantId: payu.merchantId,
+      accountId: payu.accountId,
+      description: `Pago OCG - ${account.treatmentName}`,
       referenceCode: referencia,
       amount: montoStr,
       tax: '0',
@@ -57,21 +94,32 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       buyerEmail: patientEmail,
       buyerFullName: patientName,
       lng: 'es',
-      test: '1',
+      test: payu.test,
+      extra1: patientId,
+      extra2: treatmentId,
     });
 
-    const checkoutUrl = `${SANDBOX.checkoutUrl}?${params.toString()}`;
+    const checkoutUrl = `${payu.checkoutUrl}?${params.toString()}`;
 
-    await admin.firestore().collection('payu_sessions').doc(referencia).set({
+    await db.collection('payu_sessions').doc(referencia).set({
       patientId,
+      treatmentId,
       monto,
       referencia,
       estado: 'pendiente',
       checkoutUrl,
+      entorno: payu.environment,
+      patientEmail,
+      patientName,
+      treatmentSnapshot: {
+        treatmentName: account.treatmentName,
+        saldoPendiente: account.saldoPendiente,
+        treatmentIsPrimary: account.treatmentIsPrimary,
+      },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return {checkoutUrl, referencia};
+    return {checkoutUrl, referencia, treatmentId};
   },
 );

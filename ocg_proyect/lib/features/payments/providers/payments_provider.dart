@@ -433,9 +433,11 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
 
   Future<String> initiate({
     required String patientId,
+    required String treatmentId,
     required double monto,
     required String patientEmail,
     required String patientName,
+    double? saldoPendiente,
   }) async {
     state = const AsyncLoading();
 
@@ -444,9 +446,11 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
           .read(payuServiceProvider)
           .createPaymentSession(
             patientId: patientId,
+            treatmentId: treatmentId,
             monto: monto,
             patientEmail: patientEmail,
             patientName: patientName,
+            saldoPendiente: saldoPendiente,
           ),
     );
 

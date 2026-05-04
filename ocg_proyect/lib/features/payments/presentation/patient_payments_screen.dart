@@ -195,6 +195,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                                       : _confirmAndPayu(
                                           context,
                                           effectivePatientId,
+                                          '',
                                           saldo,
                                           user?.email ?? '',
                                           user?.displayName ?? 'Paciente',
@@ -230,6 +231,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                                     : _confirmAndPayu(
                                         context,
                                         effectivePatientId,
+                                        '',
                                         saldo,
                                         user?.email ?? '',
                                         user?.displayName ?? 'Paciente',
@@ -570,6 +572,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                           onPressed: () => _confirmAndPayu(
                             context,
                             patientId,
+                            selectedTreatment.id,
                             selectedAccount!.payment.saldoPendiente,
                             patientEmail,
                             patientName,
@@ -699,6 +702,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
   Future<void> _confirmAndPayu(
     BuildContext context,
     String patientId,
+    String treatmentId,
     double monto,
     String patientEmail,
     String patientName,
@@ -724,14 +728,25 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     );
 
     if (ok != true) return;
+    if (treatmentId.trim().isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se puede iniciar el pago sin un tratamiento válido.'),
+        ),
+      );
+      return;
+    }
 
     await ref
         .read(initiatePayuPaymentProvider.notifier)
         .initiate(
           patientId: patientId,
+          treatmentId: treatmentId,
           monto: monto,
           patientEmail: patientEmail,
           patientName: patientName,
+          saldoPendiente: monto,
         );
   }
 }
