@@ -1,9 +1,16 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
+typedef PayuCallableInvoker = Future<dynamic> Function(Map<String, dynamic> data);
+
 class PayuService {
-  PayuService({FirebaseFunctions? functions}) : _functions = functions;
+  PayuService({
+    FirebaseFunctions? functions,
+    PayuCallableInvoker? createPayuSessionInvoker,
+  }) : _functions = functions,
+       _createPayuSessionInvoker = createPayuSessionInvoker;
 
   final FirebaseFunctions? _functions;
+  final PayuCallableInvoker? _createPayuSessionInvoker;
 
   Future<String> createPaymentSession({
     required String patientId,
@@ -26,24 +33,40 @@ class PayuService {
         message: 'El monto debe ser mayor a cero.',
       );
     }
-    if (saldoPendiente != null && monto > saldoPendiente) {
+    if (saldoPendiente == null || saldoPendiente <= 0) {
+      throw FirebaseFunctionsException(
+        code: 'failed-precondition',
+        message: 'No existe una cuenta válida con saldo pendiente para este tratamiento.',
+      );
+    }
+    if (monto > saldoPendiente) {
       throw FirebaseFunctionsException(
         code: 'failed-precondition',
         message: 'El monto no puede superar el saldo pendiente del tratamiento.',
       );
     }
 
-    final functions = _functions ?? FirebaseFunctions.instance;
-    final callable = functions.httpsCallable('createPayuSession');
-    final result = await callable.call({
+    final payload = {
       'patientId': patientId,
       'treatmentId': cleanTreatmentId,
       'monto': monto,
       'patientEmail': patientEmail,
       'patientName': patientName,
-    });
+    };
 
-    final data = (result.data as Map?)?.cast<String, dynamic>() ?? const {};
+    final dynamic rawResult;
+    if (_createPayuSessionInvoker != null) {
+      rawResult = await _createPayuSessionInvoker(payload);
+    } else {
+      final functions = _functions ?? FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('createPayuSession');
+      rawResult = await callable.call(payload);
+    }
+
+    final dynamic resultData = rawResult is HttpsCallableResult
+        ? rawResult.data
+        : rawResult;
+    final data = (resultData as Map?)?.cast<String, dynamic>() ?? const {};
     final url = (data['checkoutUrl'] ?? '').toString();
     if (url.isEmpty) {
       throw FirebaseFunctionsException(

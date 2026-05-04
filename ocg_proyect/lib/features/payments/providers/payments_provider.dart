@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/providers/auth_providers.dart';
@@ -437,8 +438,42 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
     required double monto,
     required String patientEmail,
     required String patientName,
-    double? saldoPendiente,
+    required double saldoPendiente,
   }) async {
+    final cleanTreatmentId = treatmentId.trim();
+    if (cleanTreatmentId.isEmpty) {
+      final error = FirebaseFunctionsException(
+        code: 'invalid-argument',
+        message: 'Debes seleccionar un tratamiento antes de pagar con PayU.',
+      );
+      state = AsyncError(error, StackTrace.current);
+      throw error;
+    }
+    if (saldoPendiente <= 0) {
+      final error = FirebaseFunctionsException(
+        code: 'failed-precondition',
+        message: 'La cuenta seleccionada no tiene saldo pendiente para pagar.',
+      );
+      state = AsyncError(error, StackTrace.current);
+      throw error;
+    }
+    if (monto <= 0) {
+      final error = FirebaseFunctionsException(
+        code: 'invalid-argument',
+        message: 'El monto a pagar debe ser mayor a cero.',
+      );
+      state = AsyncError(error, StackTrace.current);
+      throw error;
+    }
+    if (monto > saldoPendiente) {
+      final error = FirebaseFunctionsException(
+        code: 'failed-precondition',
+        message: 'El monto no puede superar el saldo pendiente del tratamiento seleccionado.',
+      );
+      state = AsyncError(error, StackTrace.current);
+      throw error;
+    }
+
     state = const AsyncLoading();
 
     final guarded = await AsyncValue.guard(
@@ -446,7 +481,7 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
           .read(payuServiceProvider)
           .createPaymentSession(
             patientId: patientId,
-            treatmentId: treatmentId,
+            treatmentId: cleanTreatmentId,
             monto: monto,
             patientEmail: patientEmail,
             patientName: patientName,

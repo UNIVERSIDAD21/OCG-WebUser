@@ -185,21 +185,12 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                               ),
                               elevation: 0,
                             ),
-                            onPressed: saldo > 0
-                                ? () => isAdminViewer
-                                      ? _showRegisterManualPaymentDialog(
-                                          context,
-                                          effectivePatientId,
-                                          saldo,
-                                        )
-                                      : _confirmAndPayu(
-                                          context,
-                                          effectivePatientId,
-                                          '',
-                                          saldo,
-                                          user?.email ?? '',
-                                          user?.displayName ?? 'Paciente',
-                                        )
+                            onPressed: saldo > 0 && isAdminViewer
+                                ? () => _showRegisterManualPaymentDialog(
+                                    context,
+                                    effectivePatientId,
+                                    saldo,
+                                  )
                                 : null,
                             icon: Icon(
                               isAdminViewer
@@ -221,21 +212,12 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                           fechaProximoPago: payment.fechaProximoPago,
                           saldoPendiente: saldo,
                           currency: currency,
-                          onGoToPay: saldo > 0
-                              ? () => isAdminViewer
-                                    ? _showRegisterManualPaymentDialog(
-                                        context,
-                                        effectivePatientId,
-                                        saldo,
-                                      )
-                                    : _confirmAndPayu(
-                                        context,
-                                        effectivePatientId,
-                                        '',
-                                        saldo,
-                                        user?.email ?? '',
-                                        user?.displayName ?? 'Paciente',
-                                      )
+                          onGoToPay: saldo > 0 && isAdminViewer
+                              ? () => _showRegisterManualPaymentDialog(
+                                  context,
+                                  effectivePatientId,
+                                  saldo,
+                                )
                               : null,
                         ),
                       ],
@@ -556,34 +538,53 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                         currency: currency,
                       ),
                     ),
-                    if ((selectedAccount?.payment.saldoPendiente ?? 0) > 0) ...[
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: OcgColors.espresso,
-                            foregroundColor: OcgColors.ivory,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: OcgColors.espresso,
+                          foregroundColor: OcgColors.ivory,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          onPressed: () => _confirmAndPayu(
-                            context,
-                            patientId,
-                            selectedTreatment.id,
-                            selectedAccount!.payment.saldoPendiente,
-                            patientEmail,
-                            patientName,
-                          ),
-                          icon: const Icon(Icons.lock_outline, size: 18),
-                          label: Text(
-                            'Pagar ${selectedTreatment.displayName} con PayU',
+                        ),
+                        onPressed:
+                            selectedAccount != null &&
+                                selectedAccount.payment.saldoPendiente > 0
+                            ? () => _confirmAndPayu(
+                                context,
+                                patientId,
+                                selectedTreatment.id,
+                                selectedTreatment.displayName,
+                                selectedAccount.payment.saldoPendiente,
+                                patientEmail,
+                                patientName,
+                              )
+                            : null,
+                        icon: const Icon(Icons.lock_outline, size: 18),
+                        label: Text(
+                          selectedAccount == null
+                              ? 'PayU no disponible para ${selectedTreatment.displayName}'
+                              : selectedAccount.payment.saldoPendiente > 0
+                              ? 'Pagar ${selectedTreatment.displayName} con PayU'
+                              : '${selectedTreatment.displayName} al día',
+                        ),
+                      ),
+                    ),
+                    if (selectedAccount == null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Esta cuenta todavía no está lista. Espera a que la clínica termine de crear la cuenta de cobro del tratamiento.',
+                          style: TextStyle(
+                            color: OcgColors.bronze,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                    ],
                     const SizedBox(height: 16),
                     Text(
                       'Historial de ${selectedTreatment.displayName}',
@@ -703,6 +704,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     BuildContext context,
     String patientId,
     String treatmentId,
+    String treatmentName,
     double monto,
     String patientEmail,
     String patientName,
@@ -712,7 +714,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
       builder: (_) => AlertDialog(
         title: const Text('Confirmar pago'),
         content: Text(
-          '¿Deseas continuar con el pago por ${monto.toStringAsFixed(0)} COP?',
+          'Vas a pagar ${treatmentName.trim().isEmpty ? 'este tratamiento' : treatmentName} por ${monto.toStringAsFixed(0)} COP. ¿Deseas continuar?',
         ),
         actions: [
           TextButton(
