@@ -20,6 +20,25 @@ const _androidChannelDescription =
     'Notificaciones push operativas y clínicas de OCG';
 const _deviceIdKey = 'fcm_device_installation_id';
 
+typedef FcmPlatformResolver = String? Function();
+
+String? resolveFcmPlatform({
+  bool isWeb = kIsWeb,
+  TargetPlatform? platform,
+}) {
+  if (isWeb) return 'web';
+  switch (platform ?? defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return 'android';
+    case TargetPlatform.iOS:
+      return 'ios';
+    case TargetPlatform.macOS:
+      return 'macos';
+    default:
+      return null;
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -30,14 +49,19 @@ class FcmService {
     FirebaseMessaging? messaging,
     FlutterLocalNotificationsPlugin? localNotifications,
     FcmPayloadRouter? payloadRouter,
-  }) : _messaging = messaging ?? FirebaseMessaging.instance,
+    FcmPlatformResolver? platformResolver,
+  }) : _messaging = messaging,
        _localNotifications =
            localNotifications ?? FlutterLocalNotificationsPlugin(),
-       _payloadRouter = payloadRouter ?? const FcmPayloadRouter();
+       _payloadRouter = payloadRouter ?? const FcmPayloadRouter(),
+       _platformResolver = platformResolver ?? (() => resolveFcmPlatform());
 
-  final FirebaseMessaging _messaging;
+  final FirebaseMessaging? _messaging;
   final FlutterLocalNotificationsPlugin _localNotifications;
   final FcmPayloadRouter _payloadRouter;
+  final FcmPlatformResolver _platformResolver;
+
+  FirebaseMessaging get _messagingInstance => _messaging ?? FirebaseMessaging.instance;
 
   bool _initialized = false;
   StreamSubscription<String>? _tokenRefreshSub;
@@ -75,7 +99,7 @@ class FcmService {
       );
     });
 
-    final initialMessage = await _messaging.getInitialMessage();
+    final initialMessage = await _messagingInstance.getInitialMessage();
     if (initialMessage != null) {
       await _handleNotificationNavigation(
         initialMessage.data,
@@ -84,7 +108,7 @@ class FcmService {
       );
     }
 
-    _tokenRefreshSub = _messaging.onTokenRefresh.listen((token) async {
+    _tokenRefreshSub = _messagingInstance.onTokenRefresh.listen((token) async {
       final currentUser = authService.currentUser;
       if (currentUser == null) {
         developer.log(
@@ -130,6 +154,48 @@ class FcmService {
     if (kIsWeb) return;
     final user = authService.currentUser;
     if (user == null) return;
+
+    await syncResolvedDeviceToken(
+      uid: user.uid,
+      upsertToken: ({
+        required uid,
+        required role,
+        required token,
+        required deviceId,
+        required platform,
+      }) {
+        return authService.upsertFcmDeviceToken(
+          uid: uid,
+          role: role,
+          token: token,
+          deviceId: deviceId,
+          platform: platform,
+        );
+      },
+      resolveRole: resolveRole,
+      overrideToken: overrideToken,
+      source: source,
+    );
+  }
+
+  Future<void> syncResolvedDeviceToken({
+    required String uid,
+    required Future<void> Function({
+      required String uid,
+      required String role,
+      required String token,
+      required String deviceId,
+      required String platform,
+    }) upsertToken,
+    required Future<String?> Function() resolveRole,
+    String? overrideToken,
+    String source = 'manual',
+  }) async {
+    if (kIsWeb) return;
+    if (uid.trim().isEmpty) return;
+    final platform = _platformResolver();
+    if (platform == null || platform == 'web') return;
+
     final role = await resolveRole();
     final bool hasResolvedRole = role == 'admin' || role == 'patient';
     final String effectiveRole = hasResolvedRole ? role! : 'unknown';
@@ -138,7 +204,7 @@ class FcmService {
       developer.log(
         'role unresolved on client; continuing token sync via backend role inference',
         name: 'ocg.fcm',
-        error: {'uid': user.uid, 'source': source, 'role': role},
+        error: {'uid': uid, 'source': source, 'role': role},
       );
     }
 
@@ -149,18 +215,13 @@ class FcmService {
     }
 
     final deviceId = await getOrCreateDeviceId();
-    final fingerprint = '${user.uid}|$deviceId|$token';
-
-    debugPrint('FCM TOKEN: $token');
-    debugPrint('FCM UID: ${user.uid}');
-    debugPrint('FCM ROLE: $effectiveRole');
-    debugPrint('FCM DEVICE ID: $deviceId');
+    final fingerprint = '$uid|$deviceId|$token|$platform';
 
     if (_syncInFlight != null) {
       developer.log(
         'sync omitido por in-flight guard',
         name: 'ocg.fcm',
-        error: {'uid': user.uid, 'deviceId': deviceId, 'source': source},
+        error: {'uid': uid, 'deviceId': deviceId, 'source': source},
       );
       return _syncInFlight!;
     }
@@ -170,66 +231,25 @@ class FcmService {
         'sync omitido por mismo token ya sincronizado',
         name: 'ocg.fcm',
         error: {
-          'uid': user.uid,
+          'uid': uid,
           'deviceId': deviceId,
           'tokenPreview': _tokenPreview(token),
+          'platform': platform,
           'source': source,
         },
       );
       return;
     }
 
-    developer.log(
-      'login estable',
-      name: 'ocg.fcm',
-      error: {'uid': user.uid, 'role': effectiveRole, 'source': source},
-    );
-    developer.log(
-      'token obtenido',
-      name: 'ocg.fcm',
-      error: {'uid': user.uid, 'tokenPreview': _tokenPreview(token)},
-    );
-    developer.log(
-      'deviceId resuelto',
-      name: 'ocg.fcm',
-      error: {'uid': user.uid, 'deviceId': deviceId},
-    );
-
     final future = () async {
-      developer.log(
-        'callable setFcmToken invocada',
-        name: 'ocg.fcm',
-        error: {
-          'uid': user.uid,
-          'role': effectiveRole,
-          'deviceId': deviceId,
-          'source': source,
-        },
-      );
-      await authService.upsertFcmDeviceToken(
-        uid: user.uid,
+      await upsertToken(
+        uid: uid,
         role: effectiveRole,
         token: token,
         deviceId: deviceId,
-        platform: 'android',
+        platform: platform,
       );
       _lastSyncedFingerprint = fingerprint;
-      developer.log(
-        'callable setFcmToken exitosa',
-        name: 'ocg.fcm',
-        error: {
-          'uid': user.uid,
-          'role': effectiveRole,
-          'deviceId': deviceId,
-          'tokenPreview': _tokenPreview(token),
-          'source': source,
-        },
-      );
-      developer.log(
-        'documento devices actualizado',
-        name: 'ocg.fcm',
-        error: {'uid': user.uid, 'deviceId': deviceId},
-      );
     }();
 
     _syncInFlight = future;
@@ -269,7 +289,7 @@ class FcmService {
 
   Future<String?> getToken() async {
     try {
-      return await _messaging.getToken();
+      return await _messagingInstance.getToken();
     } on FirebaseException catch (e) {
       if (e.code == 'permission-blocked' ||
           e.code == 'permission-default' ||
@@ -293,7 +313,12 @@ class FcmService {
 
   Future<void> _requestPermissionIfNeeded() async {
     try {
-      await _messaging.requestPermission(alert: true, badge: true, sound: true);
+      await _messagingInstance.requestPermission(alert: true, badge: true, sound: true);
+      await _messagingInstance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
     } on FirebaseException catch (e) {
       if (e.code != 'permission-blocked' &&
           e.code != 'permission-default' &&
@@ -310,7 +335,16 @@ class FcmService {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    const initSettings = InitializationSettings(android: androidSettings);
+    const darwinSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+      macOS: darwinSettings,
+    );
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (response) async {
@@ -351,16 +385,6 @@ class FcmService {
       );
       return;
     }
-    developer.log(
-      'foreground push received',
-      name: 'ocg.fcm',
-      error: {
-        'messageId': message.messageId,
-        'title': title,
-        'body': body,
-        'data': message.data,
-      },
-    );
     await _localNotifications.show(
       message.messageId.hashCode ^
           (title ?? '').hashCode ^
@@ -375,6 +399,18 @@ class FcmService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'default',
+        ),
+        macOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          sound: 'default',
         ),
       ),
       payload: jsonEncode(message.data),

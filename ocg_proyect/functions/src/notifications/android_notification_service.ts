@@ -1,7 +1,7 @@
 import {logger} from 'firebase-functions';
 
 import type {AndroidNotificationPayload, AndroidDeliveryResult} from './fcm_delivery';
-import {sendAndroidFcmNotification} from './fcm_delivery';
+import {sendAndroidFcmNotification, sendFcmNotification} from './fcm_delivery';
 import {persistNotificationHistory} from './notification_history';
 
 export interface DeliverAndroidNotificationInput extends AndroidNotificationPayload {
@@ -14,11 +14,11 @@ export interface DeliverAndroidNotificationResult {
   delivery: AndroidDeliveryResult;
 }
 
-export async function deliverAndroidNotification(
+export async function deliverFcmNotification(
   db: FirebaseFirestore.Firestore,
   input: DeliverAndroidNotificationInput,
 ): Promise<DeliverAndroidNotificationResult> {
-  logger.info('Delivering Android notification', {
+  logger.info('Delivering FCM notification', {
     notificationId: input.notificationId ?? null,
     recipientId: input.recipientId,
     recipientRole: input.recipientRole,
@@ -28,7 +28,7 @@ export async function deliverAndroidNotification(
     entityType: input.entityType ?? null,
   });
 
-  const delivery = await sendAndroidFcmNotification(db, input);
+  const delivery = await sendFcmNotification(db, input);
   const notificationId = await persistNotificationHistory(
     db,
     {
@@ -39,7 +39,7 @@ export async function deliverAndroidNotification(
     input.notificationId,
   );
 
-  logger.info('Android notification persisted', {
+  logger.info('FCM notification persisted', {
     notificationId,
     recipientId: input.recipientId,
     type: input.type,
@@ -50,8 +50,16 @@ export async function deliverAndroidNotification(
     failureCount: delivery.failureCount,
   });
 
+  return {notificationId, delivery};
+}
+
+export async function deliverAndroidNotification(
+  db: FirebaseFirestore.Firestore,
+  input: DeliverAndroidNotificationInput,
+): Promise<DeliverAndroidNotificationResult> {
+  const result = await deliverFcmNotification(db, input);
   return {
-    notificationId,
-    delivery,
+    notificationId: result.notificationId,
+    delivery: result.delivery,
   };
 }

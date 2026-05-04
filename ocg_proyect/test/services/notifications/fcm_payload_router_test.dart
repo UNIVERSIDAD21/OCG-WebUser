@@ -28,6 +28,13 @@ void main() {
       expect(route, RouteNames.patientPayments);
     });
 
+    test('simulation conserva navegación existente', () {
+      final route = payloadRouter.resolveRoute({
+        'type': 'simulation',
+      }, userRole: 'admin');
+      expect(route, RouteNames.adminSimulator);
+    });
+
     test('patient_detail usa patientId del payload', () {
       final route = payloadRouter.resolveRoute({
         'type': 'patient_detail',
@@ -40,9 +47,9 @@ void main() {
       );
     });
 
-    test('si no reconoce payload cae al home según rol', () {
+    test('si no reconoce payload cae al historial de notificaciones del paciente', () {
       final route = payloadRouter.resolveRoute(const {}, userRole: 'patient');
-      expect(route, RouteNames.patientHome);
+      expect(route, RouteNames.patientNotifications);
     });
   });
 }
