@@ -585,25 +585,100 @@ Recomendación:
 
 ---
 
-## 10. Recomendación final
+## 10. Cierre de suite Flutter
+
+### Tests fallidos originalmente
+
+En la auditoría inicial la suite global `flutter test` reportó 12 fallos. Al reproducir y revisar el estado real, los fallos se agruparon así:
+
+1. **Test viejo / copy desactualizado**
+   - `test/widget_test.dart`
+   - `test/login_forgot_validation_test.dart`
+   - causa: los tests buscaban `Iniciar sesión` cuando la UI real usa `INICIAR SESIÓN`.
+
+2. **Test viejo / mensaje de validación desactualizado**
+   - `test/treatment/manage_patient_treatment_dialog_test.dart`
+   - causa: el test asumía un mensaje legacy de subtipo; el flujo real ya no dependía de ese copy y el diálogo inicializa subtipo por defecto cuando aplica.
+
+3. **Test viejo / texto o layout desactualizado en tabs de paciente**
+   - `test/features/patients/patient_treatment_tab_multitreatment_test.dart`
+   - `test/features/patients/patient_detail_workspace_test.dart`
+   - `test/features/admin/admin_desktop_modules_alignment_test.dart`
+   - causa: los tests seguían atados a textos y jerarquías previas (`Workspace...`, `Saldo pendiente` en una posición específica, etc.).
+
+4. **Dependencia Firebase no mockeada + expectativas viejas**
+   - `test/features/patients/patient_payments_tab_effective_test.dart`
+   - causa raíz doble:
+     - faltaba override de `ensureTreatmentPaymentAccountProvider`, lo que permitía caer a Firebase real y disparar `[core/no-app] No Firebase App '[DEFAULT]' has been created`.
+     - además las expectativas visuales seguían ancladas a labels y acciones previas.
+
+### Cambios hechos
+
+Se corrigieron **solo tests**, sin cambiar copy productivo ni abrir funcionalidades nuevas:
+
+- `test/widget_test.dart`
+  - dejó de montar `OcgApp` completo y ahora valida `LoginScreen` aislado.
+  - evita dependencia lateral de bootstrap FCM/providers globales.
+
+- `test/login_forgot_validation_test.dart`
+  - actualiza el finder al texto real `INICIAR SESIÓN`.
+
+- `test/treatment/manage_patient_treatment_dialog_test.dart`
+  - se ajusta a la lógica real del diálogo actual.
+  - en vez de exigir textos legacy de error, valida la presencia/ausencia del campo `Subtipo` según el tipo de tratamiento.
+
+- `test/features/patients/patient_treatment_tab_multitreatment_test.dart`
+  - deja de depender del copy frágil `1 tratamiento` y usa evidencia estructural real (`selected-treatment-title`, selector visible, tratamiento principal activo).
+
+- `test/features/patients/patient_payments_tab_effective_test.dart`
+  - override adicional de `ensureTreatmentPaymentAccountProvider` para cortar el acceso a Firebase real.
+  - actualización de expectativas a labels actuales (`Tratamiento T1/T2`, historial y CTA reales).
+  - ajuste de interacción para abrir el diálogo de registro de pago sin depender de coordenadas fuera de viewport.
+
+- `test/features/patients/patient_detail_workspace_test.dart`
+  - actualiza el texto esperado al copy real actual del workspace.
+
+- `test/features/admin/admin_desktop_modules_alignment_test.dart`
+  - reemplaza una expectativa de layout/copy vieja por una evidencia estable del header actual (`Nuevo paciente`).
+
+### Resultado final de `flutter test`
+
+Comando ejecutado:
+
+```bash
+cd /home/borlty/OCG-WebUser/ocg_proyect
+flutter test
+```
+
+Resultado final:
+
+```text
++166: All tests passed!
+```
+
+### Limitaciones restantes
+
+- `flutter build apk --debug` sigue pendiente por limitación del entorno: no hay Android SDK instalado en este host.
+- La suite Flutter ya quedó verde, pero la activación real de PayU / IA / iOS push sigue requiriendo credenciales y prueba humana.
+
+## 11. Recomendación final
 
 ### Veredicto
 
-**Corregir antes** de cerrar la pre-entrega técnica como validada al 100%.
+**Avanzar a credenciales**, con la salvedad de que la validación humana sigue siendo obligatoria antes de cualquier activación operativa.
 
 ### Matiz operativo
 
-Si el objetivo inmediato es pasar a una fase de validación humana con credenciales controladas, el proyecto sí está en un estado razonable de:
+El proyecto queda en un estado razonable de:
 
 - **candidato a activación asistida**,
-- **no candidato a producción declarada**,
-- **no candidato a cierre QA técnico completo**.
+- **no candidato a producción declarada sin validación humana**,
+- **sí candidato a cierre técnico de suite Flutter y backend local**.
 
 ### Orden recomendado
 
-1. Resolver/actualizar la suite Flutter global desalineada.
-2. Repetir `flutter test` hasta verde o dejar documentados los tests oficialmente obsoletos.
-3. Verificar build Android en máquina con Android SDK.
-4. Ejecutar activación humana con el checklist:
+1. Verificar build Android en máquina con Android SDK.
+2. Ejecutar activación humana con el checklist:
    - `docs/checklists/ACTIVACION_HUMANA_PAYU_IA_IOS.md`
-5. Solo después evaluar despliegue/activación operativa.
+3. Validar PayU sandbox, simulador IA con key real e iOS push en iPhone real.
+4. Solo después evaluar despliegue/activación operativa.

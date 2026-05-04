@@ -134,8 +134,8 @@ void main() {
         },
       );
 
-      expect(find.text('Cuenta t1'), findsOneWidget);
-      expect(find.text('Cuenta t2'), findsOneWidget);
+      expect(find.text('Tratamiento T1'), findsWidgets);
+      expect(find.text('Tratamiento T2'), findsWidgets);
     },
   );
 
@@ -191,11 +191,10 @@ void main() {
         },
       );
 
-      expect(find.text('Historial global de pagos'), findsOneWidget);
-      await tester.ensureVisible(find.textContaining('Cuenta:').first);
-      await tester.tap(find.textContaining('Cuenta:').first, warnIfMissed: false);
+      expect(find.text('Pagos del paciente'), findsOneWidget);
+      await tester.tap(find.text('Tratamiento T2').first, warnIfMissed: false);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Historial de'), findsOneWidget);
+      expect(find.text('Historial de Tratamiento T2'), findsOneWidget);
     },
   );
 
@@ -229,8 +228,10 @@ void main() {
       },
     );
 
-    await tester.ensureVisible(find.textContaining('Registrar pago en'));
-    await tester.tap(find.textContaining('Registrar pago en'), warnIfMissed: false);
+    final registerCta = find.textContaining('Registrar pago en');
+    expect(registerCta, findsWidgets);
+    await tester.ensureVisible(registerCta.first);
+    await tester.tap(registerCta.first, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.text('Registrar pago'), findsWidgets);
@@ -253,6 +254,9 @@ Future<void> _pump(
           patientId: patient.id,
           patient: patient,
         )).overrideWith((ref) => resolution),
+        ensureTreatmentPaymentAccountProvider.overrideWith(
+          (ref) => (String patientId, PatientTreatment treatment) async {},
+        ),
         ensureTreatmentFinancialItemsProvider.overrideWith(
           (ref) => (String patientId, PatientTreatment treatment) async {},
         ),

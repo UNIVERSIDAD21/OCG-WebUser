@@ -71,7 +71,7 @@ void main() {
       await tester.pump();
       expect(find.text('Pacientes'), findsOneWidget);
       expect(find.text('Gestión clínica y financiera'), findsOneWidget);
-      expect(find.text('Saldo pendiente'), findsOneWidget);
+      expect(find.text('Nuevo paciente'), findsOneWidget);
       _expectNoOverflow(tester, 'patients $size');
     }
   });

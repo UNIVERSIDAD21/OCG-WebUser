@@ -57,7 +57,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Workspace clínico, financiero y operativo del paciente'),
+        find.text('Vista clínica, financiera y operativa del paciente'),
         findsOneWidget,
       );
       expect(find.text('Perfil'), findsOneWidget);

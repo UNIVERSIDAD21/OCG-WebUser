@@ -16,7 +16,7 @@ void main() {
   testWidgets('Login muestra validaciones de correo y contraseña vacíos', (tester) async {
     await tester.pumpWidget(_wrap(const LoginScreen()));
 
-    await tester.tap(find.text('Iniciar sesión'));
+    await tester.tap(find.text('INICIAR SESIÓN'));
     await tester.pump();
 
     expect(find.text('Ingresa tu correo'), findsOneWidget);
@@ -28,7 +28,7 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField).at(0), 'abc@');
     await tester.enterText(find.byType(TextFormField).at(1), '123456');
-    await tester.tap(find.text('Iniciar sesión'));
+    await tester.tap(find.text('INICIAR SESIÓN'));
     await tester.pump();
 
     expect(find.text('Ingresa un correo válido'), findsOneWidget);

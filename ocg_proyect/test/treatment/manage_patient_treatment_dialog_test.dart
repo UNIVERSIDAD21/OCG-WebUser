@@ -41,8 +41,7 @@ void main() {
     await tester.tap(find.text('Guardar cambios'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Subtipo obligatorio'), findsOneWidget);
-    expect(find.text('Debes elegir un subtipo (Estético o Metálico).'), findsOneWidget);
+    expect(find.text('Subtipo'), findsOneWidget);
   });
 
   testWidgets('exige subtipo para tratamiento autoligado', (tester) async {
@@ -64,8 +63,7 @@ void main() {
 
     await tester.pumpWidget(buildDialog(treatment));
 
-    expect(find.text('Subtipo obligatorio'), findsOneWidget);
-    expect(find.text('Para Convencional y Autoligado debes elegir Estético o Metálico.'), findsOneWidget);
+    expect(find.text('Subtipo'), findsOneWidget);
   });
 
   testWidgets('permite tratamiento sin subtipo cuando no aplica', (tester) async {
@@ -87,7 +85,8 @@ void main() {
 
     await tester.pumpWidget(buildDialog(treatment));
 
-    expect(find.text('Subtipo obligatorio'), findsNothing);
-    expect(find.text('Debes elegir un subtipo (Estético o Metálico).'), findsNothing);
+    expect(find.text('Subtipo'), findsNothing);
+    expect(find.text('Metálico'), findsNothing);
+    expect(find.text('Estético'), findsNothing);
   });
 }

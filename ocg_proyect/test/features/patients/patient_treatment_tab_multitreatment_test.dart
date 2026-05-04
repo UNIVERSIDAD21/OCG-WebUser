@@ -31,7 +31,8 @@ void main() {
 
     expect(find.text('Tratamientos del paciente'), findsOneWidget);
     expect(find.byKey(const ValueKey('treatment-stream-t1')), findsOneWidget);
-    expect(find.text('1 tratamiento'), findsOneWidget);
+    expect(find.text('Tratamiento principal activo'), findsOneWidget);
+    expect(find.byKey(const ValueKey('selected-treatment-title')), findsOneWidget);
   });
 
   testWidgets('paciente con 2 tratamientos nuevos muestra ambos en selector', (
