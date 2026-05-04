@@ -64,6 +64,15 @@ export function sanitizeSimulationErrorMessage(error: unknown): string {
   if (normalized.includes('OPENAI_API_KEY')) {
     return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
   }
+  if (
+    normalized.includes('No such object') ||
+    normalized.includes('No such file') ||
+    normalized.includes('object-not-found') ||
+    normalized.includes('storage object not found') ||
+    normalized.includes('original image not found')
+  ) {
+    return 'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.';
+  }
   if (normalized.length > 220) return `${normalized.slice(0, 217)}...`;
   return normalized;
 }
@@ -96,8 +105,18 @@ export async function processGenerateSmileSimulation(
   const simulationRef = patientRef.collection('simulations').doc(simulationId);
   const [patientSnap, simulationSnap] = await Promise.all([patientRef.get(), simulationRef.get()]);
 
-  if (!patientSnap.exists) throw new HttpsError('not-found', 'El paciente no existe.');
+  console.info('[SimulatorCore][start]', {
+    patientId,
+    simulationId,
+    requestedTreatmentType: treatmentType || null,
+  });
+
+  if (!patientSnap.exists) {
+    console.warn('[SimulatorCore][patient.not_found]', {patientId, simulationId});
+    throw new HttpsError('not-found', 'El paciente no existe.');
+  }
   if (!simulationSnap.exists || !simulationSnap.data()) {
+    console.warn('[SimulatorCore][simulation.not_found]', {patientId, simulationId});
     throw new HttpsError('not-found', 'La simulación no existe.');
   }
 
@@ -108,7 +127,15 @@ export async function processGenerateSmileSimulation(
   }
 
   const originalPath = (simulation['originalPath'] ?? simulation['originalUrl'] ?? '').toString().trim();
+  console.info('[SimulatorCore][simulation.loaded]', {
+    patientId,
+    simulationId,
+    originalPath,
+    simulationPatientId,
+    status: (simulation['status'] ?? '').toString().trim(),
+  });
   if (!originalPath) {
+    console.warn('[SimulatorCore][original_path.empty]', {patientId, simulationId});
     throw new HttpsError('failed-precondition', 'La simulación no tiene originalPath válido.');
   }
 

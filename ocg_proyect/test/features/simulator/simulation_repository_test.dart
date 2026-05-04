@@ -64,6 +64,25 @@ void main() {
     expect(doc.exists, isTrue);
     expect(doc.data()!['patientId'], 'p-1');
     expect(doc.data()!['status'], SimulationStatus.draft.name);
+    expect(doc.data()!['originalPath'], 'simulations/p-1/sim-1/original.jpg');
+  });
+
+  test('createDraftSimulation usa el mismo simulationId para Firestore cuando se entrega explícitamente', () async {
+    final saved = await repo.createDraftSimulation(
+      patientId: 'p-1',
+      createdBy: 'admin-1',
+      simulationId: 'sim-consistente',
+      originalPath: 'simulations/p-1/sim-consistente/original.jpg',
+    );
+
+    expect(saved.id, 'sim-consistente');
+
+    final doc = await db
+        .collection(FirestorePaths.patientSimulations('p-1'))
+        .doc('sim-consistente')
+        .get();
+    expect(doc.exists, isTrue);
+    expect(doc.data()!['originalPath'], 'simulations/p-1/sim-consistente/original.jpg');
   });
 
   test('updateSimulationStatus cambia draft -> generating', () async {

@@ -24,6 +24,10 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
         db,
         storage: {
           download: async (path: string) => {
+            console.info('[SimulatorCallable][storage.download]', {
+              path,
+              bucket: bucket.name,
+            });
             const [bytes] = await bucket.file(path).download();
             return bytes;
           },

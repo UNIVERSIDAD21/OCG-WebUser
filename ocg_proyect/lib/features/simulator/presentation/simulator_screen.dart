@@ -199,7 +199,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 const SizedBox(height: 12),
                 _flowStateHint(flow),
                 const SizedBox(height: 12),
-                _regionCard(flow),
+                _autoAnalysisHint(flow),
                 const SizedBox(height: 12),
                 TextFormField(
                   key: ValueKey('sim-notes-${flow.simulationId ?? 'new'}'),
@@ -411,24 +411,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     );
   }
 
-  Widget _regionCard(SimulatorFlowState flow) {
-    final region = flow.detectedRegion;
-    if (region == null) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: OcgColors.sand),
-        ),
-        child: const Text(
-          'No se detectó región facial automáticamente. Puedes continuar y ajustar manualmente si lo deseas.',
-          style: TextStyle(color: OcgColors.ink),
-        ),
-      );
-    }
-
-    String f(num? v) => (v ?? 0).toStringAsFixed(1);
+  Widget _autoAnalysisHint(SimulatorFlowState flow) {
+    final message = flow.detectedRegion != null
+        ? 'La foto fue analizada automáticamente para orientar la simulación.'
+        : 'La simulación puede continuar aunque no se haya detectado una región automática.';
 
     return Container(
       width: double.infinity,
@@ -436,93 +422,12 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: OcgColors.sand),
+        color: const Color(0xFFF8F3ED),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            flow.mlKitUsed
-                ? 'Región sugerida por ML Kit · x:${f(region['x'] as num?)} y:${f(region['y'] as num?)} w:${f(region['w'] as num?)} h:${f(region['h'] as num?)}'
-                : 'Región cargada manualmente · x:${f(region['x'] as num?)} y:${f(region['y'] as num?)} w:${f(region['w'] as num?)} h:${f(region['h'] as num?)}',
-            style: const TextStyle(color: OcgColors.ink, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: flow.status == SimulationStatus.generating ||
-                    flow.status == SimulationStatus.archived
-                ? null
-                : () => _openAdjustRegionDialog(flow),
-            icon: const Icon(Icons.tune),
-            label: const Text('Ajustar región manualmente'),
-          ),
-        ],
+      child: Text(
+        message,
+        style: const TextStyle(color: OcgColors.ink, fontWeight: FontWeight.w600),
       ),
-    );
-  }
-
-  Future<void> _openAdjustRegionDialog(SimulatorFlowState flow) async {
-    final region =
-        flow.detectedRegion ?? {'x': 0.0, 'y': 0.0, 'w': 0.0, 'h': 0.0};
-
-    double x = (region['x'] as num?)?.toDouble() ?? 0;
-    double y = (region['y'] as num?)?.toDouble() ?? 0;
-    double w = (region['w'] as num?)?.toDouble() ?? 0;
-    double h = (region['h'] as num?)?.toDouble() ?? 0;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Text('Ajustar región sugerida'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _slider('X', x, (v) => setSt(() => x = v)),
-                _slider('Y', y, (v) => setSt(() => y = v)),
-                _slider('W', w, (v) => setSt(() => w = v)),
-                _slider('H', h, (v) => setSt(() => h = v)),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result != true) return;
-
-    await ref.read(simulatorFlowProvider.notifier).updateDetectedRegion(
-          patientId: widget.patientId,
-          x: x,
-          y: y,
-          w: w,
-          h: h,
-        );
-  }
-
-  Widget _slider(String label, double value, ValueChanged<double> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label: ${value.toStringAsFixed(1)}'),
-        Slider(
-          value: value.clamp(0, 4000),
-          min: 0,
-          max: 4000,
-          onChanged: onChanged,
-        ),
-      ],
     );
   }
 

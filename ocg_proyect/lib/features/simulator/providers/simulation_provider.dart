@@ -275,10 +275,17 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         contentType: picked.mimeType,
       );
 
+      // ignore: avoid_print
+      print(
+        '[SimulatorFlow][draft.uploaded] '
+        'patientId=$patientId localSimulationId=$simulationId originalPath=$originalPath',
+      );
+
       final detection = await _face.detectSmileRegion(imagePath: picked.filePath);
       final simulation = await _repo.createDraftSimulation(
         patientId: patientId,
         createdBy: adminId,
+        simulationId: simulationId,
         treatmentType: treatmentType,
         originalPath: originalPath,
         notes: current.notes,
@@ -290,6 +297,12 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           'generationProvider': 'openai',
           'modelUsed': 'gpt-image-2',
         },
+      );
+
+      // ignore: avoid_print
+      print(
+        '[SimulatorFlow][draft.created] '
+        'patientId=$patientId localSimulationId=$simulationId draftId=${simulation.id} originalPath=${simulation.originalPath}',
       );
 
       _applySimulation(
@@ -338,6 +351,11 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     );
 
     try {
+      // ignore: avoid_print
+      print(
+        '[SimulatorFlow][generate.request] '
+        'patientId=$patientId simulationId=${current.simulationId} originalPath=${current.originalPath}',
+      );
       await _repo.generateWithAi(
         patientId: patientId,
         simulationId: current.simulationId!,
@@ -372,6 +390,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     if (raw == 'La simulación superó el máximo de intentos permitidos.' ||
         raw == 'La simulación ya alcanzó el máximo de intentos permitidos.') {
       return 'La simulación ya alcanzó el máximo de intentos permitidos.';
+    }
+    if (raw.contains('No se encontró la imagen original de esta simulación')) {
+      return 'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.';
     }
     if (raw.isEmpty) return 'No se pudo iniciar la generación con IA.';
     return raw;

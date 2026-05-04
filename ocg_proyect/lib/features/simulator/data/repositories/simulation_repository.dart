@@ -83,6 +83,7 @@ class SimulationRepository {
     required String patientId,
     required String createdBy,
     required String originalPath,
+    String? simulationId,
     TreatmentType? treatmentType,
     String? notes,
     bool mlKitUsed = false,
@@ -95,7 +96,10 @@ class SimulationRepository {
     if (originalPath.trim().isEmpty) throw Exception('SIMULATION_ORIGINAL_REQUIRED');
 
     final now = DateTime.now();
-    final ref = _simulationsRef(patientId).doc();
+    final normalizedSimulationId = (simulationId ?? '').trim();
+    final ref = normalizedSimulationId.isEmpty
+        ? _simulationsRef(patientId).doc()
+        : _simulationsRef(patientId).doc(normalizedSimulationId);
     final entity = SimulationModel(
       id: ref.id,
       patientId: patientId,
@@ -134,6 +138,12 @@ class SimulationRepository {
     final callable = (_functions ?? FirebaseFunctions.instance)
         .httpsCallable('generateSmileSimulation');
 
+    // ignore: avoid_print
+    print(
+      '[SimulatorRepository][generateWithAi] '
+      'patientId=$patientId simulationId=$simulationId treatmentType=$treatmentType',
+    );
+
     try {
       await callable.call(<String, dynamic>{
         'patientId': patientId,
@@ -152,6 +162,9 @@ class SimulationRepository {
         message ==
             'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.') {
       return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
+    }
+    if (message.contains('No se encontró la imagen original de esta simulación')) {
+      return 'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.';
     }
     if (message == 'La generación con IA no está habilitada.' ||
         message ==

@@ -79,16 +79,20 @@ function baseSeed(overrides = {}) {
     },
   };
 }
-function deps({seed, config, auth, adminRole = null, downloadBytes, generatedBytes} = {}) {
+function deps({seed, config, auth, adminRole = null, downloadBytes, generatedBytes, downloadImpl} = {}) {
   const db = new MockFirestore(seed ?? baseSeed());
-  const calls = {openAi: 0};
+  const calls = {openAi: 0, downloadedPath: null};
   return {
     db,
     calls,
     value: {
       db,
       storage: {
-        download: async () => downloadBytes ?? Buffer.from('original'),
+        download: async (path) => {
+          calls.downloadedPath = path;
+          if (downloadImpl) return downloadImpl(path);
+          return downloadBytes ?? Buffer.from('original');
+        },
         save: async (path, bytes) => { db.store.set(`storage:${path}`, {bytes: bytes.toString('hex')}); },
       },
       config: config ?? baseConfig(),
@@ -165,7 +169,43 @@ test('flujo exitoso mockeado guarda resultPath y deja status ready', async () =>
   assert.equal(sim.generationProvider, 'openai');
   assert.ok(typeof sim.promptUsed === 'string' && sim.promptUsed.length > 0);
   assert.ok(typeof sim.promptVersion === 'string' && sim.promptVersion.length > 0);
+  assert.equal(d.calls.downloadedPath, 'simulations/p1/s1/original.jpg');
   assert.equal(d.calls.openAi, 1);
+});
+
+test('descarga desde originalPath guardado y no reconstruye otra ruta', async () => {
+  const d = deps({
+    seed: baseSeed({
+      originalPath: 'simulations/p1/storage-id-distinto/original.jpg',
+    }),
+  });
+
+  await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+  });
+
+  assert.equal(d.calls.downloadedPath, 'simulations/p1/storage-id-distinto/original.jpg');
+});
+
+test('si storage download devuelve not found la simulación queda failed con mensaje amigable', async () => {
+  const d = deps({
+    downloadImpl: async () => {
+      throw new Error('No such object: simulations/p1/s1/original.jpg');
+    },
+  });
+
+  await assert.rejects(
+    () => processGenerateSmileSimulation(d.value, {patientId: 'p1', simulationId: 's1'}),
+    /No se encontró la imagen original de esta simulación/,
+  );
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.status, 'failed');
+  assert.equal(
+    sim.errorMessage,
+    'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.',
+  );
 });
 
 test('si OpenAI falla, la simulación termina en failed con mensaje seguro', async () => {

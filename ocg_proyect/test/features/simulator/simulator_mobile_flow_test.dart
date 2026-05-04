@@ -65,6 +65,7 @@ class _FlowFakeRepository extends SimulationRepository {
     required String patientId,
     required String createdBy,
     required String originalPath,
+    String? simulationId,
     TreatmentType? treatmentType,
     String? notes,
     bool mlKitUsed = false,
@@ -74,7 +75,7 @@ class _FlowFakeRepository extends SimulationRepository {
     Map<String, dynamic>? promptMetadata,
   }) async {
     lastCreated = SimulationModel(
-      id: 'sim-draft',
+      id: simulationId ?? 'sim-draft',
       patientId: patientId,
       originalPath: originalPath,
       resultPath: null,
@@ -220,7 +221,12 @@ void main() {
     final state = container.read(simulatorFlowProvider).requireValue;
     expect(state.uiState, SimulatorUiState.draftReady);
     expect(state.status, SimulationStatus.draft);
-    expect(state.originalPath, isNotEmpty);
+    expect(state.simulationId, startsWith('sim_'));
+    expect(
+      state.originalPath,
+      'simulations/p1/${state.simulationId}/original.jpg',
+    );
+    expect(state.detectedRegion, isNotNull);
   });
 
   testWidgets('SimulatorScreen embebido no crea scroll anidado', (tester) async {
@@ -255,6 +261,11 @@ void main() {
 
     expect(find.byType(SingleChildScrollView), findsNothing);
     expect(find.text('Generar con IA'), findsOneWidget);
+    expect(find.text('Ajustar región manualmente'), findsNothing);
+    expect(find.text('X:'), findsNothing);
+    expect(find.text('Y:'), findsNothing);
+    expect(find.text('W:'), findsNothing);
+    expect(find.text('H:'), findsNothing);
   });
 
   testWidgets('preview de imagen ofrece Ver foto completa en draft', (tester) async {
