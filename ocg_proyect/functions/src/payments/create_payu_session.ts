@@ -4,6 +4,7 @@ import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
 
 import {resolvePayuConfig} from './payu_config';
 import {loadTreatmentPaymentAccount} from './payu_shared';
+import {isAuthorizedPayuCaller} from './payu_webhook_core';
 
 type CreatePayuSessionData = {
   patientId?: string;
@@ -27,24 +28,33 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     const patientId = normalizeString(request.data?.patientId);
     const treatmentId = normalizeString(request.data?.treatmentId);
     const monto = Number(request.data?.monto ?? 0);
-    const patientEmail = normalizeString(request.data?.patientEmail);
-    const patientName = normalizeString(request.data?.patientName);
 
-    if (
-      !patientId ||
-      !treatmentId ||
-      !patientEmail ||
-      !patientName ||
-      !Number.isFinite(monto) ||
-      monto <= 0
-    ) {
+    if (!patientId || !treatmentId || !Number.isFinite(monto) || monto <= 0) {
       throw new HttpsError(
         'invalid-argument',
-        'Debes enviar patientId, treatmentId, monto, patientEmail y patientName válidos.',
+        'Debes enviar patientId, treatmentId y monto válidos.',
       );
     }
 
     const db = admin.firestore();
+    const authorization = await isAuthorizedPayuCaller({
+      db,
+      auth: request.auth
+        ? {
+            uid: request.auth.uid,
+            token: request.auth.token as Record<string, unknown>,
+          }
+        : null,
+      patientId,
+    });
+
+    if (!authorization.allowed) {
+      throw new HttpsError(
+        'permission-denied',
+        'No tienes permisos para iniciar pagos PayU para este paciente.',
+      );
+    }
+
     const account = await loadTreatmentPaymentAccount(db, patientId, treatmentId);
 
     if (!account) {
@@ -79,6 +89,16 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     const confirmationUrl = `https://us-central1-${projectId}.cloudfunctions.net/payuWebhook`;
     const responseUrl = `${confirmationUrl}?type=response`;
 
+    const buyerEmail = account.patientEmail || normalizeString(request.data?.patientEmail);
+    const buyerName = account.patientName || normalizeString(request.data?.patientName) || 'Paciente';
+
+    if (!buyerEmail || !buyerName) {
+      throw new HttpsError(
+        'failed-precondition',
+        'No hay datos suficientes del paciente para iniciar PayU.',
+      );
+    }
+
     const params = new URLSearchParams({
       merchantId: payu.merchantId,
       accountId: payu.accountId,
@@ -91,8 +111,8 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       signature,
       responseUrl,
       confirmationUrl,
-      buyerEmail: patientEmail,
-      buyerFullName: patientName,
+      buyerEmail,
+      buyerFullName: buyerName,
       lng: 'es',
       test: payu.test,
       extra1: patientId,
@@ -109,8 +129,12 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       estado: 'pendiente',
       checkoutUrl,
       entorno: payu.environment,
-      patientEmail,
-      patientName,
+      patientEmail: buyerEmail,
+      patientName: buyerName,
+      initiatedBy: {
+        uid: request.auth.uid,
+        role: authorization.role,
+      },
       treatmentSnapshot: {
         treatmentName: account.treatmentName,
         saldoPendiente: account.saldoPendiente,

@@ -1,4 +1,4 @@
-type PayuResolvedConfig = {
+export type PayuResolvedConfig = {
   apiKey: string;
   merchantId: string;
   accountId: string;
