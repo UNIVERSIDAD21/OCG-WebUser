@@ -15,12 +15,14 @@ class SimulatorScreen extends ConsumerStatefulWidget {
     required this.adminId,
     this.treatmentType,
     this.initialSimulation,
+    this.embedded = false,
   });
 
   final String patientId;
   final String adminId;
   final TreatmentType? treatmentType;
   final SimulationModel? initialSimulation;
+  final bool embedded;
 
   @override
   ConsumerState<SimulatorScreen> createState() => _SimulatorScreenState();
@@ -82,11 +84,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             flow.status == SimulationStatus.ready || flow.status == SimulationStatus.shared;
         final treatmentLabel = _treatmentLabel(widget.treatmentType);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        final content = Column(
+          key: const ValueKey('simulator-active-flow'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               _disclaimer(),
               const SizedBox(height: 12),
               _statusBanner(flow),
@@ -311,7 +312,15 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 ],
               ],
             ],
-          ),
+          );
+
+        if (widget.embedded) {
+          return content;
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: content,
         );
       },
     );
@@ -551,6 +560,64 @@ class _StoragePreviewCard extends StatelessWidget {
   final String emptyLabel;
   final SimulationRepository repository;
 
+  Future<void> _openFullPreview(
+    BuildContext context,
+    String url,
+    String title,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: double.infinity,
+          height: MediaQuery.of(ctx).size.height * 0.8,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: OcgColors.espresso,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: Container(
+                    width: double.infinity,
+                    color: const Color(0xFFF7F3EE),
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('No se pudo cargar la imagen.'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -577,34 +644,50 @@ class _StoragePreviewCard extends StatelessWidget {
             FutureBuilder<String?>(
               future: repository.resolveMediaUrl(path),
               builder: (context, snapshot) {
+                final previewHeight = MediaQuery.of(context).size.width < 600
+                    ? 300.0
+                    : 220.0;
                 if (!snapshot.hasData) {
-                  return const SizedBox(
-                    height: 220,
-                    child: Center(child: CircularProgressIndicator()),
+                  return SizedBox(
+                    height: previewHeight,
+                    child: const Center(child: CircularProgressIndicator()),
                   );
                 }
                 final url = snapshot.data;
                 if ((url ?? '').isEmpty) {
                   return Text(emptyLabel, style: const TextStyle(color: OcgColors.ink));
                 }
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    height: 220,
-                    width: double.infinity,
-                    color: const Color(0xFFF7F3EE),
-                    child: Image.network(
-                      url!,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      errorBuilder: (_, __, ___) => const SizedBox(
-                        height: 120,
-                        child: Center(
-                          child: Text('No se pudo cargar la imagen.'),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _openFullPreview(context, url!, title),
+                        icon: const Icon(Icons.open_in_full),
+                        label: const Text('Ver foto completa'),
+                      ),
+                    ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        height: previewHeight,
+                        width: double.infinity,
+                        color: const Color(0xFFF7F3EE),
+                        child: Image.network(
+                          url!,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          errorBuilder: (_, __, ___) => const SizedBox(
+                            height: 120,
+                            child: Center(
+                              child: Text('No se pudo cargar la imagen.'),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 );
               },
             ),

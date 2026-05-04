@@ -23,6 +23,43 @@ class PatientSimulatorTab extends ConsumerStatefulWidget {
 
 class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
   SimulationModel? _openedSimulation;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _activeFlowKey = GlobalKey();
+  ProviderSubscription<AsyncValue<SimulatorFlowState>>? _flowSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _flowSubscription = ref.listenManual(simulatorFlowProvider, (previous, next) {
+      final prev = previous?.asData?.value;
+      final curr = next.asData?.value;
+      if (curr == null) return;
+
+      final justPreparedDraft =
+          prev?.uiState != SimulatorUiState.draftReady &&
+          curr.uiState == SimulatorUiState.draftReady &&
+          curr.hasOriginal;
+
+      if (!justPreparedDraft || !mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Foto cargada correctamente. Revisa el borrador y continúa con Generar con IA.',
+          ),
+        ),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
+    });
+  }
+
+  @override
+  void dispose() {
+    _flowSubscription?.close();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant PatientSimulatorTab oldWidget) {
@@ -34,6 +71,17 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
         ref.read(simulatorFlowProvider.notifier).resetFlow();
       });
     }
+  }
+
+  void _focusActiveFlow() {
+    final context = _activeFlowKey.currentContext;
+    if (context == null) return;
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      alignment: 0.05,
+    );
   }
 
   @override
@@ -51,6 +99,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
     }
 
     final simsAsync = ref.watch(patientSimulationsProvider(widget.patient.id));
+    final flow = ref.watch(simulatorFlowProvider).asData?.value;
 
     return simsAsync.when(
       loading: () => const OcgSkeletonList(items: 4),
@@ -58,7 +107,12 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
           Center(child: Text('No se pudieron cargar simulaciones: $e')),
       data: (items) {
         final latest = items.isEmpty ? null : items.first;
+        final showActiveFlow = shouldPrioritizeActiveSimulation(
+          flow: flow,
+          openedSimulation: _openedSimulation,
+        );
         return ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(16),
           children: [
             _SimulatorMobileHeader(
@@ -92,15 +146,29 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               },
             ),
             const SizedBox(height: 14),
-            if (items.isEmpty)
+            if (showActiveFlow) ...[
+              Container(
+                key: _activeFlowKey,
+                child: SimulatorScreen(
+                  patientId: widget.patient.id,
+                  adminId: adminId,
+                  treatmentType: widget.patient.tipoTratamiento,
+                  initialSimulation: _openedSimulation,
+                  embedded: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (items.isEmpty && !showActiveFlow)
               const OcgEmptyState(
                 icon: Icons.auto_awesome_outlined,
                 title: 'Todavía no hay simulaciones para este paciente.',
                 subtitle: 'Toma una foto frontal o súbela desde galería para iniciar una simulación.',
               )
-            else ...[
+            else if (items.isNotEmpty) ...[
               const Text(
                 'Historial de simulaciones',
+                key: ValueKey('simulation-history-title'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -113,6 +181,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                   simulation: s,
                   onOpen: () {
                     setState(() => _openedSimulation = s);
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
                   },
                   onToggleShare: (value) async {
                     try {
@@ -207,13 +276,16 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            SimulatorScreen(
-              patientId: widget.patient.id,
-              adminId: adminId,
-              treatmentType: widget.patient.tipoTratamiento,
-              initialSimulation: _openedSimulation,
-            ),
+            if (!showActiveFlow) ...[
+              const SizedBox(height: 16),
+              SimulatorScreen(
+                patientId: widget.patient.id,
+                adminId: adminId,
+                treatmentType: widget.patient.tipoTratamiento,
+                initialSimulation: _openedSimulation,
+                embedded: true,
+              ),
+            ],
           ],
         );
       },
@@ -345,6 +417,19 @@ class _SimulatorPrimaryActionsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+bool shouldPrioritizeActiveSimulation({
+  required SimulatorFlowState? flow,
+  required SimulationModel? openedSimulation,
+}) {
+  if (openedSimulation != null) return true;
+  if (flow == null) return false;
+  return flow.hasOriginal ||
+      flow.status == SimulationStatus.generating ||
+      flow.status == SimulationStatus.ready ||
+      flow.status == SimulationStatus.shared ||
+      flow.status == SimulationStatus.failed;
 }
 
 class _AdminSimulationCard extends StatelessWidget {
