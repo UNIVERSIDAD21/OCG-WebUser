@@ -86,6 +86,19 @@ Validar después de una aprobación:
    - `payuTransactionId`
 4. Si el tratamiento es el principal/legacy espejo, validar también el mirror esperado del paciente sin pisar otros tratamientos.
 
+### Tabla operativa de validación PayU sandbox
+
+| Caso | Qué hacer | Qué observar | Evidencia mínima |
+|---|---|---|---|
+| Aprobado | Ejecutar pago sandbox exitoso | saldo baja solo en el tratamiento correcto | referencia PayU, captura checkout, before/after Firestore |
+| Rechazado | Ejecutar pago sandbox rechazado | no cambia saldo ni crea efecto financiero incorrecto | captura resultado, logs webhook |
+| Pendiente | Ejecutar flujo pendiente | estado queda `pendiente_confirmacion` y no aplica pago final | sesión PayU + logs |
+| Webhook duplicado | Reenviar mismo webhook | no duplica transacción ni saldo | logs duplicados + una sola tx |
+| Paciente con dos tratamientos | Pagar uno de dos tratamientos | el segundo tratamiento no cambia | capturas Firestore de ambos tratamientos |
+| Confirmar tratamiento correcto | Revisar `treatmentId` y rutas afectadas | solo cambia `payments/{patientId}/treatments/{treatmentId}` | rutas exactas y snapshot antes/después |
+| Confirmar notificación paciente/admin | Validar flujo si el entorno ya tiene push operativo | ambos reciben la señal esperada o queda documentado que no aplica aún | captura o nota de excepción |
+| Confirmar transacción en Firestore | Abrir documento tx creada | metadata PayU completa y trazable | ruta de transacción + campos clave |
+
 ---
 
 ## 2) Simulador IA
@@ -142,6 +155,22 @@ Pasos humanos:
    - visibilidad compartida/no compartida.
 4. Validar que el paciente vea solo simulaciones compartidas.
 5. Validar que el admin vea historial completo.
+
+### Tabla operativa de validación Simulador IA
+
+| Caso | Qué hacer | Qué observar | Evidencia mínima |
+|---|---|---|---|
+| Sin API key muestra mensaje claro | desactivar/retirar key en entorno de prueba | mensaje explícito, no error críptico | captura UI + log controlado |
+| API key configurada | registrar key válida | función puede leerla y ejecutar flujo | nota/config del entorno + resultado |
+| Flag activado | habilitar `AI_SIMULATOR_ENABLED` | el módulo deja de bloquear por configuración | captura de flujo habilitado |
+| Foto tomada desde móvil | usar foto real desde dispositivo | archivo original se sube correctamente | captura + ruta Storage origen |
+| Simulación pasa a `generating` | lanzar proceso | estado intermedio visible | captura UI / Firestore |
+| Simulación pasa a `ready` | esperar resultado exitoso | resultado listo y consultable | captura UI / Firestore |
+| Resultado queda en Storage | inspeccionar bucket | existe archivo resultado | ruta exacta Storage |
+| Firestore registra `resultPath` | abrir documento simulación | `resultPath` y status correctos | captura doc |
+| Admin puede compartir | usar acción de compartir | estado/visibilidad cambia | captura antes/después |
+| Paciente ve solo compartidas | entrar como paciente | no ve drafts ni privadas | captura vista paciente |
+| Error de IA queda como `failed` | provocar caso controlado de error | documento termina en failed con mensaje seguro | captura doc/log |
 
 ---
 
@@ -223,6 +252,19 @@ Validar al menos estos destinos según payload:
 2. Confirmar que no quede forzado `platform = android` en cliente.
 3. Confirmar que payload iOS incluya bloque `apns`.
 4. Confirmar invalidación de tokens iOS inválidos.
+
+### Tabla operativa de validación iOS push
+
+| Caso | Qué hacer | Qué observar | Evidencia mínima |
+|---|---|---|---|
+| token se guarda con `platform ios` | iniciar sesión y aceptar permisos | doc `devices/{deviceId}` correcto | captura Firestore |
+| foreground recibe notificación | enviar push con app abierta | banner/alerta visible | foto/captura del iPhone |
+| background recibe notificación | app en segundo plano | push visible y abrible | captura de notificación |
+| terminated recibe notificación | cerrar app y enviar push | llega y abre app | video/captura |
+| tap navigation funciona | tocar push con payload conocido | abre destino correcto | captura de pantalla destino |
+| token inválido se desactiva | invalidar token/caso controlado | backend desactiva token | logs + Firestore |
+| payload contiene `apns` | revisar envío/log estructurado | bloque `apns` presente | log del payload |
+| Android sigue funcionando después del cambio | enviar push Android luego de iOS | Android sigue recibiendo | captura/log Android |
 
 ---
 
