@@ -148,11 +148,15 @@ class SimulationRepository {
 
   String _mapCallableError(FirebaseFunctionsException error) {
     final message = (error.message ?? '').trim();
-    if (message == 'OPENAI_API_KEY no está configurada en backend.') {
-      return 'La generación con IA aún no está configurada en el backend.';
+    if (message == 'OPENAI_API_KEY no está configurada en backend.' ||
+        message ==
+            'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.') {
+      return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
     }
-    if (message == 'La generación con IA no está habilitada.') {
-      return 'La generación con IA está temporalmente desactivada.';
+    if (message == 'La generación con IA no está habilitada.' ||
+        message ==
+            'El simulador IA está instalado, pero está desactivado en Firebase Functions.') {
+      return 'El simulador IA está instalado, pero está desactivado en Firebase Functions.';
     }
     if (message == 'La simulación superó el máximo de intentos permitidos.') {
       return 'La simulación ya alcanzó el máximo de intentos permitidos.';

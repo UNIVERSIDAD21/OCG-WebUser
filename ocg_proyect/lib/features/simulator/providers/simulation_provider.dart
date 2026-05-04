@@ -358,12 +358,16 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
   String _friendlyGenerateError(Object error) {
     final raw = error.toString().replaceFirst('Exception: ', '').trim();
     if (raw == 'OPENAI_API_KEY no está configurada en backend.' ||
-        raw == 'La generación con IA aún no está configurada en el backend.') {
-      return 'La generación con IA aún no está configurada en el backend.';
+        raw == 'La generación con IA aún no está configurada en el backend.' ||
+        raw ==
+            'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.') {
+      return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
     }
     if (raw == 'La generación con IA no está habilitada.' ||
-        raw == 'La generación con IA está temporalmente desactivada.') {
-      return 'La generación con IA está temporalmente desactivada.';
+        raw == 'La generación con IA está temporalmente desactivada.' ||
+        raw ==
+            'El simulador IA está instalado, pero está desactivado en Firebase Functions.') {
+      return 'El simulador IA está instalado, pero está desactivado en Firebase Functions.';
     }
     if (raw == 'La simulación superó el máximo de intentos permitidos.' ||
         raw == 'La simulación ya alcanzó el máximo de intentos permitidos.') {
