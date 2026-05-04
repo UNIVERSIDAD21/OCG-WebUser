@@ -6,6 +6,7 @@ import 'package:ocg_proyect/features/payments/services/payu_service.dart';
 
 class _RecordingPayuService extends PayuService {
   Map<String, dynamic>? lastCall;
+  int callCount = 0;
 
   @override
   Future<String> createPaymentSession({
@@ -16,6 +17,7 @@ class _RecordingPayuService extends PayuService {
     required String patientName,
     double? saldoPendiente,
   }) async {
+    callCount += 1;
     lastCall = {
       'patientId': patientId,
       'treatmentId': treatmentId,
@@ -31,9 +33,10 @@ class _RecordingPayuService extends PayuService {
 void main() {
   group('InitiatePayuPaymentNotifier', () {
     test('falla si monto supera saldoPendiente', () async {
+      final service = _RecordingPayuService();
       final container = ProviderContainer(
         overrides: [
-          payuServiceProvider.overrideWith((ref) => _RecordingPayuService()),
+          payuServiceProvider.overrideWith((ref) => service),
         ],
       );
       addTearDown(container.dispose);
@@ -55,12 +58,18 @@ void main() {
           ),
         ),
       );
+      expect(service.callCount, 0);
+      expect(
+        container.read(initiatePayuPaymentProvider),
+        isA<AsyncError<String?>>(),
+      );
     });
 
     test('falla si treatmentId está vacío', () async {
+      final service = _RecordingPayuService();
       final container = ProviderContainer(
         overrides: [
-          payuServiceProvider.overrideWith((ref) => _RecordingPayuService()),
+          payuServiceProvider.overrideWith((ref) => service),
         ],
       );
       addTearDown(container.dispose);
@@ -81,6 +90,36 @@ void main() {
             'invalid-argument',
           ),
         ),
+      );
+      expect(service.callCount, 0);
+      expect(
+        container.read(initiatePayuPaymentProvider),
+        isA<AsyncError<String?>>(),
+      );
+    });
+
+    test('falla si saldoPendiente es cero o negativo sin llamar backend', () async {
+      final service = _RecordingPayuService();
+      final container = ProviderContainer(
+        overrides: [payuServiceProvider.overrideWith((ref) => service)],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        () => container.read(initiatePayuPaymentProvider.notifier).initiate(
+          patientId: 'p1',
+          treatmentId: 'tx-1',
+          monto: 100,
+          saldoPendiente: 0,
+          patientEmail: 'a@b.com',
+          patientName: 'Paciente',
+        ),
+        throwsA(isA<FirebaseFunctionsException>()),
+      );
+      expect(service.callCount, 0);
+      expect(
+        container.read(initiatePayuPaymentProvider),
+        isA<AsyncError<String?>>(),
       );
     });
 
