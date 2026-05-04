@@ -63,8 +63,10 @@ class FinancialItemModel {
         ? ((parsedQuantity ?? 1) < 1 ? 1 : (parsedQuantity ?? 1))
         : null;
     final unitAmount = supportsQuantity
-        ? (parsedUnitAmount ??
-              (quantity == null || quantity <= 0 ? amount : amount / quantity))
+        ? ((parsedUnitAmount == null ||
+                  (parsedUnitAmount == 0 && amount > 0))
+              ? (quantity == null || quantity <= 0 ? amount : amount / quantity)
+              : parsedUnitAmount)
         : null;
 
     return FinancialItemModel(

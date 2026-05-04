@@ -271,6 +271,8 @@ class TreatmentFinancialRepository {
       }, SetOptions(merge: true));
       batch.set(_patientRef(patientId), {
         'primaryTreatmentId': treatment.id,
+        'totalTratamiento': total,
+        'saldoPendiente': pending,
         'updatedAt': FieldValue.serverTimestamp(),
         'treatmentOverview': {
           'mode': 'primary-treatment',
