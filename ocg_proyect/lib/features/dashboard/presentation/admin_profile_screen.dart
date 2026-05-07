@@ -2,15 +2,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
+import '../../profile_photo/providers/profile_photo_provider.dart';
+import '../../profile_photo/services/profile_photo_service.dart';
 
 class AdminProfileScreen extends ConsumerWidget {
   const AdminProfileScreen({super.key, this.embeddedInMobileShell = false});
@@ -78,13 +82,20 @@ class AdminProfileScreen extends ConsumerWidget {
   }
 }
 
-class _AdminProfileBody extends ConsumerWidget {
+class _AdminProfileBody extends ConsumerStatefulWidget {
   const _AdminProfileBody({required this.onSignOut});
 
   final VoidCallback onSignOut;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AdminProfileBody> createState() => _AdminProfileBodyState();
+}
+
+class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
+  bool _uploadingPhoto = false;
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).asData?.value;
     final roleAsync = ref.watch(userRoleProvider);
     final unreadCount = user == null
@@ -94,7 +105,15 @@ class _AdminProfileBody extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
       children: [
-        _ProfileHero(user: user, roleAsync: roleAsync),
+        _ProfileHero(
+          user: user,
+          roleAsync: roleAsync,
+          uploadingPhoto: _uploadingPhoto,
+          onChangePhoto: user == null
+              ? null
+              : () => _pickAndUploadPhoto(user.uid),
+          onDeletePhoto: user == null ? null : () => _deletePhoto(user.uid),
+        ),
         const SizedBox(height: 16),
         _InfoCard(
           title: 'Datos básicos',
@@ -166,7 +185,7 @@ class _AdminProfileBody extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: onSignOut,
+          onPressed: widget.onSignOut,
           style: FilledButton.styleFrom(
             backgroundColor: OcgColors.error,
             foregroundColor: Colors.white,
@@ -214,19 +233,126 @@ class _AdminProfileBody extends ConsumerWidget {
     if (clean == null || clean.isEmpty) return 'No disponible';
     return clean;
   }
+
+  Future<void> _pickAndUploadPhoto(String adminId) async {
+    final source = await _selectPhotoSource();
+    if (source == null) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final result = await ref
+          .read(profilePhotoServiceProvider)
+          .pickAndUpload(
+            ownerType: ProfilePhotoOwnerType.admin,
+            uid: adminId,
+            source: source,
+          );
+      if (result == null) return;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto de perfil actualizada.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mapProfilePhotoError(error))));
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _deletePhoto(String adminId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Deseas volver a mostrar tus iniciales?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.error,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      await ref
+          .read(profilePhotoServiceProvider)
+          .deletePhoto(ownerType: ProfilePhotoOwnerType.admin, uid: adminId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto de perfil eliminada.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mapProfilePhotoError(error))));
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<ImageSource?> _selectPhotoSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Seleccionar de galería'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({required this.user, required this.roleAsync});
+class _ProfileHero extends ConsumerWidget {
+  const _ProfileHero({
+    required this.user,
+    required this.roleAsync,
+    required this.uploadingPhoto,
+    this.onChangePhoto,
+    this.onDeletePhoto,
+  });
 
   final User? user;
   final AsyncValue<String?> roleAsync;
+  final bool uploadingPhoto;
+  final VoidCallback? onChangePhoto;
+  final VoidCallback? onDeletePhoto;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final label = (user?.displayName?.trim().isNotEmpty ?? false)
         ? user!.displayName!.trim()
         : 'Administrador';
+    final adminDoc = user == null
+        ? null
+        : ref.watch(adminProfileDocProvider(user!.uid)).asData?.value;
+    final photoUrl = resolveProfilePhotoUrl(adminDoc);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -240,22 +366,14 @@ class _ProfileHero extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: OcgColors.bronze,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              _initials(label),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-              ),
-            ),
+          ProfilePhotoAvatar(
+            label: label,
+            photoUrl: photoUrl,
+            radius: 30,
+            loading: uploadingPhoto,
+            showActions: true,
+            onChange: onChangePhoto,
+            onDelete: onDeletePhoto,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -283,17 +401,6 @@ class _ProfileHero extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _initials(String value) {
-    final parts = value
-        .split(RegExp(r'\s+'))
-        .where((part) => part.trim().isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return 'AD';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-        .toUpperCase();
   }
 }
 

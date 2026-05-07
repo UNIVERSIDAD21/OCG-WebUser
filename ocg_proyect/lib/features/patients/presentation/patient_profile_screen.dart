@@ -1,4 +1,3 @@
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,10 +6,12 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app/router/route_names.dart';
 
 import '../../auth/providers/auth_providers.dart';
-import '../../../shared/constants/storage_paths.dart';
+import '../../profile_photo/providers/profile_photo_provider.dart';
+import '../../profile_photo/services/profile_photo_service.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_card.dart';
+import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
@@ -29,7 +30,8 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
   final PatientViewerMode viewerMode;
 
   @override
-  ConsumerState<PatientProfileScreen> createState() => _PatientProfileScreenState();
+  ConsumerState<PatientProfileScreen> createState() =>
+      _PatientProfileScreenState();
 }
 
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
@@ -101,232 +103,287 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final patientAsync = ref.watch(patientByIdProvider(effectivePatientId));
 
     final content = patientAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text(
-            isAdminViewer
-                ? 'No se pudo cargar el perfil del paciente: $error'
-                : 'No se pudo cargar tu perfil: $error',
-            textAlign: TextAlign.center,
-          ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Text(
+          isAdminViewer
+              ? 'No se pudo cargar el perfil del paciente: $error'
+              : 'No se pudo cargar tu perfil: $error',
+          textAlign: TextAlign.center,
         ),
-        data: (patient) {
-          if (patient == null) {
-            return const Center(
-              child: Text(
-                'No encontramos tu registro clínico aún.\nSolicita activación en recepción/admin.',
-                textAlign: TextAlign.center,
-              ),
-            );
-          }
+      ),
+      data: (patient) {
+        if (patient == null) {
+          return const Center(
+            child: Text(
+              'No encontramos tu registro clínico aún.\nSolicita activación en recepción/admin.',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
 
-          return ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  MediaQuery.paddingOf(context).top + 26,
-                  20,
-                  20,
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                20,
+                MediaQuery.paddingOf(context).top + 26,
+                20,
+                20,
+              ),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [OcgColors.espresso, Color(0xFF4A3628)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [OcgColors.espresso, Color(0xFF4A3628)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    patient.nombre,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: OcgColors.ivory,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      patient.nombre,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
+                  const SizedBox(height: 4),
+                  Text(
+                    patient.email,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: OcgColors.ivory.withOpacity(0.75),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: OcgColors.ivory.withOpacity(0.25),
+                      ),
+                    ),
+                    child: Text(
+                      isAdminViewer
+                          ? 'Perfil del paciente'
+                          : 'Perfil de paciente',
+                      style: TextStyle(
                         color: OcgColors.ivory,
-                        fontSize: 24,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      patient.email,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: OcgColors.ivory.withOpacity(0.75),
-                        fontSize: 13,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  if (isAdminViewer) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.go(
+                          RouteNames.adminPatientEdit.replaceFirst(
+                            ':patientId',
+                            patient.id,
+                          ),
+                        ),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Editar paciente'),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: OcgColors.ivory.withOpacity(0.25)),
-                      ),
-                      child: Text(
-                        isAdminViewer ? 'Perfil del paciente' : 'Perfil de paciente',
-                        style: TextStyle(
-                          color: OcgColors.ivory,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                  ],
+                  OcgCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAdminViewer
+                              ? 'Información del paciente'
+                              : 'Datos personales',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: ProfilePhotoAvatar(
+                            label: patient.nombre,
+                            photoUrl: patient.fotoUrl,
+                            loading: _uploadingPhoto,
+                            showActions: true,
+                            onChange: () => _pickAndUploadPhoto(patient.id),
+                            onDelete: () => _deletePhoto(patient.id),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _Field(label: 'Nombre', value: patient.nombre),
+                        _Field(label: 'Correo', value: patient.email),
+                        _EditableField(
+                          label: 'Teléfono',
+                          value: patient.telefono,
+                          loading: _savingPhone,
+                          onEdit: () => _editPhone(patient),
+                        ),
+                        _Field(
+                          label: 'Fecha nacimiento',
+                          value: _fmt(patient.fechaNacimiento),
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Contraseña'),
+                          subtitle: const Text('••••••••'),
+                          trailing: TextButton(
+                            onPressed: _sendingReset
+                                ? null
+                                : () => _sendPasswordReset(patient.email),
+                            child: _sendingReset
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Cambiar'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OcgCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAdminViewer
+                              ? 'Resumen clínico del paciente'
+                              : 'Resumen clínico (solo lectura)',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _LockedField(
+                          label: 'Tipo tratamiento',
+                          value: patient.tipoTratamiento?.name ?? 'Pendiente',
+                        ),
+                        _LockedField(
+                          label: 'Etapa actual',
+                          value: formatTreatmentStage(patient.etapaActual),
+                        ),
+                        _LockedField(
+                          label: 'Fecha inicio',
+                          value: _fmt(patient.fechaInicio),
+                        ),
+                        _LockedField(
+                          label: 'Fecha estimada fin',
+                          value: patient.fechaEstimadaFin == null
+                              ? 'No definida'
+                              : _fmt(patient.fechaEstimadaFin!),
+                        ),
+                        _LockedField(
+                          label: 'Notas clínicas',
+                          value: patient.notasClinicas.isEmpty
+                              ? 'Sin notas'
+                              : patient.notasClinicas,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OcgCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAdminViewer
+                              ? 'Estado financiero del paciente'
+                              : 'Estado financiero',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _Field(
+                          label: 'Total tratamiento',
+                          value: '${formatCop(patient.totalTratamiento)} COP',
+                        ),
+                        _Field(
+                          label: 'Saldo pendiente',
+                          value: '${formatCop(patient.saldoPendiente)} COP',
+                        ),
+                        _Field(
+                          label: 'Próximo pago',
+                          value: patient.fechaProximoPago == null
+                              ? 'No definido'
+                              : _fmt(patient.fechaProximoPago!),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.patientIdOverride == null) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _signingOut ? null : _handleSignOut,
+                        icon: _signingOut
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.logout),
+                        label: Text(
+                          _signingOut ? 'Cerrando sesión...' : 'Cerrar sesión',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFEE2E2),
+                          foregroundColor: const Color(0xFF991B1B),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: const BorderSide(color: Color(0x33B91C1C)),
+                          ),
                         ),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    if (isAdminViewer) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.go(
-                            RouteNames.adminPatientEdit.replaceFirst(
-                              ':patientId',
-                              patient.id,
-                            ),
-                          ),
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Editar paciente'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    OcgCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAdminViewer
-                                ? 'Información del paciente'
-                                : 'Datos personales',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 14),
-                          Center(child: _ProfileAvatar(patient: patient, uploading: _uploadingPhoto, onTap: () => _pickAndUploadPhoto(patient.id))),
-                          const SizedBox(height: 24),
-                          _Field(label: 'Nombre', value: patient.nombre),
-                          _Field(label: 'Correo', value: patient.email),
-                          _EditableField(
-                            label: 'Teléfono',
-                            value: patient.telefono,
-                            loading: _savingPhone,
-                            onEdit: () => _editPhone(patient),
-                          ),
-                          _Field(label: 'Fecha nacimiento', value: _fmt(patient.fechaNacimiento)),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Contraseña'),
-                            subtitle: const Text('••••••••'),
-                            trailing: TextButton(
-                              onPressed: _sendingReset ? null : () => _sendPasswordReset(patient.email),
-                              child: _sendingReset
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Text('Cambiar'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OcgCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAdminViewer
-                                ? 'Resumen clínico del paciente'
-                                : 'Resumen clínico (solo lectura)',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 12),
-                          _LockedField(label: 'Tipo tratamiento', value: patient.tipoTratamiento?.name ?? 'Pendiente'),
-                          _LockedField(label: 'Etapa actual', value: formatTreatmentStage(patient.etapaActual)),
-                          _LockedField(label: 'Fecha inicio', value: _fmt(patient.fechaInicio)),
-                          _LockedField(
-                            label: 'Fecha estimada fin',
-                            value: patient.fechaEstimadaFin == null ? 'No definida' : _fmt(patient.fechaEstimadaFin!),
-                          ),
-                          _LockedField(
-                            label: 'Notas clínicas',
-                            value: patient.notasClinicas.isEmpty ? 'Sin notas' : patient.notasClinicas,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OcgCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isAdminViewer
-                                ? 'Estado financiero del paciente'
-                                : 'Estado financiero',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 12),
-                          _Field(label: 'Total tratamiento', value: '${formatCop(patient.totalTratamiento)} COP'),
-                          _Field(label: 'Saldo pendiente', value: '${formatCop(patient.saldoPendiente)} COP'),
-                          _Field(
-                            label: 'Próximo pago',
-                            value: patient.fechaProximoPago == null ? 'No definido' : _fmt(patient.fechaProximoPago!),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.patientIdOverride == null) ...[
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _signingOut ? null : _handleSignOut,
-                          icon: _signingOut
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.logout),
-                          label: Text(_signingOut ? 'Cerrando sesión...' : 'Cerrar sesión'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFEE2E2),
-                            foregroundColor: const Color(0xFF991B1B),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: const BorderSide(color: Color(0x33B91C1C)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      );
+            ),
+          ],
+        );
+      },
+    );
 
     if (widget.embedded) return content;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-      ),
+      appBar: AppBar(title: const Text('Mi perfil')),
       body: content,
     );
   }
@@ -344,7 +401,10 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           decoration: const InputDecoration(labelText: 'Teléfono'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
             child: const Text('Guardar'),
@@ -353,42 +413,124 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       ),
     );
 
-    if (newPhone == null || newPhone.isEmpty || newPhone == patient.telefono) return;
+    if (newPhone == null || newPhone.isEmpty || newPhone == patient.telefono) {
+      return;
+    }
 
     setState(() => _savingPhone = true);
     try {
-      await ref.read(patientsRepositoryProvider).updatePatientContactData(patient.id, telefono: newPhone);
+      await ref
+          .read(patientsRepositoryProvider)
+          .updatePatientContactData(patient.id, telefono: newPhone);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teléfono actualizado.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Teléfono actualizado.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo actualizar teléfono: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar teléfono: $e')),
+      );
     } finally {
       if (mounted) setState(() => _savingPhone = false);
     }
   }
 
   Future<void> _pickAndUploadPhoto(String patientId) async {
+    final source = await _selectPhotoSource();
+    if (source == null) return;
+
     setState(() => _uploadingPhoto = true);
     try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
-      if (file == null) return;
-
-      final bytes = await file.readAsBytes();
-      final storageRef = FirebaseStorage.instance.ref(StoragePaths.patientProfile(patientId));
-      await storageRef.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      final url = await storageRef.getDownloadURL();
-
-      await ref.read(patientsRepositoryProvider).updatePatientContactData(patientId, fotoUrl: url);
+      final result = await ref
+          .read(profilePhotoServiceProvider)
+          .pickAndUpload(
+            ownerType: ProfilePhotoOwnerType.patient,
+            uid: patientId,
+            source: source,
+          );
+      if (result == null) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto de perfil actualizada.')));
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto de perfil actualizada.')),
+      );
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo subir la foto: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mapProfilePhotoError(error))));
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
+  }
+
+  Future<void> _deletePhoto(String patientId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Deseas volver a mostrar tus iniciales?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.error,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      await ref
+          .read(profilePhotoServiceProvider)
+          .deletePhoto(
+            ownerType: ProfilePhotoOwnerType.patient,
+            uid: patientId,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto de perfil eliminada.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mapProfilePhotoError(error))));
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<ImageSource?> _selectPhotoSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Seleccionar de galería'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _sendPasswordReset(String email) async {
@@ -397,11 +539,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       await ref.read(authNotifierProvider.notifier).resetPassword(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enlace de cambio de contraseña enviado a $email')),
+        SnackBar(
+          content: Text('Enlace de cambio de contraseña enviado a $email'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo enviar el enlace: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar el enlace: $e')),
+      );
     } finally {
       if (mounted) setState(() => _sendingReset = false);
     }
@@ -411,55 +557,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final d = value.day.toString().padLeft(2, '0');
     final m = value.month.toString().padLeft(2, '0');
     return '$d/$m/${value.year}';
-  }
-
-}
-
-class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.patient, required this.uploading, required this.onTap});
-
-  final PatientModel patient;
-  final bool uploading;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasPhoto = patient.fotoUrl != null && patient.fotoUrl!.isNotEmpty;
-    final initial = patient.nombre.isNotEmpty ? patient.nombre[0].toUpperCase() : '?';
-
-    return Stack(
-      alignment: Alignment.bottomRight,
-      children: [
-        CircleAvatar(
-          radius: 42,
-          backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
-          backgroundImage: hasPhoto ? NetworkImage(patient.fotoUrl!) : null,
-          child: hasPhoto
-              ? null
-              : Text(
-                  initial,
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: OcgColors.espresso),
-                ),
-        ),
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: OcgColors.bronze,
-          child: IconButton(
-            onPressed: uploading ? null : onTap,
-            icon: uploading
-                ? const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: OcgColors.ivory),
-                  )
-                : const Icon(Icons.camera_alt, size: 14, color: OcgColors.ivory),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minHeight: 20, minWidth: 20),
-            tooltip: 'Cambiar foto',
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -476,7 +573,13 @@ class _Field extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 150, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(
+            width: 150,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
           Expanded(child: Text(value)),
         ],
       ),
@@ -485,7 +588,12 @@ class _Field extends StatelessWidget {
 }
 
 class _EditableField extends StatelessWidget {
-  const _EditableField({required this.label, required this.value, required this.loading, required this.onEdit});
+  const _EditableField({
+    required this.label,
+    required this.value,
+    required this.loading,
+    required this.onEdit,
+  });
 
   final String label;
   final String value;
@@ -501,7 +609,11 @@ class _EditableField extends StatelessWidget {
       trailing: IconButton(
         onPressed: loading ? null : onEdit,
         icon: loading
-            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : const Icon(Icons.edit_outlined, size: 18),
       ),
     );
@@ -521,7 +633,13 @@ class _LockedField extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 150, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.w600))),
+          SizedBox(
+            width: 150,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
           Expanded(child: Text(value)),
           const SizedBox(width: 4),
           const Icon(Icons.lock_outline, size: 14, color: OcgColors.ink),

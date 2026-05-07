@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/profile_photo_avatar.dart';
 import 'admin_mobile_shell_controller.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -15,6 +16,7 @@ import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
+import '../../profile_photo/providers/profile_photo_provider.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 
@@ -1994,7 +1996,11 @@ class _AdminProfileButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef widgetRef) {
     final user = ref.watch(authStateProvider).asData?.value;
-    final initials = _adminInitials(user?.displayName, user?.email);
+    final label = _adminLabel(user?.displayName, user?.email);
+    final adminDoc = user == null
+        ? null
+        : ref.watch(adminProfileDocProvider(user.uid)).asData?.value;
+    final photoUrl = resolveProfilePhotoUrl(adminDoc);
 
     return InkWell(
       borderRadius: BorderRadius.circular(99),
@@ -2007,14 +2013,7 @@ class _AdminProfileButton extends ConsumerWidget {
           color: OcgColors.bronze,
           borderRadius: BorderRadius.circular(99),
         ),
-        child: Text(
-          initials,
-          style: const TextStyle(
-            color: OcgColors.ivory,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
+        child: ProfilePhotoAvatar(label: label, photoUrl: photoUrl, radius: 18),
       ),
     );
   }
@@ -2027,18 +2026,10 @@ String _adminGreeting(DateTime now) {
   return 'Buenas noches';
 }
 
-String _adminInitials(String? displayName, String? email) {
-  final source = (displayName?.trim().isNotEmpty == true)
+String _adminLabel(String? displayName, String? email) {
+  return (displayName?.trim().isNotEmpty == true)
       ? displayName!.trim()
       : (email?.trim().isNotEmpty == true ? email!.trim() : 'Administrador');
-  final parts = source
-      .split(RegExp(r'\s+'))
-      .where((part) => part.isNotEmpty)
-      .toList();
-  if (parts.isEmpty) return 'AD';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
-      .toUpperCase();
 }
 
 class AdminDashboardDesktopTestHarness extends ConsumerWidget {

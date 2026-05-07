@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -446,9 +447,10 @@ class _InicioSection extends ConsumerWidget {
                         InkWell(
                           borderRadius: BorderRadius.circular(24),
                           onTap: onOpenProfile,
-                          child: _PatientAvatar(
-                            name: nombre,
+                          child: ProfilePhotoAvatar(
+                            label: nombre,
                             photoUrl: patient.fotoUrl,
+                            radius: 21,
                           ),
                         ),
                       ],
@@ -587,54 +589,6 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Text(title.toUpperCase(), style: _style);
-}
-
-class _PatientAvatar extends StatelessWidget {
-  const _PatientAvatar({required this.name, this.photoUrl});
-  final String name;
-  final String? photoUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = name.trim().isEmpty
-        ? 'P'
-        : name.trim().split(' ').take(2).map((e) => e[0].toUpperCase()).join();
-
-    if (photoUrl != null && photoUrl!.trim().isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          photoUrl!,
-          width: 40,
-          height: 40,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _avatarFallback(initials),
-        ),
-      );
-    }
-
-    return _avatarFallback(initials);
-  }
-
-  Widget _avatarFallback(String initials) {
-    return Container(
-      width: 40,
-      height: 40,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFF8A6F59),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x66ECD9C6)),
-      ),
-      child: Text(
-        initials,
-        style: const TextStyle(
-          color: OcgColors.ivory,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
 }
 
 class _TreatmentHeroCard extends StatelessWidget {

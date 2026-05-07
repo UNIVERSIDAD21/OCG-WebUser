@@ -32,9 +32,21 @@ service cloud.firestore {
              ('updatedBy' in request.resource.data);
     }
 
+    function isOwnUser(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function onlyProfilePhotoFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['photoUrl', 'profilePhotoPath', 'updatedAt']);
+    }
+
     match /admins/{adminId} {
-      allow read: if isAdmin() || isOwnPatient(adminId);
-      allow write: if isAdmin();
+      allow read: if isAdmin() || isOwnUser(adminId);
+      allow create: if isAdmin();
+      allow update: if isAdmin() &&
+                    (isOwnUser(adminId) || !onlyProfilePhotoFieldsChanged());
+      allow delete: if isAdmin();
 
       match /devices/{deviceId} {
         allow read: if isAdmin() || isOwnPatient(adminId);

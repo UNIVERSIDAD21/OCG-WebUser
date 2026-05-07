@@ -39,9 +39,25 @@ service firebase.storage {
         && simulationDoc(patientId, simulationId).data.status == 'shared';
     }
 
+    function isAllowedProfileImage() {
+      return request.resource == null || (
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType in [
+          'image/jpeg',
+          'image/png',
+          'image/webp'
+        ]
+      );
+    }
+
+    match /admins/{adminId}/profile/{fileName} {
+      allow read: if isAdmin() || isOwnPatient(adminId);
+      allow write: if isAdmin() && isOwnPatient(adminId) && isAllowedProfileImage();
+    }
+
     match /patients/{patientId}/profile/{fileName} {
       allow read: if isAdmin() || isOwnPatient(patientId);
-      allow write: if isAdmin();
+      allow write: if (isAdmin() || isOwnPatient(patientId)) && isAllowedProfileImage();
     }
 
     match /patients/{patientId}/photos/{fileName} {
