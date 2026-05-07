@@ -50,14 +50,15 @@ class AppNotificationModel {
   static Map<String, dynamic> _parsePayload(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
-      return value.map(
-        (key, val) => MapEntry(key.toString(), val),
-      );
+      return value.map((key, val) => MapEntry(key.toString(), val));
     }
     return const <String, dynamic>{};
   }
 
-  factory AppNotificationModel.fromJson(Map<String, dynamic> json, {String? id}) {
+  factory AppNotificationModel.fromJson(
+    Map<String, dynamic> json, {
+    String? id,
+  }) {
     final payload = _parsePayload(json['payload']);
     final entityId = json['entityId']?.toString();
     final entityType = json['entityType']?.toString();
@@ -74,13 +75,16 @@ class AppNotificationModel {
       targetRoute: json['targetRoute']?.toString(),
       entityId: entityId,
       entityType: entityType,
-      appointmentId: json['appointmentId']?.toString() ??
+      appointmentId:
+          json['appointmentId']?.toString() ??
           (entityType == 'appointment' ? entityId : null) ??
           payload['appointmentId']?.toString(),
-      treatmentId: json['treatmentId']?.toString() ??
+      treatmentId:
+          json['treatmentId']?.toString() ??
           (entityType == 'treatment' ? entityId : null) ??
           payload['treatmentId']?.toString(),
-      paymentId: json['paymentId']?.toString() ??
+      paymentId:
+          json['paymentId']?.toString() ??
           (entityType == 'payment' ? entityId : null) ??
           payload['paymentId']?.toString(),
       payload: payload,
@@ -90,16 +94,35 @@ class AppNotificationModel {
   }
 
   Map<String, dynamic> toRoutingPayload() {
-    return {
+    final routeCandidate = targetRoute?.trim() ?? '';
+    final routingPayload = <String, dynamic>{
       'type': type,
-      'route': targetRoute ?? '',
       'entityId': entityId ?? '',
       'entityType': entityType ?? '',
-      'appointmentId': appointmentId ?? payload['appointmentId']?.toString() ?? '',
+      'appointmentId':
+          appointmentId ?? payload['appointmentId']?.toString() ?? '',
       'treatmentId': treatmentId ?? payload['treatmentId']?.toString() ?? '',
       'paymentId': paymentId ?? payload['paymentId']?.toString() ?? '',
       'patientId': payload['patientId']?.toString() ?? recipientId,
       ...payload,
     };
+
+    routingPayload.remove('route');
+    routingPayload.remove('targetRoute');
+
+    if (_isLocalRouteCandidate(routeCandidate)) {
+      routingPayload['route'] = routeCandidate;
+    }
+
+    return routingPayload;
+  }
+
+  bool _isLocalRouteCandidate(String route) {
+    final lowerRoute = route.toLowerCase();
+    return route.startsWith('/') &&
+        !route.startsWith('//') &&
+        !lowerRoute.startsWith('http://') &&
+        !lowerRoute.startsWith('https://') &&
+        !route.contains('://');
   }
 }

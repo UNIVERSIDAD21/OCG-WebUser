@@ -134,6 +134,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
+        path: RouteNames.adminRoot,
+        redirect: (context, state) => RouteNames.adminDashboard,
+      ),
+      GoRoute(
         path: RouteNames.adminDashboard,
         builder: (context, state) => const _AdminTabRoute(
           mobileIndex: 0,
@@ -197,6 +201,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final patientId = state.pathParameters['patientId'] ?? '';
           return PatientFormScreen(patientId: patientId);
         },
+      ),
+      GoRoute(
+        path: RouteNames.patientRoot,
+        redirect: (context, state) => RouteNames.patientHome,
       ),
       GoRoute(
         path: RouteNames.patientHome,

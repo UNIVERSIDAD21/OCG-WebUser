@@ -5,6 +5,7 @@ class RouteNames {
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
 
+  static const String adminRoot = '/admin';
   static const String adminDashboard = '/admin/dashboard';
   static const String adminPatients = '/admin/patients';
   static const String adminAppointments = '/admin/appointments';
@@ -18,6 +19,7 @@ class RouteNames {
   static const String adminProfile = '/admin/profile';
   static const String adminNotifications = '/admin/notifications';
 
+  static const String patientRoot = '/patient';
   static const String patientHome = '/patient/home';
   static const String patientAppointments = '/patient/appointments';
   static const String patientProfile = '/patient/profile';
