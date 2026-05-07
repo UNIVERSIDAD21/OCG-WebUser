@@ -3002,6 +3002,7 @@ class _AdminAppointmentsScreenState
 
     final mobileContent = Column(
       children: [
+        const SizedBox(height: 14),
         _buildInnerTabs(),
         Expanded(
           child: AnimatedSwitcher(
