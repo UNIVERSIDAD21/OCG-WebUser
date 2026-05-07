@@ -47,7 +47,6 @@ String _fmtClinicWallDateTime(DateTime d) {
       '${d.minute.toString().padLeft(2, '0')} $suffix';
 }
 
-
 String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.valoracion => 'Valoración',
   AppointmentType.control => 'Control',
@@ -65,35 +64,66 @@ String _estadoLabel(AppointmentStatus s) => switch (s) {
   AppointmentStatus.reprogramada => 'Reprogramada',
 };
 
-Color _estadoColor(AppointmentStatus s) => switch (s) {
-  AppointmentStatus.programada => OcgColors.bronze,
-  AppointmentStatus.confirmada => const Color(0xFF1565C0),
-  AppointmentStatus.completada => const Color(0xFF2E7D32),
-  AppointmentStatus.cancelada => OcgColors.error,
-  AppointmentStatus.noAsistio => OcgColors.error,
-  AppointmentStatus.reprogramada => Colors.purple,
-};
+class _AppointmentStatusStyle {
+  const _AppointmentStatusStyle({
+    required this.color,
+    required this.softBackground,
+    required this.icon,
+  });
 
-IconData _estadoIcon(AppointmentStatus s) => switch (s) {
-  AppointmentStatus.programada => Icons.calendar_month_outlined,
-  AppointmentStatus.confirmada => Icons.verified_outlined,
-  AppointmentStatus.completada => Icons.task_alt,
-  AppointmentStatus.cancelada => Icons.cancel_outlined,
-  AppointmentStatus.noAsistio => Icons.person_off_outlined,
-  AppointmentStatus.reprogramada => Icons.event_repeat_outlined,
-};
+  final Color color;
+  final Color softBackground;
+  final IconData icon;
+}
+
+_AppointmentStatusStyle _appointmentStatusStyle(AppointmentStatus status) {
+  const activeBlue = Color(0xFF1565C0);
+  return switch (status) {
+    AppointmentStatus.programada => _AppointmentStatusStyle(
+      color: activeBlue,
+      softBackground: Color(0xFFEAF3FF),
+      icon: Icons.calendar_month_outlined,
+    ),
+    AppointmentStatus.confirmada => _AppointmentStatusStyle(
+      color: activeBlue,
+      softBackground: Color(0xFFEAF3FF),
+      icon: Icons.verified_outlined,
+    ),
+    AppointmentStatus.reprogramada => _AppointmentStatusStyle(
+      color: activeBlue,
+      softBackground: Color(0xFFEAF3FF),
+      icon: Icons.event_repeat_outlined,
+    ),
+    AppointmentStatus.completada => _AppointmentStatusStyle(
+      color: OcgColors.success,
+      softBackground: Color(0xFFEAF7EE),
+      icon: Icons.task_alt,
+    ),
+    AppointmentStatus.cancelada => _AppointmentStatusStyle(
+      color: OcgColors.error,
+      softBackground: Color(0xFFFCECEC),
+      icon: Icons.cancel_outlined,
+    ),
+    AppointmentStatus.noAsistio => _AppointmentStatusStyle(
+      color: OcgColors.warning,
+      softBackground: Color(0xFFFFF4E5),
+      icon: Icons.person_off_outlined,
+    ),
+  };
+}
 
 bool _isActiva(AppointmentModel a) => switch (a.estado) {
-  AppointmentStatus.programada || AppointmentStatus.confirmada => true,
+  AppointmentStatus.programada ||
+  AppointmentStatus.confirmada ||
+  AppointmentStatus.reprogramada => true,
   _ => false,
 };
 
-bool _isCompletada(AppointmentModel a) => a.estado == AppointmentStatus.completada;
+bool _isCompletada(AppointmentModel a) =>
+    a.estado == AppointmentStatus.completada;
 
 bool _isIncidencia(AppointmentModel a) => switch (a.estado) {
-  AppointmentStatus.cancelada ||
-  AppointmentStatus.noAsistio ||
-  AppointmentStatus.reprogramada => true,
+  AppointmentStatus.cancelada || AppointmentStatus.noAsistio => true,
   _ => false,
 };
 
@@ -199,7 +229,9 @@ class _PatientAppointmentsScreenState
     );
     String? errorMsg;
     bool saving = false;
-    var selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(selectedDateTime);
+    var selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(
+      selectedDateTime,
+    );
     var availabilityStream = ref
         .read(availabilityRepositoryProvider)
         .watchAvailabilityByDay(selectedDayKey);
@@ -272,14 +304,17 @@ class _PatientAppointmentsScreenState
                       );
                       if (pickedDate == null) return;
                       setDs(() {
-                        selectedDateTime = AppointmentsBusinessRules.fromBogotaComponents(
-                          year: pickedDate.year,
-                          month: pickedDate.month,
-                          day: pickedDate.day,
-                          hour: AppointmentsBusinessRules.workdayStartHour,
-                          minute: 0,
+                        selectedDateTime =
+                            AppointmentsBusinessRules.fromBogotaComponents(
+                              year: pickedDate.year,
+                              month: pickedDate.month,
+                              day: pickedDate.day,
+                              hour: AppointmentsBusinessRules.workdayStartHour,
+                              minute: 0,
+                            );
+                        selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(
+                          selectedDateTime,
                         );
-                        selectedDayKey = AppointmentsBusinessRules.dayKeyBogota(selectedDateTime);
                         availabilityStream = ref
                             .read(availabilityRepositoryProvider)
                             .watchAvailabilityByDay(selectedDayKey);
@@ -309,28 +344,39 @@ class _PatientAppointmentsScreenState
                       }
 
                       final availability = snapshot.data;
-                      final orderedSlots = AppointmentsBusinessRules.buildAllWorkdaySlots(
-                        day: selectedDateTime,
-                        stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                      ).toList()
-                        ..sort((a, b) => a.start.compareTo(b.start));
+                      final orderedSlots =
+                          AppointmentsBusinessRules.buildAllWorkdaySlots(
+                              day: selectedDateTime,
+                              stepMinutes:
+                                  AppointmentsBusinessRules.slotStepMinutes,
+                            ).toList()
+                            ..sort((a, b) => a.start.compareTo(b.start));
                       final allLabels = orderedSlots
-                          .map((s) => AppointmentsBusinessRules.slotKeyFromDateTime(s.start))
+                          .map(
+                            (s) =>
+                                AppointmentsBusinessRules.slotKeyFromDateTime(
+                                  s.start,
+                                ),
+                          )
                           .toList();
 
                       const operationalMinutes =
-                          30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
+                          30 +
+                          AppointmentsBusinessRules
+                              .bufferMinutesBetweenAppointments;
 
                       bool isStartAvailable(String label) {
                         if (snapshot.hasError) return false;
 
                         final start = dateFromSlotKey(selectedDateTime, label);
-                        final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
-                          start: start,
-                        );
+                        final notPastError =
+                            AppointmentsBusinessRules.validateStartNotInPast(
+                              start: start,
+                            );
                         if (notPastError != null) return false;
 
-                        final fitsWorkingHours = AppointmentsBusinessRules.validateWithinWorkingHours(
+                        final fitsWorkingHours =
+                            AppointmentsBusinessRules.validateWithinWorkingHours(
                               start: start,
                               durationMinutes: operationalMinutes,
                             ) ==
@@ -339,14 +385,25 @@ class _PatientAppointmentsScreenState
 
                         if (availability == null) return true;
 
-                        final end = start.add(const Duration(minutes: operationalMinutes));
+                        final end = start.add(
+                          const Duration(minutes: operationalMinutes),
+                        );
                         for (final slotLabel in allLabels) {
-                          final slotStart = dateFromSlotKey(selectedDateTime, slotLabel);
-                          final slotEnd = slotStart.add(
-                            Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
+                          final slotStart = dateFromSlotKey(
+                            selectedDateTime,
+                            slotLabel,
                           );
-                          final overlaps = slotStart.isBefore(end) && start.isBefore(slotEnd);
-                          if (overlaps && availability.slots[slotLabel] == false) {
+                          final slotEnd = slotStart.add(
+                            Duration(
+                              minutes:
+                                  AppointmentsBusinessRules.slotStepMinutes,
+                            ),
+                          );
+                          final overlaps =
+                              slotStart.isBefore(end) &&
+                              start.isBefore(slotEnd);
+                          if (overlaps &&
+                              availability.slots[slotLabel] == false) {
                             return false;
                           }
                         }
@@ -354,7 +411,9 @@ class _PatientAppointmentsScreenState
                         return true;
                       }
 
-                      final availableLabels = allLabels.where(isStartAvailable).toList();
+                      final availableLabels = allLabels
+                          .where(isStartAvailable)
+                          .toList();
 
                       if (availableLabels.isEmpty) {
                         return const Text(
@@ -363,24 +422,25 @@ class _PatientAppointmentsScreenState
                         );
                       }
 
-                      final morningLabels = availableLabels
-                          .where((label) {
-                            final d = dateFromSlotKey(selectedDateTime, label);
-                            return d.hour < 12;
-                          })
-                          .toList();
-                      final afternoonLabels = availableLabels
-                          .where((label) {
-                            final d = dateFromSlotKey(selectedDateTime, label);
-                            return d.hour >= 12;
-                          })
-                          .toList();
+                      final morningLabels = availableLabels.where((label) {
+                        final d = dateFromSlotKey(selectedDateTime, label);
+                        return d.hour < 12;
+                      }).toList();
+                      final afternoonLabels = availableLabels.where((label) {
+                        final d = dateFromSlotKey(selectedDateTime, label);
+                        return d.hour >= 12;
+                      }).toList();
 
                       Widget buildSlotChip(String label) {
-                        final slotDate = dateFromSlotKey(selectedDateTime, label);
+                        final slotDate = dateFromSlotKey(
+                          selectedDateTime,
+                          label,
+                        );
                         return ChoiceChip(
                           label: Text(
-                            AppointmentsBusinessRules.displayLabelFromSlotKey(label),
+                            AppointmentsBusinessRules.displayLabelFromSlotKey(
+                              label,
+                            ),
                             style: const TextStyle(color: OcgColors.espresso),
                           ),
                           selected: slotDate == selectedDateTime,
@@ -404,7 +464,9 @@ class _PatientAppointmentsScreenState
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF7EF),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                            border: Border.all(
+                              color: OcgColors.bronze.withOpacity(0.22),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,7 +485,9 @@ class _PatientAppointmentsScreenState
                                       ),
                                     ),
                                     Icon(
-                                      expanded ? Icons.expand_less : Icons.expand_more,
+                                      expanded
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
                                       color: OcgColors.bronze,
                                     ),
                                   ],
@@ -443,7 +507,9 @@ class _PatientAppointmentsScreenState
                                   Wrap(
                                     spacing: 6,
                                     runSpacing: 6,
-                                    children: labels.map(buildSlotChip).toList(),
+                                    children: labels
+                                        .map(buildSlotChip)
+                                        .toList(),
                                   ),
                               ],
                             ],
@@ -468,13 +534,15 @@ class _PatientAppointmentsScreenState
                           buildPeriodSection(
                             title: 'Mañana',
                             expanded: expandMorning,
-                            onToggle: () => setDs(() => expandMorning = !expandMorning),
+                            onToggle: () =>
+                                setDs(() => expandMorning = !expandMorning),
                             labels: morningLabels,
                           ),
                           buildPeriodSection(
                             title: 'Tarde',
                             expanded: expandAfternoon,
-                            onToggle: () => setDs(() => expandAfternoon = !expandAfternoon),
+                            onToggle: () =>
+                                setDs(() => expandAfternoon = !expandAfternoon),
                             labels: afternoonLabels,
                           ),
                         ],
@@ -530,9 +598,10 @@ class _PatientAppointmentsScreenState
                         return;
                       }
 
-                      final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
-                        start: selectedDateTime,
-                      );
+                      final notPastError =
+                          AppointmentsBusinessRules.validateStartNotInPast(
+                            start: selectedDateTime,
+                          );
                       if (notPastError != null) {
                         setDs(() => errorMsg = notPastError);
                         return;
@@ -551,28 +620,50 @@ class _PatientAppointmentsScreenState
                       try {
                         final availability = await ref
                             .read(availabilityRepositoryProvider)
-                            .getAvailabilityByDay(AppointmentsBusinessRules.dayKeyBogota(selectedDateTime));
+                            .getAvailabilityByDay(
+                              AppointmentsBusinessRules.dayKeyBogota(
+                                selectedDateTime,
+                              ),
+                            );
 
                         if (availability != null) {
                           const operationalMinutes =
-                              30 + AppointmentsBusinessRules.bufferMinutesBetweenAppointments;
+                              30 +
+                              AppointmentsBusinessRules
+                                  .bufferMinutesBetweenAppointments;
                           final end = selectedDateTime.add(
                             const Duration(minutes: operationalMinutes),
                           );
 
-                          final allLabels = AppointmentsBusinessRules.buildAllWorkdaySlots(
-                            day: selectedDateTime,
-                            stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
-                          ).map((s) => AppointmentsBusinessRules.slotKeyFromDateTime(s.start));
+                          final allLabels =
+                              AppointmentsBusinessRules.buildAllWorkdaySlots(
+                                day: selectedDateTime,
+                                stepMinutes:
+                                    AppointmentsBusinessRules.slotStepMinutes,
+                              ).map(
+                                (s) =>
+                                    AppointmentsBusinessRules.slotKeyFromDateTime(
+                                      s.start,
+                                    ),
+                              );
 
                           bool stillAvailable = true;
                           for (final label in allLabels) {
-                            final slotStart = dateFromSlotKey(selectedDateTime, label);
-                            final slotEnd = slotStart.add(
-                              Duration(minutes: AppointmentsBusinessRules.slotStepMinutes),
+                            final slotStart = dateFromSlotKey(
+                              selectedDateTime,
+                              label,
                             );
-                            final overlaps = slotStart.isBefore(end) && selectedDateTime.isBefore(slotEnd);
-                            if (overlaps && availability.slots[label] == false) {
+                            final slotEnd = slotStart.add(
+                              Duration(
+                                minutes:
+                                    AppointmentsBusinessRules.slotStepMinutes,
+                              ),
+                            );
+                            final overlaps =
+                                slotStart.isBefore(end) &&
+                                selectedDateTime.isBefore(slotEnd);
+                            if (overlaps &&
+                                availability.slots[label] == false) {
                               stillAvailable = false;
                               break;
                             }
@@ -805,9 +896,12 @@ class _PatientAppointmentsScreenState
       return const Center(child: Text('Debes iniciar sesión.'));
     }
 
-    final appointmentsAsync = ref.watch(patientAppointmentsProvider(effectivePatientId));
+    final appointmentsAsync = ref.watch(
+      patientAppointmentsProvider(effectivePatientId),
+    );
 
-    final allAppointments = appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
+    final allAppointments =
+        appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
     final activasCount = allAppointments.where(_isActiva).length;
     final completadasCount = allAppointments.where(_isCompletada).length;
     final incidenciasCount = allAppointments.where(_isIncidencia).length;
@@ -839,10 +933,7 @@ class _PatientAppointmentsScreenState
                 isAdminViewer
                     ? 'Filtra por estado clínico para gestionar al paciente'
                     : 'Organiza tus citas por estado real del proceso',
-                style: const TextStyle(
-                  color: Color(0xFF8A6F59),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 13),
               ),
               const SizedBox(height: 12),
               Container(
@@ -863,15 +954,27 @@ class _PatientAppointmentsScreenState
                         children: [
                           Row(
                             children: [
-                              _KpiMini(label: 'Activas', value: activasCount, color: const Color(0xFF1565C0)),
+                              _KpiMini(
+                                label: 'Activas',
+                                value: activasCount,
+                                color: const Color(0xFF1565C0),
+                              ),
                               const SizedBox(width: 8),
-                              _KpiMini(label: 'Completadas', value: completadasCount, color: const Color(0xFF2E7D32)),
+                              _KpiMini(
+                                label: 'Completadas',
+                                value: completadasCount,
+                                color: const Color(0xFF2E7D32),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              _KpiMini(label: 'Incidencias', value: incidenciasCount, color: OcgColors.error),
+                              _KpiMini(
+                                label: 'Incidencias',
+                                value: incidenciasCount,
+                                color: OcgColors.error,
+                              ),
                             ],
                           ),
                         ],
@@ -880,11 +983,23 @@ class _PatientAppointmentsScreenState
 
                     return Row(
                       children: [
-                        _KpiMini(label: 'Activas', value: activasCount, color: const Color(0xFF1565C0)),
+                        _KpiMini(
+                          label: 'Activas',
+                          value: activasCount,
+                          color: const Color(0xFF1565C0),
+                        ),
                         const SizedBox(width: 8),
-                        _KpiMini(label: 'Completadas', value: completadasCount, color: const Color(0xFF2E7D32)),
+                        _KpiMini(
+                          label: 'Completadas',
+                          value: completadasCount,
+                          color: const Color(0xFF2E7D32),
+                        ),
                         const SizedBox(width: 8),
-                        _KpiMini(label: 'Incidencias', value: incidenciasCount, color: OcgColors.error),
+                        _KpiMini(
+                          label: 'Incidencias',
+                          value: incidenciasCount,
+                          color: OcgColors.error,
+                        ),
                       ],
                     );
                   },
@@ -904,7 +1019,8 @@ class _PatientAppointmentsScreenState
                           count: activasCount,
                           compact: compact,
                           fill: true,
-                          onTap: () => setState(() => _filter = _PatientFilter.activas),
+                          onTap: () =>
+                              setState(() => _filter = _PatientFilter.activas),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -916,7 +1032,9 @@ class _PatientAppointmentsScreenState
                           count: completadasCount,
                           compact: compact,
                           fill: true,
-                          onTap: () => setState(() => _filter = _PatientFilter.completadas),
+                          onTap: () => setState(
+                            () => _filter = _PatientFilter.completadas,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -928,7 +1046,9 @@ class _PatientAppointmentsScreenState
                           count: incidenciasCount,
                           compact: compact,
                           fill: true,
-                          onTap: () => setState(() => _filter = _PatientFilter.incidencias),
+                          onTap: () => setState(
+                            () => _filter = _PatientFilter.incidencias,
+                          ),
                         ),
                       ),
                     ],
@@ -976,15 +1096,18 @@ class _PatientAppointmentsScreenState
                     ),
                     child: Text(
                       switch (_filter) {
-                        _PatientFilter.activas => isAdminViewer
-                            ? 'No hay citas activas para este paciente.\nPulsa + para agendar una nueva cita.'
-                            : 'No tienes citas activas por ahora.\nPulsa + para agendar una nueva cita.',
-                        _PatientFilter.completadas => isAdminViewer
-                            ? 'Aún no hay citas completadas para este paciente.'
-                            : 'Aún no tienes citas completadas.',
-                        _PatientFilter.incidencias => isAdminViewer
-                            ? 'No hay incidencias registradas en citas para este paciente.'
-                            : 'No tienes incidencias registradas en tus citas.',
+                        _PatientFilter.activas =>
+                          isAdminViewer
+                              ? 'No hay citas activas para este paciente.\nPulsa + para agendar una nueva cita.'
+                              : 'No tienes citas activas por ahora.\nPulsa + para agendar una nueva cita.',
+                        _PatientFilter.completadas =>
+                          isAdminViewer
+                              ? 'Aún no hay citas completadas para este paciente.'
+                              : 'Aún no tienes citas completadas.',
+                        _PatientFilter.incidencias =>
+                          isAdminViewer
+                              ? 'No hay incidencias registradas en citas para este paciente.'
+                              : 'No tienes incidencias registradas en tus citas.',
                       },
                       textAlign: TextAlign.center,
                       style: const TextStyle(
@@ -1090,7 +1213,9 @@ class _FilterPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        constraints: fill ? null : BoxConstraints(minWidth: compact ? 104 : 120),
+        constraints: fill
+            ? null
+            : BoxConstraints(minWidth: compact ? 104 : 120),
         padding: EdgeInsets.symmetric(
           vertical: compact ? 9 : 10,
           horizontal: compact ? 10 : 12,
@@ -1236,8 +1361,22 @@ class _AppointmentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _estadoColor(appointment.estado);
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final statusStyle = _appointmentStatusStyle(appointment.estado);
+    final statusColor = statusStyle.color;
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
 
     final localBogota = _toBogota(appointment.fechaHora);
     final day = localBogota.day.toString().padLeft(2, '0');
@@ -1245,9 +1384,9 @@ class _AppointmentTile extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: statusStyle.softBackground.withOpacity(0.42),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFECD9C6)),
+        border: Border.all(color: statusColor.withOpacity(0.30)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x122C2016),
@@ -1259,9 +1398,7 @@ class _AppointmentTile extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border(
-            left: BorderSide(color: statusColor, width: 4),
-          ),
+          border: Border(left: BorderSide(color: statusColor, width: 4)),
         ),
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -1274,7 +1411,7 @@ class _AppointmentTile extends StatelessWidget {
                   width: 52,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: OcgColors.espresso,
+                    color: statusColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -1318,16 +1455,22 @@ class _AppointmentTile extends StatelessWidget {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.12),
+                              color: statusStyle.softBackground,
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: statusColor.withOpacity(0.16),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  _estadoIcon(appointment.estado),
+                                  statusStyle.icon,
                                   size: 12,
                                   color: statusColor,
                                 ),
@@ -1348,14 +1491,22 @@ class _AppointmentTile extends StatelessWidget {
                       const SizedBox(height: 5),
                       Row(
                         children: [
-                          const Icon(Icons.schedule, size: 13, color: Color(0xFF8A6F59)),
+                          Icon(
+                            Icons.schedule,
+                            size: 13,
+                            color: statusColor.withOpacity(0.76),
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               _fmtDateTime(appointment.fechaHora),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12.5, color: Color(0xFF8A6F59)),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: statusColor.withOpacity(0.82),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -1363,13 +1514,17 @@ class _AppointmentTile extends StatelessWidget {
                       const SizedBox(height: 6),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF2EDE8),
+                          color: Colors.white.withOpacity(0.72),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          (appointment.notas != null && appointment.notas!.trim().isNotEmpty)
+                          (appointment.notas != null &&
+                                  appointment.notas!.trim().isNotEmpty)
                               ? appointment.notas!.trim()
                               : 'Detalle disponible en la cita',
                           maxLines: 2,
