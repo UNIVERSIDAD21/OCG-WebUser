@@ -138,6 +138,16 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     _treatmentView = widget.initialTreatmentView;
   }
 
+  @override
+  void didUpdateWidget(covariant PatientHomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSection != widget.initialSection ||
+        oldWidget.initialTreatmentView != widget.initialTreatmentView) {
+      _selectedIndex = widget.initialSection.clamp(0, 4);
+      _treatmentView = widget.initialTreatmentView;
+    }
+  }
+
   void _openTreatmentView(PatientTreatmentInitialView view) {
     setState(() {
       _selectedIndex = 2;

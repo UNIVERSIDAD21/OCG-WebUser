@@ -15,14 +15,11 @@ import '../../features/dashboard/presentation/admin_mobile_shell.dart';
 import '../../features/dashboard/presentation/admin_notifications_screen.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/admin_profile_screen.dart';
-import '../../features/dashboard/presentation/patient_appointments_screen.dart';
 import '../../features/dashboard/presentation/patient_home_screen.dart';
 import '../../features/notifications/presentation/patient_notifications_screen.dart';
 import '../../features/patients/presentation/patient_detail_screen.dart';
 import '../../features/patients/presentation/patient_form_screen.dart';
-import '../../features/patients/presentation/patient_profile_screen.dart';
 import '../../features/payments/presentation/payu_checkout_screen.dart';
-import '../../features/simulator/presentation/patient_simulations_screen.dart';
 import 'route_names.dart';
 
 bool _isPublicRoute(String location) {
@@ -211,11 +208,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.patientAppointments,
-        builder: (context, state) => const PatientAppointmentsScreen(),
+        builder: (context, state) => const PatientHomeScreen(initialSection: 1),
       ),
       GoRoute(
         path: RouteNames.patientProfile,
-        builder: (context, state) => const PatientProfileScreen(),
+        builder: (context, state) => const PatientHomeScreen(initialSection: 4),
       ),
       GoRoute(
         path: RouteNames.patientNotifications,
@@ -237,7 +234,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.patientSimulations,
-        builder: (context, state) => const PatientSimulationsScreen(),
+        builder: (context, state) => const PatientHomeScreen(initialSection: 3),
       ),
       GoRoute(
         path: RouteNames.patientPayuCheckout,

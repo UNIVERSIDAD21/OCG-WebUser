@@ -104,6 +104,42 @@ void main() {
       expect(route, RouteNames.patientPayments);
     });
 
+    test('patient document abre /patient/clinical-files', () {
+      final route = payloadRouter.resolveRoute({
+        'type': 'clinical_file_shared',
+        'entityType': 'clinical_file',
+      }, userRole: 'patient');
+
+      expect(route, RouteNames.patientClinicalFiles);
+    });
+
+    test('patient simulation abre /patient/simulations', () {
+      final route = payloadRouter.resolveRoute({
+        'type': 'simulation_ready',
+        'entityType': 'simulation',
+      }, userRole: 'patient');
+
+      expect(route, RouteNames.patientSimulations);
+    });
+
+    test('patient profile abre /patient/profile', () {
+      final route = payloadRouter.resolveRoute({
+        'type': 'patient_profile',
+        'entityType': 'profile',
+      }, userRole: 'patient');
+
+      expect(route, RouteNames.patientProfile);
+    });
+
+    test('route explícita /patient/clinical-files de paciente se acepta', () {
+      final route = payloadRouter.resolveRoute({
+        'route': RouteNames.patientClinicalFiles,
+        'type': 'document_shared',
+      }, userRole: 'patient');
+
+      expect(route, RouteNames.patientClinicalFiles);
+    });
+
     test('unknown admin abre /admin', () {
       final route = payloadRouter.resolveRoute({
         'type': 'unknown',

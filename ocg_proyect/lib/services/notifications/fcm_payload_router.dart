@@ -31,6 +31,7 @@ class FcmPayloadRouter {
     RouteNames.patientHome,
     RouteNames.patientAppointments,
     RouteNames.patientPayments,
+    RouteNames.patientClinicalFiles,
     RouteNames.patientSimulations,
     RouteNames.patientNotifications,
     RouteNames.patientProfile,
@@ -84,6 +85,11 @@ class FcmPayloadRouter {
           : RouteNames.patientPayments;
     }
 
+    if (role == 'patient' &&
+        (_isClinicalFileType(type) || _isClinicalFileEntity(entityType))) {
+      return RouteNames.patientClinicalFiles;
+    }
+
     if (_isSimulationType(type) || entityType == 'simulation') {
       if (role == 'admin') {
         return patientId.isEmpty
@@ -91,6 +97,11 @@ class FcmPayloadRouter {
             : _adminPatientSectionRoute(patientId, 'simulador');
       }
       return RouteNames.patientSimulations;
+    }
+
+    if (role == 'patient' &&
+        (_isProfileType(type) || entityType == 'profile')) {
+      return RouteNames.patientProfile;
     }
 
     if (_isTreatmentType(type) || entityType == 'treatment') {
@@ -216,8 +227,29 @@ class FcmPayloadRouter {
         type == 'payment_due_soon';
   }
 
+  bool _isClinicalFileType(String type) {
+    return type == 'clinical_file' ||
+        type == 'clinical_file_shared' ||
+        type == 'document' ||
+        type == 'document_shared' ||
+        type == 'treatment_file' ||
+        type == 'treatment_file_shared';
+  }
+
+  bool _isClinicalFileEntity(String entityType) {
+    return entityType == 'clinical_file' ||
+        entityType == 'clinicalFile' ||
+        entityType == 'document' ||
+        entityType == 'treatment_file' ||
+        entityType == 'treatmentFile';
+  }
+
   bool _isSimulationType(String type) {
     return type == 'simulation' || type == 'simulation_ready';
+  }
+
+  bool _isProfileType(String type) {
+    return type == 'profile' || type == 'patient_profile';
   }
 
   bool _isTreatmentType(String type) {
