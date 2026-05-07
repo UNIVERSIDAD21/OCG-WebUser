@@ -45,7 +45,14 @@ String _appointmentDayKey(DateTime d) =>
     '${d.month.toString().padLeft(2, '0')}'
     '${d.day.toString().padLeft(2, '0')}';
 
-enum _AgendaFilter { hoy, activas, completadas, perdidas, canceladas }
+enum _AgendaFilter {
+  hoy,
+  activas,
+  completadas,
+  perdidas,
+  canceladas,
+  incidencias,
+}
 
 enum _AgendaInnerTab { hoy, mes, historial }
 
@@ -57,6 +64,19 @@ bool _esPerdida(AppointmentModel a) {
   }
   return false;
 }
+
+bool _esIncidenciaAgenda(AppointmentModel a) =>
+    a.estado == AppointmentStatus.cancelada ||
+    a.estado == AppointmentStatus.noAsistio ||
+    a.estado == AppointmentStatus.reprogramada ||
+    _esPerdida(a);
+
+bool _esCandidataHistorialAgenda(AppointmentModel a, DateTime now) =>
+    a.fechaHora.isBefore(now) ||
+    a.estado == AppointmentStatus.completada ||
+    a.estado == AppointmentStatus.cancelada ||
+    a.estado == AppointmentStatus.noAsistio ||
+    a.estado == AppointmentStatus.reprogramada;
 
 String _labelTipo(AppointmentType t) {
   switch (t) {
@@ -1717,8 +1737,8 @@ class _AdminAppointmentsScreenState
         label: 'Perdida',
       ),
       AppointmentStatus.reprogramada => (
-        dot: Colors.purple,
-        line: Colors.purple,
+        dot: const Color(0xFF7E3AF2),
+        line: const Color(0xFF7E3AF2),
         label: 'Reprogramada',
       ),
     };
@@ -2650,12 +2670,8 @@ class _AdminAppointmentsScreenState
 
   List<AppointmentModel> _historyItems(List<AppointmentModel> all) {
     final now = DateTime.now();
-    final past =
-        all
-            .where((a) => a.fechaHora.isBefore(now))
-            .where((a) => a.estado != AppointmentStatus.reprogramada)
-            .toList()
-          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+    final past = all.where((a) => _esCandidataHistorialAgenda(a, now)).toList()
+      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
     final filtered = switch (_historyFilter) {
       _AgendaFilter.completadas =>
@@ -2663,6 +2679,7 @@ class _AdminAppointmentsScreenState
       _AgendaFilter.perdidas => past.where(_esPerdida).toList(),
       _AgendaFilter.canceladas =>
         past.where((a) => a.estado == AppointmentStatus.cancelada).toList(),
+      _AgendaFilter.incidencias => past.where(_esIncidenciaAgenda).toList(),
       _ => past,
     };
 
@@ -2673,10 +2690,7 @@ class _AdminAppointmentsScreenState
 
   int _historyCountByFilter(List<AppointmentModel> all, _AgendaFilter filter) {
     final now = DateTime.now();
-    final past = all
-        .where((a) => a.fechaHora.isBefore(now))
-        .where((a) => a.estado != AppointmentStatus.reprogramada)
-        .toList();
+    final past = all.where((a) => _esCandidataHistorialAgenda(a, now)).toList();
 
     return switch (filter) {
       _AgendaFilter.completadas =>
@@ -2684,6 +2698,7 @@ class _AdminAppointmentsScreenState
       _AgendaFilter.perdidas => past.where(_esPerdida).length,
       _AgendaFilter.canceladas =>
         past.where((a) => a.estado == AppointmentStatus.cancelada).length,
+      _AgendaFilter.incidencias => past.where(_esIncidenciaAgenda).length,
       _ => past.length,
     };
   }
@@ -2906,6 +2921,11 @@ class _AdminAppointmentsScreenState
             'Canceladas',
             _AgendaFilter.canceladas,
             _historyCountByFilter(appointments, _AgendaFilter.canceladas),
+          ),
+          _historyFilterItem(
+            'Incidencias',
+            _AgendaFilter.incidencias,
+            _historyCountByFilter(appointments, _AgendaFilter.incidencias),
           ),
         ],
       ),
@@ -3234,7 +3254,7 @@ class AppointmentCard extends StatelessWidget {
       AppointmentStatus.completada => const Color(0xFF2E7D32),
       AppointmentStatus.cancelada => OcgColors.error,
       AppointmentStatus.noAsistio => OcgColors.error,
-      AppointmentStatus.reprogramada => Colors.purple,
+      AppointmentStatus.reprogramada => const Color(0xFF7E3AF2),
     };
 
     final String statusLabel = switch (appointment.estado) {

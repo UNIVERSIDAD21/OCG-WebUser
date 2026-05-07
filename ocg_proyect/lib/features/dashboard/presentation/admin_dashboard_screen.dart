@@ -1268,7 +1268,10 @@ class _MobileAgendaCard extends StatelessWidget {
       AppointmentStatus.completada => ('Completada', OcgColors.success),
       AppointmentStatus.cancelada => ('Cancelada', OcgColors.error),
       AppointmentStatus.noAsistio => ('No asistió', OcgColors.error),
-      AppointmentStatus.reprogramada => ('Reprogramada', Colors.purple),
+      AppointmentStatus.reprogramada => (
+        'Reprogramada',
+        const Color(0xFF7E3AF2),
+      ),
     };
 
     final initials = appointment.patientName.trim().isEmpty
@@ -1922,7 +1925,10 @@ class _StatusPill extends StatelessWidget {
       AppointmentStatus.completada => ('Completada', OcgColors.success),
       AppointmentStatus.cancelada => ('Cancelada', OcgColors.error),
       AppointmentStatus.noAsistio => ('No asistió', OcgColors.error),
-      AppointmentStatus.reprogramada => ('Reprogramada', Colors.purple),
+      AppointmentStatus.reprogramada => (
+        'Reprogramada',
+        const Color(0xFF7E3AF2),
+      ),
     };
 
     return Container(

@@ -90,8 +90,8 @@ _AppointmentStatusStyle _appointmentStatusStyle(AppointmentStatus status) {
       icon: Icons.verified_outlined,
     ),
     AppointmentStatus.reprogramada => _AppointmentStatusStyle(
-      color: activeBlue,
-      softBackground: Color(0xFFEAF3FF),
+      color: Color(0xFF7E3AF2),
+      softBackground: Color(0xFFF1E8FF),
       icon: Icons.event_repeat_outlined,
     ),
     AppointmentStatus.completada => _AppointmentStatusStyle(
@@ -113,9 +113,7 @@ _AppointmentStatusStyle _appointmentStatusStyle(AppointmentStatus status) {
 }
 
 bool _isActiva(AppointmentModel a) => switch (a.estado) {
-  AppointmentStatus.programada ||
-  AppointmentStatus.confirmada ||
-  AppointmentStatus.reprogramada => true,
+  AppointmentStatus.programada || AppointmentStatus.confirmada => true,
   _ => false,
 };
 
@@ -123,7 +121,9 @@ bool _isCompletada(AppointmentModel a) =>
     a.estado == AppointmentStatus.completada;
 
 bool _isIncidencia(AppointmentModel a) => switch (a.estado) {
-  AppointmentStatus.cancelada || AppointmentStatus.noAsistio => true,
+  AppointmentStatus.cancelada ||
+  AppointmentStatus.noAsistio ||
+  AppointmentStatus.reprogramada => true,
   _ => false,
 };
 
