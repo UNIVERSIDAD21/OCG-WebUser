@@ -65,7 +65,7 @@ class _PatientClinicalHistoryTabState
             children: [
               Expanded(
                 child: Text(
-                  'Historial clínico por archivos',
+                  'Documentos clínicos',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -77,9 +77,7 @@ class _PatientClinicalHistoryTabState
                     : () => _showUploadDialog(selectedTreatment),
                 icon: const Icon(Icons.upload_file),
                 label: Text(
-                  uploadState.isLoading
-                      ? 'Subiendo archivo...'
-                      : 'Subir archivo',
+                  uploadState.isLoading ? 'Subiendo...' : 'Subir documento',
                 ),
               ),
             ],
@@ -206,9 +204,9 @@ class _PatientClinicalHistoryTabState
               if (filtered.isEmpty) {
                 return const OcgEmptyState(
                   icon: Icons.folder_open,
-                  title: 'Todavía no hay archivos clínicos',
+                  title: 'Todavía no hay documentos clínicos',
                   subtitle:
-                      'Sube PDFs, radiografías o imágenes clínicas desde este expediente.',
+                      'Sube PDFs, radiografías, imágenes clínicas o soportes desde este expediente.',
                 );
               }
 
@@ -472,6 +470,32 @@ class _ClinicalUploadProgressCard extends StatelessWidget {
   }
 }
 
+class _ClinicalFileChip extends StatelessWidget {
+  const _ClinicalFileChip(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: OcgColors.bronze,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 class _ClinicalFileTile extends StatelessWidget {
   const _ClinicalFileTile({required this.file, required this.onDelete});
 
@@ -483,19 +507,33 @@ class _ClinicalFileTile extends StatelessWidget {
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.12)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            file.isPdf ? Icons.picture_as_pdf : Icons.image_outlined,
-            color: OcgColors.bronze,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F3ED),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              file.isPdf ? Icons.picture_as_pdf : Icons.image_outlined,
+              color: OcgColors.espresso,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -506,38 +544,56 @@ class _ClinicalFileTile extends StatelessWidget {
                   file.displayName,
                   style: const TextStyle(
                     color: OcgColors.espresso,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   file.originalName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: OcgColors.ink),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Categoría: ${file.category.replaceAll('_', ' ')} • ${dateFmt.format(file.uploadedAt)}',
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ClinicalFileChip(file.category.replaceAll('_', ' ')),
+                    _ClinicalFileChip(dateFmt.format(file.uploadedAt)),
+                    if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
+                      _ClinicalFileChip(file.treatmentNameSnapshot!),
+                  ],
                 ),
-                if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
-                  Text('Tratamiento: ${file.treatmentNameSnapshot}'),
-                if ((file.notes ?? '').trim().isNotEmpty)
-                  Text('Notas: ${file.notes!.trim()}'),
+                if ((file.notes ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    file.notes!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: OcgColors.bronze),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _openFile(context, file.downloadUrl),
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: const Text('Abrir'),
+                    ),
+                    TextButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: const Text('Desactivar'),
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
-          Column(
-            children: [
-              IconButton(
-                onPressed: () => _openFile(context, file.downloadUrl),
-                icon: const Icon(Icons.open_in_new),
-                tooltip: 'Abrir',
-              ),
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Desactivar',
-              ),
-            ],
           ),
         ],
       ),

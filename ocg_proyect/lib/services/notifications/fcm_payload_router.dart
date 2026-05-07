@@ -10,6 +10,9 @@ class FcmPayloadRouter {
     'resumen',
     'tratamientos',
     'pagos',
+    'docs',
+    'documentos',
+    'historial',
     'citas',
     'simulador',
   };
