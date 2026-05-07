@@ -508,17 +508,6 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
     final filteredPatients = ref.watch(filteredPatientsProvider);
     final selectedFilter = ref.watch(patientsFilterProvider);
 
-    final query = ref.watch(patientsSearchQueryProvider).trim();
-    final appointments =
-        ref.watch(appointmentsProvider).asData?.value ??
-        const <AppointmentModel>[];
-    final mobileBody = _buildMobileBody(
-      context: context,
-      asyncPatients: asyncPatients,
-      appointments: appointments,
-      query: query,
-    );
-
     if (WebLayoutContext.useDesktopShell(context)) {
       final now = DateTime.now();
       final totalPacientes = filteredPatients.length;
@@ -810,6 +799,17 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
 
       return AdminWebShell(title: 'Pacientes', child: desktopContent);
     }
+
+    final query = ref.watch(patientsSearchQueryProvider).trim();
+    final appointments =
+        ref.watch(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
+    final mobileBody = _buildMobileBody(
+      context: context,
+      asyncPatients: asyncPatients,
+      appointments: appointments,
+      query: query,
+    );
 
     if (widget.embeddedInMobileShell) {
       return mobileBody;
