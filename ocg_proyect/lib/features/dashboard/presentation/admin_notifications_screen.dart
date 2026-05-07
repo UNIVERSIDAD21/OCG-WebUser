@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
-import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/data/models/app_notification_model.dart';
@@ -24,10 +23,9 @@ class AdminNotificationsScreen extends ConsumerWidget {
       return AdminWebShell(title: 'Notificaciones', child: body);
     }
 
-    return OcgAdaptiveScaffold(
-      selectedIndex: 6,
-      title: 'Notificaciones',
-      appBarActions: const [],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F5F0),
+      appBar: AppBar(title: const Text('Notificaciones')),
       body: body,
     );
   }
@@ -47,7 +45,9 @@ class _AdminNotificationsBody extends ConsumerWidget {
       );
     }
 
-    final notificationsAsync = ref.watch(userNotificationsProvider(recipientId));
+    final notificationsAsync = ref.watch(
+      userNotificationsProvider(recipientId),
+    );
     final actionsState = ref.watch(notificationsActionsProvider);
 
     return notificationsAsync.when(
@@ -92,8 +92,8 @@ class _AdminNotificationsBody extends ConsumerWidget {
                 onPressed: actionsState.isLoading
                     ? null
                     : () => ref
-                        .read(notificationsActionsProvider.notifier)
-                        .markAllAsRead(recipientId),
+                          .read(notificationsActionsProvider.notifier)
+                          .markAllAsRead(recipientId),
                 icon: const Icon(Icons.done_all_outlined),
                 label: const Text('Marcar todas como leídas'),
               ),
@@ -164,18 +164,12 @@ class _NotificationCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              item.body,
-              style: const TextStyle(color: OcgColors.ink),
-            ),
+            Text(item.body, style: const TextStyle(color: OcgColors.ink)),
             if (item.createdAt != null) ...[
               const SizedBox(height: 10),
               Text(
                 _formatDate(item.createdAt!),
-                style: const TextStyle(
-                  color: OcgColors.bronze,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: OcgColors.bronze, fontSize: 12),
               ),
             ],
           ],

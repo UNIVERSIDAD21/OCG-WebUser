@@ -8,6 +8,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../auth/providers/auth_providers.dart';
+import 'admin_mobile_shell_controller.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
@@ -175,7 +176,7 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
   AdminPaymentsFilter selectedFilter = AdminPaymentsFilter.todos;
 
   void _goToRegisterPayment(BuildContext context) {
-    context.go(RouteNames.adminPatients);
+    context.goAdminTab(1, RouteNames.adminPatients);
   }
 
   @override
@@ -593,7 +594,9 @@ class _WebPaymentsViewState extends State<_WebPaymentsView> {
 }
 
 class AdminSimulatorScreen extends ConsumerWidget {
-  const AdminSimulatorScreen({super.key});
+  const AdminSimulatorScreen({super.key, this.embeddedInMobileShell = false});
+
+  final bool embeddedInMobileShell;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -615,6 +618,10 @@ class AdminSimulatorScreen extends ConsumerWidget {
 
     if (isDesktop) {
       return AdminWebShell(title: 'Simulador', child: body);
+    }
+
+    if (embeddedInMobileShell) {
+      return body;
     }
 
     return OcgAdaptiveScaffold(
@@ -749,7 +756,8 @@ class _UnifiedTreatmentsViewState extends State<_UnifiedTreatmentsView> {
                     vertical: 12,
                   ),
                 ),
-                onPressed: () => context.go(RouteNames.adminPatients),
+                onPressed: () =>
+                    context.goAdminTab(1, RouteNames.adminPatients),
                 icon: const Icon(Icons.add, size: 16, color: Color(0xFFC9A882)),
                 label: const Text('Nuevo tratamiento'),
               ),
@@ -1055,21 +1063,21 @@ class _WebSimulatorView extends StatelessWidget {
                 title: 'Pacientes',
                 subtitle: 'con acceso a simulación',
                 bg: const Color(0xFFF6EFE7),
-                onTap: () => context.go(RouteNames.adminPatients),
+                onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
               ),
               _PayMiniKpi(
                 value: '3D',
                 title: 'Módulo visual',
                 subtitle: 'simulación guiada',
                 bg: const Color(0xFFEFF2FA),
-                onTap: () => context.go(RouteNames.adminSimulator),
+                onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
               ),
               _PayMiniKpi(
                 value: 'IA',
                 title: 'Asistencia',
                 subtitle: 'apoyo clínico',
                 bg: const Color(0xFFFFF4D8),
-                onTap: () => context.go(RouteNames.adminSimulator),
+                onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
               ),
             ],
           ),

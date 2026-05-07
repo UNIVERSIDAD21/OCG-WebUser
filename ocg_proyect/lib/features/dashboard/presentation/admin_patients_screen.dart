@@ -18,9 +18,12 @@ import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
+import 'admin_mobile_shell_controller.dart';
 
 class AdminPatientsScreen extends ConsumerWidget {
-  const AdminPatientsScreen({super.key});
+  const AdminPatientsScreen({super.key, this.embeddedInMobileShell = false});
+
+  final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
@@ -72,7 +75,7 @@ class AdminPatientsScreen extends ConsumerWidget {
     'Retenedores',
   ];
 
-  static Future<void> _showAddPatientDialog(
+  static Future<void> showAddPatientDialog(
     BuildContext context,
     WidgetRef ref,
   ) async {
@@ -514,7 +517,7 @@ class AdminPatientsScreen extends ConsumerWidget {
                       vertical: 12,
                     ),
                   ),
-                  onPressed: () => _showAddPatientDialog(context, ref),
+                  onPressed: () => showAddPatientDialog(context, ref),
                   icon: const Icon(
                     Icons.person_add_outlined,
                     size: 16,
@@ -533,13 +536,14 @@ class AdminPatientsScreen extends ConsumerWidget {
               nuevosMes: nuevosMes,
               onTapTotal: () {
                 ref.read(patientsFilterProvider.notifier).setFilter('Todos');
-                context.go(RouteNames.adminPatients);
+                context.goAdminTab(1, RouteNames.adminPatients);
               },
               onTapActivos: () {
                 ref.read(patientsFilterProvider.notifier).setFilter('Activos');
-                context.go(RouteNames.adminPatients);
+                context.goAdminTab(1, RouteNames.adminPatients);
               },
-              onTapCitasHoy: () => context.go(RouteNames.adminAppointments),
+              onTapCitasHoy: () =>
+                  context.goAdminTab(2, RouteNames.adminAppointments),
               onTapSaldoPendiente: () => context.go(RouteNames.adminPayments),
             ),
             SizedBox(height: panelGap),
@@ -727,6 +731,10 @@ class AdminPatientsScreen extends ConsumerWidget {
       return AdminWebShell(title: 'Pacientes', child: desktopContent);
     }
 
+    if (embeddedInMobileShell) {
+      return mobileBody;
+    }
+
     return OcgAdaptiveScaffold(
       selectedIndex: 1, // Pacientes = índice 1
       title: 'Pacientes',
@@ -754,7 +762,7 @@ class AdminPatientsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddPatientDialog(context, ref),
+        onPressed: () => showAddPatientDialog(context, ref),
         backgroundColor: OcgColors.bronze,
         child: const Icon(Icons.person_add),
       ),
@@ -1489,7 +1497,7 @@ class _AdminMobileProfileAction extends ConsumerWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(99),
-      onTap: () => context.go(RouteNames.adminProfile),
+      onTap: () => context.goAdminTab(4, RouteNames.adminProfile),
       child: Container(
         width: 34,
         height: 34,
@@ -1515,10 +1523,14 @@ String _adminProfileInitials(String? displayName, String? email) {
   final source = (displayName?.trim().isNotEmpty == true)
       ? displayName!.trim()
       : (email?.trim().isNotEmpty == true ? email!.trim() : 'Administrador');
-  final parts = source.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = source
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return 'AD';
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+      .toUpperCase();
 }
 
 String _tipoTratamientoLabel(TreatmentType value) => switch (value) {

@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import 'admin_mobile_shell_controller.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -18,7 +19,9 @@ import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
-  const AdminDashboardScreen({super.key});
+  const AdminDashboardScreen({super.key, this.embeddedInMobileShell = false});
+
+  final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
@@ -73,6 +76,10 @@ class AdminDashboardScreen extends ConsumerWidget {
 
     if (WebLayoutContext.useDesktopShell(context)) {
       return AdminWebShell(title: 'Dashboard', child: dashboardBody);
+    }
+
+    if (embeddedInMobileShell) {
+      return dashboardBody;
     }
 
     return OcgAdaptiveScaffold(
@@ -401,7 +408,8 @@ class _MobileAdminDashboard extends StatelessWidget {
                       child: _MobileQuickCard(
                         icon: Icons.people_outline,
                         label: 'Pacientes',
-                        onTap: () => context.go(RouteNames.adminPatients),
+                        onTap: () =>
+                            context.goAdminTab(1, RouteNames.adminPatients),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -409,7 +417,8 @@ class _MobileAdminDashboard extends StatelessWidget {
                       child: _MobileQuickCard(
                         icon: Icons.calendar_month_outlined,
                         label: 'Agenda',
-                        onTap: () => context.go(RouteNames.adminAppointments),
+                        onTap: () =>
+                            context.goAdminTab(2, RouteNames.adminAppointments),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -417,7 +426,8 @@ class _MobileAdminDashboard extends StatelessWidget {
                       child: _MobileQuickCard(
                         icon: Icons.person_add_outlined,
                         label: 'Nuevo paciente',
-                        onTap: () => context.go(RouteNames.adminPatients),
+                        onTap: () =>
+                            context.goAdminTab(1, RouteNames.adminPatients),
                         emphasized: true,
                       ),
                     ),
@@ -455,7 +465,8 @@ class _MobileAdminDashboard extends StatelessWidget {
                   children: [
                     const Expanded(child: _MobileSectionTitle('Agenda de hoy')),
                     TextButton(
-                      onPressed: () => context.go(RouteNames.adminAppointments),
+                      onPressed: () =>
+                          context.goAdminTab(2, RouteNames.adminAppointments),
                       child: const Text(
                         'Ver todo >',
                         style: TextStyle(
@@ -590,7 +601,7 @@ class _WebAdminDashboard extends StatelessWidget {
           bg: const Color(0xFFF6EFE7),
           accent: const Color(0xFF9A735C),
           icon: Icons.calendar_month_outlined,
-          onTap: () => context.go(RouteNames.adminAppointments),
+          onTap: () => context.goAdminTab(2, RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
           value: '$pendingConfirm',
@@ -599,7 +610,7 @@ class _WebAdminDashboard extends StatelessWidget {
           bg: const Color(0xFFFFF4D8),
           accent: const Color(0xFFC99730),
           icon: Icons.schedule_outlined,
-          onTap: () => context.go(RouteNames.adminAppointments),
+          onTap: () => context.goAdminTab(2, RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
           value: '$canceladasSemana',
@@ -608,7 +619,7 @@ class _WebAdminDashboard extends StatelessWidget {
           bg: const Color(0xFFFFECEC),
           accent: const Color(0xFFB06A5A),
           icon: Icons.event_busy_outlined,
-          onTap: () => context.go(RouteNames.adminAppointments),
+          onTap: () => context.goAdminTab(2, RouteNames.adminAppointments),
         ),
         _MobileKpiMini(
           value: '$nuevosPacientes30d',
@@ -617,7 +628,7 @@ class _WebAdminDashboard extends StatelessWidget {
           bg: const Color(0xFFEFF8F0),
           accent: const Color(0xFF2E7D4C),
           icon: Icons.person_add_alt_1_outlined,
-          onTap: () => context.go(RouteNames.adminPatients),
+          onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
         ),
       ],
     );
@@ -633,13 +644,14 @@ class _WebAdminDashboard extends StatelessWidget {
               _MobileQuickCard(
                 icon: Icons.people_outline,
                 label: 'Pacientes',
-                onTap: () => context.go(RouteNames.adminPatients),
+                onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
               ),
               SizedBox(height: panelGap * 0.75),
               _MobileQuickCard(
                 icon: Icons.calendar_month_outlined,
                 label: 'Agenda',
-                onTap: () => context.go(RouteNames.adminAppointments),
+                onTap: () =>
+                    context.goAdminTab(2, RouteNames.adminAppointments),
               ),
             ],
           )
@@ -650,7 +662,7 @@ class _WebAdminDashboard extends StatelessWidget {
                 child: _MobileQuickCard(
                   icon: Icons.people_outline,
                   label: 'Pacientes',
-                  onTap: () => context.go(RouteNames.adminPatients),
+                  onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
                 ),
               ),
               SizedBox(width: panelGap * 0.75),
@@ -658,7 +670,8 @@ class _WebAdminDashboard extends StatelessWidget {
                 child: _MobileQuickCard(
                   icon: Icons.calendar_month_outlined,
                   label: 'Agenda',
-                  onTap: () => context.go(RouteNames.adminAppointments),
+                  onTap: () =>
+                      context.goAdminTab(2, RouteNames.adminAppointments),
                 ),
               ),
             ],
@@ -667,7 +680,7 @@ class _WebAdminDashboard extends StatelessWidget {
         _MobileQuickCard(
           icon: Icons.person_add_outlined,
           label: 'Nuevo paciente',
-          onTap: () => context.go(RouteNames.adminPatients),
+          onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
           emphasized: true,
         ),
       ],
@@ -779,8 +792,10 @@ class _WebAdminDashboard extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () =>
-                              context.go(RouteNames.adminAppointments),
+                          onPressed: () => context.goAdminTab(
+                            2,
+                            RouteNames.adminAppointments,
+                          ),
                           child: const Text(
                             'Ver todo >',
                             style: TextStyle(
@@ -1983,7 +1998,7 @@ class _AdminProfileButton extends ConsumerWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(99),
-      onTap: () => context.go(RouteNames.adminProfile),
+      onTap: () => context.goAdminTab(4, RouteNames.adminProfile),
       child: Container(
         width: 36,
         height: 36,
@@ -2016,10 +2031,14 @@ String _adminInitials(String? displayName, String? email) {
   final source = (displayName?.trim().isNotEmpty == true)
       ? displayName!.trim()
       : (email?.trim().isNotEmpty == true ? email!.trim() : 'Administrador');
-  final parts = source.split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = source
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return 'AD';
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+      .toUpperCase();
 }
 
 class AdminDashboardDesktopTestHarness extends ConsumerWidget {

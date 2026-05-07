@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
-import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -13,7 +12,6 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
-import '../../dashboard/presentation/patient_appointments_screen.dart';
 import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/widgets/register_payment_dialog.dart';
 import '../../payments/providers/payments_provider.dart';
@@ -21,7 +19,6 @@ import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
-import 'patient_viewer_mode.dart';
 import '../data/models/patient_data_resolution.dart';
 import '../data/models/patient_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
@@ -227,7 +224,8 @@ class _PatientDetailView extends ConsumerWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: () => context.go(RouteNames.adminPatients),
+                              onPressed: () =>
+                                  context.go(RouteNames.adminPatients),
                               icon: const Icon(Icons.arrow_back, size: 16),
                               label: const Text('Volver'),
                               style: OutlinedButton.styleFrom(
@@ -282,7 +280,10 @@ class _PatientDetailView extends ConsumerWidget {
                                       patient.id,
                                     ),
                                   ),
-                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 16,
+                                  ),
                                   label: const Text('Editar'),
                                 ),
                                 OutlinedButton.icon(
@@ -316,7 +317,9 @@ class _PatientDetailView extends ConsumerWidget {
                         SizedBox(height: sectionGap),
                         Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: tier == AdminDesktopTier.tight ? 10 : 12,
+                            horizontal: tier == AdminDesktopTier.tight
+                                ? 10
+                                : 12,
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
@@ -420,15 +423,20 @@ class _AdminPatientWorkspaceState
 
   @override
   Widget build(BuildContext context) {
-    final appointments = ref.watch(appointmentsProvider).asData?.value ?? const <AppointmentModel>[];
-    final patientAppointments = appointments
-        .where((item) => item.patientId == widget.patient.id)
-        .toList()
-      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
-    final nextAppointment = patientAppointments.cast<AppointmentModel?>().firstWhere(
-      (item) => item != null && item.fechaHora.isAfter(DateTime.now()),
-      orElse: () => null,
-    );
+    final appointments =
+        ref.watch(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
+    final patientAppointments =
+        appointments
+            .where((item) => item.patientId == widget.patient.id)
+            .toList()
+          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final nextAppointment = patientAppointments
+        .cast<AppointmentModel?>()
+        .firstWhere(
+          (item) => item != null && item.fechaHora.isAfter(DateTime.now()),
+          orElse: () => null,
+        );
     final treatments = ref.watch(
       effectivePatientTreatmentsProvider((
         patientId: widget.patient.id,
@@ -442,25 +450,30 @@ class _AdminPatientWorkspaceState
       )),
     );
     final simulations =
-        ref.watch(patientSimulationsProvider(widget.patient.id)).asData?.value ??
+        ref
+            .watch(patientSimulationsProvider(widget.patient.id))
+            .asData
+            ?.value ??
         const <SimulationModel>[];
     final latestSimulation = simulations.isEmpty ? null : simulations.first;
 
-    return OcgAdaptiveScaffold(
-      selectedIndex: 1,
-      title: 'Paciente: ${widget.patient.nombre}',
-      appBarActions: [
-        IconButton(
-          tooltip: 'Editar paciente',
-          icon: const Icon(Icons.edit_outlined),
-          onPressed: widget.onEdit,
-        ),
-        IconButton(
-          tooltip: 'Eliminar paciente',
-          icon: const Icon(Icons.delete_outline, color: OcgColors.error),
-          onPressed: widget.onDelete,
-        ),
-      ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F5F0),
+      appBar: AppBar(
+        title: Text('Paciente: ${widget.patient.nombre}'),
+        actions: [
+          IconButton(
+            tooltip: 'Editar paciente',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: widget.onEdit,
+          ),
+          IconButton(
+            tooltip: 'Eliminar paciente',
+            icon: const Icon(Icons.delete_outline, color: OcgColors.error),
+            onPressed: widget.onDelete,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
@@ -486,11 +499,7 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      3 => PatientAppointmentsScreen(
-        embedded: true,
-        patientIdOverride: widget.patient.id,
-        viewerMode: PatientViewerMode.adminViewer,
-      ),
+      3 => PatientAppointmentsTab(patient: widget.patient),
       4 => PatientSimulatorTab(patient: widget.patient),
       _ => const SizedBox.shrink(),
     };
@@ -553,7 +562,10 @@ class _AdminPatientWorkspaceState
             ),
           ),
           const SizedBox(height: 6),
-          Text('Contacto: $contact', style: const TextStyle(color: OcgColors.ink)),
+          Text(
+            'Contacto: $contact',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
@@ -599,10 +611,7 @@ class _AdminPatientWorkspaceState
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
         ),
-        child: SizedBox(
-          height: 760,
-          child: _buildSection(3),
-        ),
+        child: SizedBox(height: 760, child: _buildSection(3)),
       ),
       4 => Card(
         clipBehavior: Clip.antiAlias,
@@ -611,10 +620,7 @@ class _AdminPatientWorkspaceState
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
         ),
-        child: SizedBox(
-          height: 920,
-          child: _buildSection(4),
-        ),
+        child: SizedBox(height: 920, child: _buildSection(4)),
       ),
       _ => const SizedBox.shrink(),
     };
@@ -637,7 +643,9 @@ class _AdminPatientWorkspaceState
       children: [
         _summaryCtaCard(
           title: 'Tratamientos activos',
-          value: activeCount == 0 ? 'Sin tratamientos activos' : '$activeCount activos',
+          value: activeCount == 0
+              ? 'Sin tratamientos activos'
+              : '$activeCount activos',
           subtitle: treatments.isEmpty
               ? 'No hay tratamientos registrados para este paciente.'
               : 'Revisa el estado y etapas actuales del paciente.',
@@ -694,7 +702,9 @@ class _AdminPatientWorkspaceState
       );
     }
 
-    final legacyOnly = treatments.every((item) => item.id.startsWith('legacy-primary-'));
+    final legacyOnly = treatments.every(
+      (item) => item.id.startsWith('legacy-primary-'),
+    );
     final summaryText = legacyOnly
         ? 'Tratamiento principal migrado desde datos legacy.'
         : 'Este paciente tiene ${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} registrado${treatments.length == 1 ? '' : 's'}.';
@@ -705,7 +715,10 @@ class _AdminPatientWorkspaceState
         _patientCard(
           title: 'Tratamientos del paciente',
           icon: Icons.monitor_heart_outlined,
-          child: Text(summaryText, style: const TextStyle(color: OcgColors.ink)),
+          child: Text(
+            summaryText,
+            style: const TextStyle(color: OcgColors.ink),
+          ),
         ),
         const SizedBox(height: 12),
         for (final treatment in treatments) ...[
@@ -766,10 +779,14 @@ class _AdminPatientWorkspaceState
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final account in paymentsResolution.paymentAccounts) ...[
+                    for (final account
+                        in paymentsResolution.paymentAccounts) ...[
                       _buildMobilePaymentAccountCard(
                         account: account,
-                        treatment: _resolveTreatmentForAccount(treatments, account),
+                        treatment: _resolveTreatmentForAccount(
+                          treatments,
+                          account,
+                        ),
                         allTransactions: transactions,
                       ),
                       const SizedBox(height: 12),
@@ -896,17 +913,28 @@ class _AdminPatientWorkspaceState
             spacing: 8,
             runSpacing: 8,
             children: [
-              _statusBadge(treatment.isPrimary || isLegacy ? 'Principal' : 'Secundario'),
+              _statusBadge(
+                treatment.isPrimary || isLegacy ? 'Principal' : 'Secundario',
+              ),
               _statusBadge(treatment.statusLabel),
               _statusBadge(treatment.currentStageName),
             ],
           ),
           const SizedBox(height: 12),
-          Text('Inicio: ${_date(treatment.fechaInicio)}', style: const TextStyle(color: OcgColors.ink)),
+          Text(
+            'Inicio: ${_date(treatment.fechaInicio)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
           const SizedBox(height: 6),
-          Text('Valor total: ${_money(treatment.totalTratamiento ?? 0)}', style: const TextStyle(color: OcgColors.ink)),
+          Text(
+            'Valor total: ${_money(treatment.totalTratamiento ?? 0)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
           const SizedBox(height: 6),
-          Text('Saldo pendiente: ${_money(treatment.saldoPendiente ?? 0)}', style: const TextStyle(color: OcgColors.ink)),
+          Text(
+            'Saldo pendiente: ${_money(treatment.saldoPendiente ?? 0)}',
+            style: const TextStyle(color: OcgColors.ink),
+          ),
           if (note != null && note.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
@@ -927,7 +955,9 @@ class _AdminPatientWorkspaceState
                 label: const Text('Ir a pagos'),
               ),
               OutlinedButton.icon(
-                onPressed: note == null || note.isEmpty ? null : () => _showTreatmentNotes(treatment),
+                onPressed: note == null || note.isEmpty
+                    ? null
+                    : () => _showTreatmentNotes(treatment),
                 icon: const Icon(Icons.notes_outlined, size: 18),
                 label: const Text('Ver notas'),
               ),
@@ -946,7 +976,6 @@ class _AdminPatientWorkspaceState
       ),
     );
   }
-
 
   Widget _patientCard({
     required String title,
@@ -1021,9 +1050,18 @@ class _AdminPatientWorkspaceState
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(color: OcgColors.bronze, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: OcgColors.bronze, fontSize: 12),
+          ),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(color: OcgColors.espresso, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -1034,8 +1072,11 @@ class _AdminPatientWorkspaceState
     required PatientTreatment? treatment,
     required List<PaymentTransaction> allTransactions,
   }) {
-    final treatmentName = treatment?.displayName ??
-        (account.treatmentId == null ? 'Cuenta legacy / migrada' : 'Tratamiento sin identificar');
+    final treatmentName =
+        treatment?.displayName ??
+        (account.treatmentId == null
+            ? 'Cuenta legacy / migrada'
+            : 'Tratamiento sin identificar');
     final roleLabel = account.treatmentId == null
         ? 'Legacy'
         : (treatment?.isPrimary == true ? 'Principal' : 'Secundario');
@@ -1140,7 +1181,8 @@ class _AdminPatientWorkspaceState
     PaymentTransaction tx,
     PatientTreatment? treatment,
   ) {
-    final treatmentLabel = treatment?.displayName ??
+    final treatmentLabel =
+        treatment?.displayName ??
         (tx.treatmentId == null
             ? 'Tratamiento no identificado / cuenta legacy'
             : 'Tratamiento asociado no encontrado');
@@ -1199,7 +1241,8 @@ class _AdminPatientWorkspaceState
     }
 
     for (final account in accounts) {
-      if (account.treatmentId == tx.treatmentId && account.treatmentId != null) {
+      if (account.treatmentId == tx.treatmentId &&
+          account.treatmentId != null) {
         return _resolveTreatmentForAccount(treatments, account);
       }
     }
@@ -1340,10 +1383,11 @@ class _AdminPatientWorkspaceState
                   child: ListView.separated(
                     itemCount: transactions.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _buildMobileTransactionCard(
-                      transactions[index],
-                      treatment,
-                    ),
+                    itemBuilder: (context, index) =>
+                        _buildMobileTransactionCard(
+                          transactions[index],
+                          treatment,
+                        ),
                   ),
                 ),
               ],
@@ -1370,11 +1414,13 @@ class _AdminPatientWorkspaceState
     ref.read(simulatorFlowProvider.notifier).resetFlow();
 
     try {
-      await ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
-        patientId: widget.patient.id,
-        adminId: adminId,
-        treatmentType: widget.patient.tipoTratamiento,
-      );
+      await ref
+          .read(simulatorFlowProvider.notifier)
+          .pickOriginalFromCamera(
+            patientId: widget.patient.id,
+            adminId: adminId,
+            treatmentType: widget.patient.tipoTratamiento,
+          );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

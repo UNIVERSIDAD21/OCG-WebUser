@@ -7,9 +7,11 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../presentation/web/common/web_layout_context.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
 import '../../features/dashboard/presentation/admin_modules_screens.dart';
+import '../../features/dashboard/presentation/admin_mobile_shell.dart';
 import '../../features/dashboard/presentation/admin_notifications_screen.dart';
 import '../../features/dashboard/presentation/admin_patients_screen.dart';
 import '../../features/dashboard/presentation/admin_profile_screen.dart';
@@ -68,14 +70,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final userRole = ref.read(userRoleProvider);
       final isLoggedIn = authState.asData?.value != null;
       final authFlowLoading = ref.read(authNotifierProvider).isLoading;
-      developer.log('router redirect evaluate', name: 'ocg.router', error: {
-        'location': location,
-        'authLoading': authState.isLoading,
-        'authFlowLoading': authFlowLoading,
-        'isLoggedIn': isLoggedIn,
-        'roleLoading': userRole.isLoading,
-        'roleValue': userRole.asData?.value,
-      });
+      developer.log(
+        'router redirect evaluate',
+        name: 'ocg.router',
+        error: {
+          'location': location,
+          'authLoading': authState.isLoading,
+          'authFlowLoading': authFlowLoading,
+          'isLoggedIn': isLoggedIn,
+          'roleLoading': userRole.isLoading,
+          'roleValue': userRole.asData?.value,
+        },
+      );
 
       if (authState.isLoading || authFlowLoading) {
         return location == RouteNames.splash ? null : RouteNames.splash;
@@ -129,15 +135,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.adminDashboard,
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 0,
+          desktopChild: AdminDashboardScreen(),
+        ),
       ),
       GoRoute(
         path: RouteNames.adminPatients,
-        builder: (context, state) => const AdminPatientsScreen(),
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 1,
+          desktopChild: AdminPatientsScreen(),
+        ),
       ),
       GoRoute(
         path: RouteNames.adminAppointments,
-        builder: (context, state) => const AdminAppointmentsScreen(),
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 2,
+          desktopChild: AdminAppointmentsScreen(),
+        ),
       ),
       GoRoute(
         path: RouteNames.adminTreatments,
@@ -149,11 +164,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.adminSimulator,
-        builder: (context, state) => const AdminSimulatorScreen(),
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 3,
+          desktopChild: AdminSimulatorScreen(),
+        ),
       ),
       GoRoute(
         path: RouteNames.adminProfile,
-        builder: (context, state) => const AdminProfileScreen(),
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 4,
+          desktopChild: AdminProfileScreen(),
+        ),
       ),
       GoRoute(
         path: RouteNames.adminNotifications,
@@ -211,6 +232,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _AdminTabRoute extends StatelessWidget {
+  const _AdminTabRoute({required this.mobileIndex, required this.desktopChild});
+
+  final int mobileIndex;
+  final Widget desktopChild;
+
+  @override
+  Widget build(BuildContext context) {
+    if (WebLayoutContext.useDesktopShell(context)) {
+      return desktopChild;
+    }
+
+    return AdminMobileShell(initialIndex: mobileIndex);
+  }
+}
 
 class _AuthResolvingScreen extends StatelessWidget {
   const _AuthResolvingScreen();

@@ -13,7 +13,9 @@ import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
 
 class AdminProfileScreen extends ConsumerWidget {
-  const AdminProfileScreen({super.key});
+  const AdminProfileScreen({super.key, this.embeddedInMobileShell = false});
+
+  final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
@@ -55,10 +57,16 @@ class AdminProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDesktop = WebLayoutContext.useDesktopShell(context);
-    final body = _AdminProfileBody(onSignOut: () => _handleSignOut(context, ref));
+    final body = _AdminProfileBody(
+      onSignOut: () => _handleSignOut(context, ref),
+    );
 
     if (isDesktop) {
       return AdminWebShell(title: 'Perfil', child: body);
+    }
+
+    if (embeddedInMobileShell) {
+      return body;
     }
 
     return OcgAdaptiveScaffold(
@@ -97,7 +105,9 @@ class _AdminProfileBody extends ConsumerWidget {
               _infoRow('Correo', _safeValue(user?.email)),
               _infoRow(
                 'Rol',
-                roleAsync.asData?.value == 'admin' ? 'Administrador' : 'Sin rol',
+                roleAsync.asData?.value == 'admin'
+                    ? 'Administrador'
+                    : 'Sin rol',
               ),
               _infoRow('UID', _safeValue(user?.uid)),
             ],
@@ -113,13 +123,19 @@ class _AdminProfileBody extends ConsumerWidget {
                 leading: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Icon(Icons.notifications_outlined, color: OcgColors.espresso),
+                    const Icon(
+                      Icons.notifications_outlined,
+                      color: OcgColors.espresso,
+                    ),
                     if (unreadCount > 0)
                       Positioned(
                         right: -6,
                         top: -6,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: OcgColors.error,
                             borderRadius: BorderRadius.circular(999),
@@ -259,9 +275,7 @@ class _ProfileHero extends StatelessWidget {
                   roleAsync.asData?.value == 'admin'
                       ? 'Perfil del administrador'
                       : 'Perfil disponible',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.72),
-                  ),
+                  style: TextStyle(color: Colors.white.withOpacity(0.72)),
                 ),
               ],
             ),

@@ -188,7 +188,12 @@ class AdminAppointmentsDesktopTestHarness extends StatelessWidget {
 }
 
 class AdminAppointmentsScreen extends ConsumerStatefulWidget {
-  const AdminAppointmentsScreen({super.key});
+  const AdminAppointmentsScreen({
+    super.key,
+    this.embeddedInMobileShell = false,
+  });
+
+  final bool embeddedInMobileShell;
 
   // ─── Diálogo crear cita ───────────────────────────────────────────────────
   //
@@ -2940,6 +2945,13 @@ class _AdminAppointmentsScreenState
       _AgendaInnerTab.historial => 'Historial',
     };
 
+    final mobileContent = Column(
+      children: [
+        _buildInnerTabs(),
+        Expanded(child: agendaBody),
+      ],
+    );
+
     if (WebLayoutContext.useDesktopShell(context)) {
       final desktopContent = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3003,6 +3015,10 @@ class _AdminAppointmentsScreenState
       return AdminWebShell(title: 'Agenda', child: desktopContent);
     }
 
+    if (widget.embeddedInMobileShell) {
+      return mobileContent;
+    }
+
     return OcgAdaptiveScaffold(
       selectedIndex: 2,
       title: 'Agenda de citas',
@@ -3022,12 +3038,7 @@ class _AdminAppointmentsScreenState
           ),
         ),
       ),
-      body: Column(
-        children: [
-          _buildInnerTabs(),
-          Expanded(child: agendaBody),
-        ],
-      ),
+      body: mobileContent,
       floatingActionButton: FloatingActionButton(
         mini: true,
         tooltip: 'Nueva cita',
