@@ -239,6 +239,7 @@ class _MobileAdminDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+    final greeting = _adminGreeting(now);
     const wd = [
       'LUNES',
       'MARTES',
@@ -306,9 +307,9 @@ class _MobileAdminDashboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Buenos días, Admin',
-                  style: TextStyle(
+                Text(
+                  '$greeting, Admin',
+                  style: const TextStyle(
                     color: OcgColors.ivory,
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
@@ -523,6 +524,7 @@ class _WebAdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = AdminDesktopLayoutScope.maybeOf(context);
     final now = DateTime.now();
+    final greeting = _adminGreeting(now);
     const wd = [
       'LUNES',
       'MARTES',
@@ -707,7 +709,7 @@ class _WebAdminDashboard extends StatelessWidget {
                     ),
                     SizedBox(height: tier == AdminDesktopTier.tight ? 10 : 14),
                     Text(
-                      'Buenos días,\nAdmin',
+                      '$greeting,\nAdmin',
                       style: TextStyle(
                         fontSize: heroTitleSize,
                         fontWeight: FontWeight.w800,
@@ -2001,6 +2003,13 @@ class _AdminProfileButton extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _adminGreeting(DateTime now) {
+  final hour = now.hour;
+  if (hour >= 5 && hour < 12) return 'Buenos días';
+  if (hour >= 12 && hour < 19) return 'Buenas tardes';
+  return 'Buenas noches';
 }
 
 String _adminInitials(String? displayName, String? email) {
