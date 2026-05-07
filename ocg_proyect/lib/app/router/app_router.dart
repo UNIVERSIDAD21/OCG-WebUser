@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
-import '../../features/clinical_files/presentation/patient_shared_clinical_files_screen.dart';
 import '../../presentation/web/common/web_layout_context.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
@@ -22,7 +21,6 @@ import '../../features/notifications/presentation/patient_notifications_screen.d
 import '../../features/patients/presentation/patient_detail_screen.dart';
 import '../../features/patients/presentation/patient_form_screen.dart';
 import '../../features/patients/presentation/patient_profile_screen.dart';
-import '../../features/payments/presentation/patient_payments_screen.dart';
 import '../../features/payments/presentation/payu_checkout_screen.dart';
 import '../../features/simulator/presentation/patient_simulations_screen.dart';
 import 'route_names.dart';
@@ -225,11 +223,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.patientClinicalFiles,
-        builder: (context, state) => const PatientSharedClinicalFilesScreen(),
+        builder: (context, state) => const PatientHomeScreen(
+          initialSection: 2,
+          initialTreatmentView: PatientTreatmentInitialView.clinicalFiles,
+        ),
       ),
       GoRoute(
         path: RouteNames.patientPayments,
-        builder: (context, state) => const PatientPaymentsScreen(),
+        builder: (context, state) => const PatientHomeScreen(
+          initialSection: 2,
+          initialTreatmentView: PatientTreatmentInitialView.payments,
+        ),
       ),
       GoRoute(
         path: RouteNames.patientSimulations,

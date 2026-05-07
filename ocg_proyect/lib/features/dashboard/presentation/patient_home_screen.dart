@@ -26,17 +26,21 @@ import '../../treatment/providers/patient_treatments_provider.dart';
 import '../../treatment/providers/treatment_provider.dart';
 import 'widgets/patient_bottom_nav.dart';
 
+enum PatientTreatmentInitialView { overview, payments, clinicalFiles }
+
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({
     super.key,
     this.patientIdOverride,
     this.isAdminView = false,
     this.initialSection = 0,
+    this.initialTreatmentView = PatientTreatmentInitialView.overview,
   });
 
   final String? patientIdOverride;
   final bool isAdminView;
   final int initialSection;
+  final PatientTreatmentInitialView initialTreatmentView;
 
   @override
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
@@ -44,6 +48,7 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
 
 class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   late int _selectedIndex;
+  late PatientTreatmentInitialView _treatmentView;
 
   void _openNotificationsSheet(String patientId) {
     showModalBottomSheet<void>(
@@ -129,7 +134,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialSection.clamp(0, 6);
+    _selectedIndex = widget.initialSection.clamp(0, 4);
+    _treatmentView = widget.initialTreatmentView;
+  }
+
+  void _openTreatmentView(PatientTreatmentInitialView view) {
+    setState(() {
+      _selectedIndex = 2;
+      _treatmentView = view;
+    });
+  }
+
+  void _selectBottomNav(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 2) {
+        _treatmentView = PatientTreatmentInitialView.overview;
+      }
+    });
   }
 
   @override
@@ -144,9 +166,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final sections = [
       _InicioSection(
         userId: effectivePatientId,
-        onOpenProfile: () => setState(() => _selectedIndex = 6),
-        onOpenPayments: () => setState(() => _selectedIndex = 3),
-        onOpenClinicalFiles: () => setState(() => _selectedIndex = 5),
+        onOpenProfile: () => setState(() => _selectedIndex = 4),
+        onOpenPayments: () =>
+            _openTreatmentView(PatientTreatmentInitialView.payments),
+        onOpenClinicalFiles: () =>
+            _openTreatmentView(PatientTreatmentInitialView.clinicalFiles),
         onOpenAlerts: () => _openNotificationsSheet(effectivePatientId),
       ),
       PatientAppointmentsScreen(
@@ -158,11 +182,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       ),
       _TratamientoSection(
         userId: effectivePatientId,
-        onOpenPayments: () => setState(() => _selectedIndex = 3),
+        currentView: _treatmentView,
+        onViewChanged: (view) => setState(() => _treatmentView = view),
+        onOpenPayments: () => setState(
+          () => _treatmentView = PatientTreatmentInitialView.payments,
+        ),
+        onOpenClinicalFiles: () => setState(
+          () => _treatmentView = PatientTreatmentInitialView.clinicalFiles,
+        ),
         onOpenAppointments: () => setState(() => _selectedIndex = 1),
-      ),
-      PatientPaymentsScreen(
-        embedded: true,
         patientIdOverride: overrideForAdmin,
         viewerMode: widget.isAdminView
             ? PatientViewerMode.adminViewer
@@ -174,10 +202,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         viewerMode: widget.isAdminView
             ? PatientViewerMode.adminViewer
             : PatientViewerMode.patient,
-      ),
-      PatientSharedClinicalFilesScreen(
-        embedded: true,
-        patientIdOverride: overrideForAdmin,
       ),
       PatientProfileScreen(
         embedded: true,
@@ -222,7 +246,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       ),
       bottomNavigationBar: PatientBottomNav(
         selectedIndex: _selectedIndex,
-        onSelected: (index) => setState(() => _selectedIndex = index),
+        onSelected: _selectBottomNav,
         items: const [
           PatientNavItem(
             label: 'Inicio',
@@ -240,19 +264,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             selectedIcon: Icons.format_align_left,
           ),
           PatientNavItem(
-            label: 'Pagos',
-            icon: Icons.credit_card_outlined,
-            selectedIcon: Icons.credit_card,
-          ),
-          PatientNavItem(
             label: 'Simulación',
             icon: Icons.auto_awesome_outlined,
             selectedIcon: Icons.auto_awesome,
-          ),
-          PatientNavItem(
-            label: 'Docs',
-            icon: Icons.folder_shared_outlined,
-            selectedIcon: Icons.folder_shared,
           ),
           PatientNavItem(
             label: 'Perfil',
@@ -1206,13 +1220,23 @@ class _MilestoneTile extends StatelessWidget {
 class _TratamientoSection extends ConsumerStatefulWidget {
   const _TratamientoSection({
     required this.userId,
+    required this.currentView,
+    required this.onViewChanged,
     this.onOpenPayments,
+    this.onOpenClinicalFiles,
     this.onOpenAppointments,
+    this.patientIdOverride,
+    this.viewerMode = PatientViewerMode.patient,
   });
 
   final String userId;
+  final PatientTreatmentInitialView currentView;
+  final ValueChanged<PatientTreatmentInitialView> onViewChanged;
   final VoidCallback? onOpenPayments;
+  final VoidCallback? onOpenClinicalFiles;
   final VoidCallback? onOpenAppointments;
+  final String? patientIdOverride;
+  final PatientViewerMode viewerMode;
 
   @override
   ConsumerState<_TratamientoSection> createState() =>
@@ -1233,6 +1257,35 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
   @override
   Widget build(BuildContext context) {
     if (widget.userId.isEmpty) return const SizedBox.shrink();
+
+    if (widget.currentView == PatientTreatmentInitialView.payments) {
+      return _TreatmentEmbeddedSubview(
+        title: 'Mis pagos',
+        subtitle: 'Consulta tu saldo, abonos e historial.',
+        icon: Icons.account_balance_wallet_outlined,
+        onBack: () =>
+            widget.onViewChanged(PatientTreatmentInitialView.overview),
+        child: PatientPaymentsScreen(
+          embedded: true,
+          patientIdOverride: widget.patientIdOverride,
+          viewerMode: widget.viewerMode,
+        ),
+      );
+    }
+
+    if (widget.currentView == PatientTreatmentInitialView.clinicalFiles) {
+      return _TreatmentEmbeddedSubview(
+        title: 'Documentos clínicos',
+        subtitle: 'Archivos compartidos por la clínica.',
+        icon: Icons.folder_shared_outlined,
+        onBack: () =>
+            widget.onViewChanged(PatientTreatmentInitialView.overview),
+        child: PatientSharedClinicalFilesScreen(
+          embedded: true,
+          patientIdOverride: widget.patientIdOverride,
+        ),
+      );
+    }
 
     final patientAsync = ref.watch(patientByIdProvider(widget.userId));
 
@@ -1496,24 +1549,37 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                     historial.first.fechaCambio),
                         ),
                         const SizedBox(height: 18),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            if (widget.onOpenPayments != null)
-                              _PatientActionButton(
-                                icon: Icons.payments_outlined,
-                                label: 'Ver pagos',
-                                onTap: widget.onOpenPayments!,
+                        const _SectionTitle('Gestión de tu tratamiento'),
+                        const SizedBox(height: 10),
+                        _TreatmentPatientAccessCard(
+                          title: 'Mis pagos',
+                          subtitle: 'Consulta tu saldo, abonos e historial',
+                          icon: Icons.account_balance_wallet_outlined,
+                          onTap:
+                              widget.onOpenPayments ??
+                              () => widget.onViewChanged(
+                                PatientTreatmentInitialView.payments,
                               ),
-                            if (widget.onOpenAppointments != null)
-                              _PatientActionButton(
-                                icon: Icons.event_note_outlined,
-                                label: 'Ver citas relacionadas',
-                                onTap: widget.onOpenAppointments!,
-                              ),
-                          ],
                         ),
+                        const SizedBox(height: 10),
+                        _TreatmentPatientAccessCard(
+                          title: 'Documentos clínicos',
+                          subtitle: 'Archivos compartidos por la clínica',
+                          icon: Icons.folder_shared_outlined,
+                          onTap:
+                              widget.onOpenClinicalFiles ??
+                              () => widget.onViewChanged(
+                                PatientTreatmentInitialView.clinicalFiles,
+                              ),
+                        ),
+                        if (widget.onOpenAppointments != null) ...[
+                          const SizedBox(height: 10),
+                          _PatientActionButton(
+                            icon: Icons.event_note_outlined,
+                            label: 'Ver citas relacionadas',
+                            onTap: widget.onOpenAppointments!,
+                          ),
+                        ],
                         if (historial.isNotEmpty) ...[
                           const SizedBox(height: 18),
                           Text(
@@ -1553,6 +1619,174 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
       if (!treatment.isFinished) return treatment;
     }
     return treatments.first;
+  }
+}
+
+class _TreatmentEmbeddedSubview extends StatelessWidget {
+  const _TreatmentEmbeddedSubview({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onBack,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            12,
+            MediaQuery.paddingOf(context).top + 12,
+            18,
+            14,
+          ),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [OcgColors.espresso, Color(0xFF4A3628)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Volver a Tratamiento',
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: OcgColors.ivory,
+              ),
+              const SizedBox(width: 4),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: OcgColors.ivory.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Icon(icon, color: OcgColors.ivory, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: OcgColors.ivory.withValues(alpha: 0.78),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
+class _TreatmentPatientAccessCard extends StatelessWidget {
+  const _TreatmentPatientAccessCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x102C2016),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2EDE8),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: OcgColors.espresso),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: OcgColors.bronze,
+                        fontSize: 12.5,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

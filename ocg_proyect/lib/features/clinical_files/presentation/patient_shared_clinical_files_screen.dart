@@ -63,15 +63,6 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
                 file.visibleToPatient;
           }).toList();
 
-          if (visibleFiles.isEmpty) {
-            return const OcgEmptyState(
-              icon: Icons.folder_shared_outlined,
-              title: 'Aún no tienes archivos clínicos compartidos',
-              subtitle:
-                  'Cuando la clínica comparta radiografías, PDFs o imágenes clínicas contigo, aparecerán aquí.',
-            );
-          }
-
           return ListView.separated(
             padding: EdgeInsets.fromLTRB(
               16,
@@ -79,12 +70,15 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
               16,
               embedded ? 110 : 24,
             ),
-            itemCount: visibleFiles.length + 1,
+            itemCount: visibleFiles.isEmpty ? 2 : visibleFiles.length + 1,
             separatorBuilder: (_, index) =>
                 SizedBox(height: index == 0 ? 12 : 10),
             itemBuilder: (context, index) {
               if (index == 0) {
                 return const _PatientClinicalFilesHeader();
+              }
+              if (visibleFiles.isEmpty) {
+                return const _PatientClinicalFilesEmptyState();
               }
               return _PatientClinicalFileCard(file: visibleFiles[index - 1]);
             },
@@ -97,7 +91,7 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      appBar: AppBar(title: const Text('Mis archivos clínicos')),
+      appBar: AppBar(title: const Text('Documentos clínicos')),
       body: content,
     );
   }
@@ -132,7 +126,7 @@ class _PatientClinicalFilesHeader extends StatelessWidget {
           Icon(Icons.folder_shared_outlined, color: OcgColors.ivory, size: 28),
           SizedBox(height: 12),
           Text(
-            'Mis archivos clínicos',
+            'Documentos clínicos',
             style: TextStyle(
               color: OcgColors.ivory,
               fontSize: 22,
@@ -141,10 +135,40 @@ class _PatientClinicalFilesHeader extends StatelessWidget {
           ),
           SizedBox(height: 6),
           Text(
-            'Documentos, imágenes y soportes que la clínica marcó como visibles para ti.',
+            'Radiografías, PDFs, imágenes y soportes compartidos por la clínica.',
             style: TextStyle(color: Color(0xDDF8F5F0), height: 1.35),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PatientClinicalFilesEmptyState extends StatelessWidget {
+  const _PatientClinicalFilesEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x102C2016),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const OcgEmptyState(
+        icon: Icons.folder_shared_outlined,
+        title: 'Aún no tienes documentos clínicos compartidos',
+        subtitle:
+            'Cuando la clínica comparta radiografías, PDFs o imágenes clínicas contigo, aparecerán aquí.',
       ),
     );
   }
