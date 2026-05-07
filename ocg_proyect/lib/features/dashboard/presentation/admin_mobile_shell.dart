@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_mobile_bottom_nav.dart';
 import 'admin_appointments_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_mobile_shell_controller.dart';
@@ -54,35 +55,33 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
           backgroundColor: const Color(0xFFF8F5F0),
           body: IndexedStack(index: _selectedIndex, children: sections),
           floatingActionButton: _buildFloatingActionButton(context),
-          bottomNavigationBar: NavigationBar(
+          bottomNavigationBar: OcgMobileBottomNav(
             selectedIndex: _selectedIndex,
-            height: 72,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: _selectTab,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
+            onSelected: _selectTab,
+            items: const [
+              OcgMobileBottomNavItem(
+                icon: Icons.dashboard_outlined,
+                activeIcon: Icons.dashboard,
                 label: 'Inicio',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.people_outline),
-                selectedIcon: Icon(Icons.people),
+              OcgMobileBottomNavItem(
+                icon: Icons.people_outline,
+                activeIcon: Icons.people,
                 label: 'Pacientes',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.calendar_month_outlined),
-                selectedIcon: Icon(Icons.calendar_month),
+              OcgMobileBottomNavItem(
+                icon: Icons.calendar_month_outlined,
+                activeIcon: Icons.calendar_month,
                 label: 'Agenda',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.auto_awesome_outlined),
-                selectedIcon: Icon(Icons.auto_awesome),
+              OcgMobileBottomNavItem(
+                icon: Icons.auto_awesome_outlined,
+                activeIcon: Icons.auto_awesome,
                 label: 'Simulador',
               ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
+              OcgMobileBottomNavItem(
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
                 label: 'Perfil',
               ),
             ],

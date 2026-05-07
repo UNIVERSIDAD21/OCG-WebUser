@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_segmented_tabs.dart';
+import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
@@ -43,6 +45,7 @@ class _PatientClinicalHistoryTabState
     final uploadState = ref.watch(uploadClinicalFileProvider);
     final uploadProgress = ref.watch(clinicalFileUploadProgressProvider);
     final selectedTreatment = _resolveSelectedTreatment(treatments);
+    final usePremiumFilters = !WebLayoutContext.useDesktopShell(context);
     final filesAsync = ref.watch(
       patientClinicalFilesProvider((
         patientId: widget.patientId,
@@ -104,6 +107,26 @@ class _PatientClinicalHistoryTabState
                 ),
               ),
             )
+          else if (usePremiumFilters)
+            OcgSegmentedTabs<String>(
+              selectedValue: _selectedTreatmentId ?? '__all__',
+              onChanged: (value) =>
+                  setState(() => _selectedTreatmentId = value),
+              compact: true,
+              items: [
+                const OcgSegmentedTabItem(
+                  value: '__all__',
+                  label: 'Todos',
+                  icon: Icons.layers_outlined,
+                ),
+                for (final treatment in treatments)
+                  OcgSegmentedTabItem(
+                    value: treatment.id,
+                    label: treatment.displayName,
+                    icon: Icons.monitor_heart_outlined,
+                  ),
+              ],
+            )
           else
             Wrap(
               spacing: 8,
@@ -127,24 +150,46 @@ class _PatientClinicalHistoryTabState
               ],
             ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                selected: _selectedCategory == null,
-                label: const Text('Todas las categorías'),
-                onSelected: (_) => setState(() => _selectedCategory = null),
+          if (usePremiumFilters)
+            OcgSegmentedTabs<String>(
+              selectedValue: _selectedCategory ?? '__all__',
+              onChanged: (value) => setState(
+                () => _selectedCategory = value == '__all__' ? null : value,
               ),
-              for (final category in kClinicalFileCategories)
-                ChoiceChip(
-                  selected: _selectedCategory == category,
-                  label: Text(_categoryLabel(category)),
-                  onSelected: (_) =>
-                      setState(() => _selectedCategory = category),
+              compact: true,
+              items: [
+                const OcgSegmentedTabItem(
+                  value: '__all__',
+                  label: 'Todas',
+                  icon: Icons.folder_copy_outlined,
                 ),
-            ],
-          ),
+                for (final category in kClinicalFileCategories)
+                  OcgSegmentedTabItem(
+                    value: category,
+                    label: _categoryLabel(category),
+                    icon: Icons.description_outlined,
+                  ),
+              ],
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  selected: _selectedCategory == null,
+                  label: const Text('Todas las categorías'),
+                  onSelected: (_) => setState(() => _selectedCategory = null),
+                ),
+                for (final category in kClinicalFileCategories)
+                  ChoiceChip(
+                    selected: _selectedCategory == category,
+                    label: Text(_categoryLabel(category)),
+                    onSelected: (_) =>
+                        setState(() => _selectedCategory = category),
+                  ),
+              ],
+            ),
           const SizedBox(height: 16),
           filesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
+import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -483,13 +484,36 @@ class _AdminPatientWorkspaceState
             const SizedBox(height: 16),
             _buildQuickActionsCard(context),
             const SizedBox(height: 16),
-            _buildSectionShortcutRow(),
+            _buildSectionShortcutRow(
+              treatmentsCount: treatments.length,
+              paymentsCount: paymentsResolution.paymentAccounts.length,
+              appointmentsCount: patientAppointments.length,
+              simulationsCount: simulations.length,
+            ),
             const SizedBox(height: 14),
-            _buildVisibleMobileSection(
-              treatments: treatments,
-              nextAppointment: nextAppointment,
-              latestSimulation: latestSimulation,
-              paymentsResolution: paymentsResolution,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeOutCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.02, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(_section),
+                child: _buildVisibleMobileSection(
+                  treatments: treatments,
+                  nextAppointment: nextAppointment,
+                  latestSimulation: latestSimulation,
+                  paymentsResolution: paymentsResolution,
+                ),
+              ),
             ),
           ],
         ),
@@ -505,31 +529,46 @@ class _AdminPatientWorkspaceState
     };
   }
 
-  Widget _sectionChip(String text, int index) {
-    final active = _section == index;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        selected: active,
-        label: Text(text),
-        onSelected: (_) => setState(() => _section = index),
-      ),
-    );
-  }
-
-  Widget _buildSectionShortcutRow() {
-    return SizedBox(
-      height: 46,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _sectionChip('Resumen', 0),
-          _sectionChip('Tratamientos', 1),
-          _sectionChip('Pagos', 2),
-          _sectionChip('Citas', 3),
-          _sectionChip('Simulador', 4),
-        ],
-      ),
+  Widget _buildSectionShortcutRow({
+    required int treatmentsCount,
+    required int paymentsCount,
+    required int appointmentsCount,
+    required int simulationsCount,
+  }) {
+    return OcgSegmentedTabs<int>(
+      selectedValue: _section,
+      onChanged: (value) => setState(() => _section = value),
+      items: [
+        const OcgSegmentedTabItem(
+          value: 0,
+          label: 'Resumen',
+          icon: Icons.space_dashboard_outlined,
+        ),
+        OcgSegmentedTabItem(
+          value: 1,
+          label: 'Tratamientos',
+          icon: Icons.monitor_heart_outlined,
+          badge: treatmentsCount == 0 ? null : '$treatmentsCount',
+        ),
+        OcgSegmentedTabItem(
+          value: 2,
+          label: 'Pagos',
+          icon: Icons.account_balance_wallet_outlined,
+          badge: paymentsCount == 0 ? null : '$paymentsCount',
+        ),
+        OcgSegmentedTabItem(
+          value: 3,
+          label: 'Citas',
+          icon: Icons.calendar_month_outlined,
+          badge: appointmentsCount == 0 ? null : '$appointmentsCount',
+        ),
+        OcgSegmentedTabItem(
+          value: 4,
+          label: 'Simulador',
+          icon: Icons.auto_awesome_outlined,
+          badge: simulationsCount == 0 ? null : '$simulationsCount',
+        ),
+      ],
     );
   }
 

@@ -17,6 +17,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -1576,57 +1577,91 @@ class _AdminAppointmentsScreenState
     }
   }
 
-  Widget _buildInnerTabs() {
-    Widget item(_AgendaInnerTab tab, String label) {
-      final active = _innerTab == tab;
-      return TextButton(
-        onPressed: () => setState(() {
-          _innerTab = tab;
-          if (tab == _AgendaInnerTab.mes) {
-            final now = DateTime.now();
-            _monthCursor = DateTime(now.year, now.month, 1);
-            _selectedMonthDay = DateTime(now.year, now.month, now.day);
-          }
-        }),
-        style: TextButton.styleFrom(
-          foregroundColor: active ? OcgColors.espresso : OcgColors.ink,
-          textStyle: TextStyle(
-            fontSize: 13,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-          ),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label),
-            const SizedBox(height: 6),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 140),
-              height: 2,
-              width: 36,
-              decoration: BoxDecoration(
-                color: active ? OcgColors.espresso : Colors.transparent,
-                borderRadius: BorderRadius.circular(2),
-              ),
+  Widget _buildInnerTabs({bool premium = true}) {
+    void selectTab(_AgendaInnerTab tab) {
+      setState(() {
+        _innerTab = tab;
+        if (tab == _AgendaInnerTab.mes) {
+          final now = DateTime.now();
+          _monthCursor = DateTime(now.year, now.month, 1);
+          _selectedMonthDay = DateTime(now.year, now.month, now.day);
+        }
+      });
+    }
+
+    if (!premium) {
+      Widget item(_AgendaInnerTab tab, String label) {
+        final active = _innerTab == tab;
+        return TextButton(
+          onPressed: () => selectTab(tab),
+          style: TextButton.styleFrom(
+            foregroundColor: active ? OcgColors.espresso : OcgColors.ink,
+            textStyle: TextStyle(
+              fontSize: 13,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              const SizedBox(height: 6),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                height: 2,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: active ? OcgColors.espresso : Colors.transparent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Container(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.3)),
+          ),
+        ),
+        child: Row(
+          children: [
+            item(_AgendaInnerTab.hoy, 'Hoy'),
+            item(_AgendaInnerTab.mes, 'Mes'),
+            item(_AgendaInnerTab.historial, 'Historial'),
           ],
         ),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: OcgColors.bronze.withOpacity(0.3)),
-        ),
-      ),
-      child: Row(
-        children: [
-          item(_AgendaInnerTab.hoy, 'Hoy'),
-          item(_AgendaInnerTab.mes, 'Mes'),
-          item(_AgendaInnerTab.historial, 'Historial'),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      child: OcgSegmentedTabs<_AgendaInnerTab>(
+        selectedValue: _innerTab,
+        onChanged: selectTab,
+        compact: true,
+        items: const [
+          OcgSegmentedTabItem(
+            value: _AgendaInnerTab.hoy,
+            label: 'Hoy',
+            icon: Icons.today_outlined,
+          ),
+          OcgSegmentedTabItem(
+            value: _AgendaInnerTab.mes,
+            label: 'Mes',
+            icon: Icons.calendar_view_month_outlined,
+          ),
+          OcgSegmentedTabItem(
+            value: _AgendaInnerTab.historial,
+            label: 'Historial',
+            icon: Icons.history_outlined,
+          ),
         ],
       ),
     );
@@ -2948,7 +2983,24 @@ class _AdminAppointmentsScreenState
     final mobileContent = Column(
       children: [
         _buildInnerTabs(),
-        Expanded(child: agendaBody),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeOutCubic,
+            transitionBuilder: (child, animation) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0.02, 0),
+                end: Offset.zero,
+              ).animate(animation);
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+            child: KeyedSubtree(key: ValueKey(_innerTab), child: agendaBody),
+          ),
+        ),
       ],
     );
 
@@ -3002,7 +3054,7 @@ class _AdminAppointmentsScreenState
               height: 720,
               child: Column(
                 children: [
-                  _buildInnerTabs(),
+                  _buildInnerTabs(premium: false),
                   const SizedBox(height: 8),
                   Expanded(child: agendaBody),
                 ],
