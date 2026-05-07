@@ -1245,12 +1245,14 @@ class _TratamientoSection extends ConsumerStatefulWidget {
 
 class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
   String? _selectedTreatmentId;
+  bool _stagesExpanded = false;
 
   @override
   void didUpdateWidget(covariant _TratamientoSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId) {
       _selectedTreatmentId = null;
+      _stagesExpanded = false;
     }
   }
 
@@ -1269,6 +1271,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
           embedded: true,
           patientIdOverride: widget.patientIdOverride,
           viewerMode: widget.viewerMode,
+          showEmbeddedHeader: false,
         ),
       );
     }
@@ -1283,6 +1286,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
         child: PatientSharedClinicalFilesScreen(
           embedded: true,
           patientIdOverride: widget.patientIdOverride,
+          showEmbeddedHeader: false,
         ),
       );
     }
@@ -1467,9 +1471,10 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                                   progress: _progressByStage(
                                     treatment.etapaActual,
                                   ),
-                                  onTap: () => setState(
-                                    () => _selectedTreatmentId = treatment.id,
-                                  ),
+                                  onTap: () => setState(() {
+                                    _selectedTreatmentId = treatment.id;
+                                    _stagesExpanded = false;
+                                  }),
                                 );
                               },
                             ),
@@ -1499,54 +1504,6 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                               selectedTreatment.etapaActual.name,
                           currentStep: stageIndex + 1,
                           totalSteps: TreatmentStage.values.length,
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'Etapas del tratamiento',
-                          style: TextStyle(
-                            color: Color(0xFF1A1410),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ...TreatmentStage.values.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final stage = entry.value;
-                          final completed = idx < stageIndex;
-                          final current = idx == stageIndex;
-                          final pending = idx > stageIndex;
-
-                          final historyMatch = historial
-                              .where((h) => h.etapaNueva == stage)
-                              .toList();
-                          final stageDate = historyMatch.isNotEmpty
-                              ? (historyMatch.first.fechaEfectiva ??
-                                    historyMatch.first.fechaCambio)
-                              : (idx == 0
-                                    ? selectedTreatment.fechaInicio
-                                    : null);
-
-                          return _StageTimelineTile(
-                            stageIndex: idx + 1,
-                            stageName: stageNames[stage] ?? stage.name,
-                            description:
-                                stageDescriptions[stage] ??
-                                'Sin descripción clínica disponible.',
-                            completed: completed,
-                            current: current,
-                            pending: pending,
-                            date: stageDate,
-                            notes: historyMatch.firstOrNull?.notas,
-                          );
-                        }),
-                        const SizedBox(height: 18),
-                        _PatientClinicalSummaryCard(
-                          treatment: selectedTreatment,
-                          lastUpdate: historial.isEmpty
-                              ? selectedTreatment.updatedAt
-                              : (historial.first.fechaEfectiva ??
-                                    historial.first.fechaCambio),
                         ),
                         const SizedBox(height: 18),
                         const _SectionTitle('Gestión de tu tratamiento'),
@@ -1580,10 +1537,18 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                             onTap: widget.onOpenAppointments!,
                           ),
                         ],
+                        const SizedBox(height: 18),
+                        _PatientClinicalSummaryCard(
+                          treatment: selectedTreatment,
+                          lastUpdate: historial.isEmpty
+                              ? selectedTreatment.updatedAt
+                              : (historial.first.fechaEfectiva ??
+                                    historial.first.fechaCambio),
+                        ),
                         if (historial.isNotEmpty) ...[
                           const SizedBox(height: 18),
                           Text(
-                            'Historial clínico',
+                            'Notas clínicas del tratamiento',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
@@ -1592,6 +1557,45 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                             isAdmin: false,
                           ),
                         ],
+                        const SizedBox(height: 18),
+                        _CollapsibleTreatmentStages(
+                          expanded: _stagesExpanded,
+                          onToggle: () => setState(
+                            () => _stagesExpanded = !_stagesExpanded,
+                          ),
+                          children: TreatmentStage.values.asMap().entries.map((
+                            entry,
+                          ) {
+                            final idx = entry.key;
+                            final stage = entry.value;
+                            final completed = idx < stageIndex;
+                            final current = idx == stageIndex;
+                            final pending = idx > stageIndex;
+
+                            final historyMatch = historial
+                                .where((h) => h.etapaNueva == stage)
+                                .toList();
+                            final stageDate = historyMatch.isNotEmpty
+                                ? (historyMatch.first.fechaEfectiva ??
+                                      historyMatch.first.fechaCambio)
+                                : (idx == 0
+                                      ? selectedTreatment.fechaInicio
+                                      : null);
+
+                            return _StageTimelineTile(
+                              stageIndex: idx + 1,
+                              stageName: stageNames[stage] ?? stage.name,
+                              description:
+                                  stageDescriptions[stage] ??
+                                  'Sin descripción clínica disponible.',
+                              completed: completed,
+                              current: current,
+                              pending: pending,
+                              date: stageDate,
+                              notes: historyMatch.firstOrNull?.notas,
+                            );
+                          }).toList(),
+                        ),
                       ],
                     ),
                   ),
@@ -1619,6 +1623,85 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
       if (!treatment.isFinished) return treatment;
     }
     return treatments.first;
+  }
+}
+
+class _CollapsibleTreatmentStages extends StatelessWidget {
+  const _CollapsibleTreatmentStages({
+    required this.expanded,
+    required this.onToggle,
+    required this.children,
+  });
+
+  final bool expanded;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x102C2016),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: onToggle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Etapas del tratamiento',
+                      style: TextStyle(
+                        color: Color(0xFF1A1410),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: OcgColors.bronze,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(children: children),
+            ),
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 220),
+            firstCurve: Curves.easeOutCubic,
+            secondCurve: Curves.easeOutCubic,
+            sizeCurve: Curves.easeOutCubic,
+          ),
+        ],
+      ),
+    );
   }
 }
 

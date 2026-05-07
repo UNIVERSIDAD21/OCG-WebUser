@@ -14,10 +14,12 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
     super.key,
     this.embedded = false,
     this.patientIdOverride,
+    this.showEmbeddedHeader = true,
   });
 
   final bool embedded;
   final String? patientIdOverride;
+  final bool showEmbeddedHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -70,17 +72,20 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
               16,
               embedded ? 110 : 24,
             ),
-            itemCount: visibleFiles.isEmpty ? 2 : visibleFiles.length + 1,
+            itemCount: visibleFiles.isEmpty
+                ? (showEmbeddedHeader ? 2 : 1)
+                : visibleFiles.length + (showEmbeddedHeader ? 1 : 0),
             separatorBuilder: (_, index) =>
                 SizedBox(height: index == 0 ? 12 : 10),
             itemBuilder: (context, index) {
-              if (index == 0) {
+              if (showEmbeddedHeader && index == 0) {
                 return const _PatientClinicalFilesHeader();
               }
               if (visibleFiles.isEmpty) {
                 return const _PatientClinicalFilesEmptyState();
               }
-              return _PatientClinicalFileCard(file: visibleFiles[index - 1]);
+              final fileIndex = showEmbeddedHeader ? index - 1 : index;
+              return _PatientClinicalFileCard(file: visibleFiles[fileIndex]);
             },
           );
         },

@@ -25,11 +25,13 @@ class PatientPaymentsScreen extends ConsumerStatefulWidget {
     this.embedded = false,
     this.patientIdOverride,
     this.viewerMode = PatientViewerMode.patient,
+    this.showEmbeddedHeader = true,
   });
 
   final bool embedded;
   final String? patientIdOverride;
   final PatientViewerMode viewerMode;
+  final bool showEmbeddedHeader;
 
   @override
   ConsumerState<PatientPaymentsScreen> createState() =>
@@ -387,131 +389,135 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 16 : 20,
-                  MediaQuery.paddingOf(context).top + 18,
-                  compact ? 16 : 20,
-                  compact ? 14 : 16,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      OcgColors.espresso,
-                      OcgColors.bronze,
-                      Color(0xFFB89A84),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              if (!widget.embedded || widget.showEmbeddedHeader)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 16 : 20,
+                    MediaQuery.paddingOf(context).top + 18,
+                    compact ? 16 : 20,
+                    compact ? 14 : 16,
                   ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A2C2016),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        OcgColors.espresso,
+                        OcgColors.bronze,
+                        Color(0xFFB89A84),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pagos',
-                      style: TextStyle(
-                        color: OcgColors.ivory,
-                        fontSize: compact ? 25 : 28,
-                        fontWeight: FontWeight.w700,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x1A2C2016),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Consulta el estado de tus tratamientos',
-                      style: TextStyle(
-                        color: OcgColors.ivory.withOpacity(0.82),
-                        fontSize: compact ? 12 : 13,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory.withOpacity(0.10),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: OcgColors.ivory.withOpacity(0.14),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pagos',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: compact ? 25 : 28,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _PatientHeaderChip(
-                                label: '${treatments.length} tratamientos',
+                      const SizedBox(height: 4),
+                      Text(
+                        'Consulta el estado de tus tratamientos',
+                        style: TextStyle(
+                          color: OcgColors.ivory.withOpacity(0.82),
+                          fontSize: compact ? 12 : 13,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: OcgColors.ivory.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: OcgColors.ivory.withOpacity(0.14),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _PatientHeaderChip(
+                                  label: '${treatments.length} tratamientos',
+                                ),
+                                _PatientHeaderChip(
+                                  label:
+                                      '${treatments.where((t) => !t.isFinished).length} activos',
+                                ),
+                                _PatientHeaderChip(
+                                  label:
+                                      selectedAccount
+                                              ?.payment
+                                              .fechaProximoPago ==
+                                          null
+                                      ? 'Sin próxima cuota'
+                                      : 'Próximo pago ${_formatCompactDate(selectedAccount!.payment.fechaProximoPago!)}',
+                                ),
+                              ],
+                            ),
+                            if (treatments.length > 1) ...[
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Selecciona un tratamiento',
+                                style: TextStyle(
+                                  color: OcgColors.ivory,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                              _PatientHeaderChip(
-                                label:
-                                    '${treatments.where((t) => !t.isFinished).length} activos',
-                              ),
-                              _PatientHeaderChip(
-                                label:
-                                    selectedAccount?.payment.fechaProximoPago ==
-                                        null
-                                    ? 'Sin próxima cuota'
-                                    : 'Próximo pago ${_formatCompactDate(selectedAccount!.payment.fechaProximoPago!)}',
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                height: compact ? 112 : 122,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: treatments.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(width: 10),
+                                  itemBuilder: (context, index) {
+                                    final treatment = treatments[index];
+                                    final account = resolution.paymentAccounts
+                                        .cast<EffectivePatientPaymentAccount?>()
+                                        .firstWhere(
+                                          (item) =>
+                                              item?.treatmentId == treatment.id,
+                                          orElse: () => null,
+                                        );
+                                    return _PatientPaymentTreatmentCard(
+                                      treatment: treatment,
+                                      selected:
+                                          treatment.id == selectedTreatment.id,
+                                      account: account?.payment,
+                                      onTap: () => setState(
+                                        () =>
+                                            _selectedTreatmentId = treatment.id,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ],
-                          ),
-                          if (treatments.length > 1) ...[
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Selecciona un tratamiento',
-                              style: TextStyle(
-                                color: OcgColors.ivory,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              height: compact ? 112 : 122,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: treatments.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 10),
-                                itemBuilder: (context, index) {
-                                  final treatment = treatments[index];
-                                  final account = resolution.paymentAccounts
-                                      .cast<EffectivePatientPaymentAccount?>()
-                                      .firstWhere(
-                                        (item) =>
-                                            item?.treatmentId == treatment.id,
-                                        orElse: () => null,
-                                      );
-                                  return _PatientPaymentTreatmentCard(
-                                    treatment: treatment,
-                                    selected:
-                                        treatment.id == selectedTreatment.id,
-                                    account: account?.payment,
-                                    onTap: () => setState(
-                                      () => _selectedTreatmentId = treatment.id,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   compact ? 16 : 20,
@@ -734,7 +740,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se puede iniciar el pago sin un tratamiento válido.'),
+          content: Text(
+            'No se puede iniciar el pago sin un tratamiento válido.',
+          ),
         ),
       );
       return;
