@@ -10,6 +10,7 @@ import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../clinical_files/presentation/patient_shared_clinical_files_screen.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../patients/presentation/patient_profile_screen.dart';
@@ -127,7 +128,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialSection.clamp(0, 5);
+    _selectedIndex = widget.initialSection.clamp(0, 6);
   }
 
   @override
@@ -142,8 +143,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final sections = [
       _InicioSection(
         userId: effectivePatientId,
-        onOpenProfile: () => setState(() => _selectedIndex = 5),
+        onOpenProfile: () => setState(() => _selectedIndex = 6),
         onOpenPayments: () => setState(() => _selectedIndex = 3),
+        onOpenClinicalFiles: () => setState(() => _selectedIndex = 5),
         onOpenAlerts: () => _openNotificationsSheet(effectivePatientId),
       ),
       PatientAppointmentsScreen(
@@ -171,6 +173,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         viewerMode: widget.isAdminView
             ? PatientViewerMode.adminViewer
             : PatientViewerMode.patient,
+      ),
+      PatientSharedClinicalFilesScreen(
+        embedded: true,
+        patientIdOverride: overrideForAdmin,
       ),
       PatientProfileScreen(
         embedded: true,
@@ -243,6 +249,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             selectedIcon: Icons.auto_awesome,
           ),
           PatientNavItem(
+            label: 'Docs',
+            icon: Icons.folder_shared_outlined,
+            selectedIcon: Icons.folder_shared,
+          ),
+          PatientNavItem(
             label: 'Perfil',
             icon: Icons.person_outline,
             selectedIcon: Icons.person,
@@ -272,11 +283,13 @@ class _InicioSection extends ConsumerWidget {
     required this.userId,
     this.onOpenProfile,
     this.onOpenPayments,
+    this.onOpenClinicalFiles,
     this.onOpenAlerts,
   });
   final String userId;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenPayments;
+  final VoidCallback? onOpenClinicalFiles;
   final VoidCallback? onOpenAlerts;
 
   @override
@@ -475,6 +488,12 @@ class _InicioSection extends ConsumerWidget {
                       onGoToPayments:
                           onOpenPayments ??
                           () => context.go(RouteNames.patientPayments),
+                    ),
+                    const SizedBox(height: 18),
+                    _ClinicalFilesShortcutCard(
+                      onTap:
+                          onOpenClinicalFiles ??
+                          () => context.go(RouteNames.patientClinicalFiles),
                     ),
                     const SizedBox(height: 18),
                     const _SectionTitle('Etapas del tratamiento'),
@@ -919,6 +938,67 @@ class _NextAppointmentCard extends StatelessWidget {
     final h12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
     final ampm = d.hour >= 12 ? 'PM' : 'AM';
     return '${h12.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} $ampm';
+  }
+}
+
+class _ClinicalFilesShortcutCard extends StatelessWidget {
+  const _ClinicalFilesShortcutCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF3FF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x331565C0)),
+        ),
+        child: const Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: Color(0x1F1565C0),
+              child: Icon(
+                Icons.folder_shared_outlined,
+                color: Color(0xFF1565C0),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mis archivos clínicos',
+                    style: TextStyle(
+                      color: OcgColors.espresso,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Ver documentos e imágenes compartidos por la clínica.',
+                    style: TextStyle(
+                      color: OcgColors.bronze,
+                      fontSize: 12.5,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Color(0xFF1565C0)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/clinical_files/presentation/patient_shared_clinical_files_screen.dart';
 import '../../presentation/web/common/web_layout_context.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
@@ -221,6 +222,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.patientNotifications,
         builder: (context, state) => const PatientNotificationsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.patientClinicalFiles,
+        builder: (context, state) => const PatientSharedClinicalFilesScreen(),
       ),
       GoRoute(
         path: RouteNames.patientPayments,

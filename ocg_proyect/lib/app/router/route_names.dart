@@ -24,6 +24,7 @@ class RouteNames {
   static const String patientAppointments = '/patient/appointments';
   static const String patientProfile = '/patient/profile';
   static const String patientNotifications = '/patient/notifications';
+  static const String patientClinicalFiles = '/patient/clinical-files';
   static const String patientPayments = '/patient/payments';
   static const String patientSimulations = '/patient/simulations';
   static const String patientPayuCheckout = '/patient/payments/checkout';

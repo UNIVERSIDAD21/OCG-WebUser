@@ -99,7 +99,10 @@ service cloud.firestore {
       }
 
       match /clinicalFiles/{fileId} {
-        allow read: if isAdmin() || (isOwnPatient(patientId) && resource.data.visibleToPatient == true);
+        allow read: if isAdmin() ||
+                    (isOwnPatient(patientId) &&
+                     resource.data.visibleToPatient == true &&
+                     resource.data.active == true);
         allow create, update: if isAdmin() &&
                                 incomingPatientMatches(patientId) &&
                                 (!('id' in request.resource.data) || request.resource.data.id == fileId);
