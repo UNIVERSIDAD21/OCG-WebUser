@@ -1824,6 +1824,7 @@ class _DesktopTreatmentModule extends StatefulWidget {
 
 class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
   late _TreatmentSubView _subView;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -1832,31 +1833,57 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _setSubView(_TreatmentSubView subView) {
+    setState(() => _subView = subView);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      child: KeyedSubtree(
-        key: ValueKey(_subView),
-        child: switch (_subView) {
-          _TreatmentSubView.hub => _buildHub(),
-          _TreatmentSubView.payments => _buildSubview(
-            title: 'Pagos del tratamiento',
-            subtitle:
-                'Estado financiero del paciente dentro del módulo clínico.',
-            icon: Icons.account_balance_wallet_outlined,
-            child: PatientPaymentsTab(patientId: widget.patient.id),
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(right: 12, bottom: 24),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: KeyedSubtree(
+            key: ValueKey(_subView),
+            child: switch (_subView) {
+              _TreatmentSubView.hub => _buildHub(),
+              _TreatmentSubView.payments => _buildSubview(
+                title: 'Pagos del tratamiento',
+                subtitle:
+                    'Estado financiero del paciente dentro del módulo clínico.',
+                icon: Icons.account_balance_wallet_outlined,
+                child: PatientPaymentsTab(
+                  patientId: widget.patient.id,
+                  scrollable: false,
+                ),
+              ),
+              _TreatmentSubView.documents => _buildSubview(
+                title: 'Documentos clínicos',
+                subtitle:
+                    'Archivos, radiografías y soportes asociados al tratamiento.',
+                icon: Icons.folder_open_outlined,
+                child: PatientClinicalHistoryTab(
+                  patientId: widget.patient.id,
+                  patient: widget.patient,
+                  scrollable: false,
+                ),
+              ),
+            },
           ),
-          _TreatmentSubView.documents => _buildSubview(
-            title: 'Documentos clínicos',
-            subtitle:
-                'Archivos, radiografías y soportes asociados al tratamiento.',
-            icon: Icons.folder_open_outlined,
-            child: PatientClinicalHistoryTab(
-              patientId: widget.patient.id,
-              patient: widget.patient,
-            ),
-          ),
-        },
+        ),
       ),
     );
   }
@@ -1896,8 +1923,7 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
                       title: 'Pagos',
                       subtitle: 'Resumen financiero y cuentas del tratamiento',
                       icon: Icons.account_balance_wallet_outlined,
-                      onTap: () =>
-                          setState(() => _subView = _TreatmentSubView.payments),
+                      onTap: () => _setSubView(_TreatmentSubView.payments),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1907,9 +1933,7 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
                       subtitle:
                           'Archivos, radiografías y soportes del paciente',
                       icon: Icons.folder_open_outlined,
-                      onTap: () => setState(
-                        () => _subView = _TreatmentSubView.documents,
-                      ),
+                      onTap: () => _setSubView(_TreatmentSubView.documents),
                     ),
                   ),
                 ],
@@ -1918,11 +1942,10 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
           ),
         ),
         const SizedBox(height: 12),
-        Expanded(
-          child: PatientTreatmentTab(
-            patientId: widget.patient.id,
-            patient: widget.patient,
-          ),
+        PatientTreatmentTab(
+          patientId: widget.patient.id,
+          patient: widget.patient,
+          scrollable: false,
         ),
       ],
     );
@@ -1947,8 +1970,7 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
           child: Row(
             children: [
               IconButton.filledTonal(
-                onPressed: () =>
-                    setState(() => _subView = _TreatmentSubView.hub),
+                onPressed: () => _setSubView(_TreatmentSubView.hub),
                 icon: const Icon(Icons.arrow_back),
                 tooltip: 'Volver a tratamientos',
               ),
@@ -1979,7 +2001,7 @@ class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
           ),
         ),
         const SizedBox(height: 12),
-        Expanded(child: child),
+        child,
       ],
     );
   }

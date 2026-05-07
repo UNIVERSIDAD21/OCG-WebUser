@@ -19,10 +19,12 @@ class PatientClinicalHistoryTab extends ConsumerStatefulWidget {
     super.key,
     required this.patientId,
     required this.patient,
+    this.scrollable = true,
   });
 
   final String patientId;
   final PatientModel patient;
+  final bool scrollable;
 
   @override
   ConsumerState<PatientClinicalHistoryTab> createState() =>
@@ -56,7 +58,7 @@ class _PatientClinicalHistoryTabState
       )),
     );
 
-    return SingleChildScrollView(
+    final content = Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,6 +227,9 @@ class _PatientClinicalHistoryTabState
         ],
       ),
     );
+
+    if (!widget.scrollable) return content;
+    return SingleChildScrollView(child: content);
   }
 
   PatientTreatment? _resolveSelectedTreatment(

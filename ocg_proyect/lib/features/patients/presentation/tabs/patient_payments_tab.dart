@@ -16,9 +16,14 @@ import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../providers/patients_provider.dart';
 
 class PatientPaymentsTab extends ConsumerStatefulWidget {
-  const PatientPaymentsTab({super.key, required this.patientId});
+  const PatientPaymentsTab({
+    super.key,
+    required this.patientId,
+    this.scrollable = true,
+  });
 
   final String patientId;
+  final bool scrollable;
 
   @override
   ConsumerState<PatientPaymentsTab> createState() => _PatientPaymentsTabState();
@@ -111,16 +116,16 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
               );
             }
 
-            return SingleChildScrollView(
+            final content = Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Pagos del paciente',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -139,9 +144,9 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   const SizedBox(height: 16),
                   Text(
                     'Cuentas por tratamiento',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   if (resolution.paymentAccounts.isEmpty)
@@ -164,10 +169,12 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                                 : treatments
                                       .cast<PatientTreatment?>()
                                       .firstWhere(
-                                        (item) => item?.id == account.treatmentId,
+                                        (item) =>
+                                            item?.id == account.treatmentId,
                                         orElse: () => null,
                                       ),
-                            selected: account.treatmentId == selectedTreatment.id,
+                            selected:
+                                account.treatmentId == selectedTreatment.id,
                             onSelect: account.treatmentId == null
                                 ? null
                                 : () => setState(() {
@@ -194,7 +201,8 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   ),
                   const SizedBox(height: 16),
                   financialItemsAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (error, _) =>
                         Text('No se pudieron cargar conceptos: $error'),
                     data: (items) => Column(
@@ -252,6 +260,9 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                 ],
               ),
             );
+
+            if (!widget.scrollable) return content;
+            return SingleChildScrollView(child: content);
           },
         );
       },
@@ -378,311 +389,311 @@ class _SummaryMetric extends StatelessWidget {
   }
 }
 
-  Widget _buildMobilePaymentsView(
-    BuildContext context,
-    String patientId,
-    EffectivePatientDataResolution resolution,
-    PatientTreatment selectedTreatment,
-    EffectivePatientPaymentAccount? selectedAccount,
-  ) {
-    final currency = NumberFormat.currency(
-      locale: 'es_CO',
-      symbol: r'$',
-      decimalDigits: 0,
-      customPattern: '\u00A4#,##0',
-    );
-    final total = resolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.totalTratamiento,
-    );
-    final paid = resolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.montoPagado,
-    );
-    final pending = resolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.saldoPendiente,
-    );
-    final latestTx = resolution.transactions.isEmpty
-        ? null
-        : resolution.transactions.first;
-    final visibleTx = resolution.transactions.take(4).toList();
-    final hasMoreTx = resolution.transactions.length > visibleTx.length;
-    final ratio = total <= 0 ? 0.0 : (paid / total).clamp(0.0, 1.0);
-    final statusLabel = paid <= 0
-        ? 'Sin pagos'
-        : pending <= 0
-        ? 'Al día'
-        : 'Pendiente';
+Widget _buildMobilePaymentsView(
+  BuildContext context,
+  String patientId,
+  EffectivePatientDataResolution resolution,
+  PatientTreatment selectedTreatment,
+  EffectivePatientPaymentAccount? selectedAccount,
+) {
+  final currency = NumberFormat.currency(
+    locale: 'es_CO',
+    symbol: r'$',
+    decimalDigits: 0,
+    customPattern: '\u00A4#,##0',
+  );
+  final total = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, item) => sum + item.payment.totalTratamiento,
+  );
+  final paid = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, item) => sum + item.payment.montoPagado,
+  );
+  final pending = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, item) => sum + item.payment.saldoPendiente,
+  );
+  final latestTx = resolution.transactions.isEmpty
+      ? null
+      : resolution.transactions.first;
+  final visibleTx = resolution.transactions.take(4).toList();
+  final hasMoreTx = resolution.transactions.length > visibleTx.length;
+  final ratio = total <= 0 ? 0.0 : (paid / total).clamp(0.0, 1.0);
+  final statusLabel = paid <= 0
+      ? 'Sin pagos'
+      : pending <= 0
+      ? 'Al día'
+      : 'Pendiente';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _mobilePaymentsCard(
-            title: 'Resumen financiero',
-            icon: Icons.account_balance_wallet_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _mobileInfoRow('Valor total', currency.format(total)),
-                _mobileInfoRow('Total pagado', currency.format(paid)),
-                _mobileInfoRow('Saldo pendiente', currency.format(pending)),
-                _mobileInfoRow(
-                  'Porcentaje pagado',
-                  '${(ratio * 100).toStringAsFixed(0)}%',
-                ),
-                _mobileInfoRow('Estado', statusLabel),
-              ],
-            ),
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _mobilePaymentsCard(
+          title: 'Resumen financiero',
+          icon: Icons.account_balance_wallet_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _mobileInfoRow('Valor total', currency.format(total)),
+              _mobileInfoRow('Total pagado', currency.format(paid)),
+              _mobileInfoRow('Saldo pendiente', currency.format(pending)),
+              _mobileInfoRow(
+                'Porcentaje pagado',
+                '${(ratio * 100).toStringAsFixed(0)}%',
+              ),
+              _mobileInfoRow('Estado', statusLabel),
+            ],
           ),
-          const SizedBox(height: 14),
-          _mobilePaymentsCard(
-            title: 'Último pago',
-            icon: Icons.payments_outlined,
-            child: latestTx == null
-                ? const Text(
-                    'No hay pagos registrados para este paciente.',
-                    style: TextStyle(color: OcgColors.bronze),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _mobileInfoRow('Fecha', _formatDate(latestTx.fecha)),
-                      _mobileInfoRow('Valor', currency.format(latestTx.monto)),
-                      _mobileInfoRow('Método', _methodLabel(latestTx.metodo)),
-                      _mobileInfoRow(
-                        'Referencia',
-                        (latestTx.referencia ?? '').trim().isEmpty
-                            ? 'Sin referencia'
-                            : latestTx.referencia!.trim(),
-                      ),
-                      _mobileInfoRow('Estado', _transactionStateLabel(latestTx)),
-                    ],
-                  ),
-          ),
-          const SizedBox(height: 14),
-          _mobilePaymentsCard(
-            title: 'Historial de pagos',
-            icon: Icons.receipt_long_outlined,
-            child: visibleTx.isEmpty
-                ? const Text(
-                    'No hay pagos registrados para este paciente.',
-                    style: TextStyle(color: OcgColors.bronze),
-                  )
-                : Column(
-                    children: [
-                      for (final tx in visibleTx)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F3ED),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _formatDate(tx.fecha),
-                                style: const TextStyle(
-                                  color: OcgColors.espresso,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                currency.format(tx.monto),
-                                style: const TextStyle(color: OcgColors.ink),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_methodLabel(tx.metodo)} · ${_transactionStateLabel(tx)}',
-                                style: const TextStyle(color: OcgColors.bronze),
-                              ),
-                              if ((tx.referencia ?? '').trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  tx.referencia!.trim(),
-                                  style: const TextStyle(color: OcgColors.ink),
-                                ),
-                              ],
-                              if ((tx.notas ?? '').trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  tx.notas!.trim(),
-                                  style: const TextStyle(color: OcgColors.bronze),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      if (hasMoreTx)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                            onPressed: () {},
-                            child: const Text('Ver todos'),
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
-          const SizedBox(height: 14),
-          _mobilePaymentsCard(
-            title: 'Acciones',
-            icon: Icons.flash_on_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+        ),
+        const SizedBox(height: 14),
+        _mobilePaymentsCard(
+          title: 'Último pago',
+          icon: Icons.payments_outlined,
+          child: latestTx == null
+              ? const Text(
+                  'No hay pagos registrados para este paciente.',
+                  style: TextStyle(color: OcgColors.bronze),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FilledButton.icon(
-                      onPressed: selectedAccount?.treatmentId == null
-                          ? null
-                          : () => showDialog<void>(
-                              context: context,
-                              builder: (_) => RegisterPaymentDialog(
-                                patientId: patientId,
-                                treatmentId: selectedAccount!.treatmentId,
-                                saldoPendiente:
-                                    selectedAccount.payment.saldoPendiente,
-                              ),
-                            ),
-                      icon: const Icon(Icons.add_card_outlined, size: 18),
-                      label: const Text('Registrar pago'),
+                    _mobileInfoRow('Fecha', _formatDate(latestTx.fecha)),
+                    _mobileInfoRow('Valor', currency.format(latestTx.monto)),
+                    _mobileInfoRow('Método', _methodLabel(latestTx.metodo)),
+                    _mobileInfoRow(
+                      'Referencia',
+                      (latestTx.referencia ?? '').trim().isEmpty
+                          ? 'Sin referencia'
+                          : latestTx.referencia!.trim(),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.history_outlined, size: 18),
-                      label: const Text('Ver historial completo'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Ve a Tratamientos para revisar ${selectedTreatment.displayName}.',
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.monitor_heart_outlined, size: 18),
-                      label: const Text('Ir a tratamiento'),
-                    ),
+                    _mobileInfoRow('Estado', _transactionStateLabel(latestTx)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Para gestión financiera completa, usa la versión de escritorio.',
-                  style: TextStyle(
-                    color: OcgColors.bronze,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
+        ),
+        const SizedBox(height: 14),
+        _mobilePaymentsCard(
+          title: 'Historial de pagos',
+          icon: Icons.receipt_long_outlined,
+          child: visibleTx.isEmpty
+              ? const Text(
+                  'No hay pagos registrados para este paciente.',
+                  style: TextStyle(color: OcgColors.bronze),
+                )
+              : Column(
+                  children: [
+                    for (final tx in visibleTx)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F3ED),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _formatDate(tx.fecha),
+                              style: const TextStyle(
+                                color: OcgColors.espresso,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              currency.format(tx.monto),
+                              style: const TextStyle(color: OcgColors.ink),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_methodLabel(tx.metodo)} · ${_transactionStateLabel(tx)}',
+                              style: const TextStyle(color: OcgColors.bronze),
+                            ),
+                            if ((tx.referencia ?? '').trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                tx.referencia!.trim(),
+                                style: const TextStyle(color: OcgColors.ink),
+                              ),
+                            ],
+                            if ((tx.notas ?? '').trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                tx.notas!.trim(),
+                                style: const TextStyle(color: OcgColors.bronze),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    if (hasMoreTx)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () {},
+                          child: const Text('Ver todos'),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _mobilePaymentsCard({
-    required String title,
-    required IconData icon,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8DED2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        ),
+        const SizedBox(height: 14),
+        _mobilePaymentsCard(
+          title: 'Acciones',
+          icon: Icons.flash_on_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: OcgColors.espresso),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: OcgColors.espresso,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: selectedAccount?.treatmentId == null
+                        ? null
+                        : () => showDialog<void>(
+                            context: context,
+                            builder: (_) => RegisterPaymentDialog(
+                              patientId: patientId,
+                              treatmentId: selectedAccount!.treatmentId,
+                              saldoPendiente:
+                                  selectedAccount.payment.saldoPendiente,
+                            ),
+                          ),
+                    icon: const Icon(Icons.add_card_outlined, size: 18),
+                    label: const Text('Registrar pago'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.history_outlined, size: 18),
+                    label: const Text('Ver historial completo'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Ve a Tratamientos para revisar ${selectedTreatment.displayName}.',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.monitor_heart_outlined, size: 18),
+                    label: const Text('Ir a tratamiento'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Para gestión financiera completa, usa la versión de escritorio.',
+                style: TextStyle(
+                  color: OcgColors.bronze,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
-  Widget _mobileInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 124,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: OcgColors.bronze,
-                fontWeight: FontWeight.w600,
+Widget _mobilePaymentsCard({
+  required String title,
+  required IconData icon,
+  required Widget child,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: OcgColors.ivory,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0xFFE8DED2)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: OcgColors.espresso),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: OcgColors.ink,
-                fontWeight: FontWeight.w600,
-              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        child,
+      ],
+    ),
+  );
+}
+
+Widget _mobileInfoRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 124,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: OcgColors.ink,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  String _methodLabel(PaymentMethod? method) {
-    return switch (method) {
-      PaymentMethod.efectivo => 'Efectivo',
-      PaymentMethod.transferencia => 'Transferencia',
-      PaymentMethod.payu => 'PayU',
-      null => 'Sin método',
-    };
-  }
+String _methodLabel(PaymentMethod? method) {
+  return switch (method) {
+    PaymentMethod.efectivo => 'Efectivo',
+    PaymentMethod.transferencia => 'Transferencia',
+    PaymentMethod.payu => 'PayU',
+    null => 'Sin método',
+  };
+}
 
-  String _transactionStateLabel(PaymentTransaction tx) {
-    if (tx.payuTransactionId?.trim().isNotEmpty == true) {
-      return 'Confirmado';
-    }
-    if (tx.payuOrderId?.trim().isNotEmpty == true) {
-      return 'Procesado';
-    }
-    return 'Registrado';
+String _transactionStateLabel(PaymentTransaction tx) {
+  if (tx.payuTransactionId?.trim().isNotEmpty == true) {
+    return 'Confirmado';
   }
+  if (tx.payuOrderId?.trim().isNotEmpty == true) {
+    return 'Procesado';
+  }
+  return 'Registrado';
+}
 
-  String _formatDate(DateTime value) =>
-      '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
+String _formatDate(DateTime value) =>
+    '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 
 class _PaymentAccountCard extends StatelessWidget {
   const _PaymentAccountCard({
@@ -832,7 +843,9 @@ class _PaymentAccountCard extends StatelessWidget {
                   onPressed: onRegister,
                   icon: const Icon(Icons.add_card_outlined, size: 16),
                   label: Text(
-                    selected ? 'Registrar pago en esta cuenta' : 'Usar esta cuenta y registrar pago',
+                    selected
+                        ? 'Registrar pago en esta cuenta'
+                        : 'Usar esta cuenta y registrar pago',
                   ),
                 ),
               ),
@@ -949,7 +962,10 @@ class _TreatmentFinanceSummary extends StatelessWidget {
       customPattern: '\u00A4#,##0',
     );
     final activeItems = items.where((item) => item.active).toList();
-    final total = activeItems.fold<double>(0.0, (sum, item) => sum + item.amount);
+    final total = activeItems.fold<double>(
+      0.0,
+      (sum, item) => sum + item.amount,
+    );
     final saldo = treatment.saldoPendiente ?? 0;
     final pagado = (total - saldo).clamp(0, double.infinity).toDouble();
     final conditionalBase = treatment.tipoBase == 'ortopedia'

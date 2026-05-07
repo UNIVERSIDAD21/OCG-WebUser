@@ -25,10 +25,12 @@ class PatientTreatmentTab extends ConsumerStatefulWidget {
     super.key,
     required this.patientId,
     required this.patient,
+    this.scrollable = true,
   });
 
   final String patientId;
   final PatientModel patient;
+  final bool scrollable;
 
   @override
   ConsumerState<PatientTreatmentTab> createState() =>
@@ -178,7 +180,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 );
               }
 
-              return SingleChildScrollView(
+              final content = Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,6 +258,9 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   ],
                 ),
               );
+
+              if (!widget.scrollable) return content;
+              return SingleChildScrollView(child: content);
             },
           ),
         );
@@ -446,7 +451,9 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('La nota rápida se habilitará en un bloque posterior. Usa escritorio para edición clínica completa.'),
+                            content: Text(
+                              'La nota rápida se habilitará en un bloque posterior. Usa escritorio para edición clínica completa.',
+                            ),
                           ),
                         );
                       },
@@ -457,7 +464,9 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Ve a la ficha del paciente y abre Pagos para el detalle completo.'),
+                            content: Text(
+                              'Ve a la ficha del paciente y abre Pagos para el detalle completo.',
+                            ),
                           ),
                         );
                       },
