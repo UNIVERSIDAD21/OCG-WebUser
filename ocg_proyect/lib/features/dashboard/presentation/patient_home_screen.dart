@@ -47,22 +47,75 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: false,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        final topPadding = MediaQuery.paddingOf(sheetContext).top;
-        return Container(
-          height: MediaQuery.sizeOf(sheetContext).height * 0.92,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8F5F0),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            child: Padding(
-              padding: EdgeInsets.only(top: topPadding > 0 ? 0 : 8),
-              child: PatientNotificationsScreen(
-                embedded: true,
-                patientIdOverride: widget.isAdminView ? patientId : null,
+        return SafeArea(
+          top: true,
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 28),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: 0.88,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8F5F0),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Container(
+                          width: 44,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: OcgColors.espresso.withValues(alpha: 0.20),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 10, 10, 8),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Notificaciones',
+                                  style: TextStyle(
+                                    color: OcgColors.espresso,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Cerrar notificaciones',
+                                onPressed: () =>
+                                    Navigator.of(sheetContext).pop(),
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: PatientNotificationsScreen(
+                            embedded: true,
+                            patientIdOverride: widget.isAdminView
+                                ? patientId
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
