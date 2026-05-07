@@ -32,9 +32,14 @@ import 'tabs/patient_simulator_tab.dart';
 import 'tabs/patient_treatment_tab.dart';
 
 class PatientDetailScreen extends ConsumerStatefulWidget {
-  const PatientDetailScreen({super.key, required this.patientId});
+  const PatientDetailScreen({
+    super.key,
+    required this.patientId,
+    this.embeddedInAdminMobileShell = false,
+  });
 
   final String patientId;
+  final bool embeddedInAdminMobileShell;
 
   @override
   ConsumerState<PatientDetailScreen> createState() =>
@@ -140,6 +145,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 
         return _PatientDetailView(
           patient: patient,
+          embeddedInAdminMobileShell: widget.embeddedInAdminMobileShell,
           onDelete: _deleting ? null : () => _deletePatient(patient),
         );
       },
@@ -150,9 +156,14 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 enum _TreatmentSubView { hub, payments, documents }
 
 class _PatientDetailView extends ConsumerWidget {
-  const _PatientDetailView({required this.patient, required this.onDelete});
+  const _PatientDetailView({
+    required this.patient,
+    required this.embeddedInAdminMobileShell,
+    required this.onDelete,
+  });
 
   final PatientModel patient;
+  final bool embeddedInAdminMobileShell;
   final VoidCallback? onDelete;
 
   @override
@@ -182,6 +193,7 @@ class _PatientDetailView extends ConsumerWidget {
 
     final content = _AdminPatientWorkspace(
       patient: patient,
+      embeddedInAdminMobileShell: embeddedInAdminMobileShell,
       initialSection: initialMobileSection,
       initialTreatmentSubView: initialTreatmentSubView,
       onEdit: () => context.go(
@@ -414,6 +426,7 @@ class _PatientDetailView extends ConsumerWidget {
 class _AdminPatientWorkspace extends ConsumerStatefulWidget {
   const _AdminPatientWorkspace({
     required this.patient,
+    required this.embeddedInAdminMobileShell,
     required this.onEdit,
     required this.onDelete,
     this.initialSection = 0,
@@ -421,6 +434,7 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
   });
 
   final PatientModel patient;
+  final bool embeddedInAdminMobileShell;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final int initialSection;
@@ -482,6 +496,13 @@ class _AdminPatientWorkspaceState
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
       appBar: AppBar(
+        leading: widget.embeddedInAdminMobileShell
+            ? IconButton(
+                tooltip: 'Volver a pacientes',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.go(RouteNames.adminPatients),
+              )
+            : null,
         title: Text('Paciente: ${widget.patient.nombre}'),
         actions: [
           IconButton(

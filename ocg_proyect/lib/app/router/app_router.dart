@@ -184,7 +184,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RouteNames.adminPatientDetail,
         builder: (context, state) {
           final patientId = state.pathParameters['patientId'] ?? '';
-          return PatientDetailScreen(patientId: patientId);
+          if (WebLayoutContext.useDesktopShell(context)) {
+            return PatientDetailScreen(patientId: patientId);
+          }
+          return AdminMobileShell(
+            initialIndex: 1,
+            detailChild: PatientDetailScreen(
+              patientId: patientId,
+              embeddedInAdminMobileShell: true,
+            ),
+          );
         },
       ),
       GoRoute(
