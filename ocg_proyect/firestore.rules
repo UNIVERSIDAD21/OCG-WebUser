@@ -38,7 +38,12 @@ service cloud.firestore {
 
     function onlyProfilePhotoFieldsChanged() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['photoUrl', 'profilePhotoPath', 'updatedAt']);
+        .hasOnly(['photoUrl', 'profilePhotoPath', 'updatedAt', 'fotoUrl']);
+    }
+
+    function onlyPatientSelfEditableFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['photoUrl', 'profilePhotoPath', 'updatedAt', 'fotoUrl', 'telefono']);
     }
 
     match /admins/{adminId} {
@@ -60,7 +65,7 @@ service cloud.firestore {
       allow create: if isAdmin() ||
                       (request.auth != null && isOwnPatient(patientId));
       allow update: if isAdmin() ||
-                      (request.auth != null && isOwnPatient(patientId));
+                      (isOwnPatient(patientId) && onlyPatientSelfEditableFieldsChanged());
       allow delete: if isAdmin();
 
       match /devices/{deviceId} {

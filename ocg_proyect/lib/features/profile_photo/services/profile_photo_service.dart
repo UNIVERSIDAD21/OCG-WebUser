@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -18,9 +19,11 @@ class ProfilePhotoService {
   ProfilePhotoService({
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
+    FirebaseAuth? auth,
     ImagePicker? picker,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _storage = storage ?? FirebaseStorage.instance,
+       _auth = auth ?? FirebaseAuth.instance,
        _picker = picker ?? ImagePicker();
 
   static const int maxBytes = 5 * 1024 * 1024;
@@ -28,6 +31,7 @@ class ProfilePhotoService {
 
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
+  final FirebaseAuth _auth;
   final ImagePicker _picker;
 
   Future<ProfilePhotoResult?> pickAndUpload({
@@ -48,12 +52,13 @@ class ProfilePhotoService {
       throw Exception('PROFILE_PHOTO_TOO_LARGE');
     }
 
-    final extension = _resolveExtension(picked.name, picked.mimeType);
+    final extension = _resolveExtension(picked.name, picked.mimeType, bytes);
     if (!allowedExtensions.contains(extension)) {
       throw Exception('PROFILE_PHOTO_INVALID_TYPE');
     }
 
     final contentType = _contentType(extension);
+    final currentAuthUid = _auth.currentUser?.uid;
     final path = switch (ownerType) {
       ProfilePhotoOwnerType.admin => StoragePaths.adminProfilePhoto(
         uid,
@@ -65,19 +70,50 @@ class ProfilePhotoService {
       ),
     };
 
+    _trace('upload.start', {
+      'ownerType': ownerType.name,
+      'uid': uid,
+      'path': path,
+      'extension': extension,
+      'contentType': contentType,
+      'bytesLength': bytes.length,
+      'currentAuthUid': currentAuthUid,
+      'authUidMatchesUid': currentAuthUid == uid,
+    });
+
     final docRef = _docRef(ownerType, uid);
     final previous = await docRef.get();
     final previousPath = previous.data()?['profilePhotoPath']?.toString();
 
     final ref = _storage.ref(path);
-    await ref.putData(bytes, SettableMetadata(contentType: contentType));
+    try {
+      await ref.putData(bytes, SettableMetadata(contentType: contentType));
+    } on FirebaseException catch (error) {
+      _trace('upload.storageError', {
+        'ownerType': ownerType.name,
+        'uid': uid,
+        'path': path,
+        'extension': extension,
+        'contentType': contentType,
+        'bytesLength': bytes.length,
+        'currentAuthUid': currentAuthUid,
+        'code': error.code,
+        'message': error.message,
+      });
+      rethrow;
+    }
     final url = await ref.getDownloadURL();
 
-    await docRef.set({
+    final update = <String, dynamic>{
       'photoUrl': url,
       'profilePhotoPath': path,
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (ownerType == ProfilePhotoOwnerType.patient) {
+      update['fotoUrl'] = url;
+    }
+
+    await docRef.set(update, SetOptions(merge: true));
 
     if (previousPath != null &&
         previousPath.isNotEmpty &&
@@ -126,23 +162,62 @@ class ProfilePhotoService {
     return _db.collection(collection).doc(uid);
   }
 
-  String _resolveExtension(String name, String? mimeType) {
+  void _trace(String action, Map<String, Object?> details) {
+    // ignore: avoid_print
+    print('[ProfilePhotoService][$action] $details');
+  }
+
+  String _resolveExtension(String name, String? mimeType, List<int> bytes) {
     final cleanName = name.toLowerCase().trim();
     final dot = cleanName.lastIndexOf('.');
     if (dot >= 0 && dot < cleanName.length - 1) {
       final ext = cleanName.substring(dot + 1);
       if (ext == 'jpg' || ext == 'jpeg' || ext == 'png' || ext == 'webp') {
-        return ext;
+        return ext == 'jpeg' ? 'jpg' : ext;
       }
     }
 
-    return switch (mimeType?.toLowerCase()) {
+    final fromMime = switch (mimeType?.toLowerCase().trim()) {
       'image/jpeg' || 'image/jpg' => 'jpg',
       'image/png' => 'png',
       'image/webp' => 'webp',
       _ => '',
     };
+    if (fromMime.isNotEmpty) return fromMime;
+
+    if (_looksLikeJpeg(bytes)) return 'jpg';
+    if (_looksLikePng(bytes)) return 'png';
+    if (_looksLikeWebp(bytes)) return 'webp';
+    return '';
   }
+
+  bool _looksLikeJpeg(List<int> bytes) =>
+      bytes.length >= 3 &&
+      bytes[0] == 0xFF &&
+      bytes[1] == 0xD8 &&
+      bytes[2] == 0xFF;
+
+  bool _looksLikePng(List<int> bytes) =>
+      bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4E &&
+      bytes[3] == 0x47 &&
+      bytes[4] == 0x0D &&
+      bytes[5] == 0x0A &&
+      bytes[6] == 0x1A &&
+      bytes[7] == 0x0A;
+
+  bool _looksLikeWebp(List<int> bytes) =>
+      bytes.length >= 12 &&
+      bytes[0] == 0x52 &&
+      bytes[1] == 0x49 &&
+      bytes[2] == 0x46 &&
+      bytes[3] == 0x46 &&
+      bytes[8] == 0x57 &&
+      bytes[9] == 0x45 &&
+      bytes[10] == 0x42 &&
+      bytes[11] == 0x50;
 
   String _contentType(String extension) {
     return switch (extension) {

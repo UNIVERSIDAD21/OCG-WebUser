@@ -57,7 +57,8 @@ service firebase.storage {
 
     match /patients/{patientId}/profile/{fileName} {
       allow read: if isAdmin() || isOwnPatient(patientId);
-      allow write: if (isAdmin() || isOwnPatient(patientId)) && isAllowedProfileImage();
+      allow write: if isOwnPatient(patientId) && isAllowedProfileImage();
+      allow write: if isAdmin() && isAllowedProfileImage();
     }
 
     match /patients/{patientId}/photos/{fileName} {

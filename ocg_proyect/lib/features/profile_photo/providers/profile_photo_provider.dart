@@ -37,8 +37,10 @@ String mapProfilePhotoError(Object error) {
   if (raw.contains('PROFILE_PHOTO_INVALID_TYPE')) {
     return 'Formato no permitido. Usa JPG, JPEG, PNG o WEBP.';
   }
-  if (raw.contains('permission-denied') || raw.contains('unauthorized')) {
-    return 'No tienes permisos para actualizar esta foto.';
+  if (raw.contains('permission-denied') ||
+      raw.contains('unauthorized') ||
+      raw.contains('storage/unauthorized')) {
+    return 'No tienes permisos para actualizar esta foto. Cierra sesión e inicia de nuevo o contacta a la clínica.';
   }
   return 'No se pudo actualizar la foto. Intenta de nuevo.';
 }

@@ -30,14 +30,23 @@ class ClinicalFilesRepository {
       'includeInactive': includeInactive,
     });
 
-    return _filesRef(
-      patientId,
-    ).orderBy('uploadedAt', descending: true).snapshots().map((snapshot) {
-      return snapshot.docs
+    Query<Map<String, dynamic>> query = _filesRef(patientId);
+
+    if (onlyVisibleToPatient) {
+      query = query
+          .where('visibleToPatient', isEqualTo: true)
+          .where('active', isEqualTo: true);
+    } else {
+      query = query.orderBy('uploadedAt', descending: true);
+    }
+
+    return query.snapshots().map((snapshot) {
+      final files = snapshot.docs
           .map((doc) => ClinicalFileModel.fromJson(doc.data(), id: doc.id))
           .where((item) {
-            if (!includeInactive && !item.active) return false;
-            if (onlyVisibleToPatient && !item.visibleToPatient) return false;
+            if (!onlyVisibleToPatient && !includeInactive && !item.active) {
+              return false;
+            }
             if (treatmentId != null &&
                 treatmentId.isNotEmpty &&
                 item.treatmentId != treatmentId) {
@@ -46,6 +55,9 @@ class ClinicalFilesRepository {
             return true;
           })
           .toList();
+
+      files.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+      return files;
     });
   }
 
