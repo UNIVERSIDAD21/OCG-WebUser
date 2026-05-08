@@ -579,3 +579,43 @@ Resultado:
 Commit:
 
 - `mejorar cards y acciones de agenda movil admin`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Agenda móvil admin / flujo guiado de crear y reprogramar
+
+Alcance implementado:
+
+- Se avanzó el bloque P2 de Agenda móvil admin sobre el flujo de creación y reprogramación de citas.
+- En `Nueva cita` se agregó una ficha visual del paciente seleccionado con nombre/teléfono y acción clara para cambiarlo.
+- Se agregó resumen operativo de disponibilidad del día:
+  - cantidad de horarios disponibles,
+  - cantidad de horarios bloqueados,
+  - horario seleccionado,
+  - estado visual “listo para agendar” o “elige un horario disponible”.
+- Se agregó leyenda visual para diferenciar seleccionado, disponible y bloqueado/no laborable.
+- Los chips de horario ahora muestran icono de disponible/bloqueado y limpian errores al seleccionar un horario válido.
+- En `Reprogramar cita` se agregó resumen equivalente de disponibilidad, leyenda visual y chips de horario con iconos, manteniendo exclusión de la cita original para no crear falso conflicto.
+- Se mantuvieron intactas las validaciones de `AppointmentsBusinessRules`, los providers, Firebase, FCM y el comportamiento desktop.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+- `flutter test test/appointments_business_rules_test.dart test/features/admin/admin_desktop_validation_matrix_test.dart test/features/admin/admin_modules_responsive_base_test.dart test/features/admin/admin_modules_tiers_smoke_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados agenda/admin: verdes.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- Pendiente de hash al confirmar cambios.

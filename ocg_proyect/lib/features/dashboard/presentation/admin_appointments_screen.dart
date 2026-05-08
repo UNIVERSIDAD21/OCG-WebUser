@@ -514,7 +514,115 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
         AppointmentsBusinessRules.workdayStartHour,
         0,
       );
+      _errorMsg = null;
     });
+  }
+
+  Widget _flowInfoCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Color color = OcgColors.bronze,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: color),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: OcgColors.ink.withOpacity(0.74),
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _slotLegend() {
+    Widget item(Color color, String label, {bool outlined = false}) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: outlined ? Colors.transparent : color,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: color, width: outlined ? 2 : 1),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: OcgColors.ink.withOpacity(0.68),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 6,
+      children: [
+        item(OcgColors.sand, 'Seleccionado'),
+        item(const Color(0xFF7A8A20), 'Disponible', outlined: true),
+        item(Colors.grey.shade500, 'Ocupado/no laborable'),
+      ],
+    );
+  }
+
+  Widget _slotAvailabilitySummary(List<AppointmentTimeSlot> slots) {
+    final total = slots.length;
+    final available = slots.where((s) => s.isAvailable).length;
+    final blocked = total - available;
+    final selectedAvailable = slots.any(
+      (s) => s.start == _dateTime && s.isAvailable,
+    );
+    final color = selectedAvailable ? const Color(0xFF2E7D32) : OcgColors.error;
+    return _flowInfoCard(
+      icon: selectedAvailable
+          ? Icons.event_available_outlined
+          : Icons.warning_amber_outlined,
+      title: selectedAvailable
+          ? 'Horario listo para agendar'
+          : 'Elige un horario disponible',
+      subtitle:
+          '$available disponibles · $blocked bloqueados. Seleccionado: ${_appointmentFmtDateTime(_dateTime)}.',
+      color: color,
+    );
   }
 
   Future<void> _submit() async {
@@ -643,7 +751,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                         )
                       : null,
                 ),
-                onChanged: (_) => setState(() => _selectedPatient = null),
+                onChanged: (_) => setState(() {
+                  _selectedPatient = null;
+                  _errorMsg = null;
+                }),
               ),
 
               // ── Dropdown de resultados ─────────────────────────────────
@@ -679,6 +790,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                               onTap: () => setState(() {
                                 _selectedPatient = p;
                                 _searchCtrl.text = p.nombre;
+                                _errorMsg = null;
                               }),
                             );
                           }).toList(),
@@ -689,24 +801,62 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               // ── Chip del paciente seleccionado ─────────────────────────
               if (_selectedPatient != null) ...[
                 const SizedBox(height: 8),
-                Chip(
-                  avatar: const Icon(
-                    Icons.person,
-                    size: 14,
-                    color: OcgColors.ivory,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F1EA),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.18),
+                    ),
                   ),
-                  label: Text(_selectedPatient!.nombre),
-                  backgroundColor: OcgColors.espresso,
-                  labelStyle: const TextStyle(color: OcgColors.ivory),
-                  deleteIcon: const Icon(
-                    Icons.close,
-                    size: 14,
-                    color: OcgColors.ivory,
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 17,
+                        backgroundColor: OcgColors.espresso,
+                        child: Icon(
+                          Icons.person,
+                          size: 17,
+                          color: OcgColors.ivory,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedPatient!.nombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: OcgColors.espresso,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              _selectedPatient!.telefono.isEmpty
+                                  ? 'Sin teléfono registrado'
+                                  : _selectedPatient!.telefono,
+                              style: TextStyle(
+                                color: OcgColors.ink.withOpacity(0.62),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cambiar paciente',
+                        onPressed: () => setState(() {
+                          _selectedPatient = null;
+                          _searchCtrl.clear();
+                        }),
+                        icon: const Icon(Icons.close, size: 18),
+                      ),
+                    ],
                   ),
-                  onDeleted: () => setState(() {
-                    _selectedPatient = null;
-                    _searchCtrl.clear();
-                  }),
                 ),
               ],
 
@@ -787,8 +937,14 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       selected: isSelected && slot.isAvailable,
                       disabledColor: Colors.grey.shade300,
                       selectedColor: OcgColors.sand,
+                      avatar: slot.isAvailable
+                          ? const Icon(Icons.check_circle_outline, size: 15)
+                          : const Icon(Icons.block, size: 15),
                       onSelected: slot.isAvailable
-                          ? (_) => setState(() => _dateTime = slot.start)
+                          ? (_) => setState(() {
+                              _dateTime = slot.start;
+                              _errorMsg = null;
+                            })
                           : null,
                     );
                   }
@@ -859,6 +1015,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _slotAvailabilitySummary(sortedSlots),
+                      const SizedBox(height: 8),
+                      _slotLegend(),
+                      const SizedBox(height: 8),
                       section(
                         title: 'Mañana (08:00 - 11:30)',
                         expanded: _expandMorning,
@@ -981,6 +1141,31 @@ class _AdminAppointmentsScreenState
     }
   }
 
+  Widget _miniLegend(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.78),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: OcgColors.ink.withOpacity(0.68),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
     int newDuration = appt.duracionMinutos;
@@ -1082,9 +1267,22 @@ class _AdminAppointmentsScreenState
                         .toList();
 
                     Widget chip(AppointmentTimeSlot slot) {
+                      final isSelected = slot.start == newDateTime;
                       return ChoiceChip(
-                        label: Text(slot.label),
-                        selected: slot.start == newDateTime,
+                        label: Text(
+                          slot.label,
+                          style: TextStyle(
+                            color: slot.isAvailable
+                                ? OcgColors.espresso
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                        avatar: slot.isAvailable
+                            ? const Icon(Icons.check_circle_outline, size: 15)
+                            : const Icon(Icons.block, size: 15),
+                        selected: isSelected && slot.isAvailable,
+                        disabledColor: Colors.grey.shade300,
+                        selectedColor: OcgColors.sand,
                         onSelected: slot.isAvailable
                             ? (_) => setDs(() => newDateTime = slot.start)
                             : null,
@@ -1154,9 +1352,66 @@ class _AdminAppointmentsScreenState
                       );
                     }
 
+                    final available = slots.where((s) => s.isAvailable).length;
+                    final blocked = slots.length - available;
+                    final selectedAvailable = slots.any(
+                      (s) => s.start == newDateTime && s.isAvailable,
+                    );
+                    final summaryColor = selectedAvailable
+                        ? const Color(0xFF2E7D32)
+                        : OcgColors.error;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: summaryColor.withOpacity(0.09),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: summaryColor.withOpacity(0.18),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                selectedAvailable
+                                    ? Icons.event_repeat_outlined
+                                    : Icons.warning_amber_outlined,
+                                size: 19,
+                                color: summaryColor,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  selectedAvailable
+                                      ? '$available disponibles · $blocked bloqueados. Nuevo horario listo: ${_appointmentFmtDateTime(newDateTime)}.'
+                                      : '$available disponibles · $blocked bloqueados. Elige un horario disponible para continuar.',
+                                  style: TextStyle(
+                                    color: OcgColors.ink.withOpacity(0.76),
+                                    fontSize: 12,
+                                    height: 1.25,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: [
+                            _miniLegend(OcgColors.sand, 'Seleccionado'),
+                            _miniLegend(const Color(0xFF7A8A20), 'Disponible'),
+                            _miniLegend(Colors.grey.shade500, 'Bloqueado'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         section(
                           title: 'Mañana (08:00 - 11:30)',
                           expanded: expandMorning,
