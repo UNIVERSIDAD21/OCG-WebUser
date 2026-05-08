@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/theme/ocg_colors.dart';
 import '../../appointments/data/models/appointment_model.dart';
 
 /// Filtros principales del inbox de agenda admin.
@@ -32,6 +33,81 @@ bool isAgendaIncident(AppointmentModel appointment) =>
     appointment.estado == AppointmentStatus.noAsistio ||
     appointment.estado == AppointmentStatus.reprogramada ||
     isLostAppointment(appointment);
+
+({Color dot, Color line, String label}) appointmentStatusUi(
+  AppointmentModel appointment,
+) {
+  if (isLostAppointment(appointment)) {
+    return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
+  }
+
+  return switch (appointment.estado) {
+    AppointmentStatus.programada => (
+      dot: const Color(0xFFBA7517),
+      line: const Color(0xFFBA7517),
+      label: 'Activa',
+    ),
+    AppointmentStatus.confirmada => (
+      dot: const Color(0xFF639922),
+      line: const Color(0xFF639922),
+      label: 'Confirmada',
+    ),
+    AppointmentStatus.completada => (
+      dot: const Color(0xFF1B45A0),
+      line: const Color(0xFF1B45A0),
+      label: 'Completada',
+    ),
+    AppointmentStatus.cancelada => (
+      dot: const Color(0xFF888780),
+      line: const Color(0xFF888780),
+      label: 'Cancelada',
+    ),
+    AppointmentStatus.noAsistio => (
+      dot: OcgColors.error,
+      line: OcgColors.error,
+      label: 'Perdida',
+    ),
+    AppointmentStatus.reprogramada => (
+      dot: const Color(0xFF7E3AF2),
+      line: const Color(0xFF7E3AF2),
+      label: 'Reprogramada',
+    ),
+  };
+}
+
+IconData agendaStatusIcon(AppointmentModel appointment) {
+  if (isLostAppointment(appointment)) return Icons.person_off_outlined;
+  return switch (appointment.estado) {
+    AppointmentStatus.programada => Icons.schedule_outlined,
+    AppointmentStatus.confirmada => Icons.verified_outlined,
+    AppointmentStatus.completada => Icons.done_all_outlined,
+    AppointmentStatus.cancelada => Icons.cancel_outlined,
+    AppointmentStatus.noAsistio => Icons.person_off_outlined,
+    AppointmentStatus.reprogramada => Icons.edit_calendar_outlined,
+  };
+}
+
+String agendaOperationalHint(AppointmentModel appointment) {
+  final now = DateTime.now();
+  if (isLostAppointment(appointment)) return 'Requiere seguimiento del equipo.';
+  if (appointment.estado == AppointmentStatus.programada &&
+      appointment.fechaHora.isBefore(now)) {
+    return 'Cita vencida: confirma asistencia o reprograma.';
+  }
+  if (appointment.estado == AppointmentStatus.programada) {
+    return 'Pendiente por confirmar con el paciente.';
+  }
+  if (appointment.estado == AppointmentStatus.confirmada) {
+    return 'Lista para completar al finalizar atención.';
+  }
+  if (appointment.estado == AppointmentStatus.completada) {
+    return 'Atención registrada en historial.';
+  }
+  if (appointment.estado == AppointmentStatus.reprogramada) {
+    return 'Cita movida; revisar nueva fecha asociada.';
+  }
+  return 'Cita cerrada administrativamente.';
+}
 
 bool isAgendaHistoryCandidate(AppointmentModel appointment, DateTime now) =>
     appointment.fechaHora.isBefore(now) ||

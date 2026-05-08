@@ -1049,4 +1049,44 @@ Pendiente antes de commit:
 
 Commit:
 
+- 3d8a4f7
+
+---
+
+## Registro de implementación — 2026-05-08 — P6 Agenda / helpers visuales de estado
+
+Alcance implementado:
+
+- Se continuó P6 con un corte pequeño adicional sobre agenda admin.
+- Se movieron helpers visuales/puros de estado a `admin_appointments_agenda_helpers.dart`:
+  - `appointmentStatusUi`,
+  - `agendaStatusIcon`,
+  - `agendaOperationalHint`.
+- `admin_appointments_screen.dart` conserva widgets, callbacks, navegación y acciones con `context/ref`.
+- Se evita mezclar refactor visual con reglas de negocio o efectos externos.
+
+Cuidado aplicado:
+
+- Sin tocar creación, edición, reprogramación, cancelación ni acciones de estado.
+- Sin cambios en providers ni repositorios.
+- Sin tocar `AppointmentsBusinessRules`.
+- El cambio es import/uso de helpers puros ya validados por analyzer.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados y suite completa.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

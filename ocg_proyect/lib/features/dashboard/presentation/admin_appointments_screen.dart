@@ -1893,45 +1893,6 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  ({Color dot, Color line, String label}) _statusUi(AppointmentModel a) {
-    if (isLostAppointment(a)) {
-      return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
-    }
-
-    return switch (a.estado) {
-      AppointmentStatus.programada => (
-        dot: const Color(0xFFBA7517),
-        line: const Color(0xFFBA7517),
-        label: 'Activa',
-      ),
-      AppointmentStatus.confirmada => (
-        dot: const Color(0xFF639922),
-        line: const Color(0xFF639922),
-        label: 'Confirmada',
-      ),
-      AppointmentStatus.completada => (
-        dot: const Color(0xFF1B45A0),
-        line: const Color(0xFF1B45A0),
-        label: 'Completada',
-      ),
-      AppointmentStatus.cancelada => (
-        dot: const Color(0xFF888780),
-        line: const Color(0xFF888780),
-        label: 'Cancelada',
-      ),
-      AppointmentStatus.noAsistio => (
-        dot: OcgColors.error,
-        line: OcgColors.error,
-        label: 'Perdida',
-      ),
-      AppointmentStatus.reprogramada => (
-        dot: const Color(0xFF7E3AF2),
-        line: const Color(0xFF7E3AF2),
-        label: 'Reprogramada',
-      ),
-    };
-  }
-
   Future<void> _handleStatusAction(AppointmentModel a, String action) async {
     switch (action) {
       case 'confirmar':
@@ -2114,39 +2075,6 @@ class _AdminAppointmentsScreenState
     return Wrap(spacing: 6, runSpacing: 6, children: actions);
   }
 
-  IconData _agendaStatusIcon(AppointmentModel a) {
-    if (isLostAppointment(a)) return Icons.person_off_outlined;
-    return switch (a.estado) {
-      AppointmentStatus.programada => Icons.schedule_outlined,
-      AppointmentStatus.confirmada => Icons.verified_outlined,
-      AppointmentStatus.completada => Icons.done_all_outlined,
-      AppointmentStatus.cancelada => Icons.cancel_outlined,
-      AppointmentStatus.noAsistio => Icons.person_off_outlined,
-      AppointmentStatus.reprogramada => Icons.edit_calendar_outlined,
-    };
-  }
-
-  String _agendaOperationalHint(AppointmentModel a) {
-    final now = DateTime.now();
-    if (isLostAppointment(a)) return 'Requiere seguimiento del equipo.';
-    if (a.estado == AppointmentStatus.programada && a.fechaHora.isBefore(now)) {
-      return 'Cita vencida: confirma asistencia o reprograma.';
-    }
-    if (a.estado == AppointmentStatus.programada) {
-      return 'Pendiente por confirmar con el paciente.';
-    }
-    if (a.estado == AppointmentStatus.confirmada) {
-      return 'Lista para completar al finalizar atención.';
-    }
-    if (a.estado == AppointmentStatus.completada) {
-      return 'Atención registrada en historial.';
-    }
-    if (a.estado == AppointmentStatus.reprogramada) {
-      return 'Cita movida; revisar nueva fecha asociada.';
-    }
-    return 'Cita cerrada administrativamente.';
-  }
-
   Widget _agendaPill({
     required String label,
     required Color color,
@@ -2184,7 +2112,7 @@ class _AdminAppointmentsScreenState
     bool showDate = false,
     bool dense = false,
   }) {
-    final ui = _statusUi(a);
+    final ui = appointmentStatusUi(a);
     final timeLabel = showDate
         ? '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} · ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}'
         : '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}';
@@ -2218,7 +2146,7 @@ class _AdminAppointmentsScreenState
                   color: ui.line.withOpacity(0.11),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(_agendaStatusIcon(a), color: ui.line, size: 21),
+                child: Icon(agendaStatusIcon(a), color: ui.line, size: 21),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -2250,7 +2178,7 @@ class _AdminAppointmentsScreenState
               _agendaPill(
                 label: ui.label,
                 color: ui.line,
-                icon: _agendaStatusIcon(a),
+                icon: agendaStatusIcon(a),
               ),
             ],
           ),
@@ -2260,7 +2188,7 @@ class _AdminAppointmentsScreenState
             runSpacing: 6,
             children: [
               _agendaPill(
-                label: _agendaOperationalHint(a),
+                label: agendaOperationalHint(a),
                 color: isAgendaIncident(a) ? OcgColors.error : OcgColors.bronze,
                 icon: isAgendaIncident(a)
                     ? Icons.warning_amber_outlined
@@ -2692,7 +2620,7 @@ class _AdminAppointmentsScreenState
                   Wrap(
                     spacing: 2,
                     children: dayItems.take(3).map((a) {
-                      final ui = _statusUi(a);
+                      final ui = appointmentStatusUi(a);
                       return Container(
                         width: 5,
                         height: 5,
