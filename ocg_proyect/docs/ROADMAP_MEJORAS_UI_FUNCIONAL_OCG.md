@@ -1132,4 +1132,47 @@ Pendiente antes de commit:
 
 Commit:
 
+- 35c7b3b
+
+---
+
+## Registro de implementación — 2026-05-08 — Corrección overflow móvil Agenda admin / Tab Hoy
+
+Problema corregido:
+
+- En móvil, el tab `AgendaInnerTab.hoy` podía producir `RenderFlex overflowed by 48 pixels on the bottom`.
+- El overflow ocurría dentro de `_buildTodayAgenda`, en la rama móvil, porque el cuerpo del tab era una `Column` con filtros + resumen + `Expanded` para timeline dentro de un alto muy limitado por el header premium, tabs y `AnimatedSwitcher`.
+- En pantallas pequeñas el bloque de filtros/resumen consumía más alto del disponible antes del `Expanded`, dejando el `Column` sin espacio suficiente.
+
+Solución aplicada:
+
+- La rama móvil de `_buildTodayAgenda` ahora usa un `ListView` vertical como scroll real del contenido del tab Hoy.
+- Se mantienen filtros rápidos horizontales, resumen y cards dentro de un único scroll natural del tab.
+- Las cards se renderizan como hijos normales dentro de una `Column` interna no scrollable, evitando lista vertical anidada.
+- La rama desktop permanece con su layout original `Column` + `Row` + `Expanded` para no alterar desktop.
+
+Cuidado aplicado:
+
+- No se agregaron alturas arbitrarias.
+- No se usó `ClipRect` ni ocultamiento visual.
+- No se ocultó contenido.
+- No se redujeron fuentes de forma artificial.
+- No se tocaron providers, reglas de negocio, `AppointmentsBusinessRules`, diálogos, tabs, navegación, `AdminMobileShell` ni bottom nav.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados y suite completa.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

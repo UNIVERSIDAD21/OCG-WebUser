@@ -2465,7 +2465,8 @@ class _AdminAppointmentsScreenState
       );
     }
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
         const SizedBox(height: 8),
         _buildQuickFilters(appointments, selectedDate),
@@ -2473,11 +2474,16 @@ class _AdminAppointmentsScreenState
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: summary,
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: timeline,
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: dayItems.isEmpty
+              ? timeline
+              : Column(
+                  children: [
+                    for (final appointment in dayItems)
+                      _buildAgendaAppointmentCard(appointment),
+                  ],
+                ),
         ),
       ],
     );
