@@ -758,4 +758,101 @@ Resultado:
 
 Commit:
 
+- aea8e40
+
+---
+
+## Registro de implementación — 2026-05-08 — Inicio P4 Notificaciones / inbox operativo admin
+
+Alcance implementado:
+
+- Se inició P4 de Notificaciones con rediseño del inbox admin.
+- Se agregó hero premium de centro de notificaciones con métricas:
+  - total,
+  - no leídas,
+  - recibidas hoy.
+- Se agregaron filtros compactos con conteos por tipo:
+  - Todas,
+  - No leídas,
+  - Citas,
+  - Pagos,
+  - Tratamientos,
+  - Docs,
+  - Simulador.
+- Se rediseñaron las cards con:
+  - icono/color por tipo de notificación,
+  - chip de leída/nueva,
+  - chip de categoría,
+  - fecha,
+  - destino cuando hay ruta,
+  - CTA explícito “Leer y abrir” / “Abrir destino”.
+- Se mejoraron empty states para inbox vacío y filtros sin resultados, incluyendo acción de limpiar filtro.
+- Se mantuvo intacto `FcmPayloadRouter`, `NotificationNavigationService`, providers, rutas seguras y normalización de payload.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_notifications_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_notifications_screen.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados de notificaciones/routing y suite completa `flutter test`.
+
+Commit:
+
+- aea8e40
+
+---
+
+## Registro de implementación — 2026-05-08 — P4 Notificaciones / paciente premium y cierre funcional
+
+Alcance implementado:
+
+- Se extendió P4 al inbox de paciente para dejar la experiencia consistente con admin.
+- Se agregó hero premium del inbox paciente con métricas:
+  - total,
+  - no leídas,
+  - recibidas hoy.
+- Se agregaron filtros compactos por tipo y estado:
+  - Todas,
+  - No leídas,
+  - Citas,
+  - Pagos,
+  - Tratamiento,
+  - Docs,
+  - Simulador.
+- Se rediseñaron cards de paciente con:
+  - icono/color por tipo,
+  - estado leída/no leída,
+  - categoría,
+  - fecha,
+  - destino de navegación cuando existe,
+  - CTA “Leer y abrir” / “Abrir”.
+- Se mejoró el copy de error con empty state más claro y fallback visual.
+- Se mantuvo intacto `FcmPayloadRouter`, `NotificationNavigationService`, providers, rutas seguras y normalización de payload.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_notifications_screen.dart`
+- `lib/features/notifications/presentation/patient_notifications_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_notifications_screen.dart lib/features/notifications/presentation/patient_notifications_screen.dart`
+- `flutter analyze`
+- `flutter test test/services/notifications/fcm_payload_router_test.dart test/services/notifications/fcm_service_test.dart`
+- `flutter test`
+
+Estado P4:
+
+- Cerrado funcionalmente para rediseño UI/UX de inbox admin/paciente, filtros, estados leído/no leído, acciones y empty/error states.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.
