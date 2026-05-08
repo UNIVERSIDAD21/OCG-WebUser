@@ -1008,4 +1008,45 @@ Pendiente antes de commit:
 
 Commit:
 
+- 6abfac3
+
+---
+
+## Registro de implementación — 2026-05-08 — P6 Agenda / filtros rápidos extraídos
+
+Alcance implementado:
+
+- Se continuó P6 con otro corte pequeño y seguro en agenda admin.
+- Se movieron helpers puros de filtros rápidos desde `admin_appointments_screen.dart` a `admin_appointments_agenda_helpers.dart`:
+  - `appointmentsForDay`,
+  - `quickFilterLabel`,
+  - `quickFilterIcon`,
+  - `quickFilterCount`,
+  - `quickFilteredItems`.
+- La pantalla conserva estado, UI, providers y acciones; solo consume helpers externos.
+- Se redujo el tamaño del archivo principal sin alterar comportamiento.
+
+Cuidado aplicado:
+
+- Sin mover diálogos, callbacks ni lógica con `ref/context`.
+- Sin cambiar creación, reprogramación, disponibilidad, filtros visuales ni acciones.
+- Sin tocar `AppointmentsBusinessRules`.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados de agenda/admin y suite completa `flutter test`.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

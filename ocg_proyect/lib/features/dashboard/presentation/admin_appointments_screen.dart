@@ -1893,24 +1893,6 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  List<AppointmentModel> _appointmentsForDay(
-    List<AppointmentModel> all,
-    DateTime day,
-  ) {
-    final list =
-        all
-            .where(
-              (a) =>
-                  a.fechaHora.year == day.year &&
-                  a.fechaHora.month == day.month &&
-                  a.fechaHora.day == day.day &&
-                  a.estado != AppointmentStatus.reprogramada,
-            )
-            .toList()
-          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
-    return list;
-  }
-
   ({Color dot, Color line, String label}) _statusUi(AppointmentModel a) {
     if (isLostAppointment(a)) {
       return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
@@ -2332,89 +2314,6 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  String _quickFilterLabel(AgendaDayQuickFilter filter) {
-    return switch (filter) {
-      AgendaDayQuickFilter.dia => 'Día',
-      AgendaDayQuickFilter.manana => 'Mañana',
-      AgendaDayQuickFilter.pendientes => 'Pendientes',
-      AgendaDayQuickFilter.vencidas => 'Vencidas',
-      AgendaDayQuickFilter.historicas => 'Históricas',
-    };
-  }
-
-  IconData _quickFilterIcon(AgendaDayQuickFilter filter) {
-    return switch (filter) {
-      AgendaDayQuickFilter.dia => Icons.today_outlined,
-      AgendaDayQuickFilter.manana => Icons.wb_twilight_outlined,
-      AgendaDayQuickFilter.pendientes => Icons.pending_actions_outlined,
-      AgendaDayQuickFilter.vencidas => Icons.warning_amber_outlined,
-      AgendaDayQuickFilter.historicas => Icons.history_toggle_off_outlined,
-    };
-  }
-
-  int _quickFilterCount(
-    AgendaDayQuickFilter filter,
-    List<AppointmentModel> appointments,
-    DateTime selectedDate,
-  ) {
-    return _quickFilteredItems(filter, appointments, selectedDate).length;
-  }
-
-  List<AppointmentModel> _quickFilteredItems(
-    AgendaDayQuickFilter filter,
-    List<AppointmentModel> appointments,
-    DateTime selectedDate,
-  ) {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    final items = switch (filter) {
-      AgendaDayQuickFilter.dia => _appointmentsForDay(
-        appointments,
-        selectedDate,
-      ),
-      AgendaDayQuickFilter.manana => _appointmentsForDay(
-        appointments,
-        tomorrow,
-      ),
-      AgendaDayQuickFilter.pendientes =>
-        appointments
-            .where(
-              (a) =>
-                  (a.estado == AppointmentStatus.programada ||
-                      a.estado == AppointmentStatus.confirmada) &&
-                  !isLostAppointment(a) &&
-                  a.fechaHora.isAfter(now.subtract(const Duration(minutes: 1))),
-            )
-            .toList(),
-      AgendaDayQuickFilter.vencidas =>
-        appointments
-            .where(
-              (a) =>
-                  a.estado == AppointmentStatus.programada &&
-                  a.fechaHora.isBefore(now),
-            )
-            .toList(),
-      AgendaDayQuickFilter.historicas =>
-        appointments
-            .where(
-              (a) =>
-                  a.estado == AppointmentStatus.cancelada ||
-                  a.estado == AppointmentStatus.noAsistio ||
-                  a.estado == AppointmentStatus.reprogramada,
-            )
-            .toList(),
-    };
-
-    items.sort((a, b) {
-      if (filter == AgendaDayQuickFilter.historicas ||
-          filter == AgendaDayQuickFilter.vencidas) {
-        return b.fechaHora.compareTo(a.fechaHora);
-      }
-      return a.fechaHora.compareTo(b.fechaHora);
-    });
-    return items;
-  }
-
   Widget _buildQuickFilters(
     List<AppointmentModel> appointments,
     DateTime selectedDate,
@@ -2430,15 +2329,15 @@ class _AdminAppointmentsScreenState
         itemBuilder: (context, index) {
           final filter = filters[index];
           final active = _dayQuickFilter == filter;
-          final count = _quickFilterCount(filter, appointments, selectedDate);
+          final count = quickFilterCount(filter, appointments, selectedDate);
           return ChoiceChip(
             selected: active,
             avatar: Icon(
-              _quickFilterIcon(filter),
+              quickFilterIcon(filter),
               size: 16,
               color: active ? OcgColors.ivory : OcgColors.espresso,
             ),
-            label: Text('${_quickFilterLabel(filter)} · $count'),
+            label: Text('${quickFilterLabel(filter)} · $count'),
             selectedColor: OcgColors.espresso,
             backgroundColor: OcgColors.ivory,
             labelStyle: TextStyle(
@@ -2536,7 +2435,7 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
-    final dayItems = _quickFilteredItems(
+    final dayItems = quickFilteredItems(
       _dayQuickFilter,
       appointments,
       selectedDate,
@@ -2562,7 +2461,7 @@ class _AdminAppointmentsScreenState
     Widget timeline = dayItems.isEmpty
         ? _agendaEmptyState(
             title:
-                'Sin citas en ${_quickFilterLabel(_dayQuickFilter).toLowerCase()}',
+                'Sin citas en ${quickFilterLabel(_dayQuickFilter).toLowerCase()}',
             subtitle:
                 'Usa los filtros rápidos para revisar pendientes, vencidas o historial sin perder el contexto operativo.',
             icon: Icons.event_busy_outlined,
@@ -2723,7 +2622,7 @@ class _AdminAppointmentsScreenState
     final selected = _selectedMonthDay;
     final selectedItems = selected == null
         ? const <AppointmentModel>[]
-        : _appointmentsForDay(appointments, selected);
+        : appointmentsForDay(appointments, selected);
 
     final calendarCells = <Widget>[];
     const dow = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -2760,7 +2659,7 @@ class _AdminAppointmentsScreenState
           date.year == selected.year &&
           date.month == selected.month &&
           date.day == selected.day;
-      final dayItems = _appointmentsForDay(appointments, date);
+      final dayItems = appointmentsForDay(appointments, date);
 
       calendarCells.add(
         InkWell(
@@ -3229,7 +3128,7 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
-    final dayItems = _appointmentsForDay(appointments, selectedDate);
+    final dayItems = appointmentsForDay(appointments, selectedDate);
     final now = DateTime.now();
     final upcoming =
         appointments
