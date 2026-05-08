@@ -964,4 +964,48 @@ Pendiente antes de commit:
 
 Commit:
 
+- 239cea4
+
+---
+
+## Registro de implementación — 2026-05-08 — P6 Agenda / helpers de filtros y reglas visuales
+
+Alcance implementado:
+
+- Se continuó P6 con refactor gradual y seguro del archivo gigante `admin_appointments_screen.dart`.
+- Se extrajeron enums y predicados puros de agenda a:
+  - `lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- Elementos extraídos:
+  - `AgendaFilter`,
+  - `AgendaInnerTab`,
+  - `AgendaDayQuickFilter`,
+  - `isLostAppointment`,
+  - `isAgendaIncident`,
+  - `isAgendaHistoryCandidate`.
+- Se mantuvo en `admin_appointments_screen.dart` la composición visual, diálogos y lógica con estado para evitar una extracción riesgosa.
+
+Cuidado aplicado:
+
+- Refactor sin cambios funcionales.
+- No se tocó `AppointmentsBusinessRules`.
+- No se cambiaron providers, Firestore, disponibilidad, notificaciones ni creación/reprogramación de citas.
+- Los helpers quedan con nombres públicos y claros para permitir futuras extracciones por widgets/módulos.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados de agenda y suite completa `flutter test`.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

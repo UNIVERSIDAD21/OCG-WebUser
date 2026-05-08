@@ -19,47 +19,13 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import 'admin_appointments_agenda_helpers.dart';
 import 'admin_appointments_formatters.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/page_header.dart';
-
-enum _AgendaFilter {
-  hoy,
-  activas,
-  completadas,
-  perdidas,
-  canceladas,
-  incidencias,
-}
-
-enum _AgendaInnerTab { hoy, mes, historial }
-
-enum _AgendaDayQuickFilter { dia, manana, pendientes, vencidas, historicas }
-
-bool _esPerdida(AppointmentModel a) {
-  if (a.estado == AppointmentStatus.noAsistio) return true;
-  if (a.estado == AppointmentStatus.programada) {
-    final limite = DateTime.now().subtract(const Duration(days: 1));
-    return a.fechaHora.isBefore(limite);
-  }
-  return false;
-}
-
-bool _esIncidenciaAgenda(AppointmentModel a) =>
-    a.estado == AppointmentStatus.cancelada ||
-    a.estado == AppointmentStatus.noAsistio ||
-    a.estado == AppointmentStatus.reprogramada ||
-    _esPerdida(a);
-
-bool _esCandidataHistorialAgenda(AppointmentModel a, DateTime now) =>
-    a.fechaHora.isBefore(now) ||
-    a.estado == AppointmentStatus.completada ||
-    a.estado == AppointmentStatus.cancelada ||
-    a.estado == AppointmentStatus.noAsistio ||
-    a.estado == AppointmentStatus.reprogramada;
 
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
@@ -1043,15 +1009,15 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
-  _AgendaInnerTab _innerTab = _AgendaInnerTab.hoy;
+  AgendaInnerTab _innerTab = AgendaInnerTab.hoy;
   DateTime _monthCursor = DateTime(
     DateTime.now().year,
     DateTime.now().month,
     1,
   );
   DateTime? _selectedMonthDay;
-  _AgendaFilter _historyFilter = _AgendaFilter.activas;
-  _AgendaDayQuickFilter _dayQuickFilter = _AgendaDayQuickFilter.dia;
+  AgendaFilter _historyFilter = AgendaFilter.activas;
+  AgendaDayQuickFilter _dayQuickFilter = AgendaDayQuickFilter.dia;
   int _historyPage = 1;
 
   Future<void> _handleSignOut() async {
@@ -1838,10 +1804,10 @@ class _AdminAppointmentsScreenState
   }
 
   Widget _buildInnerTabs({bool premium = true}) {
-    void selectTab(_AgendaInnerTab tab) {
+    void selectTab(AgendaInnerTab tab) {
       setState(() {
         _innerTab = tab;
-        if (tab == _AgendaInnerTab.mes) {
+        if (tab == AgendaInnerTab.mes) {
           final now = DateTime.now();
           _monthCursor = DateTime(now.year, now.month, 1);
           _selectedMonthDay = DateTime(now.year, now.month, now.day);
@@ -1850,7 +1816,7 @@ class _AdminAppointmentsScreenState
     }
 
     if (!premium) {
-      Widget item(_AgendaInnerTab tab, String label) {
+      Widget item(AgendaInnerTab tab, String label) {
         final active = _innerTab == tab;
         return TextButton(
           onPressed: () => selectTab(tab),
@@ -1892,9 +1858,9 @@ class _AdminAppointmentsScreenState
         ),
         child: Row(
           children: [
-            item(_AgendaInnerTab.hoy, 'Hoy'),
-            item(_AgendaInnerTab.mes, 'Mes'),
-            item(_AgendaInnerTab.historial, 'Historial'),
+            item(AgendaInnerTab.hoy, 'Hoy'),
+            item(AgendaInnerTab.mes, 'Mes'),
+            item(AgendaInnerTab.historial, 'Historial'),
           ],
         ),
       );
@@ -1902,23 +1868,23 @@ class _AdminAppointmentsScreenState
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-      child: OcgSegmentedTabs<_AgendaInnerTab>(
+      child: OcgSegmentedTabs<AgendaInnerTab>(
         selectedValue: _innerTab,
         onChanged: selectTab,
         compact: true,
         items: const [
           OcgSegmentedTabItem(
-            value: _AgendaInnerTab.hoy,
+            value: AgendaInnerTab.hoy,
             label: 'Hoy',
             icon: Icons.today_outlined,
           ),
           OcgSegmentedTabItem(
-            value: _AgendaInnerTab.mes,
+            value: AgendaInnerTab.mes,
             label: 'Mes',
             icon: Icons.calendar_view_month_outlined,
           ),
           OcgSegmentedTabItem(
-            value: _AgendaInnerTab.historial,
+            value: AgendaInnerTab.historial,
             label: 'Historial',
             icon: Icons.history_outlined,
           ),
@@ -1946,7 +1912,7 @@ class _AdminAppointmentsScreenState
   }
 
   ({Color dot, Color line, String label}) _statusUi(AppointmentModel a) {
-    if (_esPerdida(a)) {
+    if (isLostAppointment(a)) {
       return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
     }
 
@@ -2167,7 +2133,7 @@ class _AdminAppointmentsScreenState
   }
 
   IconData _agendaStatusIcon(AppointmentModel a) {
-    if (_esPerdida(a)) return Icons.person_off_outlined;
+    if (isLostAppointment(a)) return Icons.person_off_outlined;
     return switch (a.estado) {
       AppointmentStatus.programada => Icons.schedule_outlined,
       AppointmentStatus.confirmada => Icons.verified_outlined,
@@ -2180,7 +2146,7 @@ class _AdminAppointmentsScreenState
 
   String _agendaOperationalHint(AppointmentModel a) {
     final now = DateTime.now();
-    if (_esPerdida(a)) return 'Requiere seguimiento del equipo.';
+    if (isLostAppointment(a)) return 'Requiere seguimiento del equipo.';
     if (a.estado == AppointmentStatus.programada && a.fechaHora.isBefore(now)) {
       return 'Cita vencida: confirma asistencia o reprograma.';
     }
@@ -2313,10 +2279,8 @@ class _AdminAppointmentsScreenState
             children: [
               _agendaPill(
                 label: _agendaOperationalHint(a),
-                color: _esIncidenciaAgenda(a)
-                    ? OcgColors.error
-                    : OcgColors.bronze,
-                icon: _esIncidenciaAgenda(a)
+                color: isAgendaIncident(a) ? OcgColors.error : OcgColors.bronze,
+                icon: isAgendaIncident(a)
                     ? Icons.warning_amber_outlined
                     : Icons.tips_and_updates_outlined,
               ),
@@ -2368,28 +2332,28 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  String _quickFilterLabel(_AgendaDayQuickFilter filter) {
+  String _quickFilterLabel(AgendaDayQuickFilter filter) {
     return switch (filter) {
-      _AgendaDayQuickFilter.dia => 'Día',
-      _AgendaDayQuickFilter.manana => 'Mañana',
-      _AgendaDayQuickFilter.pendientes => 'Pendientes',
-      _AgendaDayQuickFilter.vencidas => 'Vencidas',
-      _AgendaDayQuickFilter.historicas => 'Históricas',
+      AgendaDayQuickFilter.dia => 'Día',
+      AgendaDayQuickFilter.manana => 'Mañana',
+      AgendaDayQuickFilter.pendientes => 'Pendientes',
+      AgendaDayQuickFilter.vencidas => 'Vencidas',
+      AgendaDayQuickFilter.historicas => 'Históricas',
     };
   }
 
-  IconData _quickFilterIcon(_AgendaDayQuickFilter filter) {
+  IconData _quickFilterIcon(AgendaDayQuickFilter filter) {
     return switch (filter) {
-      _AgendaDayQuickFilter.dia => Icons.today_outlined,
-      _AgendaDayQuickFilter.manana => Icons.wb_twilight_outlined,
-      _AgendaDayQuickFilter.pendientes => Icons.pending_actions_outlined,
-      _AgendaDayQuickFilter.vencidas => Icons.warning_amber_outlined,
-      _AgendaDayQuickFilter.historicas => Icons.history_toggle_off_outlined,
+      AgendaDayQuickFilter.dia => Icons.today_outlined,
+      AgendaDayQuickFilter.manana => Icons.wb_twilight_outlined,
+      AgendaDayQuickFilter.pendientes => Icons.pending_actions_outlined,
+      AgendaDayQuickFilter.vencidas => Icons.warning_amber_outlined,
+      AgendaDayQuickFilter.historicas => Icons.history_toggle_off_outlined,
     };
   }
 
   int _quickFilterCount(
-    _AgendaDayQuickFilter filter,
+    AgendaDayQuickFilter filter,
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
@@ -2397,32 +2361,32 @@ class _AdminAppointmentsScreenState
   }
 
   List<AppointmentModel> _quickFilteredItems(
-    _AgendaDayQuickFilter filter,
+    AgendaDayQuickFilter filter,
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
     final items = switch (filter) {
-      _AgendaDayQuickFilter.dia => _appointmentsForDay(
+      AgendaDayQuickFilter.dia => _appointmentsForDay(
         appointments,
         selectedDate,
       ),
-      _AgendaDayQuickFilter.manana => _appointmentsForDay(
+      AgendaDayQuickFilter.manana => _appointmentsForDay(
         appointments,
         tomorrow,
       ),
-      _AgendaDayQuickFilter.pendientes =>
+      AgendaDayQuickFilter.pendientes =>
         appointments
             .where(
               (a) =>
                   (a.estado == AppointmentStatus.programada ||
                       a.estado == AppointmentStatus.confirmada) &&
-                  !_esPerdida(a) &&
+                  !isLostAppointment(a) &&
                   a.fechaHora.isAfter(now.subtract(const Duration(minutes: 1))),
             )
             .toList(),
-      _AgendaDayQuickFilter.vencidas =>
+      AgendaDayQuickFilter.vencidas =>
         appointments
             .where(
               (a) =>
@@ -2430,7 +2394,7 @@ class _AdminAppointmentsScreenState
                   a.fechaHora.isBefore(now),
             )
             .toList(),
-      _AgendaDayQuickFilter.historicas =>
+      AgendaDayQuickFilter.historicas =>
         appointments
             .where(
               (a) =>
@@ -2442,8 +2406,8 @@ class _AdminAppointmentsScreenState
     };
 
     items.sort((a, b) {
-      if (filter == _AgendaDayQuickFilter.historicas ||
-          filter == _AgendaDayQuickFilter.vencidas) {
+      if (filter == AgendaDayQuickFilter.historicas ||
+          filter == AgendaDayQuickFilter.vencidas) {
         return b.fechaHora.compareTo(a.fechaHora);
       }
       return a.fechaHora.compareTo(b.fechaHora);
@@ -2455,7 +2419,7 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
-    final filters = _AgendaDayQuickFilter.values;
+    final filters = AgendaDayQuickFilter.values;
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -2489,11 +2453,11 @@ class _AdminAppointmentsScreenState
             ),
             onSelected: (_) {
               final now = DateTime.now();
-              if (filter == _AgendaDayQuickFilter.manana) {
+              if (filter == AgendaDayQuickFilter.manana) {
                 ref
                     .read(selectedAppointmentsDateProvider.notifier)
                     .setDate(DateTime(now.year, now.month, now.day + 1));
-              } else if (filter == _AgendaDayQuickFilter.dia) {
+              } else if (filter == AgendaDayQuickFilter.dia) {
                 ref
                     .read(selectedAppointmentsDateProvider.notifier)
                     .setDate(DateTime(now.year, now.month, now.day));
@@ -2583,13 +2547,14 @@ class _AdminAppointmentsScreenState
         .length;
     final activas = dayItems
         .where(
-          (a) => a.estado == AppointmentStatus.programada && !_esPerdida(a),
+          (a) =>
+              a.estado == AppointmentStatus.programada && !isLostAppointment(a),
         )
         .length;
     final completadas = dayItems
         .where((a) => a.estado == AppointmentStatus.completada)
         .length;
-    final perdidas = dayItems.where(_esPerdida).length;
+    final perdidas = dayItems.where(isLostAppointment).length;
     final canceladas = dayItems
         .where((a) => a.estado == AppointmentStatus.cancelada)
         .length;
@@ -3038,16 +3003,16 @@ class _AdminAppointmentsScreenState
 
   List<AppointmentModel> _historyItems(List<AppointmentModel> all) {
     final now = DateTime.now();
-    final past = all.where((a) => _esCandidataHistorialAgenda(a, now)).toList()
+    final past = all.where((a) => isAgendaHistoryCandidate(a, now)).toList()
       ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
     final filtered = switch (_historyFilter) {
-      _AgendaFilter.completadas =>
+      AgendaFilter.completadas =>
         past.where((a) => a.estado == AppointmentStatus.completada).toList(),
-      _AgendaFilter.perdidas => past.where(_esPerdida).toList(),
-      _AgendaFilter.canceladas =>
+      AgendaFilter.perdidas => past.where(isLostAppointment).toList(),
+      AgendaFilter.canceladas =>
         past.where((a) => a.estado == AppointmentStatus.cancelada).toList(),
-      _AgendaFilter.incidencias => past.where(_esIncidenciaAgenda).toList(),
+      AgendaFilter.incidencias => past.where(isAgendaIncident).toList(),
       _ => past,
     };
 
@@ -3056,22 +3021,22 @@ class _AdminAppointmentsScreenState
     return filtered.take(max).toList();
   }
 
-  int _historyCountByFilter(List<AppointmentModel> all, _AgendaFilter filter) {
+  int _historyCountByFilter(List<AppointmentModel> all, AgendaFilter filter) {
     final now = DateTime.now();
-    final past = all.where((a) => _esCandidataHistorialAgenda(a, now)).toList();
+    final past = all.where((a) => isAgendaHistoryCandidate(a, now)).toList();
 
     return switch (filter) {
-      _AgendaFilter.completadas =>
+      AgendaFilter.completadas =>
         past.where((a) => a.estado == AppointmentStatus.completada).length,
-      _AgendaFilter.perdidas => past.where(_esPerdida).length,
-      _AgendaFilter.canceladas =>
+      AgendaFilter.perdidas => past.where(isLostAppointment).length,
+      AgendaFilter.canceladas =>
         past.where((a) => a.estado == AppointmentStatus.cancelada).length,
-      _AgendaFilter.incidencias => past.where(_esIncidenciaAgenda).length,
+      AgendaFilter.incidencias => past.where(isAgendaIncident).length,
       _ => past.length,
     };
   }
 
-  Widget _historyFilterItem(String label, _AgendaFilter filter, int count) {
+  Widget _historyFilterItem(String label, AgendaFilter filter, int count) {
     final active = _historyFilter == filter;
     return InkWell(
       onTap: () => setState(() {
@@ -3205,28 +3170,28 @@ class _AdminAppointmentsScreenState
           const SizedBox(height: 8),
           _historyFilterItem(
             'Todas',
-            _AgendaFilter.activas,
-            _historyCountByFilter(appointments, _AgendaFilter.activas),
+            AgendaFilter.activas,
+            _historyCountByFilter(appointments, AgendaFilter.activas),
           ),
           _historyFilterItem(
             'Completadas',
-            _AgendaFilter.completadas,
-            _historyCountByFilter(appointments, _AgendaFilter.completadas),
+            AgendaFilter.completadas,
+            _historyCountByFilter(appointments, AgendaFilter.completadas),
           ),
           _historyFilterItem(
             'Perdidas',
-            _AgendaFilter.perdidas,
-            _historyCountByFilter(appointments, _AgendaFilter.perdidas),
+            AgendaFilter.perdidas,
+            _historyCountByFilter(appointments, AgendaFilter.perdidas),
           ),
           _historyFilterItem(
             'Canceladas',
-            _AgendaFilter.canceladas,
-            _historyCountByFilter(appointments, _AgendaFilter.canceladas),
+            AgendaFilter.canceladas,
+            _historyCountByFilter(appointments, AgendaFilter.canceladas),
           ),
           _historyFilterItem(
             'Incidencias',
-            _AgendaFilter.incidencias,
-            _historyCountByFilter(appointments, _AgendaFilter.incidencias),
+            AgendaFilter.incidencias,
+            _historyCountByFilter(appointments, AgendaFilter.incidencias),
           ),
         ],
       ),
@@ -3283,16 +3248,16 @@ class _AdminAppointmentsScreenState
               a.estado == AppointmentStatus.confirmada,
         )
         .length;
-    final incidencias = dayItems.where(_esIncidenciaAgenda).length;
+    final incidencias = dayItems.where(isAgendaIncident).length;
     final completadas = dayItems
         .where((a) => a.estado == AppointmentStatus.completada)
         .length;
     final next = upcoming.isEmpty ? null : upcoming.first;
 
-    void setDay(DateTime day, {_AgendaDayQuickFilter? quickFilter}) {
+    void setDay(DateTime day, {AgendaDayQuickFilter? quickFilter}) {
       ref.read(selectedAppointmentsDateProvider.notifier).setDate(day);
       setState(() {
-        _innerTab = _AgendaInnerTab.hoy;
+        _innerTab = AgendaInnerTab.hoy;
         if (quickFilter != null) _dayQuickFilter = quickFilter;
       });
     }
@@ -3536,21 +3501,21 @@ class _AdminAppointmentsScreenState
                   label: 'Hoy',
                   icon: Icons.today_outlined,
                   onTap: () =>
-                      setDay(now, quickFilter: _AgendaDayQuickFilter.dia),
+                      setDay(now, quickFilter: AgendaDayQuickFilter.dia),
                 ),
                 action(
                   label: 'Mañana',
                   icon: Icons.wb_twilight_outlined,
                   onTap: () => setDay(
                     now.add(const Duration(days: 1)),
-                    quickFilter: _AgendaDayQuickFilter.manana,
+                    quickFilter: AgendaDayQuickFilter.manana,
                   ),
                 ),
                 action(
                   label: 'Historial',
                   icon: Icons.history_outlined,
                   onTap: () =>
-                      setState(() => _innerTab = _AgendaInnerTab.historial),
+                      setState(() => _innerTab = AgendaInnerTab.historial),
                 ),
                 action(
                   label: 'Nueva cita',
@@ -3598,21 +3563,21 @@ class _AdminAppointmentsScreenState
     );
 
     final agendaBody = switch (_innerTab) {
-      _AgendaInnerTab.hoy => hoyAgendaBody,
-      _AgendaInnerTab.mes => mesAgendaBody,
-      _AgendaInnerTab.historial => historialAgendaBody,
+      AgendaInnerTab.hoy => hoyAgendaBody,
+      AgendaInnerTab.mes => mesAgendaBody,
+      AgendaInnerTab.historial => historialAgendaBody,
     };
 
     final subtitleByTab = switch (_innerTab) {
-      _AgendaInnerTab.hoy => 'Seguimiento diario con timeline y resumen',
-      _AgendaInnerTab.mes => 'Vista mensual con detalle por día',
-      _AgendaInnerTab.historial => 'Historial por estado y mes',
+      AgendaInnerTab.hoy => 'Seguimiento diario con timeline y resumen',
+      AgendaInnerTab.mes => 'Vista mensual con detalle por día',
+      AgendaInnerTab.historial => 'Historial por estado y mes',
     };
 
     final panelTitleByTab = switch (_innerTab) {
-      _AgendaInnerTab.hoy => 'Hoy',
-      _AgendaInnerTab.mes => 'Mes',
-      _AgendaInnerTab.historial => 'Historial',
+      AgendaInnerTab.hoy => 'Hoy',
+      AgendaInnerTab.mes => 'Mes',
+      AgendaInnerTab.historial => 'Historial',
     };
 
     final mobileContent = Column(
