@@ -191,6 +191,8 @@ class _PatientClinicalHistoryTabState
               ],
             ),
           const SizedBox(height: 16),
+          _buildClinicalFilesHero(filesAsync.asData?.value ?? const []),
+          const SizedBox(height: 16),
           filesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Text('No se pudieron cargar archivos: $error'),
@@ -232,6 +234,133 @@ class _PatientClinicalHistoryTabState
     return SingleChildScrollView(child: content);
   }
 
+  Widget _buildClinicalFilesHero(List<ClinicalFileModel> files) {
+    final visibles = files.where((file) => file.visibleToPatient).length;
+    final vinculados = files
+        .where((file) => (file.treatmentId ?? '').trim().isNotEmpty)
+        .length;
+    final imagenes = files.where((file) => file.isImage).length;
+    final pdfs = files.where((file) => file.isPdf).length;
+
+    Widget metric(String label, String value, IconData icon) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: OcgColors.ivory.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 17, color: OcgColors.bronze),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: OcgColors.ink.withValues(alpha: 0.64),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFAF2), Color(0xFFF0E4D7)],
+        ),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.espresso,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.folder_shared_outlined,
+                  color: OcgColors.ivory,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Expediente clínico digital',
+                      style: TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Organiza soportes por tratamiento, categoría y visibilidad para paciente.',
+                      style: TextStyle(
+                        color: OcgColors.ink.withValues(alpha: 0.66),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              metric('Archivos', '${files.length}', Icons.description_outlined),
+              const SizedBox(width: 8),
+              metric('Paciente', '$visibles', Icons.visibility_outlined),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              metric('Vinculados', '$vinculados', Icons.monitor_heart_outlined),
+              const SizedBox(width: 8),
+              metric('Img/PDF', '$imagenes/$pdfs', Icons.image_search_outlined),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   PatientTreatment? _resolveSelectedTreatment(
     List<PatientTreatment> treatments,
   ) {
@@ -258,21 +387,59 @@ class _PatientClinicalHistoryTabState
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          title: const Text('Subir archivo clínico'),
+          title: const Text('Subir documento clínico'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7EF),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: OcgColors.bronze.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.assignment_turned_in_outlined,
+                        color: OcgColors.espresso,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Tratamiento base: ${selectedTreatment.displayName}. Define nombre, categoría y visibilidad antes de elegir el archivo.',
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontWeight: FontWeight.w700,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: displayCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Nombre visible',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    helperText:
+                        'Si lo dejas vacío se usará el nombre del archivo.',
                   ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: category,
-                  decoration: const InputDecoration(labelText: 'Categoría'),
+                  decoration: const InputDecoration(
+                    labelText: 'Categoría',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
                   items: kClinicalFileCategories
                       .map(
                         (item) => DropdownMenuItem(
@@ -287,8 +454,12 @@ class _PatientClinicalHistoryTabState
                 const SizedBox(height: 12),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.link_outlined),
                   title: Text(
                     'Asociar al tratamiento ${selectedTreatment.displayName}',
+                  ),
+                  subtitle: const Text(
+                    'Recomendado para mantener trazabilidad clínica.',
                   ),
                   value: linkToTreatment,
                   onChanged: selectedTreatment.id.startsWith('legacy-primary-')
@@ -297,7 +468,11 @@ class _PatientClinicalHistoryTabState
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.visibility_outlined),
                   title: const Text('Visible para el paciente'),
+                  subtitle: const Text(
+                    'Actívalo solo si la clínica quiere compartir el soporte.',
+                  ),
                   value: visibleToPatient,
                   onChanged: (value) =>
                       setModalState(() => visibleToPatient = value),
@@ -305,7 +480,10 @@ class _PatientClinicalHistoryTabState
                 TextFormField(
                   controller: notesCtrl,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Notas'),
+                  decoration: const InputDecoration(
+                    labelText: 'Notas',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                  ),
                 ),
               ],
             ),
@@ -317,7 +495,7 @@ class _PatientClinicalHistoryTabState
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Elegir archivo'),
+              child: const Text('Elegir archivo y subir'),
             ),
           ],
         ),
@@ -356,6 +534,26 @@ class _PatientClinicalHistoryTabState
   }
 
   Future<void> _deleteFile(ClinicalFileModel file) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Desactivar documento'),
+        content: Text(
+          '¿Deseas desactivar “${file.displayName}”? El archivo dejará de aparecer en el expediente activo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
     final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
     if (adminId.isEmpty) return;
     await ref
@@ -476,26 +674,41 @@ class _ClinicalUploadProgressCard extends StatelessWidget {
 }
 
 class _ClinicalFileChip extends StatelessWidget {
-  const _ClinicalFileChip(this.label);
+  const _ClinicalFileChip(
+    this.label, {
+    this.icon,
+    this.color = OcgColors.bronze,
+  });
 
   final String label;
+  final IconData? icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F3ED),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: OcgColors.bronze,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -510,99 +723,193 @@ class _ClinicalFileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final accent = _fileAccentColor(file);
+    final icon = _fileIcon(file);
+    final category = _categoryLabel(file.category);
+    final size = _formatBytes(file.sizeBytes);
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: accent.withValues(alpha: 0.20)),
         boxShadow: [
           BoxShadow(
-            color: OcgColors.espresso.withValues(alpha: 0.05),
-            blurRadius: 14,
+            color: OcgColors.espresso.withValues(alpha: 0.055),
+            blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F3ED),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              file.isPdf ? Icons.picture_as_pdf : Icons.image_outlined,
-              color: OcgColors.espresso,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(icon, color: accent, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      file.displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      file.originalName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: OcgColors.ink.withValues(alpha: 0.68),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _ClinicalFileChip(
+                file.visibleToPatient ? 'Paciente' : 'Solo admin',
+                icon: file.visibleToPatient
+                    ? Icons.visibility_outlined
+                    : Icons.admin_panel_settings_outlined,
+                color: file.visibleToPatient
+                    ? const Color(0xFF2E7D4C)
+                    : OcgColors.bronze,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  file.displayName,
-                  style: const TextStyle(
-                    color: OcgColors.espresso,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ClinicalFileChip(
+                category,
+                icon: Icons.folder_outlined,
+                color: accent,
+              ),
+              _ClinicalFileChip(size, icon: Icons.data_object_outlined),
+              _ClinicalFileChip(
+                dateFmt.format(file.uploadedAt),
+                icon: Icons.schedule_outlined,
+              ),
+              if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
+                _ClinicalFileChip(
+                  file.treatmentNameSnapshot!,
+                  icon: Icons.monitor_heart_outlined,
+                  color: OcgColors.espresso,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  file.originalName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: OcgColors.ink),
+            ],
+          ),
+          if ((file.notes ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F1EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                file.notes!.trim(),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: OcgColors.ink.withValues(alpha: 0.76),
+                  height: 1.25,
+                  fontStyle: FontStyle.italic,
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ClinicalFileChip(file.category.replaceAll('_', ' ')),
-                    _ClinicalFileChip(dateFmt.format(file.uploadedAt)),
-                    if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
-                      _ClinicalFileChip(file.treatmentNameSnapshot!),
-                  ],
-                ),
-                if ((file.notes ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    file.notes!.trim(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: OcgColors.bronze),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _openFile(context, file.downloadUrl),
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      label: const Text('Abrir'),
-                    ),
-                    TextButton.icon(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 16),
-                      label: const Text('Desactivar'),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _openFile(context, file.downloadUrl),
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('Abrir'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: OcgColors.espresso,
+                  foregroundColor: OcgColors.ivory,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openFile(context, file.downloadUrl),
+                icon: const Icon(Icons.download_outlined, size: 16),
+                label: const Text('Descargar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: OcgColors.espresso,
+                  side: BorderSide(
+                    color: OcgColors.espresso.withValues(alpha: 0.42),
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Desactivar'),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  IconData _fileIcon(ClinicalFileModel file) {
+    if (file.isPdf) return Icons.picture_as_pdf_outlined;
+    if (file.isImage) return Icons.image_outlined;
+    if (file.category == 'soporte_pago') return Icons.receipt_long_outlined;
+    if (file.category == 'consentimiento') return Icons.fact_check_outlined;
+    return Icons.description_outlined;
+  }
+
+  Color _fileAccentColor(ClinicalFileModel file) {
+    if (file.category == 'radiografia') return const Color(0xFF3268A8);
+    if (file.category.contains('foto')) return const Color(0xFF7A8A20);
+    if (file.category == 'consentimiento') return const Color(0xFF7E3AF2);
+    if (file.category == 'soporte_pago') return const Color(0xFFC56B16);
+    if (file.isPdf) return const Color(0xFFB3261E);
+    return OcgColors.bronze;
+  }
+
+  String _categoryLabel(String category) => category
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((word) {
+        if (word.isEmpty) return word;
+        return '${word[0].toUpperCase()}${word.substring(1)}';
+      })
+      .join(' ');
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return 'Sin tamaño';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<void> _openFile(BuildContext context, String? url) async {

@@ -661,3 +661,55 @@ Validaciones ejecutadas:
 Commit:
 
 - Pendiente de hash al confirmar cambios.
+
+---
+
+## Registro de implementación — 2026-05-08 — Inicio P3 Documentos clínicos / expediente premium
+
+Alcance implementado:
+
+- Se inició P3 de Documentos clínicos dentro del detalle móvil admin del paciente.
+- Se agregó hero/resumen premium de expediente clínico digital con métricas:
+  - total de archivos,
+  - visibles para paciente,
+  - vinculados a tratamiento,
+  - conteo imágenes/PDF.
+- Se rediseñaron las cards de documentos clínicos con:
+  - icono y color por tipo/categoría,
+  - categoría,
+  - tratamiento asociado,
+  - fecha,
+  - tamaño,
+  - visibilidad paciente/admin,
+  - notas clínicas destacadas,
+  - acciones Abrir, Descargar y Desactivar.
+- Se hizo más guiado el modal de subida:
+  - ficha de tratamiento base,
+  - helper de nombre visible,
+  - iconografía en categoría/notas,
+  - explicación de asociación a tratamiento,
+  - explicación de visibilidad para paciente.
+- Se agregó confirmación antes de desactivar un documento para evitar bajas accidentales.
+- Se mantuvieron intactos Storage, Firestore, reglas, estructura de datos y providers.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/tabs/patient_clinical_history_tab.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/tabs/patient_clinical_history_tab.dart`
+- `flutter analyze`
+- `flutter test test/features/clinical_files/clinical_file_model_test.dart test/features/clinical_files/clinical_files_repository_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de clinical files: verdes.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- Pendiente de hash al confirmar cambios.
