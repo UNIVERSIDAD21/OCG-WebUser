@@ -1352,6 +1352,45 @@ class _AdminAppointmentsScreenState
     }
   }
 
+  Future<void> _showNoShowDialog(AppointmentModel appt) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Marcar inasistencia'),
+        content: Text(
+          '¿Confirmas que ${appt.patientName} no asistió a esta cita?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sí, no asistió'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .updateAppointmentStatus(appt.id, AppointmentStatus.noAsistio);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cita marcada como no asistida.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo marcar inasistencia: $e')),
+      );
+    }
+  }
+
   Future<void> _onReabrirCompletada(AppointmentModel appt) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -1760,6 +1799,9 @@ class _AdminAppointmentsScreenState
       case 'cancelar':
         await _showCancelDialog(a);
         break;
+      case 'no_asistio':
+        await _showNoShowDialog(a);
+        break;
       case 'reabrir':
         await _onReabrirCompletada(a);
         break;
@@ -1892,7 +1934,19 @@ class _AdminAppointmentsScreenState
 
     if (a.estado == AppointmentStatus.programada ||
         a.estado == AppointmentStatus.confirmada) {
-      actions.add(
+      actions.addAll([
+        OutlinedButton.icon(
+          onPressed: () => _handleStatusAction(a, 'no_asistio'),
+          icon: const Icon(Icons.person_off_outlined, size: 14),
+          label: const Text('No asistió'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFC56B16),
+            side: const BorderSide(color: Color(0xFFC56B16)),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
         OutlinedButton.icon(
           onPressed: () => _handleStatusAction(a, 'cancelar'),
           icon: const Icon(Icons.cancel_outlined, size: 14),
@@ -1905,10 +1959,273 @@ class _AdminAppointmentsScreenState
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-      );
+      ]);
     }
 
     return Wrap(spacing: 6, runSpacing: 6, children: actions);
+  }
+
+  IconData _agendaStatusIcon(AppointmentModel a) {
+    if (_esPerdida(a)) return Icons.person_off_outlined;
+    return switch (a.estado) {
+      AppointmentStatus.programada => Icons.schedule_outlined,
+      AppointmentStatus.confirmada => Icons.verified_outlined,
+      AppointmentStatus.completada => Icons.done_all_outlined,
+      AppointmentStatus.cancelada => Icons.cancel_outlined,
+      AppointmentStatus.noAsistio => Icons.person_off_outlined,
+      AppointmentStatus.reprogramada => Icons.edit_calendar_outlined,
+    };
+  }
+
+  String _agendaOperationalHint(AppointmentModel a) {
+    final now = DateTime.now();
+    if (_esPerdida(a)) return 'Requiere seguimiento del equipo.';
+    if (a.estado == AppointmentStatus.programada && a.fechaHora.isBefore(now)) {
+      return 'Cita vencida: confirma asistencia o reprograma.';
+    }
+    if (a.estado == AppointmentStatus.programada) {
+      return 'Pendiente por confirmar con el paciente.';
+    }
+    if (a.estado == AppointmentStatus.confirmada) {
+      return 'Lista para completar al finalizar atención.';
+    }
+    if (a.estado == AppointmentStatus.completada) {
+      return 'Atención registrada en historial.';
+    }
+    if (a.estado == AppointmentStatus.reprogramada) {
+      return 'Cita movida; revisar nueva fecha asociada.';
+    }
+    return 'Cita cerrada administrativamente.';
+  }
+
+  Widget _agendaPill({
+    required String label,
+    required Color color,
+    IconData? icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAgendaAppointmentCard(
+    AppointmentModel a, {
+    bool showDate = false,
+    bool dense = false,
+  }) {
+    final ui = _statusUi(a);
+    final timeLabel = showDate
+        ? '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} · ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}'
+        : '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}';
+    final autoLabel = _autoScheduleLabel(a);
+
+    return Container(
+      margin: EdgeInsets.only(bottom: dense ? 8 : 10),
+      padding: EdgeInsets.all(dense ? 12 : 14),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(dense ? 18 : 22),
+        border: Border.all(color: ui.line.withOpacity(0.24)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.055),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: ui.line.withOpacity(0.11),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(_agendaStatusIcon(a), color: ui.line, size: 21),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      a.patientName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$timeLabel · ${_labelTipo(a.tipo)} · ${a.duracionMinutos} min',
+                      style: TextStyle(
+                        color: OcgColors.ink.withOpacity(0.72),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _agendaPill(
+                label: ui.label,
+                color: ui.line,
+                icon: _agendaStatusIcon(a),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _agendaPill(
+                label: _agendaOperationalHint(a),
+                color: _esIncidenciaAgenda(a)
+                    ? OcgColors.error
+                    : OcgColors.bronze,
+                icon: _esIncidenciaAgenda(a)
+                    ? Icons.warning_amber_outlined
+                    : Icons.tips_and_updates_outlined,
+              ),
+              if (autoLabel != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _autoScheduleBg(a),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    autoLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: _autoScheduleFg(a),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if ((a.notas ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F1EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                'Notas clínicas: ${a.notas!.trim()}',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.25,
+                  color: OcgColors.ink.withOpacity(0.78),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          _buildAppointmentActionsInline(a),
+        ],
+      ),
+    );
+  }
+
+  Widget _agendaEmptyState({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    VoidCallback? onPrimary,
+    String primaryLabel = 'Nueva cita',
+  }) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F5EF),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(icon, color: OcgColors.espresso, size: 32),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: OcgColors.bronze, height: 1.3),
+            ),
+            if (onPrimary != null) ...[
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: onPrimary,
+                icon: const Icon(Icons.add_circle_outline),
+                label: Text(primaryLabel),
+                style: FilledButton.styleFrom(
+                  backgroundColor: OcgColors.espresso,
+                  foregroundColor: OcgColors.ivory,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTodayAgenda(
@@ -1935,10 +2252,16 @@ class _AdminAppointmentsScreenState
         .length;
 
     Widget timeline = dayItems.isEmpty
-        ? Center(
-            child: Text(
-              'Sin citas para este día',
-              style: TextStyle(color: OcgColors.ink.withOpacity(0.55)),
+        ? _agendaEmptyState(
+            title: 'Sin citas para este día',
+            subtitle:
+                'Agenda un control o revisa otro día para continuar el seguimiento clínico.',
+            icon: Icons.event_busy_outlined,
+            onPrimary: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              baseDate: selectedDate,
+              existingAppointments: appointments,
             ),
           )
         : ListView.separated(
@@ -1947,139 +2270,7 @@ class _AdminAppointmentsScreenState
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final a = dayItems[index];
-              final ui = _statusUi(a);
-              final isLast = index == dayItems.length - 1;
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 56,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: OcgColors.ink.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        margin: const EdgeInsets.only(top: 14),
-                        decoration: BoxDecoration(
-                          color: ui.dot,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      if (!isLast)
-                        Container(
-                          width: 2,
-                          height: 44,
-                          color: OcgColors.bronze.withOpacity(0.25),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: OcgColors.bronze.withOpacity(0.22),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 3,
-                            height: 44,
-                            margin: const EdgeInsets.only(right: 10),
-                            decoration: BoxDecoration(
-                              color: ui.line,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  a.patientName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: OcgColors.espresso,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Text(
-                                      '${_labelTipo(a.tipo)} · ${a.duracionMinutos} min · ${ui.label}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: OcgColors.ink.withOpacity(0.72),
-                                      ),
-                                    ),
-                                    if (_autoScheduleLabel(a) != null)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _autoScheduleBg(a),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          _autoScheduleLabel(a)!,
-                                          style: TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: _autoScheduleFg(a),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                if ((a.notas ?? '').trim().isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Notas clínicas: ${a.notas!.trim()}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: OcgColors.ink.withOpacity(0.78),
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 8),
-                                _buildAppointmentActionsInline(a),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
+              return _buildAgendaAppointmentCard(a);
             },
           );
 
@@ -2312,28 +2503,22 @@ class _AdminAppointmentsScreenState
       ),
       padding: const EdgeInsets.all(16),
       child: selected == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.calendar_month,
-                    size: 32,
-                    color: OcgColors.ink.withOpacity(0.4),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Selecciona un día para ver sus citas',
-                    style: TextStyle(color: OcgColors.ink.withOpacity(0.6)),
-                  ),
-                ],
-              ),
+          ? _agendaEmptyState(
+              title: 'Selecciona un día',
+              subtitle:
+                  'Toca una fecha del calendario para ver agenda, incidencias y acciones rápidas.',
+              icon: Icons.calendar_month_outlined,
             )
           : selectedItems.isEmpty
-          ? Center(
-              child: Text(
-                'Sin citas este día',
-                style: TextStyle(color: OcgColors.ink.withOpacity(0.6)),
+          ? _agendaEmptyState(
+              title: 'Sin citas este día',
+              subtitle: 'Puedes crear una cita directamente para esta fecha.',
+              icon: Icons.event_available_outlined,
+              onPrimary: () => AdminAppointmentsScreen.showCreateDialog(
+                context,
+                ref,
+                baseDate: selected,
+                existingAppointments: appointments,
               ),
             )
           : Column(
@@ -2376,194 +2561,21 @@ class _AdminAppointmentsScreenState
                     itemCount: selectedItems.length,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final a = selectedItems[index];
-                      final ui = _statusUi(a);
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: OcgColors.ivory,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: OcgColors.bronze.withOpacity(0.22),
-                          ),
+                    itemBuilder: (context, index) =>
+                        _buildAgendaAppointmentCard(
+                          selectedItems[index],
+                          dense: true,
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 3,
-                              height: 36,
-                              margin: const EdgeInsets.only(right: 10),
-                              decoration: BoxDecoration(
-                                color: ui.line,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
-                                    style: TextStyle(
-                                      color: OcgColors.ink.withOpacity(0.9),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: [
-                                      Text(
-                                        '${_labelTipo(a.tipo)} · ${ui.label}',
-                                        style: TextStyle(
-                                          color: OcgColors.ink.withOpacity(
-                                            0.72,
-                                          ),
-                                        ),
-                                      ),
-                                      if (_autoScheduleLabel(a) != null)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _autoScheduleBg(a),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            _autoScheduleLabel(a)!,
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: _autoScheduleFg(a),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  if ((a.notas ?? '').trim().isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Notas clínicas: ${a.notas!.trim()}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: OcgColors.ink.withOpacity(0.78),
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  _buildAppointmentActionsInline(a),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
                   )
                 else
                   Expanded(
                     child: ListView.builder(
                       itemCount: selectedItems.length,
-                      itemBuilder: (context, index) {
-                        final a = selectedItems[index];
-                        final ui = _statusUi(a);
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: OcgColors.ivory,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: OcgColors.bronze.withOpacity(0.22),
-                            ),
+                      itemBuilder: (context, index) =>
+                          _buildAgendaAppointmentCard(
+                            selectedItems[index],
+                            dense: true,
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 3,
-                                height: 36,
-                                margin: const EdgeInsets.only(right: 10),
-                                decoration: BoxDecoration(
-                                  color: ui.line,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName}',
-                                      style: TextStyle(
-                                        color: OcgColors.ink.withOpacity(0.9),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: [
-                                        Text(
-                                          '${_labelTipo(a.tipo)} · ${ui.label}',
-                                          style: TextStyle(
-                                            color: OcgColors.ink.withOpacity(
-                                              0.72,
-                                            ),
-                                          ),
-                                        ),
-                                        if (_autoScheduleLabel(a) != null)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: _autoScheduleBg(a),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              _autoScheduleLabel(a)!,
-                                              style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: _autoScheduleFg(a),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    if ((a.notas ?? '').trim().isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Notas clínicas: ${a.notas!.trim()}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: OcgColors.ink.withOpacity(
-                                            0.78,
-                                          ),
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 8),
-                                    _buildAppointmentActionsInline(a),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
                     ),
                   ),
               ],
@@ -2761,11 +2773,11 @@ class _AdminAppointmentsScreenState
     final sortedKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
     Widget list = sortedKeys.isEmpty
-        ? Center(
-            child: Text(
-              'Sin citas en historial para este filtro',
-              style: TextStyle(color: OcgColors.ink.withOpacity(0.55)),
-            ),
+        ? _agendaEmptyState(
+            title: 'Sin historial para este filtro',
+            subtitle:
+                'Cambia el filtro o revisa otra sección para encontrar citas cerradas.',
+            icon: Icons.history_toggle_off_outlined,
           )
         : ListView(
             padding: const EdgeInsets.only(right: 6),
@@ -2789,80 +2801,13 @@ class _AdminAppointmentsScreenState
                     );
                   },
                 ),
-                ...groups[key]!.map((a) {
-                  final ui = _statusUi(a);
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: OcgColors.ivory,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: OcgColors.bronze.withOpacity(0.22),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 36,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(
-                            color: ui.line,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')} · ${a.patientName} · ${_labelTipo(a.tipo)} · ${ui.label}',
-                                style: TextStyle(
-                                  color: OcgColors.ink.withOpacity(0.86),
-                                ),
-                              ),
-                              if ((a.notas ?? '').trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Notas clínicas: ${a.notas!.trim()}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: OcgColors.ink.withOpacity(0.78),
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 6),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openPatientProfile(a.patientId),
-                                icon: const Icon(
-                                  Icons.person_outline,
-                                  size: 14,
-                                ),
-                                label: const Text('Ver perfil'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: OcgColors.espresso,
-                                  side: BorderSide(
-                                    color: OcgColors.espresso.withOpacity(0.5),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
+                ...groups[key]!.map(
+                  (a) => _buildAgendaAppointmentCard(
+                    a,
+                    showDate: true,
+                    dense: true,
+                  ),
+                ),
               ],
               if (hasMore)
                 InkWell(

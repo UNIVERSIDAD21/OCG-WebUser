@@ -531,3 +531,51 @@ Resultado:
 Commit:
 
 - `hacer funcional nueva simulacion en detalle paciente`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Agenda móvil admin / cards operativas y acciones rápidas
+
+Alcance implementado:
+
+- Se hizo un avance amplio del bloque P2 de Agenda móvil admin sobre la vista diaria, mensual e historial.
+- Se reemplazaron las cards planas de citas por cards operativas premium reutilizadas en Hoy, detalle mensual e historial:
+  - icono por estado,
+  - chip de estado fuerte,
+  - hora/tipo/duración visibles,
+  - hint operativo según estado,
+  - indicador de incidencia,
+  - chip de auto-agendado cuando aplique,
+  - bloque visual para notas clínicas.
+- Se agregaron acciones rápidas más completas en cada cita activa/confirmada:
+  - abrir Perfil,
+  - confirmar,
+  - completar,
+  - reprogramar,
+  - marcar `No asistió`,
+  - cancelar.
+- Se agregó diálogo seguro para marcar inasistencia antes de escribir estado `noAsistio`.
+- Se mejoraron empty states móviles de Hoy, Mes e Historial con copy accionable y CTA para crear cita cuando aplica.
+- Se mantuvieron `AppointmentsBusinessRules`, providers, Firebase, FCM, desktop shell y reglas de creación/reprogramación intactas.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+- `flutter test test/appointments_business_rules_test.dart test/features/admin/admin_desktop_validation_matrix_test.dart test/features/admin/admin_modules_responsive_base_test.dart test/features/admin/admin_modules_tiers_smoke_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de agenda/admin: verde.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `mejorar cards y acciones de agenda movil admin`.
