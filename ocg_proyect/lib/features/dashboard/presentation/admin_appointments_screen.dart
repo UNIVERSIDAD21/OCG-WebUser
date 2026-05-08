@@ -2958,10 +2958,317 @@ class _AdminAppointmentsScreenState
     );
   }
 
+  Widget _buildMobileAgendaHero(
+    BuildContext context,
+    List<AppointmentModel> appointments,
+    DateTime selectedDate,
+  ) {
+    final dayItems = _appointmentsForDay(appointments, selectedDate);
+    final now = DateTime.now();
+    final upcoming =
+        appointments
+            .where(
+              (a) =>
+                  a.fechaHora.isAfter(now) &&
+                  (a.estado == AppointmentStatus.programada ||
+                      a.estado == AppointmentStatus.confirmada),
+            )
+            .toList()
+          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final pendientes = dayItems
+        .where(
+          (a) =>
+              a.estado == AppointmentStatus.programada ||
+              a.estado == AppointmentStatus.confirmada,
+        )
+        .length;
+    final incidencias = dayItems.where(_esIncidenciaAgenda).length;
+    final completadas = dayItems
+        .where((a) => a.estado == AppointmentStatus.completada)
+        .length;
+    final next = upcoming.isEmpty ? null : upcoming.first;
+
+    void setDay(DateTime day) {
+      ref.read(selectedAppointmentsDateProvider.notifier).setDate(day);
+      setState(() => _innerTab = _AgendaInnerTab.hoy);
+    }
+
+    Widget metric(String label, String value, IconData icon) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: OcgColors.ivory.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: OcgColors.ivory.withOpacity(0.78),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: OcgColors.ivory.withOpacity(0.74),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: OcgColors.ivory,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget action({
+      required String label,
+      required IconData icon,
+      required VoidCallback onTap,
+      bool filled = false,
+    }) {
+      final foreground = filled ? OcgColors.espresso : OcgColors.ivory;
+      return filled
+          ? FilledButton.icon(
+              onPressed: onTap,
+              icon: Icon(icon, size: 17),
+              label: Text(label),
+              style: FilledButton.styleFrom(
+                backgroundColor: OcgColors.ivory,
+                foregroundColor: foreground,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+            )
+          : OutlinedButton.icon(
+              onPressed: onTap,
+              icon: Icon(icon, size: 17),
+              label: Text(label),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: foreground,
+                side: BorderSide(color: OcgColors.ivory.withOpacity(0.34)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+            );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.14),
+              blurRadius: 22,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: OcgColors.ivory.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: OcgColors.ivory.withOpacity(0.20),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month_outlined,
+                    color: OcgColors.ivory,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Agenda clínica',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Día seleccionado: ${_appointmentFmtDate(selectedDate)}',
+                        style: TextStyle(
+                          color: OcgColors.ivory.withOpacity(0.82),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (next == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
+                ),
+                child: const Text(
+                  'No hay próximas citas activas registradas.',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.event_available_outlined,
+                      color: OcgColors.ivory,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Próxima: ${next.patientName} · ${_appointmentFmtDateTime(next.fechaHora)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OcgColors.ivory,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                metric('Total día', '${dayItems.length}', Icons.today_outlined),
+                const SizedBox(width: 8),
+                metric('Pendientes', '$pendientes', Icons.schedule_outlined),
+                const SizedBox(width: 8),
+                metric(
+                  'Incidencias',
+                  '$incidencias',
+                  Icons.warning_amber_outlined,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                metric('Completadas', '$completadas', Icons.done_all_outlined),
+                const SizedBox(width: 8),
+                metric(
+                  'Próximas',
+                  '${upcoming.length}',
+                  Icons.event_note_outlined,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                action(
+                  label: 'Hoy',
+                  icon: Icons.today_outlined,
+                  onTap: () => setDay(now),
+                ),
+                action(
+                  label: 'Mañana',
+                  icon: Icons.wb_twilight_outlined,
+                  onTap: () => setDay(now.add(const Duration(days: 1))),
+                ),
+                action(
+                  label: 'Historial',
+                  icon: Icons.history_outlined,
+                  onTap: () =>
+                      setState(() => _innerTab = _AgendaInnerTab.historial),
+                ),
+                action(
+                  label: 'Nueva cita',
+                  icon: Icons.add_circle_outline,
+                  filled: true,
+                  onTap: () => AdminAppointmentsScreen.showCreateDialog(
+                    context,
+                    ref,
+                    baseDate: selectedDate,
+                    existingAppointments: appointments,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
+    final loadedAppointments =
+        appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
 
     final hoyAgendaBody = appointmentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -3002,7 +3309,7 @@ class _AdminAppointmentsScreenState
 
     final mobileContent = Column(
       children: [
-        const SizedBox(height: 14),
+        _buildMobileAgendaHero(context, loadedAppointments, selectedDate),
         _buildInnerTabs(),
         Expanded(
           child: AnimatedSwitcher(

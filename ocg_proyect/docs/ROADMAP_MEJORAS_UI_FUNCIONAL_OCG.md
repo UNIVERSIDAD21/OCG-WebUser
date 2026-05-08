@@ -458,3 +458,41 @@ Resultado:
 Commit:
 
 - `mejorar cards de tratamientos movil admin`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Agenda móvil admin / header operativo
+
+Alcance implementado:
+
+- Se inició el bloque P2 de Agenda móvil admin con un cambio agrupado, siguiendo la regla de menos commits y más avance por bloque funcional.
+- Se agregó un header operativo premium exclusivo para móvil/admin con:
+  - fecha seleccionada,
+  - próxima cita activa,
+  - métricas rápidas de total del día, pendientes, incidencias, completadas y próximas,
+  - accesos rápidos a Hoy, Mañana, Historial y Nueva cita.
+- El botón Nueva cita reutiliza `AdminAppointmentsScreen.showCreateDialog` y respeta las reglas de negocio existentes.
+- Los accesos Hoy/Mañana actualizan `selectedAppointmentsDateProvider` y devuelven al tab Hoy sin cambiar arquitectura.
+- No se tocó desktop admin, `AppointmentsBusinessRules`, providers, Firebase, FCM ni lógica de agenda.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+- `flutter test test/appointments_business_rules_test.dart test/features/admin/admin_desktop_validation_matrix_test.dart test/features/admin/admin_modules_responsive_base_test.dart test/features/admin/admin_modules_tiers_smoke_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de agenda/admin: verde.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `mejorar header operativo de agenda movil admin`.
