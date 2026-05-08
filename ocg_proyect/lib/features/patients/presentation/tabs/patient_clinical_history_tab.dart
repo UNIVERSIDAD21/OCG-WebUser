@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
-import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -13,6 +12,8 @@ import '../../../clinical_files/providers/clinical_files_provider.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../data/models/patient_model.dart';
+
+enum _ClinicalVisibilityFilter { all, patient, adminOnly }
 
 class PatientClinicalHistoryTab extends ConsumerStatefulWidget {
   const PatientClinicalHistoryTab({
@@ -35,6 +36,7 @@ class _PatientClinicalHistoryTabState
     extends ConsumerState<PatientClinicalHistoryTab> {
   String? _selectedTreatmentId;
   String? _selectedCategory;
+  _ClinicalVisibilityFilter _visibilityFilter = _ClinicalVisibilityFilter.all;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +78,10 @@ class _PatientClinicalHistoryTabState
               FilledButton.icon(
                 onPressed: selectedTreatment == null || uploadState.isLoading
                     ? null
-                    : () => _showUploadDialog(selectedTreatment),
+                    : () => _showUploadDialog(
+                        initialTreatment: selectedTreatment,
+                        treatments: treatments,
+                      ),
                 icon: const Icon(Icons.upload_file),
                 label: Text(
                   uploadState.isLoading ? 'Subiendo...' : 'Subir documento',
@@ -190,6 +195,8 @@ class _PatientClinicalHistoryTabState
                   ),
               ],
             ),
+          const SizedBox(height: 12),
+          _buildVisibilityFilter(),
           const SizedBox(height: 16),
           _buildClinicalFilesHero(filesAsync.asData?.value ?? const []),
           const SizedBox(height: 16),
@@ -202,15 +209,27 @@ class _PatientClinicalHistoryTabState
                     file.category != _selectedCategory) {
                   return false;
                 }
+                if (_visibilityFilter == _ClinicalVisibilityFilter.patient &&
+                    !file.visibleToPatient) {
+                  return false;
+                }
+                if (_visibilityFilter == _ClinicalVisibilityFilter.adminOnly &&
+                    file.visibleToPatient) {
+                  return false;
+                }
                 return true;
-              }).toList();
+              }).toList()..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
               if (filtered.isEmpty) {
-                return const OcgEmptyState(
-                  icon: Icons.folder_open,
-                  title: 'Todavía no hay documentos clínicos',
-                  subtitle:
-                      'Sube PDFs, radiografías, imágenes clínicas o soportes desde este expediente.',
+                return _buildClinicalFilesEmptyState(
+                  canUpload:
+                      selectedTreatment != null && !uploadState.isLoading,
+                  onUpload: selectedTreatment == null
+                      ? null
+                      : () => _showUploadDialog(
+                          initialTreatment: selectedTreatment,
+                          treatments: treatments,
+                        ),
                 );
               }
 
@@ -232,6 +251,146 @@ class _PatientClinicalHistoryTabState
 
     if (!widget.scrollable) return content;
     return SingleChildScrollView(child: content);
+  }
+
+  String _visibilityLabel(_ClinicalVisibilityFilter filter) {
+    return switch (filter) {
+      _ClinicalVisibilityFilter.all => 'Todos',
+      _ClinicalVisibilityFilter.patient => 'Paciente',
+      _ClinicalVisibilityFilter.adminOnly => 'Solo admin',
+    };
+  }
+
+  IconData _visibilityIcon(_ClinicalVisibilityFilter filter) {
+    return switch (filter) {
+      _ClinicalVisibilityFilter.all => Icons.layers_outlined,
+      _ClinicalVisibilityFilter.patient => Icons.visibility_outlined,
+      _ClinicalVisibilityFilter.adminOnly =>
+        Icons.admin_panel_settings_outlined,
+    };
+  }
+
+  Widget _buildVisibilityFilter() {
+    final filters = _ClinicalVisibilityFilter.values;
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final active = _visibilityFilter == filter;
+          return ChoiceChip(
+            selected: active,
+            avatar: Icon(
+              _visibilityIcon(filter),
+              size: 16,
+              color: active ? OcgColors.ivory : OcgColors.espresso,
+            ),
+            label: Text(_visibilityLabel(filter)),
+            selectedColor: OcgColors.espresso,
+            backgroundColor: OcgColors.ivory,
+            labelStyle: TextStyle(
+              color: active ? OcgColors.ivory : OcgColors.espresso,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+            side: BorderSide(
+              color: active
+                  ? OcgColors.espresso
+                  : OcgColors.bronze.withValues(alpha: 0.22),
+            ),
+            onSelected: (_) => setState(() => _visibilityFilter = filter),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildClinicalFilesEmptyState({
+    required bool canUpload,
+    VoidCallback? onUpload,
+  }) {
+    final hasFilters =
+        _selectedCategory != null ||
+        (_selectedTreatmentId != null && _selectedTreatmentId != '__all__') ||
+        _visibilityFilter != _ClinicalVisibilityFilter.all;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F5EF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OcgColors.ivory,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.folder_open_outlined,
+              color: OcgColors.espresso,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasFilters
+                ? 'Sin documentos para estos filtros'
+                : 'Todavía no hay documentos clínicos',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasFilters
+                ? 'Limpia filtros o sube un documento con la categoría y visibilidad correctas.'
+                : 'Sube PDFs, radiografías, imágenes clínicas o soportes desde este expediente.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: OcgColors.bronze, height: 1.3),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasFilters)
+                OutlinedButton.icon(
+                  onPressed: () => setState(() {
+                    _selectedTreatmentId = '__all__';
+                    _selectedCategory = null;
+                    _visibilityFilter = _ClinicalVisibilityFilter.all;
+                  }),
+                  icon: const Icon(Icons.filter_alt_off_outlined),
+                  label: const Text('Limpiar filtros'),
+                ),
+              if (canUpload)
+                FilledButton.icon(
+                  onPressed: onUpload,
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: const Text('Subir documento'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OcgColors.espresso,
+                    foregroundColor: OcgColors.ivory,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildClinicalFilesHero(List<ClinicalFileModel> files) {
@@ -376,9 +535,13 @@ class _PatientClinicalHistoryTabState
     return treatments.first;
   }
 
-  Future<void> _showUploadDialog(PatientTreatment selectedTreatment) async {
+  Future<void> _showUploadDialog({
+    required PatientTreatment initialTreatment,
+    required List<PatientTreatment> treatments,
+  }) async {
     final displayCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
+    PatientTreatment selectedTreatment = initialTreatment;
     String category = kClinicalFileCategories.first;
     bool linkToTreatment = !selectedTreatment.id.startsWith('legacy-primary-');
     bool visibleToPatient = false;
@@ -422,6 +585,35 @@ class _PatientClinicalHistoryTabState
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedTreatment.id,
+                  decoration: const InputDecoration(
+                    labelText: 'Tratamiento asociado',
+                    prefixIcon: Icon(Icons.monitor_heart_outlined),
+                  ),
+                  items: treatments
+                      .map(
+                        (treatment) => DropdownMenuItem(
+                          value: treatment.id,
+                          child: Text(treatment.displayName),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    final next = treatments.firstWhere(
+                      (treatment) => treatment.id == value,
+                      orElse: () => selectedTreatment,
+                    );
+                    setModalState(() {
+                      selectedTreatment = next;
+                      linkToTreatment = !selectedTreatment.id.startsWith(
+                        'legacy-primary-',
+                      );
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

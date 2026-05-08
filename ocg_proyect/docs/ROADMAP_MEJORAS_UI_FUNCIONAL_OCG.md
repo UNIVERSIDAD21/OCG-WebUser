@@ -618,7 +618,7 @@ Resultado:
 
 Commit:
 
-- Pendiente de hash al confirmar cambios.
+- `e6b4d29` — `guiar creacion y reprogramacion en agenda movil admin`
 
 ---
 
@@ -660,7 +660,7 @@ Validaciones ejecutadas:
 
 Commit:
 
-- Pendiente de hash al confirmar cambios.
+- `9cf21a0` — `cerrar agenda movil admin con filtros rapidos`
 
 ---
 
@@ -691,6 +691,52 @@ Alcance implementado:
   - explicación de visibilidad para paciente.
 - Se agregó confirmación antes de desactivar un documento para evitar bajas accidentales.
 - Se mantuvieron intactos Storage, Firestore, reglas, estructura de datos y providers.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/tabs/patient_clinical_history_tab.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/tabs/patient_clinical_history_tab.dart`
+- `flutter analyze`
+- `flutter test test/features/clinical_files/clinical_file_model_test.dart test/features/clinical_files/clinical_files_repository_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de clinical files: verdes.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `5abf714` — `iniciar documentos clinicos movil admin premium`
+
+
+---
+
+## Registro de cierre — 2026-05-08 — P3 Documentos clínicos cerrada
+
+Alcance implementado para cerrar P3:
+
+- Se completó el rediseño de Documentos clínicos en móvil admin con filtros compactos adicionales por visibilidad:
+  - Todos,
+  - Paciente,
+  - Solo admin.
+- La lista filtra ahora por tratamiento, categoría y visibilidad, y ordena los documentos por fecha de subida descendente.
+- El empty state premium ahora incluye CTA directo para subir documento y acción para limpiar filtros cuando no hay resultados por criterios activos.
+- El flujo de subida ahora permite seleccionar explícitamente el tratamiento asociado dentro del modal, además de categoría, visibilidad, nombre visible y notas.
+- Se reforzó la claridad clínica sin tocar Storage, Firestore rules, metadata, repositorios ni estructura de datos.
+
+Estado P3:
+
+- P3 queda cerrada funcionalmente según el roadmap actual:
+  - cards por archivo con icono/tipo, categoría, tratamiento, fecha, visibilidad y acciones,
+  - empty state premium con CTA,
+  - flujo de subida guiado con selección de tratamiento/categoría/visibilidad,
+  - filtros compactos por tratamiento, categoría y visibilidad.
 
 Archivos tocados:
 
