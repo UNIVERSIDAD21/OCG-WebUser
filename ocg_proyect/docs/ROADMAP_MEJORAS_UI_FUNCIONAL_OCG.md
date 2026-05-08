@@ -1089,4 +1089,45 @@ Pendiente antes de commit:
 
 Commit:
 
+- 94ae863
+
+---
+
+## Registro de implementación — 2026-05-08 — P6 Agenda / helpers de historial y calendario
+
+Alcance implementado:
+
+- Se continuó P6 con extracción pura y reversible en agenda admin.
+- Se movieron helpers de calendario/historial a `admin_appointments_agenda_helpers.dart`:
+  - `agendaMonthLabel`,
+  - `historyItemsForAgenda`,
+  - `historyCountByFilter`,
+  - `filterHistoryItems`.
+- Se eliminó duplicación de labels mensuales usada por vista Mes e Historial.
+- `admin_appointments_screen.dart` conserva el estado local (`_historyFilter`, `_historyPage`, `_monthCursor`) y solo delega cálculo puro.
+
+Cuidado aplicado:
+
+- Sin tocar callbacks de UI ni navegación.
+- Sin mover `setState`, `ref`, `context` ni diálogos.
+- Sin cambiar reglas de negocio, providers ni repositorios.
+- Paginación de historial mantiene `pageSize = 12`.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart lib/features/dashboard/presentation/admin_appointments_agenda_helpers.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados y suite completa.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

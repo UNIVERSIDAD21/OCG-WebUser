@@ -2517,24 +2517,6 @@ class _AdminAppointmentsScreenState
     });
   }
 
-  String _monthLabel(DateTime d) {
-    const months = [
-      'Enero',
-      'Febrero',
-      'Marzo',
-      'Abril',
-      'Mayo',
-      'Junio',
-      'Julio',
-      'Agosto',
-      'Septiembre',
-      'Octubre',
-      'Noviembre',
-      'Diciembre',
-    ];
-    return '${months[d.month - 1]} ${d.year}';
-  }
-
   Widget _buildMonthAgenda(
     BuildContext context,
     List<AppointmentModel> appointments,
@@ -2764,7 +2746,7 @@ class _AdminAppointmentsScreenState
                   ),
                   Expanded(
                     child: Text(
-                      _monthLabel(_monthCursor),
+                      agendaMonthLabel(_monthCursor),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
@@ -2808,59 +2790,6 @@ class _AdminAppointmentsScreenState
         );
       },
     );
-  }
-
-  String _historyMonthLabel(DateTime d) {
-    const months = [
-      'Enero',
-      'Febrero',
-      'Marzo',
-      'Abril',
-      'Mayo',
-      'Junio',
-      'Julio',
-      'Agosto',
-      'Septiembre',
-      'Octubre',
-      'Noviembre',
-      'Diciembre',
-    ];
-    return '${months[d.month - 1]} ${d.year}';
-  }
-
-  List<AppointmentModel> _historyItems(List<AppointmentModel> all) {
-    final now = DateTime.now();
-    final past = all.where((a) => isAgendaHistoryCandidate(a, now)).toList()
-      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
-
-    final filtered = switch (_historyFilter) {
-      AgendaFilter.completadas =>
-        past.where((a) => a.estado == AppointmentStatus.completada).toList(),
-      AgendaFilter.perdidas => past.where(isLostAppointment).toList(),
-      AgendaFilter.canceladas =>
-        past.where((a) => a.estado == AppointmentStatus.cancelada).toList(),
-      AgendaFilter.incidencias => past.where(isAgendaIncident).toList(),
-      _ => past,
-    };
-
-    final pageSize = 12;
-    final max = _historyPage * pageSize;
-    return filtered.take(max).toList();
-  }
-
-  int _historyCountByFilter(List<AppointmentModel> all, AgendaFilter filter) {
-    final now = DateTime.now();
-    final past = all.where((a) => isAgendaHistoryCandidate(a, now)).toList();
-
-    return switch (filter) {
-      AgendaFilter.completadas =>
-        past.where((a) => a.estado == AppointmentStatus.completada).length,
-      AgendaFilter.perdidas => past.where(isLostAppointment).length,
-      AgendaFilter.canceladas =>
-        past.where((a) => a.estado == AppointmentStatus.cancelada).length,
-      AgendaFilter.incidencias => past.where(isAgendaIncident).length,
-      _ => past.length,
-    };
   }
 
   Widget _historyFilterItem(String label, AgendaFilter filter, int count) {
@@ -2907,8 +2836,12 @@ class _AdminAppointmentsScreenState
     BuildContext context,
     List<AppointmentModel> appointments,
   ) {
-    final items = _historyItems(appointments);
-    final totalFiltered = _historyCountByFilter(appointments, _historyFilter);
+    final items = historyItemsForAgenda(
+      appointments,
+      filter: _historyFilter,
+      page: _historyPage,
+    );
+    final totalFiltered = historyCountByFilter(appointments, _historyFilter);
     final hasMore = items.length < totalFiltered;
 
     final groups = <String, List<AppointmentModel>>{};
@@ -2937,7 +2870,7 @@ class _AdminAppointmentsScreenState
                     return Padding(
                       padding: const EdgeInsets.only(top: 10, bottom: 6),
                       child: Text(
-                        _historyMonthLabel(
+                        agendaMonthLabel(
                           DateTime(sample.year, sample.month, 1),
                         ).toUpperCase(),
                         style: TextStyle(
@@ -2998,27 +2931,27 @@ class _AdminAppointmentsScreenState
           _historyFilterItem(
             'Todas',
             AgendaFilter.activas,
-            _historyCountByFilter(appointments, AgendaFilter.activas),
+            historyCountByFilter(appointments, AgendaFilter.activas),
           ),
           _historyFilterItem(
             'Completadas',
             AgendaFilter.completadas,
-            _historyCountByFilter(appointments, AgendaFilter.completadas),
+            historyCountByFilter(appointments, AgendaFilter.completadas),
           ),
           _historyFilterItem(
             'Perdidas',
             AgendaFilter.perdidas,
-            _historyCountByFilter(appointments, AgendaFilter.perdidas),
+            historyCountByFilter(appointments, AgendaFilter.perdidas),
           ),
           _historyFilterItem(
             'Canceladas',
             AgendaFilter.canceladas,
-            _historyCountByFilter(appointments, AgendaFilter.canceladas),
+            historyCountByFilter(appointments, AgendaFilter.canceladas),
           ),
           _historyFilterItem(
             'Incidencias',
             AgendaFilter.incidencias,
-            _historyCountByFilter(appointments, AgendaFilter.incidencias),
+            historyCountByFilter(appointments, AgendaFilter.incidencias),
           ),
         ],
       ),

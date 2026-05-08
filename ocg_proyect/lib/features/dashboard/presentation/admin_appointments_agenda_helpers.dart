@@ -116,6 +116,64 @@ bool isAgendaHistoryCandidate(AppointmentModel appointment, DateTime now) =>
     appointment.estado == AppointmentStatus.noAsistio ||
     appointment.estado == AppointmentStatus.reprogramada;
 
+String agendaMonthLabel(DateTime date) {
+  const months = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+  return '${months[date.month - 1]} ${date.year}';
+}
+
+List<AppointmentModel> historyItemsForAgenda(
+  List<AppointmentModel> all, {
+  required AgendaFilter filter,
+  required int page,
+  int pageSize = 12,
+}) {
+  final now = DateTime.now();
+  final past = all.where((item) => isAgendaHistoryCandidate(item, now)).toList()
+    ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+
+  final filtered = filterHistoryItems(past, filter);
+  final max = page * pageSize;
+  return filtered.take(max).toList();
+}
+
+int historyCountByFilter(List<AppointmentModel> all, AgendaFilter filter) {
+  final now = DateTime.now();
+  final past = all
+      .where((item) => isAgendaHistoryCandidate(item, now))
+      .toList();
+  return filterHistoryItems(past, filter).length;
+}
+
+List<AppointmentModel> filterHistoryItems(
+  List<AppointmentModel> past,
+  AgendaFilter filter,
+) {
+  return switch (filter) {
+    AgendaFilter.completadas =>
+      past
+          .where((item) => item.estado == AppointmentStatus.completada)
+          .toList(),
+    AgendaFilter.perdidas => past.where(isLostAppointment).toList(),
+    AgendaFilter.canceladas =>
+      past.where((item) => item.estado == AppointmentStatus.cancelada).toList(),
+    AgendaFilter.incidencias => past.where(isAgendaIncident).toList(),
+    _ => past,
+  };
+}
+
 List<AppointmentModel> appointmentsForDay(
   List<AppointmentModel> all,
   DateTime day,
