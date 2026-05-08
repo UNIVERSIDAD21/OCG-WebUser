@@ -19,6 +19,8 @@ import '../../payments/providers/payments_provider.dart';
 import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
+import '../../treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
+import '../../treatment/presentation/widgets/update_stage_dialog.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 import '../data/models/patient_data_resolution.dart';
 import '../data/models/patient_model.dart';
@@ -696,6 +698,7 @@ class _AdminPatientWorkspaceState
       0 => PatientProfileTab(patient: widget.patient, scrollable: false),
       1 => _buildTreatmentModuleSection(
         treatments: treatments,
+        nextAppointment: nextAppointment,
         paymentsResolution: paymentsResolution,
       ),
       2 => Card(
@@ -722,6 +725,7 @@ class _AdminPatientWorkspaceState
 
   Widget _buildTreatmentModuleSection({
     required List<PatientTreatment> treatments,
+    required AppointmentModel? nextAppointment,
     required EffectivePatientDataResolution paymentsResolution,
   }) {
     return AnimatedSwitcher(
@@ -743,6 +747,7 @@ class _AdminPatientWorkspaceState
         child: switch (_treatmentSubView) {
           _TreatmentSubView.hub => _buildTreatmentsHubSection(
             treatments: treatments,
+            nextAppointment: nextAppointment,
             paymentsResolution: paymentsResolution,
           ),
           _TreatmentSubView.payments => _buildTreatmentPaymentsSubview(
@@ -757,6 +762,7 @@ class _AdminPatientWorkspaceState
 
   Widget _buildTreatmentsHubSection({
     required List<PatientTreatment> treatments,
+    required AppointmentModel? nextAppointment,
     required EffectivePatientDataResolution paymentsResolution,
   }) {
     final legacyOnly =
@@ -789,9 +795,14 @@ class _AdminPatientWorkspaceState
         ),
         const SizedBox(height: 12),
         if (activeTreatment != null) ...[
-          _buildTreatmentAlertStrip(activeTreatment, pending),
+          _buildTreatmentAlertStrip(activeTreatment, pending, nextAppointment),
           const SizedBox(height: 12),
           _buildMobileTreatmentTimeline(activeTreatment),
+          const SizedBox(height: 12),
+          _buildTreatmentActionPanel(activeTreatment),
+          const SizedBox(height: 12),
+        ] else ...[
+          _buildEmptyTreatmentActionPanel(),
           const SizedBox(height: 12),
         ],
         Row(
@@ -1124,8 +1135,16 @@ class _AdminPatientWorkspaceState
   Widget _buildTreatmentAlertStrip(
     PatientTreatment treatment,
     double globalPending,
+    AppointmentModel? nextAppointment,
   ) {
     final alerts = <({IconData icon, String text, Color color})>[];
+    if (nextAppointment == null && !treatment.isFinished) {
+      alerts.add((
+        icon: Icons.event_busy_outlined,
+        text: 'Sin próxima cita registrada para seguimiento clínico.',
+        color: const Color(0xFF8A5A00),
+      ));
+    }
     if (treatment.isFinished) {
       alerts.add((
         icon: Icons.check_circle_outline,
@@ -1187,6 +1206,118 @@ class _AdminPatientWorkspaceState
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildEmptyTreatmentActionPanel() {
+    return _patientCard(
+      title: 'Acciones del tratamiento',
+      icon: Icons.flash_on_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FilledButton.icon(
+            onPressed: () => _openManageTreatmentDialog(),
+            icon: const Icon(Icons.add_circle_outline, size: 18),
+            label: const Text('Crear primer tratamiento'),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Crea el tratamiento inicial para activar etapa clínica, pagos asociados y documentos del módulo.',
+            style: TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentActionPanel(PatientTreatment treatment) {
+    final canUpdateStage = !treatment.isFinished;
+
+    return _patientCard(
+      title: 'Acciones del tratamiento',
+      icon: Icons.flash_on_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: canUpdateStage
+                    ? () => _openUpdateStageDialog(treatment)
+                    : null,
+                icon: const Icon(Icons.trending_up_outlined, size: 18),
+                label: const Text('Actualizar etapa'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openManageTreatmentDialog(treatment),
+                icon: const Icon(Icons.edit_note_outlined, size: 18),
+                label: const Text('Editar tratamiento'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openManageTreatmentDialog(),
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Nuevo tratamiento'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _openTreatmentSubview(_TreatmentSubView.payments),
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: const Text('Pagos'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _openTreatmentSubview(_TreatmentSubView.documents),
+                icon: const Icon(Icons.folder_open_outlined, size: 18),
+                label: const Text('Documentos'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            canUpdateStage
+                ? 'Las acciones se mantienen dentro del módulo de Tratamientos para no sacar al admin del detalle móvil.'
+                : 'Este tratamiento ya está ${treatment.statusLabel.toLowerCase()}; la etapa no se puede actualizar desde esta acción rápida.',
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openManageTreatmentDialog([PatientTreatment? treatment]) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => ManagePatientTreatmentDialog(
+        patientId: widget.patient.id,
+        patientName: widget.patient.nombre,
+        initialTreatment: treatment,
+      ),
+    );
+  }
+
+  Future<void> _openUpdateStageDialog(PatientTreatment treatment) async {
+    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
+    await showDialog<void>(
+      context: context,
+      builder: (_) => UpdateStageDialog(
+        patientId: widget.patient.id,
+        treatmentId: treatment.id.startsWith('legacy-primary-')
+            ? null
+            : treatment.id,
+        etapaActual: treatment.etapaActual,
+        adminId: adminId,
+      ),
     );
   }
 

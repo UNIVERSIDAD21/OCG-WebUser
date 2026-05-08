@@ -378,3 +378,44 @@ Resultado:
 Commit:
 
 - `mejorar tratamientos movil admin con hero y progreso clinico`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Tratamientos móvil admin / acciones contextuales
+
+Alcance implementado:
+
+- Se continuó el bloque P1 de Tratamientos móvil admin con acciones contextuales reales dentro del hub de Tratamientos.
+- Se agregó un panel de acciones del tratamiento activo con:
+  - actualizar etapa mediante `UpdateStageDialog`,
+  - editar tratamiento mediante `ManagePatientTreatmentDialog`,
+  - crear nuevo tratamiento,
+  - abrir pagos,
+  - abrir documentos clínicos.
+- Se agregó un CTA para crear el primer tratamiento cuando el hub no tenga tratamiento activo/principal.
+- Se agregó alerta clínica de “sin próxima cita” cuando el paciente no tiene seguimiento futuro dentro del detalle móvil admin.
+- Se corrigió el modo móvil de `PatientTreatmentTab` para respetar `scrollable: false`; así, cuando se use embebido, no crea un `SingleChildScrollView` vertical propio.
+- Se mantuvo la navegación dentro del módulo, sin duplicar `Scaffold`, sin duplicar bottom nav y sin separar pagos/documentos del contexto de Tratamientos.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/patient_detail_screen.dart lib/features/patients/presentation/tabs/patient_treatment_tab.dart`
+- `flutter analyze`
+- `flutter test test/features/patients/patient_detail_workspace_test.dart test/features/patients/patient_treatment_tab_multitreatment_test.dart test/features/patients/patient_payments_tab_effective_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de pacientes/tratamientos/pagos: verde.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `agregar acciones contextuales a tratamientos movil admin`.

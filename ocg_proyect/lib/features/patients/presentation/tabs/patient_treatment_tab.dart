@@ -284,7 +284,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final hasMoreItems = activeItems.length > visibleItems.length;
     final latestNote = (selectedTreatment.notas ?? '').trim();
 
-    return SingleChildScrollView(
+    final content = Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,6 +494,9 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
         ],
       ),
     );
+
+    if (!widget.scrollable) return content;
+    return SingleChildScrollView(child: content);
   }
 
   Widget _buildMobileTreatmentCard({
