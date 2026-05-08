@@ -176,11 +176,18 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               const SizedBox(height: 16),
             ],
             if (items.isEmpty && !showActiveFlow)
-              const OcgEmptyState(
-                icon: Icons.auto_awesome_outlined,
-                title: 'Todavía no hay simulaciones para este paciente.',
-                subtitle:
-                    'Toma una foto frontal o súbela desde galería para iniciar una simulación.',
+              _SimulatorEmptyState(
+                onCamera: () {
+                  setState(() => _openedSimulation = null);
+                  ref.read(simulatorFlowProvider.notifier).resetFlow();
+                  ref
+                      .read(simulatorFlowProvider.notifier)
+                      .pickOriginalFromCamera(
+                        patientId: widget.patient.id,
+                        adminId: adminId,
+                        treatmentType: widget.patient.tipoTratamiento,
+                      );
+                },
               )
             else if (items.isNotEmpty) ...[
               const Text(
@@ -295,16 +302,6 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                 ),
               ),
             ],
-            if (!showActiveFlow) ...[
-              const SizedBox(height: 16),
-              SimulatorScreen(
-                patientId: widget.patient.id,
-                adminId: adminId,
-                treatmentType: widget.patient.tipoTratamiento,
-                initialSimulation: _openedSimulation,
-                embedded: true,
-              ),
-            ],
           ],
         );
       },
@@ -327,48 +324,121 @@ class _SimulatorMobileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8DED2)),
+        borderRadius: BorderRadius.circular(26),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.14),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'Simulador de sonrisa',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: OcgColors.espresso,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: OcgColors.ivory.withOpacity(0.20)),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: OcgColors.ivory,
+                  size: 26,
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: onNew,
-                icon: const Icon(Icons.add),
-                label: const Text('Nueva simulación'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Simulador de sonrisa',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: OcgColors.ivory,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Paciente: $patientName',
+                      style: TextStyle(
+                        color: OcgColors.ivory.withOpacity(0.82),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            patientName,
-            style: const TextStyle(
-              color: OcgColors.ink,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: OcgColors.ivory.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            latestSimulation == null
-                ? 'Crea una simulación de sonrisa a partir de una foto del paciente.'
-                : 'Estado más reciente: ${formatSimulationStatus(latestSimulation!.status)}',
-            style: const TextStyle(color: OcgColors.bronze),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        latestSimulation == null
+                            ? 'Aún sin simulaciones'
+                            : 'Última simulación: ${formatSimulationStatus(latestSimulation!.status)}',
+                        style: const TextStyle(
+                          color: OcgColors.ivory,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        latestSimulation == null
+                            ? 'Crea una referencia visual desde una foto frontal.'
+                            : 'Creada el ${_fmtDate(latestSimulation!.createdAt)}',
+                        style: TextStyle(
+                          color: OcgColors.ivory.withOpacity(0.78),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: onNew,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Nueva'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OcgColors.ivory,
+                    foregroundColor: OcgColors.espresso,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -394,43 +464,132 @@ class _SimulatorPrimaryActionsCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8DED2)),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Acción principal',
+            'Nueva simulación',
             style: TextStyle(
               color: OcgColors.espresso,
-              fontWeight: FontWeight.w800,
-              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             hasSimulations
-                ? 'Toma una nueva foto o sube otra desde galería para crear una nueva simulación.'
-                : 'Toma una foto frontal del paciente para iniciar la simulación.',
-            style: const TextStyle(color: OcgColors.ink),
+                ? 'Crea una nueva comparación con una foto actualizada del paciente.'
+                : 'Inicia con una foto frontal bien iluminada para generar la referencia visual.',
+            style: const TextStyle(color: OcgColors.bronze, height: 1.3),
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Column(
             children: [
-              FilledButton.icon(
-                onPressed: onCamera,
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Tomar foto'),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onCamera,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Tomar foto'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OcgColors.espresso,
+                    foregroundColor: OcgColors.ivory,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: onGallery,
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Subir desde galería'),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Subir desde galería'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OcgColors.espresso,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: OcgColors.bronze.withOpacity(0.28)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimulatorEmptyState extends StatelessWidget {
+  const _SimulatorEmptyState({required this.onCamera});
+
+  final VoidCallback onCamera;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F5EF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.14)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OcgColors.ivory,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.add_a_photo_outlined,
+              color: OcgColors.espresso,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Aún no hay simulaciones',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: OcgColors.espresso,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Toma una foto frontal del paciente o sube una imagen desde galería para iniciar.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: OcgColors.bronze, height: 1.3),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onCamera,
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: const Text('Tomar foto'),
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.espresso,
+              foregroundColor: OcgColors.ivory,
+            ),
           ),
         ],
       ),
@@ -466,71 +625,227 @@ class _AdminSimulationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Creada: ${_fmtDate(simulation.createdAt)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+    final canShare =
+        simulation.status != SimulationStatus.draft &&
+        simulation.status != SimulationStatus.archived;
+    final statusColor = _statusColor(simulation.status);
+    final previewPath = _previewPath(simulation);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SimulationPreview(path: previewPath),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _fmtDate(simulation.createdAt),
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _SimulationChip(
+                          label: formatSimulationStatus(simulation.status),
+                          color: statusColor,
+                        ),
+                        if (simulation.compartidaConPaciente)
+                          const _SimulationChip(
+                            label: 'Compartida',
+                            color: Color(0xFF2E7D32),
+                          ),
+                      ],
+                    ),
+                    if ((simulation.notes ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        simulation.notes!.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OcgColors.bronze,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('Abrir'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OcgColors.espresso,
+                    foregroundColor: OcgColors.ivory,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
-                Chip(label: Text(formatSimulationStatus(simulation.status))),
-              ],
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: simulation.compartidaConPaciente
+                    ? 'Descompartir con paciente'
+                    : 'Compartir con paciente',
+                onPressed: canShare
+                    ? () => onToggleShare(!simulation.compartidaConPaciente)
+                    : null,
+                icon: Icon(
+                  simulation.compartidaConPaciente
+                      ? Icons.person_remove_outlined
+                      : Icons.ios_share_outlined,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: 'Eliminar simulación',
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, color: OcgColors.error),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            canShare
+                ? (simulation.compartidaConPaciente
+                      ? 'Visible para el paciente.'
+                      : 'Lista para compartir cuando el resultado esté revisado.')
+                : 'Compartir no disponible en borradores o archivadas.',
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Provider: ${simulation.generationProvider} · Modelo: ${simulation.modelUsed}',
-            ),
-            if ((simulation.notes ?? '').trim().isNotEmpty)
-              Text('Notas: ${simulation.notes!.trim()}'),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onOpen,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Abrir'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Eliminar simulación',
-                  onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: OcgColors.error,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SwitchListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Compartir'),
-                    value: simulation.compartidaConPaciente,
-                    onChanged:
-                        (simulation.status == SimulationStatus.draft ||
-                            simulation.status == SimulationStatus.archived)
-                        ? null
-                        : onToggleShare,
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimulationPreview extends ConsumerWidget {
+  const _SimulationPreview({required this.path});
+
+  final String? path;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cleanPath = path?.trim();
+    final placeholder = Container(
+      width: 74,
+      height: 74,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6EFE7),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Icon(
+        Icons.image_outlined,
+        color: OcgColors.bronze,
+        size: 28,
+      ),
+    );
+
+    if (cleanPath == null || cleanPath.isEmpty) return placeholder;
+
+    return FutureBuilder<String?>(
+      future: ref.read(simulationRepositoryProvider).resolveMediaUrl(cleanPath),
+      builder: (context, snapshot) {
+        final url = snapshot.data?.trim();
+        if (url == null || url.isEmpty) return placeholder;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Image.network(
+            url,
+            width: 74,
+            height: 74,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => placeholder,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SimulationChip extends StatelessWidget {
+  const _SimulationChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.20)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
   }
-
-  String _fmtDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
+
+String? _previewPath(SimulationModel simulation) {
+  final result = simulation.resultPath?.trim();
+  if (result != null && result.isNotEmpty) return result;
+  final original = simulation.originalPath.trim();
+  if (original.isNotEmpty) return original;
+  return null;
+}
+
+Color _statusColor(SimulationStatus status) => switch (status) {
+  SimulationStatus.draft => OcgColors.bronze,
+  SimulationStatus.generating => const Color(0xFF1565C0),
+  SimulationStatus.ready => const Color(0xFF2E7D32),
+  SimulationStatus.shared => const Color(0xFF2E7D32),
+  SimulationStatus.failed => OcgColors.error,
+  SimulationStatus.archived => const Color(0xFF6D6D6D),
+};
+
+String _fmtDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';

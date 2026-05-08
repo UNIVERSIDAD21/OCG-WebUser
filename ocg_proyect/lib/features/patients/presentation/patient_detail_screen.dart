@@ -569,8 +569,8 @@ class _AdminPatientWorkspaceState
       items: [
         const OcgSegmentedTabItem(
           value: 0,
-          label: 'Resumen',
-          icon: Icons.space_dashboard_outlined,
+          label: 'Perfil',
+          icon: Icons.person_outline,
         ),
         OcgSegmentedTabItem(
           value: 1,
@@ -693,12 +693,7 @@ class _AdminPatientWorkspaceState
     required EffectivePatientDataResolution paymentsResolution,
   }) {
     return switch (_section) {
-      0 => _buildOverviewSection(
-        treatments: treatments,
-        nextAppointment: nextAppointment,
-        latestSimulation: latestSimulation,
-        paymentsResolution: paymentsResolution,
-      ),
+      0 => PatientProfileTab(patient: widget.patient, scrollable: false),
       1 => _buildTreatmentModuleSection(
         treatments: treatments,
         paymentsResolution: paymentsResolution,
@@ -723,70 +718,6 @@ class _AdminPatientWorkspaceState
       ),
       _ => const SizedBox.shrink(),
     };
-  }
-
-  Widget _buildOverviewSection({
-    required List<PatientTreatment> treatments,
-    required AppointmentModel? nextAppointment,
-    required SimulationModel? latestSimulation,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
-    final activeCount = treatments.where((item) => !item.isFinished).length;
-    double pending = 0.0;
-    for (final account in paymentsResolution.paymentAccounts) {
-      pending += account.payment.saldoPendiente;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _summaryCtaCard(
-          title: 'Tratamientos activos',
-          value: activeCount == 0
-              ? 'Sin tratamientos activos'
-              : '$activeCount activos',
-          subtitle: treatments.isEmpty
-              ? 'No hay tratamientos registrados para este paciente.'
-              : 'Revisa el estado y etapas actuales del paciente.',
-          cta: 'Ver tratamientos',
-          onTap: () => _openSection(1),
-        ),
-        const SizedBox(height: 12),
-        _summaryCtaCard(
-          title: 'Saldo pendiente',
-          value: _money(pending),
-          subtitle: paymentsResolution.paymentAccounts.isEmpty
-              ? 'No hay cuentas de pago registradas todavía.'
-              : 'Consulta el resumen global y pagos por tratamiento.',
-          cta: 'Ver pagos',
-          onTap: () => _openTreatmentSubview(_TreatmentSubView.payments),
-        ),
-        const SizedBox(height: 12),
-        _summaryCtaCard(
-          title: 'Próxima cita',
-          value: nextAppointment == null
-              ? 'Sin cita agendada'
-              : _dateTime(nextAppointment.fechaHora),
-          subtitle: nextAppointment == null
-              ? 'Programa la próxima atención desde acciones rápidas.'
-              : 'Abre agenda para gestionar cambios o seguimiento.',
-          cta: 'Ver citas',
-          onTap: () => _openSection(2),
-        ),
-        const SizedBox(height: 12),
-        _summaryCtaCard(
-          title: 'Última simulación',
-          value: latestSimulation == null
-              ? 'Sin simulaciones'
-              : _simulationStatusLabel(latestSimulation.status),
-          subtitle: latestSimulation?.hasResult == true
-              ? 'Hay una simulación lista para revisar.'
-              : 'Puedes abrir el simulador para generar una nueva.',
-          cta: 'Ver simulador',
-          onTap: () => _openSection(3),
-        ),
-      ],
-    );
   }
 
   Widget _buildTreatmentModuleSection({
@@ -1244,36 +1175,6 @@ class _AdminPatientWorkspaceState
             label: 'Abrir simulador',
             onTap: () => _openSection(3),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryCtaCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required String cta,
-    required VoidCallback onTap,
-  }) {
-    return _patientCard(
-      title: title,
-      icon: Icons.insights_outlined,
-      actionText: cta,
-      onAction: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: OcgColors.bronze)),
         ],
       ),
     );
@@ -1841,17 +1742,6 @@ class _AdminPatientWorkspaceState
 
   String _dateTime(DateTime value) =>
       '${_date(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-
-  String _simulationStatusLabel(SimulationStatus status) {
-    return switch (status) {
-      SimulationStatus.draft => 'Borrador',
-      SimulationStatus.generating => 'Generando',
-      SimulationStatus.ready => 'Lista',
-      SimulationStatus.shared => 'Compartida',
-      SimulationStatus.failed => 'Con error',
-      SimulationStatus.archived => 'Archivada',
-    };
-  }
 }
 
 class _DesktopTreatmentModule extends StatefulWidget {
