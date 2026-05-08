@@ -772,75 +772,28 @@ class _AdminPatientWorkspaceState
       (sum, item) => sum + item.payment.montoPagado,
     );
     final summaryText = treatments.isEmpty
-        ? 'No hay tratamientos registrados todavía. Puedes mantener pagos y documentos listos dentro de este módulo.'
+        ? 'Aún no hay tratamientos registrados. Mantén pagos y documentos clínicos centralizados cuando el plan esté listo.'
         : legacyOnly
         ? 'Tratamiento principal migrado desde datos legacy.'
-        : 'Módulo clínico con ${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'}, pagos y documentos asociados.';
+        : '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} con pagos y documentos asociados.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _patientCard(
-          title: 'Módulo de tratamientos',
-          icon: Icons.monitor_heart_outlined,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(summaryText, style: const TextStyle(color: OcgColors.ink)),
-              const SizedBox(height: 14),
-              if (activeTreatment == null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8F3ED),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE8DDD2)),
-                  ),
-                  child: const Text(
-                    'Estado vacío: aún no hay tratamiento activo o principal para resumir.',
-                    style: TextStyle(
-                      color: OcgColors.bronze,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                )
-              else ...[
-                Text(
-                  activeTreatment.displayName,
-                  style: const TextStyle(
-                    color: OcgColors.espresso,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _statusBadge(
-                      activeTreatment.isPrimary ? 'Principal' : 'Secundario',
-                    ),
-                    _statusBadge(activeTreatment.statusLabel),
-                    _statusBadge(activeTreatment.currentStageName),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _mobileMetricRow('Inicio', _date(activeTreatment.fechaInicio)),
-                _mobileMetricRow(
-                  'Valor total',
-                  _money(activeTreatment.totalTratamiento ?? 0),
-                ),
-                _mobileMetricRow(
-                  'Saldo pendiente',
-                  _money(activeTreatment.saldoPendiente ?? 0),
-                ),
-              ],
-            ],
-          ),
+        _buildTreatmentPremiumHero(
+          activeTreatment: activeTreatment,
+          treatmentsCount: treatments.length,
+          summaryText: summaryText,
+          pending: pending,
+          paid: paid,
         ),
         const SizedBox(height: 12),
+        if (activeTreatment != null) ...[
+          _buildTreatmentAlertStrip(activeTreatment, pending),
+          const SizedBox(height: 12),
+          _buildMobileTreatmentTimeline(activeTreatment),
+          const SizedBox(height: 12),
+        ],
         Row(
           children: [
             Expanded(
@@ -959,6 +912,377 @@ class _AdminPatientWorkspaceState
                   style: TextStyle(color: OcgColors.ink, fontSize: 12),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentPremiumHero({
+    required PatientTreatment? activeTreatment,
+    required int treatmentsCount,
+    required String summaryText,
+    required double pending,
+    required double paid,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.14),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: OcgColors.ivory.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: OcgColors.ivory.withOpacity(0.20)),
+                ),
+                child: const Icon(
+                  Icons.monitor_heart_outlined,
+                  color: OcgColors.ivory,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tratamientos',
+                      style: TextStyle(
+                        color: OcgColors.ivory,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      summaryText,
+                      style: TextStyle(
+                        color: OcgColors.ivory.withOpacity(0.82),
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (activeTreatment == null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
+              ),
+              child: const Text(
+                'Estado vacío: aún no hay tratamiento activo o principal para resumir.',
+                style: TextStyle(
+                  color: OcgColors.ivory,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          else ...[
+            Text(
+              activeTreatment.displayName,
+              style: const TextStyle(
+                color: OcgColors.ivory,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _treatmentHeroChip(
+                  activeTreatment.isPrimary ? 'Principal' : 'Secundario',
+                  Icons.star_border,
+                ),
+                _treatmentHeroChip(
+                  activeTreatment.statusLabel,
+                  Icons.favorite_border,
+                ),
+                _treatmentHeroChip(
+                  activeTreatment.currentStageName,
+                  Icons.timeline_outlined,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _treatmentHeroMetric(
+                    'Tratamientos',
+                    treatmentsCount.toString(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _treatmentHeroMetric('Pagado', _money(paid))),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _treatmentHeroMetric('Pendiente', _money(pending)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _treatmentHeroChip(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: OcgColors.ivory),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: OcgColors.ivory,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _treatmentHeroMetric(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: OcgColors.ivory.withOpacity(0.72),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: OcgColors.ivory,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentAlertStrip(
+    PatientTreatment treatment,
+    double globalPending,
+  ) {
+    final alerts = <({IconData icon, String text, Color color})>[];
+    if (treatment.isFinished) {
+      alerts.add((
+        icon: Icons.check_circle_outline,
+        text:
+            'Tratamiento marcado como ${treatment.statusLabel.toLowerCase()}.',
+        color: const Color(0xFF2E7D32),
+      ));
+    }
+    if ((treatment.saldoPendiente ?? globalPending) > 0) {
+      alerts.add((
+        icon: Icons.account_balance_wallet_outlined,
+        text: 'Saldo pendiente asociado al módulo clínico.',
+        color: OcgColors.bronze,
+      ));
+    }
+    if (treatment.fechaFin == null && !treatment.isFinished) {
+      alerts.add((
+        icon: Icons.flag_outlined,
+        text: 'Sin fecha estimada de finalización registrada.',
+        color: const Color(0xFF8A5A00),
+      ));
+    }
+    if ((treatment.notas ?? '').trim().isEmpty) {
+      alerts.add((
+        icon: Icons.notes_outlined,
+        text: 'Sin notas clínicas para este tratamiento.',
+        color: OcgColors.bronze,
+      ));
+    }
+
+    if (alerts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: alerts.take(3).map((alert) {
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: alert.color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: alert.color.withOpacity(0.18)),
+          ),
+          child: Row(
+            children: [
+              Icon(alert.icon, color: alert.color, size: 19),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  alert.text,
+                  style: TextStyle(
+                    color: alert.color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMobileTreatmentTimeline(PatientTreatment treatment) {
+    final stages = TreatmentStage.values;
+    final currentIndex = stages.indexOf(treatment.etapaActual);
+
+    return _patientCard(
+      title: 'Progreso clínico',
+      icon: Icons.timeline_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Etapa actual: ${treatment.currentStageName}',
+            style: const TextStyle(
+              color: OcgColors.espresso,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var index = 0; index < stages.length; index++) ...[
+                  _buildMiniStageChip(
+                    label: stageNames[stages[index]] ?? stages[index].name,
+                    completed: index < currentIndex,
+                    active: index == currentIndex,
+                  ),
+                  if (index != stages.length - 1)
+                    Container(
+                      width: 18,
+                      height: 2,
+                      color: index < currentIndex
+                          ? OcgColors.espresso
+                          : OcgColors.bronze.withOpacity(0.22),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _mobileMetricRow('Inicio', _date(treatment.fechaInicio)),
+          _mobileMetricRow(
+            'Fin estimado',
+            treatment.fechaFin == null
+                ? 'Sin fecha estimada'
+                : _date(treatment.fechaFin!),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStageChip({
+    required String label,
+    required bool completed,
+    required bool active,
+  }) {
+    final color = active
+        ? OcgColors.espresso
+        : completed
+        ? const Color(0xFF2E7D32)
+        : OcgColors.bronze;
+    return Container(
+      width: 96,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(active ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(active ? 0.30 : 0.16)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            completed
+                ? Icons.check_circle
+                : active
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
             ),
           ),
         ],

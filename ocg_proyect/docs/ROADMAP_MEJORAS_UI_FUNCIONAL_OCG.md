@@ -34,6 +34,7 @@ Cambios recientes importantes que deben preservarse:
 
 Antes de tocar UI o navegación, respetar:
 
+- Documentar cada cambio relevante que se implemente en este roadmap o en un log bajo `docs/`, dejando fecha, alcance, archivos tocados, validaciones y commit para que Borlty tenga contexto recuperable en futuras sesiones.
 - No romper `AdminMobileShell` ni la bottom nav admin.
 - No duplicar bottom nav ni Scaffold visual.
 - No reintroducir scrolls anidados en detalle móvil admin.
@@ -339,3 +340,41 @@ No hacer:
 - Cambiar lógica backend PayU sin credenciales.
 - Cambiar generación IA o prompts reales sin validar keys.
 - Prometer funcionamiento real end-to-end sin credenciales.
+
+---
+
+## Registro de implementación — 2026-05-08 — Tratamientos móvil admin / primera mejora
+
+Alcance implementado:
+
+- Se inició el bloque P1 de Tratamientos móvil admin desde el hub embebido del detalle de paciente.
+- Se reemplazó el resumen plano de `section=tratamientos` por un hero clínico premium con gradiente OCG, chips de estado y métricas rápidas.
+- Se agregaron alertas contextuales del tratamiento principal/activo:
+  - saldo pendiente,
+  - tratamiento finalizado/cancelado,
+  - falta de fecha estimada de finalización,
+  - falta de notas clínicas.
+- Se agregó una línea de progreso horizontal de etapas clínicas para visualizar la etapa actual sin abrir diálogos.
+- Se mantuvo la arquitectura móvil admin existente: sin `Scaffold` nuevo, sin bottom nav duplicada y sin scroll vertical anidado en el detalle.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/patient_detail_screen.dart`
+- `flutter analyze`
+- `flutter test test/features/patients/patient_detail_workspace_test.dart test/features/patients/patient_treatment_tab_multitreatment_test.dart test/features/patients/patient_payments_tab_effective_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de pacientes/tratamientos/pagos: verde.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `mejorar tratamientos movil admin con hero y progreso clinico`.
