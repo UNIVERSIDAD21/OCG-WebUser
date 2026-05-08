@@ -195,6 +195,8 @@ Cuidado:
 
 ### P6 — Refactor gradual de archivos gigantes
 
+Plan detallado creado: [`docs/PLAN_REFACTOR_ARCHIVOS_GIGANTES_OCG.md`](PLAN_REFACTOR_ARCHIVOS_GIGANTES_OCG.md)
+
 Archivos grandes detectados:
 
 - `lib/features/dashboard/presentation/admin_appointments_screen.dart`
