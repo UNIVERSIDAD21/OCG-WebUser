@@ -564,8 +564,8 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      2 => PatientAppointmentsTab(patient: widget.patient),
-      3 => PatientSimulatorTab(patient: widget.patient),
+      2 => PatientAppointmentsTab(patient: widget.patient, scrollable: false),
+      3 => PatientSimulatorTab(patient: widget.patient, scrollable: false),
       _ => const SizedBox.shrink(),
     };
   }
@@ -683,7 +683,7 @@ class _AdminPatientWorkspaceState
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
         ),
-        child: SizedBox(height: 760, child: _buildSection(2)),
+        child: _buildSection(2),
       ),
       3 => Card(
         clipBehavior: Clip.antiAlias,
@@ -692,7 +692,7 @@ class _AdminPatientWorkspaceState
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
         ),
-        child: SizedBox(height: 920, child: _buildSection(3)),
+        child: _buildSection(3),
       ),
       _ => const SizedBox.shrink(),
     };
@@ -957,12 +957,10 @@ class _AdminPatientWorkspaceState
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
           ),
-          child: SizedBox(
-            height: 780,
-            child: PatientClinicalHistoryTab(
-              patientId: widget.patient.id,
-              patient: widget.patient,
-            ),
+          child: PatientClinicalHistoryTab(
+            patientId: widget.patient.id,
+            patient: widget.patient,
+            scrollable: false,
           ),
         ),
       ],

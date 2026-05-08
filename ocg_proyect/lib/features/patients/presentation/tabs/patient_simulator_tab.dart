@@ -12,9 +12,14 @@ import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientSimulatorTab extends ConsumerStatefulWidget {
-  const PatientSimulatorTab({super.key, required this.patient});
+  const PatientSimulatorTab({
+    super.key,
+    required this.patient,
+    this.scrollable = true,
+  });
 
   final PatientModel patient;
+  final bool scrollable;
 
   @override
   ConsumerState<PatientSimulatorTab> createState() =>
@@ -30,7 +35,10 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
   @override
   void initState() {
     super.initState();
-    _flowSubscription = ref.listenManual(simulatorFlowProvider, (previous, next) {
+    _flowSubscription = ref.listenManual(simulatorFlowProvider, (
+      previous,
+      next,
+    ) {
       final prev = previous?.asData?.value;
       final curr = next.asData?.value;
       if (curr == null) return;
@@ -112,7 +120,11 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
           openedSimulation: _openedSimulation,
         );
         return ListView(
-          controller: _scrollController,
+          controller: widget.scrollable ? _scrollController : null,
+          shrinkWrap: !widget.scrollable,
+          physics: widget.scrollable
+              ? null
+              : const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
             _SimulatorMobileHeader(
@@ -129,20 +141,24 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               onCamera: () {
                 setState(() => _openedSimulation = null);
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
-                ref.read(simulatorFlowProvider.notifier).pickOriginalFromCamera(
-                  patientId: widget.patient.id,
-                  adminId: adminId,
-                  treatmentType: widget.patient.tipoTratamiento,
-                );
+                ref
+                    .read(simulatorFlowProvider.notifier)
+                    .pickOriginalFromCamera(
+                      patientId: widget.patient.id,
+                      adminId: adminId,
+                      treatmentType: widget.patient.tipoTratamiento,
+                    );
               },
               onGallery: () {
                 setState(() => _openedSimulation = null);
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
-                ref.read(simulatorFlowProvider.notifier).pickOriginalFromGallery(
-                  patientId: widget.patient.id,
-                  adminId: adminId,
-                  treatmentType: widget.patient.tipoTratamiento,
-                );
+                ref
+                    .read(simulatorFlowProvider.notifier)
+                    .pickOriginalFromGallery(
+                      patientId: widget.patient.id,
+                      adminId: adminId,
+                      treatmentType: widget.patient.tipoTratamiento,
+                    );
               },
             ),
             const SizedBox(height: 14),
@@ -163,7 +179,8 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               const OcgEmptyState(
                 icon: Icons.auto_awesome_outlined,
                 title: 'Todavía no hay simulaciones para este paciente.',
-                subtitle: 'Toma una foto frontal o súbela desde galería para iniciar una simulación.',
+                subtitle:
+                    'Toma una foto frontal o súbela desde galería para iniciar una simulación.',
               )
             else if (items.isNotEmpty) ...[
               const Text(
@@ -181,7 +198,9 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                   simulation: s,
                   onOpen: () {
                     setState(() => _openedSimulation = s);
-                    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => _focusActiveFlow(),
+                    );
                   },
                   onToggleShare: (value) async {
                     try {

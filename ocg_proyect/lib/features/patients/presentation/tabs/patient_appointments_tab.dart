@@ -8,9 +8,14 @@ import '../../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientAppointmentsTab extends ConsumerWidget {
-  const PatientAppointmentsTab({super.key, required this.patient});
+  const PatientAppointmentsTab({
+    super.key,
+    required this.patient,
+    this.scrollable = true,
+  });
 
   final PatientModel patient;
+  final bool scrollable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,6 +38,24 @@ class PatientAppointmentsTab extends ConsumerWidget {
             icon: Icons.event_note_outlined,
             title: 'Sin citas registradas',
             subtitle: 'Este paciente no tiene citas aún.',
+          );
+        }
+
+        if (!scrollable) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                for (var index = 0; index < appointments.length; index++) ...[
+                  AppointmentCard(
+                    appointment: appointments[index],
+                    showReminders: false,
+                  ),
+                  if (index != appointments.length - 1)
+                    const SizedBox(height: 10),
+                ],
+              ],
+            ),
           );
         }
 
