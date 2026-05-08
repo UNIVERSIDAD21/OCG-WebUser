@@ -504,18 +504,6 @@ class _AdminPatientWorkspaceState
               )
             : null,
         title: Text('Paciente: ${widget.patient.nombre}'),
-        actions: [
-          IconButton(
-            tooltip: 'Editar paciente',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: widget.onEdit,
-          ),
-          IconButton(
-            tooltip: 'Eliminar paciente',
-            icon: const Icon(Icons.delete_outline, color: OcgColors.error),
-            onPressed: widget.onDelete,
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -651,6 +639,45 @@ class _AdminPatientWorkspaceState
                 nextAppointment == null
                     ? 'Sin agendar'
                     : _dateTime(nextAppointment.fechaHora),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: widget.onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Editar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: OcgColors.espresso,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  side: BorderSide(color: OcgColors.bronze.withOpacity(0.28)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: widget.onDelete,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Eliminar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: OcgColors.error,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  side: BorderSide(color: OcgColors.error.withOpacity(0.42)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
             ],
           ),
