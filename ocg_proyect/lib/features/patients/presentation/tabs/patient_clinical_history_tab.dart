@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -317,79 +318,26 @@ class _PatientClinicalHistoryTabState
         (_selectedTreatmentId != null && _selectedTreatmentId != '__all__') ||
         _visibilityFilter != _ClinicalVisibilityFilter.all;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F5EF),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: OcgColors.ivory,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.folder_open_outlined,
-              color: OcgColors.espresso,
-              size: 34,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            hasFilters
-                ? 'Sin documentos para estos filtros'
-                : 'Todavía no hay documentos clínicos',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            hasFilters
-                ? 'Limpia filtros o sube un documento con la categoría y visibilidad correctas.'
-                : 'Sube PDFs, radiografías, imágenes clínicas o soportes desde este expediente.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: OcgColors.bronze, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (hasFilters)
-                OutlinedButton.icon(
-                  onPressed: () => setState(() {
-                    _selectedTreatmentId = '__all__';
-                    _selectedCategory = null;
-                    _visibilityFilter = _ClinicalVisibilityFilter.all;
-                  }),
-                  icon: const Icon(Icons.filter_alt_off_outlined),
-                  label: const Text('Limpiar filtros'),
-                ),
-              if (canUpload)
-                FilledButton.icon(
-                  onPressed: onUpload,
-                  icon: const Icon(Icons.upload_file_outlined),
-                  label: const Text('Subir documento'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: OcgColors.espresso,
-                    foregroundColor: OcgColors.ivory,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
+    return OcgPremiumEmptyState(
+      title: hasFilters
+          ? 'Sin documentos para estos filtros'
+          : 'Todavía no hay documentos clínicos',
+      subtitle: hasFilters
+          ? 'Limpia filtros o sube un documento con la categoría y visibilidad correctas.'
+          : 'Sube PDFs, radiografías, imágenes clínicas o soportes desde este expediente.',
+      icon: Icons.folder_open_outlined,
+      actionLabel: hasFilters ? 'Limpiar filtros' : null,
+      actionIcon: Icons.filter_alt_off_outlined,
+      onAction: hasFilters
+          ? () => setState(() {
+              _selectedTreatmentId = '__all__';
+              _selectedCategory = null;
+              _visibilityFilter = _ClinicalVisibilityFilter.all;
+            })
+          : null,
+      secondaryActionLabel: canUpload ? 'Subir documento' : null,
+      secondaryActionIcon: Icons.upload_file_outlined,
+      onSecondaryAction: canUpload ? onUpload : null,
     );
   }
 
@@ -401,118 +349,58 @@ class _PatientClinicalHistoryTabState
     final imagenes = files.where((file) => file.isImage).length;
     final pdfs = files.where((file) => file.isPdf).length;
 
-    Widget metric(String label, String value, IconData icon) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: OcgColors.ivory.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.14)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 17, color: OcgColors.bronze),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: OcgColors.espresso,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: OcgColors.ink.withValues(alpha: 0.64),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
+    return OcgPremiumCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFFAF2), Color(0xFFF0E4D7)],
-        ),
-        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      borderRadius: 24,
+      backgroundColor: const Color(0xFFFFFAF2),
+      borderColor: OcgColors.bronze.withValues(alpha: 0.16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: OcgColors.espresso,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.folder_shared_outlined,
-                  color: OcgColors.ivory,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Expediente clínico digital',
-                      style: TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Organiza soportes por tratamiento, categoría y visibilidad para paciente.',
-                      style: TextStyle(
-                        color: OcgColors.ink.withValues(alpha: 0.66),
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const OcgSectionHeader(
+            title: 'Expediente clínico digital',
+            subtitle:
+                'Organiza soportes por tratamiento, categoría y visibilidad para paciente.',
+            icon: Icons.folder_shared_outlined,
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              metric('Archivos', '${files.length}', Icons.description_outlined),
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Archivos',
+                  value: '${files.length}',
+                  icon: Icons.description_outlined,
+                ),
+              ),
               const SizedBox(width: 8),
-              metric('Paciente', '$visibles', Icons.visibility_outlined),
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Paciente',
+                  value: '$visibles',
+                  icon: Icons.visibility_outlined,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              metric('Vinculados', '$vinculados', Icons.monitor_heart_outlined),
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Vinculados',
+                  value: '$vinculados',
+                  icon: Icons.monitor_heart_outlined,
+                ),
+              ),
               const SizedBox(width: 8),
-              metric('Img/PDF', '$imagenes/$pdfs', Icons.image_search_outlined),
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Img/PDF',
+                  value: '$imagenes/$pdfs',
+                  icon: Icons.image_search_outlined,
+                ),
+              ),
             ],
           ),
         ],
@@ -865,47 +753,6 @@ class _ClinicalUploadProgressCard extends StatelessWidget {
   }
 }
 
-class _ClinicalFileChip extends StatelessWidget {
-  const _ClinicalFileChip(
-    this.label, {
-    this.icon,
-    this.color = OcgColors.bronze,
-  });
-
-  final String label;
-  final IconData? icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 13, color: color),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ClinicalFileTile extends StatelessWidget {
   const _ClinicalFileTile({required this.file, required this.onDelete});
 
@@ -920,22 +767,10 @@ class _ClinicalFileTile extends StatelessWidget {
     final category = _categoryLabel(file.category);
     final size = _formatBytes(file.sizeBytes);
 
-    return Container(
-      width: double.infinity,
+    return OcgPremiumCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: accent.withValues(alpha: 0.20)),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withValues(alpha: 0.055),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      borderColor: accent.withValues(alpha: 0.20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -979,8 +814,8 @@ class _ClinicalFileTile extends StatelessWidget {
                   ],
                 ),
               ),
-              _ClinicalFileChip(
-                file.visibleToPatient ? 'Paciente' : 'Solo admin',
+              OcgStatusPill(
+                label: file.visibleToPatient ? 'Paciente' : 'Solo admin',
                 icon: file.visibleToPatient
                     ? Icons.visibility_outlined
                     : Icons.admin_panel_settings_outlined,
@@ -995,19 +830,19 @@ class _ClinicalFileTile extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _ClinicalFileChip(
-                category,
+              OcgStatusPill(
+                label: category,
                 icon: Icons.folder_outlined,
                 color: accent,
               ),
-              _ClinicalFileChip(size, icon: Icons.data_object_outlined),
-              _ClinicalFileChip(
-                dateFmt.format(file.uploadedAt),
+              OcgStatusPill(label: size, icon: Icons.data_object_outlined),
+              OcgStatusPill(
+                label: dateFmt.format(file.uploadedAt),
                 icon: Icons.schedule_outlined,
               ),
               if ((file.treatmentNameSnapshot ?? '').isNotEmpty)
-                _ClinicalFileChip(
-                  file.treatmentNameSnapshot!,
+                OcgStatusPill(
+                  label: file.treatmentNameSnapshot!,
                   icon: Icons.monitor_heart_outlined,
                   color: OcgColors.espresso,
                 ),

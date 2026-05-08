@@ -19,31 +19,12 @@ import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import 'admin_appointments_formatters.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/components/action_toolbar.dart';
 import '../../admin/presentation/web/components/page_header.dart';
-
-String _appointmentFmtDate(DateTime date) =>
-    '${date.day.toString().padLeft(2, '0')}/'
-    '${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-String _appointmentFmtDateTime(DateTime d) =>
-    '${_appointmentFmtDate(d)} ${() {
-      final h = d.hour == 0
-          ? 12
-          : d.hour > 12
-          ? d.hour - 12
-          : d.hour;
-      final ap = d.hour < 12 ? 'AM' : 'PM';
-      return '$h:${d.minute.toString().padLeft(2, '0')} $ap';
-    }()}';
-
-String _appointmentDayKey(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}'
-    '${d.month.toString().padLeft(2, '0')}'
-    '${d.day.toString().padLeft(2, '0')}';
 
 enum _AgendaFilter {
   hoy,
@@ -79,42 +60,6 @@ bool _esCandidataHistorialAgenda(AppointmentModel a, DateTime now) =>
     a.estado == AppointmentStatus.cancelada ||
     a.estado == AppointmentStatus.noAsistio ||
     a.estado == AppointmentStatus.reprogramada;
-
-String _labelTipo(AppointmentType t) {
-  switch (t) {
-    case AppointmentType.valoracion:
-      return 'Valoración';
-    case AppointmentType.control:
-      return 'Control';
-    case AppointmentType.instalacion:
-      return 'Instalación';
-    case AppointmentType.urgencia:
-      return 'Urgencia';
-    case AppointmentType.alta:
-      return 'Alta';
-  }
-}
-
-String? _autoScheduleLabel(AppointmentModel a) {
-  final notes = (a.notas ?? '').trim().toLowerCase();
-  if (notes.startsWith('limpieza automática')) return 'Limpieza automática';
-  if (notes.startsWith('control automático')) return 'Control automático';
-  return null;
-}
-
-Color _autoScheduleBg(AppointmentModel a) {
-  final label = _autoScheduleLabel(a);
-  if (label == 'Limpieza automática') return const Color(0xFFE7F6EF);
-  if (label == 'Control automático') return const Color(0xFFFFF4D8);
-  return const Color(0xFFF3ECE4);
-}
-
-Color _autoScheduleFg(AppointmentModel a) {
-  final label = _autoScheduleLabel(a);
-  if (label == 'Limpieza automática') return const Color(0xFF2E7D4C);
-  if (label == 'Control automático') return const Color(0xFF9A6A00);
-  return OcgColors.espresso;
-}
 
 // ─── AdminAppointmentsScreen ──────────────────────────────────────────────────
 
@@ -622,7 +567,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
           ? 'Horario listo para agendar'
           : 'Elige un horario disponible',
       subtitle:
-          '$available disponibles · $blocked bloqueados. Seleccionado: ${_appointmentFmtDateTime(_dateTime)}.',
+          '$available disponibles · $blocked bloqueados. Seleccionado: ${appointmentFmtDateTime(_dateTime)}.',
       color: color,
     );
   }
@@ -708,7 +653,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     final patients =
         ref.watch(patientsStreamProvider).asData?.value ?? const [];
     final availability = ref
-        .watch(availabilityByDayProvider(_appointmentDayKey(_dateTime)))
+        .watch(availabilityByDayProvider(appointmentDayKey(_dateTime)))
         .asData
         ?.value;
 
@@ -875,7 +820,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                     .map(
                       (t) => DropdownMenuItem(
                         value: t,
-                        child: Text(_labelTipo(t)),
+                        child: Text(appointmentTypeLabel(t)),
                       ),
                     )
                     .toList(),
@@ -890,7 +835,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 leading: const Icon(Icons.schedule, color: OcgColors.espresso),
                 title: const Text('Fecha y hora'),
                 subtitle: Text(
-                  _appointmentFmtDateTime(_dateTime),
+                  appointmentFmtDateTime(_dateTime),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: OcgColors.espresso,
@@ -1181,7 +1126,7 @@ class _AdminAppointmentsScreenState
 
     AvailabilityDayModel? availabilityForCurrentDay() {
       return ref
-          .read(availabilityByDayProvider(_appointmentDayKey(newDateTime)))
+          .read(availabilityByDayProvider(appointmentDayKey(newDateTime)))
           .asData
           ?.value;
     }
@@ -1197,7 +1142,7 @@ class _AdminAppointmentsScreenState
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(_appointmentFmtDateTime(newDateTime)),
+                  title: Text(appointmentFmtDateTime(newDateTime)),
                   subtitle: const Text(
                     'Fecha (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
                   ),
@@ -1217,9 +1162,7 @@ class _AdminAppointmentsScreenState
                       durationMinutes: newDuration,
                       excludeAppointmentId: appt.id,
                       availability: ref
-                          .read(
-                            availabilityByDayProvider(_appointmentDayKey(d)),
-                          )
+                          .read(availabilityByDayProvider(appointmentDayKey(d)))
                           .asData
                           ?.value,
                     );
@@ -1391,7 +1334,7 @@ class _AdminAppointmentsScreenState
                               Expanded(
                                 child: Text(
                                   selectedAvailable
-                                      ? '$available disponibles · $blocked bloqueados. Nuevo horario listo: ${_appointmentFmtDateTime(newDateTime)}.'
+                                      ? '$available disponibles · $blocked bloqueados. Nuevo horario listo: ${appointmentFmtDateTime(newDateTime)}.'
                                       : '$available disponibles · $blocked bloqueados. Elige un horario disponible para continuar.',
                                   style: TextStyle(
                                     color: OcgColors.ink.withOpacity(0.76),
@@ -1781,7 +1724,7 @@ class _AdminAppointmentsScreenState
                         .map(
                           (t) => DropdownMenuItem(
                             value: t,
-                            child: Text(_labelTipoTratamiento(t)),
+                            child: Text(appointmentTypeLabelTratamiento(t)),
                           ),
                         )
                         .toList(),
@@ -1809,7 +1752,7 @@ class _AdminAppointmentsScreenState
                         child: Text(
                           fechaProximoPago == null
                               ? 'Próximo pago: no definido'
-                              : 'Próximo pago: ${_appointmentFmtDate(fechaProximoPago!)}',
+                              : 'Próximo pago: ${appointmentFmtDate(fechaProximoPago!)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -1875,7 +1818,7 @@ class _AdminAppointmentsScreenState
     return result;
   }
 
-  String _labelTipoTratamiento(TreatmentType type) {
+  String appointmentTypeLabelTratamiento(TreatmentType type) {
     switch (type) {
       case TreatmentType.convencional:
         return 'Convencional';
@@ -2297,7 +2240,7 @@ class _AdminAppointmentsScreenState
     final timeLabel = showDate
         ? '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')} · ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}'
         : '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}';
-    final autoLabel = _autoScheduleLabel(a);
+    final autoLabel = autoScheduleLabel(a);
 
     return Container(
       margin: EdgeInsets.only(bottom: dense ? 8 : 10),
@@ -2346,7 +2289,7 @@ class _AdminAppointmentsScreenState
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '$timeLabel · ${_labelTipo(a.tipo)} · ${a.duracionMinutos} min',
+                      '$timeLabel · ${appointmentTypeLabel(a.tipo)} · ${a.duracionMinutos} min',
                       style: TextStyle(
                         color: OcgColors.ink.withOpacity(0.72),
                         fontSize: 12,
@@ -2384,7 +2327,7 @@ class _AdminAppointmentsScreenState
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: _autoScheduleBg(a),
+                    color: autoScheduleBg(a),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -2392,7 +2335,7 @@ class _AdminAppointmentsScreenState
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: _autoScheduleFg(a),
+                      color: autoScheduleFg(a),
                     ),
                   ),
                 ),
@@ -3498,7 +3441,7 @@ class _AdminAppointmentsScreenState
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Día seleccionado: ${_appointmentFmtDate(selectedDate)}',
+                        'Día seleccionado: ${appointmentFmtDate(selectedDate)}',
                         style: TextStyle(
                           color: OcgColors.ivory.withOpacity(0.82),
                           fontWeight: FontWeight.w600,
@@ -3546,7 +3489,7 @@ class _AdminAppointmentsScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Próxima: ${next.patientName} · ${_appointmentFmtDateTime(next.fechaHora)}',
+                        'Próxima: ${next.patientName} · ${appointmentFmtDateTime(next.fechaHora)}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -3984,8 +3927,8 @@ class AppointmentCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${_labelTipo(appointment.tipo)} · '
-              '${_appointmentFmtDateTime(appointment.fechaHora)} · '
+              '${appointmentTypeLabel(appointment.tipo)} · '
+              '${appointmentFmtDateTime(appointment.fechaHora)} · '
               '${appointment.duracionMinutos} min',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),

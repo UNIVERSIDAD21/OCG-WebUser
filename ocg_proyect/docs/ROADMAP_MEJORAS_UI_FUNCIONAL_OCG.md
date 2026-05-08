@@ -902,4 +902,66 @@ Pendiente antes de commit:
 
 Commit:
 
+- a79517b
+
+---
+
+## Registro de implementación — 2026-05-08 — Cierre P5 e inicio P6
+
+Alcance P5 implementado:
+
+- Se amplió `lib/shared/widgets/ocg_premium.dart` con componentes reutilizables adicionales:
+  - `OcgPremiumCard`,
+  - `OcgSectionHeader`,
+  - `OcgInfoTile`,
+  - `OcgActionCard`,
+  - `OcgStatusPill` con defaults reutilizables,
+  - `OcgPremiumEmptyState` con acción primaria/secundaria opcional.
+- Se aplicaron componentes P5 fuera de Notificaciones, específicamente en Documentos clínicos admin:
+  - hero/resumen del expediente,
+  - métricas compactas,
+  - empty state premium con limpiar filtros/subir documento,
+  - chips de archivo,
+  - card premium de documento.
+- Con esto P5 queda cerrado funcionalmente como extracción gradual: componentes creados, aplicados en dos módulos reales y sin refactor masivo.
+
+Alcance P6 iniciado:
+
+- Se inició refactor gradual de archivo gigante `admin_appointments_screen.dart`.
+- Se extrajeron helpers puros de formato/labels de agenda a:
+  - `lib/features/dashboard/presentation/admin_appointments_formatters.dart`
+- Helpers extraídos:
+  - formato de fecha,
+  - formato de fecha/hora,
+  - dayKey para disponibilidad,
+  - label de tipo de cita,
+  - labels/colores de citas automáticas.
+- Se mantuvieron enums y reglas internas de agenda dentro del archivo original para minimizar riesgo.
+
+Cuidado aplicado:
+
+- No se cambiaron reglas de negocio de agenda.
+- No se tocó `AppointmentsBusinessRules`.
+- No se modificaron providers, Firebase, FCM, PayU ni routing.
+- P6 quedó iniciado como refactor sin cambios funcionales.
+
+Archivos tocados:
+
+- `lib/shared/widgets/ocg_premium.dart`
+- `lib/features/patients/presentation/tabs/patient_clinical_history_tab.dart`
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `lib/features/dashboard/presentation/admin_appointments_formatters.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format` en archivos tocados
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados de agenda/documentos/notificaciones y suite completa `flutter test`.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.
