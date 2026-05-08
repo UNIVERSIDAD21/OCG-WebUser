@@ -419,3 +419,42 @@ Resultado:
 Commit:
 
 - `agregar acciones contextuales a tratamientos movil admin`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Tratamientos móvil admin / cards secundarias
+
+Alcance implementado:
+
+- Se continuó el bloque P1 de Tratamientos móvil admin refinando las cards de tratamientos principal/secundarios.
+- Se reemplazó la card plana de cada tratamiento por una card clínica más clara con:
+  - icono y color de estado,
+  - chips de principal/secundario, estado y etapa,
+  - barra de progreso clínico por etapa,
+  - métricas compactas de inicio, valor, saldo pendiente y próxima fecha de control,
+  - bloque visual de notas clínicas cuando existan,
+  - acciones rápidas por tratamiento: etapa, editar, pagos y notas.
+- Las acciones siguen dentro del hub móvil de Tratamientos y reutilizan los diálogos existentes sin alterar lógica financiera ni backend.
+- Se mantuvo el scroll principal único del detalle móvil admin.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/patient_detail_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/patient_detail_screen.dart`
+- `flutter analyze`
+- `flutter test test/features/patients/patient_detail_workspace_test.dart test/features/patients/patient_treatment_tab_multitreatment_test.dart test/features/patients/patient_payments_tab_effective_test.dart`
+- `flutter test`
+
+Resultado:
+
+- `flutter analyze`: verde, sin issues.
+- Tests focalizados de pacientes/tratamientos/pagos: verde.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `mejorar cards de tratamientos movil admin`.

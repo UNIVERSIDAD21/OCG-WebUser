@@ -1638,48 +1638,171 @@ class _AdminPatientWorkspaceState
   Widget _buildTreatmentListCard(PatientTreatment treatment) {
     final note = treatment.notas?.trim();
     final isLegacy = treatment.id.startsWith('legacy-primary-');
+    final roleLabel = treatment.isPrimary || isLegacy
+        ? 'Principal'
+        : 'Secundario';
+    final currentIndex = TreatmentStage.values.indexOf(treatment.etapaActual);
+    final stageProgress = TreatmentStage.values.length <= 1
+        ? 1.0
+        : (currentIndex + 1) / TreatmentStage.values.length;
+    final pending = treatment.saldoPendiente ?? 0;
+    final total = treatment.totalTratamiento ?? 0;
+    final statusColor = treatment.isFinished
+        ? const Color(0xFF2E7D32)
+        : treatment.isActive
+        ? OcgColors.espresso
+        : OcgColors.bronze;
 
-    return _patientCard(
-      title: treatment.displayName,
-      icon: Icons.monitor_heart_outlined,
-      actionText: 'Ver detalle',
-      onAction: () => _openSection(1),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: treatment.isPrimary
+              ? OcgColors.espresso.withOpacity(0.24)
+              : OcgColors.bronze.withOpacity(0.14),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(
+              treatment.isPrimary ? 0.08 : 0.04,
+            ),
+            blurRadius: treatment.isPrimary ? 18 : 10,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _statusBadge(
-                treatment.isPrimary || isLegacy ? 'Principal' : 'Secundario',
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  treatment.isFinished
+                      ? Icons.check_circle_outline
+                      : Icons.monitor_heart_outlined,
+                  color: statusColor,
+                  size: 22,
+                ),
               ),
-              _statusBadge(treatment.statusLabel),
-              _statusBadge(treatment.currentStageName),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      treatment.displayName,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _statusBadge(roleLabel),
+                        _statusBadge(treatment.statusLabel),
+                        _statusBadge(treatment.currentStageName),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Inicio: ${_date(treatment.fechaInicio)}',
-            style: const TextStyle(color: OcgColors.ink),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              minHeight: 7,
+              value: stageProgress.clamp(0.0, 1.0),
+              backgroundColor: OcgColors.bronze.withOpacity(0.14),
+              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+            ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Valor total: ${_money(treatment.totalTratamiento ?? 0)}',
-            style: const TextStyle(color: OcgColors.ink),
+            'Progreso clínico ${(stageProgress * 100).round()}% · ${treatment.currentStageName}',
+            style: const TextStyle(
+              color: OcgColors.bronze,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Saldo pendiente: ${_money(treatment.saldoPendiente ?? 0)}',
-            style: const TextStyle(color: OcgColors.ink),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _treatmentListMetric(
+                  'Inicio',
+                  _date(treatment.fechaInicio),
+                  Icons.calendar_today_outlined,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _treatmentListMetric(
+                  'Valor',
+                  total <= 0 ? 'Sin valor' : _money(total),
+                  Icons.attach_money_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _treatmentListMetric(
+                  'Pendiente',
+                  pending <= 0 ? 'Al día' : _money(pending),
+                  Icons.account_balance_wallet_outlined,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _treatmentListMetric(
+                  'Control',
+                  treatment.nextControlDate == null
+                      ? 'Sin fecha'
+                      : _date(treatment.nextControlDate!),
+                  Icons.event_available_outlined,
+                ),
+              ),
+            ],
           ),
           if (note != null && note.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              note,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: OcgColors.bronze),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F3ED),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              child: Text(
+                note,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: OcgColors.ink,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -1688,27 +1811,75 @@ class _AdminPatientWorkspaceState
             runSpacing: 10,
             children: [
               OutlinedButton.icon(
+                onPressed: treatment.isFinished
+                    ? null
+                    : () => _openUpdateStageDialog(treatment),
+                icon: const Icon(Icons.trending_up_outlined, size: 18),
+                label: const Text('Etapa'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openManageTreatmentDialog(treatment),
+                icon: const Icon(Icons.edit_note_outlined, size: 18),
+                label: const Text('Editar'),
+              ),
+              OutlinedButton.icon(
                 onPressed: () =>
                     _openTreatmentSubview(_TreatmentSubView.payments),
                 icon: const Icon(Icons.payments_outlined, size: 18),
-                label: const Text('Ir a pagos'),
+                label: const Text('Pagos'),
               ),
               OutlinedButton.icon(
                 onPressed: note == null || note.isEmpty
                     ? null
                     : () => _showTreatmentNotes(treatment),
                 icon: const Icon(Icons.notes_outlined, size: 18),
-                label: const Text('Ver notas'),
+                label: const Text('Notas'),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Para edición completa del tratamiento, usa la versión de escritorio.',
-            style: TextStyle(
-              color: OcgColors.bronze,
+        ],
+      ),
+    );
+  }
+
+  Widget _treatmentListMetric(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F3ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8DDD2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: OcgColors.bronze, size: 14),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: OcgColors.bronze,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: OcgColors.espresso,
               fontSize: 12,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
