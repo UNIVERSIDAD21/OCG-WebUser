@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_premium.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/app_notification_model.dart';
 import '../providers/notifications_provider.dart';
@@ -96,10 +97,29 @@ class _PatientNotificationsScreenState
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             children: [
-              _PatientNotificationsHero(
-                total: items.length,
-                unread: unread,
-                today: today,
+              OcgHeroHeader(
+                title: 'Tus avisos importantes',
+                subtitle:
+                    'Citas, pagos, documentos y avances de tu tratamiento en un solo lugar.',
+                icon: Icons.notifications_active_outlined,
+                gradientColors: const [Color(0xFF4A3527), Color(0xFFB6895F)],
+                metrics: [
+                  OcgHeroMetric(
+                    label: 'Total',
+                    value: '${items.length}',
+                    icon: Icons.inbox_outlined,
+                  ),
+                  OcgHeroMetric(
+                    label: 'No leídas',
+                    value: '$unread',
+                    icon: Icons.mark_email_unread_outlined,
+                  ),
+                  OcgHeroMetric(
+                    label: 'Hoy',
+                    value: '$today',
+                    icon: Icons.today_outlined,
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               _buildFilters(items),
@@ -135,8 +155,13 @@ class _PatientNotificationsScreenState
                       'Aquí aparecerán recordatorios de citas, pagos, documentos y avances de tratamiento.',
                 )
               else if (filtered.isEmpty)
-                _PatientNotificationEmptyFilter(
-                  onClear: () =>
+                OcgPremiumEmptyState(
+                  title: 'Sin avisos en este filtro',
+                  subtitle:
+                      'Cambia el filtro para revisar otros tipos de notificaciones.',
+                  icon: Icons.filter_alt_off_outlined,
+                  actionLabel: 'Limpiar filtro',
+                  onAction: () =>
                       setState(() => _filter = _PatientNotificationFilter.all),
                 )
               else
@@ -331,177 +356,6 @@ String _patientKindLabel(_PatientNotificationKind kind) {
   };
 }
 
-class _PatientNotificationsHero extends StatelessWidget {
-  const _PatientNotificationsHero({
-    required this.total,
-    required this.unread,
-    required this.today,
-  });
-
-  final int total;
-  final int unread;
-  final int today;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget metric(String label, String value, IconData icon) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.82)),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.74),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF4A3527), Color(0xFFB6895F)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withValues(alpha: 0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.notifications_active_outlined,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tus avisos importantes',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Citas, pagos, documentos y avances de tu tratamiento en un solo lugar.',
-                      style: TextStyle(color: Color(0xFFEADFD4), height: 1.25),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              metric('Total', '$total', Icons.inbox_outlined),
-              const SizedBox(width: 8),
-              metric('No leídas', '$unread', Icons.mark_email_unread_outlined),
-              const SizedBox(width: 8),
-              metric('Hoy', '$today', Icons.today_outlined),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PatientNotificationEmptyFilter extends StatelessWidget {
-  const _PatientNotificationEmptyFilter({required this.onClear});
-
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F5EF),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: OcgColors.bronze.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.filter_alt_off_outlined,
-            size: 42,
-            color: OcgColors.bronze,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Sin avisos en este filtro',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: OcgColors.espresso,
-              fontWeight: FontWeight.w900,
-              fontSize: 17,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Cambia el filtro para revisar otros tipos de notificaciones.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: OcgColors.bronze, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: onClear,
-            icon: const Icon(Icons.filter_alt_off_outlined),
-            label: const Text('Limpiar filtro'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PatientNotificationCard extends ConsumerWidget {
   const _PatientNotificationCard({
     required this.item,
@@ -600,7 +454,7 @@ class _PatientNotificationCard extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _PatientMetaChip(
+                OcgStatusPill(
                   icon: item.read
                       ? Icons.mark_email_read_outlined
                       : Icons.mark_email_unread_outlined,
@@ -608,12 +462,12 @@ class _PatientNotificationCard extends ConsumerWidget {
                   color: item.read ? OcgColors.ink : color,
                   highlighted: !item.read,
                 ),
-                _PatientMetaChip(
+                OcgStatusPill(
                   icon: _patientKindIcon(kind),
                   label: _patientKindLabel(kind),
                   color: color,
                 ),
-                _PatientMetaChip(
+                OcgStatusPill(
                   icon: Icons.schedule_outlined,
                   label: item.createdAt != null
                       ? dateFmt.format(item.createdAt!)
@@ -621,7 +475,7 @@ class _PatientNotificationCard extends ConsumerWidget {
                   color: OcgColors.ink,
                 ),
                 if (routeLabel != null)
-                  _PatientMetaChip(
+                  OcgStatusPill(
                     icon: Icons.navigation_outlined,
                     label: routeLabel,
                     color: OcgColors.espresso,
@@ -657,52 +511,5 @@ class _PatientNotificationCard extends ConsumerWidget {
     if (route.contains('/notifications')) return 'Ir a historial';
     if (item.type.contains('treatment')) return 'Ir a tratamiento';
     return null;
-  }
-}
-
-class _PatientMetaChip extends StatelessWidget {
-  const _PatientMetaChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.highlighted = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool highlighted;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = highlighted
-        ? color.withValues(alpha: 0.13)
-        : color.withValues(alpha: 0.07);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withValues(alpha: highlighted ? 0.20 : 0.08),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color.withValues(alpha: 0.88)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: highlighted ? FontWeight.w800 : FontWeight.w600,
-              color: color.withValues(alpha: 0.88),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -855,4 +855,51 @@ Estado P4:
 
 Commit:
 
+- 3081ac0
+
+---
+
+## Registro de implementación — 2026-05-08 — Inicio P5 Componentes OCG reutilizables
+
+Alcance implementado:
+
+- Se inició P5 con extracción gradual de UI premium repetida, sin refactor masivo.
+- Se creó `OcgHeroHeader` para headers premium con:
+  - icono principal,
+  - título,
+  - subtítulo,
+  - gradiente configurable,
+  - métricas reutilizables.
+- Se creó `OcgHeroMetric` para métricas compactas dentro de headers premium.
+- Se creó `OcgStatusPill` para chips reutilizables de estado/categoría/fecha/destino.
+- Se creó `OcgPremiumEmptyState` como empty state premium extendido con CTA opcional.
+- Se aplicaron los componentes nuevos en:
+  - inbox admin de notificaciones,
+  - inbox paciente de notificaciones.
+- Se eliminaron widgets locales duplicados de P4, manteniendo la misma experiencia visual.
+
+Cuidado aplicado:
+
+- Extracción gradual únicamente sobre Notificaciones para reducir riesgo.
+- No se tocaron providers, routing, `FcmPayloadRouter`, `NotificationNavigationService`, Firebase ni estructura de datos.
+- No se hizo refactor masivo de módulos grandes.
+
+Archivos tocados:
+
+- `lib/shared/widgets/ocg_premium.dart`
+- `lib/features/dashboard/presentation/admin_notifications_screen.dart`
+- `lib/features/notifications/presentation/patient_notifications_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/shared/widgets/ocg_premium.dart lib/features/dashboard/presentation/admin_notifications_screen.dart lib/features/notifications/presentation/patient_notifications_screen.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados de notificaciones y suite completa `flutter test`.
+
+Commit:
+
 - Pendiente de hash al confirmar cambios.

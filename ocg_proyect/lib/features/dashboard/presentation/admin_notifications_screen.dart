@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_premium.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/data/models/app_notification_model.dart';
@@ -85,10 +86,28 @@ class _AdminNotificationsBodyState
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           children: [
-            _NotificationsHero(
-              total: items.length,
-              unread: unread,
-              today: today,
+            OcgHeroHeader(
+              title: 'Centro de notificaciones',
+              subtitle:
+                  'Prioriza alertas clínicas, pagos y seguimiento operativo.',
+              icon: Icons.notifications_active_outlined,
+              metrics: [
+                OcgHeroMetric(
+                  label: 'Total',
+                  value: '${items.length}',
+                  icon: Icons.inbox_outlined,
+                ),
+                OcgHeroMetric(
+                  label: 'No leídas',
+                  value: '$unread',
+                  icon: Icons.mark_email_unread_outlined,
+                ),
+                OcgHeroMetric(
+                  label: 'Hoy',
+                  value: '$today',
+                  icon: Icons.today_outlined,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             _buildFilters(items),
@@ -117,19 +136,19 @@ class _AdminNotificationsBodyState
             ),
             const SizedBox(height: 8),
             if (items.isEmpty)
-              _NotificationsEmptyState(
+              OcgPremiumEmptyState(
                 title: 'Sin notificaciones todavía',
                 subtitle:
                     'Cuando lleguen avisos de citas, pagos, documentos o tratamientos aparecerán aquí.',
                 icon: Icons.notifications_none_outlined,
               )
             else if (filtered.isEmpty)
-              _NotificationsEmptyState(
+              OcgPremiumEmptyState(
                 title: 'Sin resultados para este filtro',
                 subtitle:
                     'Cambia el filtro para revisar otros tipos de notificaciones.',
                 icon: Icons.filter_alt_off_outlined,
-                onClear: () =>
+                onAction: () =>
                     setState(() => _filter = _NotificationInboxFilter.all),
               )
             else
@@ -333,224 +352,6 @@ String _kindLabel(_NotificationKind kind) {
   };
 }
 
-class _NotificationsHero extends StatelessWidget {
-  const _NotificationsHero({
-    required this.total,
-    required this.unread,
-    required this.today,
-  });
-
-  final int total;
-  final int unread;
-  final int today;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget metric(String label, String value, IconData icon) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: OcgColors.ivory.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 16, color: OcgColors.ivory.withOpacity(0.78)),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: OcgColors.ivory,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: OcgColors.ivory.withOpacity(0.72),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: OcgColors.ivory.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.notifications_active_outlined,
-                  color: OcgColors.ivory,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Centro de notificaciones',
-                      style: TextStyle(
-                        color: OcgColors.ivory,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Prioriza alertas clínicas, pagos y seguimiento operativo.',
-                      style: TextStyle(color: Color(0xFFEADFD4), height: 1.25),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              metric('Total', '$total', Icons.inbox_outlined),
-              const SizedBox(width: 8),
-              metric('No leídas', '$unread', Icons.mark_email_unread_outlined),
-              const SizedBox(width: 8),
-              metric('Hoy', '$today', Icons.today_outlined),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationsEmptyState extends StatelessWidget {
-  const _NotificationsEmptyState({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    this.onClear,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F5EF),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 42, color: OcgColors.bronze),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontWeight: FontWeight.w900,
-              fontSize: 17,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: OcgColors.bronze, height: 1.3),
-          ),
-          if (onClear != null) ...[
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              onPressed: onClear,
-              icon: const Icon(Icons.filter_alt_off_outlined),
-              label: const Text('Limpiar filtro'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationPill extends StatelessWidget {
-  const _NotificationPill({
-    required this.label,
-    required this.color,
-    this.icon,
-  });
-
-  final String label;
-  final Color color;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.16)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _NotificationCard extends ConsumerWidget {
   const _NotificationCard({required this.item});
 
@@ -632,7 +433,7 @@ class _NotificationCard extends ConsumerWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _NotificationPill(
+                    OcgStatusPill(
                       label: item.read ? 'Leída' : 'Nueva',
                       color: item.read ? OcgColors.bronze : color,
                       icon: item.read
@@ -640,7 +441,7 @@ class _NotificationCard extends ConsumerWidget {
                           : Icons.mark_email_unread_outlined,
                     ),
                     const SizedBox(height: 6),
-                    _NotificationPill(
+                    OcgStatusPill(
                       label: _kindLabel(kind),
                       color: color,
                       icon: _kindIcon(kind),
@@ -655,13 +456,13 @@ class _NotificationCard extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 if (item.createdAt != null)
-                  _NotificationPill(
+                  OcgStatusPill(
                     label: _formatDate(item.createdAt!),
                     color: OcgColors.bronze,
                     icon: Icons.schedule_outlined,
                   ),
                 if (routeLabel != null)
-                  _NotificationPill(
+                  OcgStatusPill(
                     label: routeLabel,
                     color: OcgColors.espresso,
                     icon: Icons.open_in_new_outlined,
