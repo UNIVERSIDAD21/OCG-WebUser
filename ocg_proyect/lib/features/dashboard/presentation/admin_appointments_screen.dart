@@ -2859,66 +2859,65 @@ class _AdminAppointmentsScreenState
 
     final sortedKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
-    Widget list = sortedKeys.isEmpty
-        ? _agendaEmptyState(
-            title: 'Sin historial para este filtro',
-            subtitle:
-                'Cambia el filtro o revisa otra sección para encontrar citas cerradas.',
-            icon: Icons.history_toggle_off_outlined,
-          )
-        : ListView(
-            padding: const EdgeInsets.only(right: 6),
-            children: [
-              for (final key in sortedKeys) ...[
-                Builder(
-                  builder: (_) {
-                    final sample = groups[key]!.first.fechaHora;
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 6),
-                      child: Text(
-                        agendaMonthLabel(
-                          DateTime(sample.year, sample.month, 1),
-                        ).toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: OcgColors.ink.withOpacity(0.6),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                ...groups[key]!.map(
-                  (a) => _buildAgendaAppointmentCard(
-                    a,
-                    showDate: true,
-                    dense: true,
-                  ),
-                ),
-              ],
-              if (hasMore)
-                InkWell(
-                  onTap: () => setState(() => _historyPage += 1),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(top: 6),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: OcgColors.bronze.withOpacity(0.5),
-                      ),
-                    ),
+    final historyChildren = sortedKeys.isEmpty
+        ? <Widget>[
+            _agendaEmptyState(
+              title: 'Sin historial para este filtro',
+              subtitle:
+                  'Cambia el filtro o revisa otra seccion para encontrar citas cerradas.',
+              icon: Icons.history_toggle_off_outlined,
+            ),
+          ]
+        : <Widget>[
+            for (final key in sortedKeys) ...[
+              Builder(
+                builder: (_) {
+                  final sample = groups[key]!.first.fechaHora;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
                     child: Text(
-                      'Cargar más...',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: OcgColors.ink.withOpacity(0.8)),
+                      agendaMonthLabel(
+                        DateTime(sample.year, sample.month, 1),
+                      ).toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.ink.withOpacity(0.6),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ...groups[key]!.map(
+                (a) => _buildAgendaAppointmentCard(
+                  a,
+                  showDate: true,
+                  dense: true,
+                ),
+              ),
+            ],
+            if (hasMore)
+              InkWell(
+                onTap: () => setState(() => _historyPage += 1),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.5),
                     ),
                   ),
+                  child: Text(
+                    'Cargar mas...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: OcgColors.ink.withOpacity(0.8)),
+                  ),
                 ),
-            ],
-          );
+              ),
+          ];
 
     final filtersPanel = Container(
       padding: const EdgeInsets.all(12),
@@ -2967,23 +2966,30 @@ class _AdminAppointmentsScreenState
     if (isDesktop) {
       return Row(
         children: [
-          Expanded(child: list),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(right: 6),
+              children: historyChildren,
+            ),
+          ),
           const SizedBox(width: 12),
           SizedBox(width: 220, child: filtersPanel),
         ],
       );
     }
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: filtersPanel,
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: list,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: historyChildren,
           ),
         ),
       ],
@@ -3019,14 +3025,6 @@ class _AdminAppointmentsScreenState
         .where((a) => a.estado == AppointmentStatus.completada)
         .length;
     final next = upcoming.isEmpty ? null : upcoming.first;
-
-    void setDay(DateTime day, {AgendaDayQuickFilter? quickFilter}) {
-      ref.read(selectedAppointmentsDateProvider.notifier).setDate(day);
-      setState(() {
-        _innerTab = AgendaInnerTab.hoy;
-        if (quickFilter != null) _dayQuickFilter = quickFilter;
-      });
-    }
 
     Widget metric(String label, String value, IconData icon) {
       return Expanded(
@@ -3115,25 +3113,21 @@ class _AdminAppointmentsScreenState
             );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: OcgColors.espresso.withOpacity(0.14),
-              blurRadius: 22,
-              offset: const Offset(0, 12),
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          MediaQuery.paddingOf(context).top + 8,
+          16,
+          14,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3264,26 +3258,6 @@ class _AdminAppointmentsScreenState
               runSpacing: 8,
               children: [
                 action(
-                  label: 'Hoy',
-                  icon: Icons.today_outlined,
-                  onTap: () =>
-                      setDay(now, quickFilter: AgendaDayQuickFilter.dia),
-                ),
-                action(
-                  label: 'Mañana',
-                  icon: Icons.wb_twilight_outlined,
-                  onTap: () => setDay(
-                    now.add(const Duration(days: 1)),
-                    quickFilter: AgendaDayQuickFilter.manana,
-                  ),
-                ),
-                action(
-                  label: 'Historial',
-                  icon: Icons.history_outlined,
-                  onTap: () =>
-                      setState(() => _innerTab = AgendaInnerTab.historial),
-                ),
-                action(
                   label: 'Nueva cita',
                   icon: Icons.add_circle_outline,
                   filled: true,
@@ -3346,29 +3320,31 @@ class _AdminAppointmentsScreenState
       AgendaInnerTab.historial => 'Historial',
     };
 
-    final mobileContent = Column(
-      children: [
-        _buildMobileAgendaHero(context, loadedAppointments, selectedDate),
-        _buildInnerTabs(),
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeOutCubic,
-            transitionBuilder: (child, animation) {
-              final slide = Tween<Offset>(
-                begin: const Offset(0.02, 0),
-                end: Offset.zero,
-              ).animate(animation);
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(position: slide, child: child),
-              );
-            },
-            child: KeyedSubtree(key: ValueKey(_innerTab), child: agendaBody),
+    final mobileContent = NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) {
+        return [
+          SliverToBoxAdapter(
+            child: _buildMobileAgendaHero(context, loadedAppointments, selectedDate),
           ),
-        ),
-      ],
+          SliverToBoxAdapter(child: _buildInnerTabs()),
+        ];
+      },
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeOutCubic,
+        transitionBuilder: (child, animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0.02, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: KeyedSubtree(key: ValueKey(_innerTab), child: agendaBody),
+      ),
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {

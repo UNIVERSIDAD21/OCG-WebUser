@@ -96,6 +96,7 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
     final user = ref.watch(authStateProvider).asData?.value;
     final roleAsync = ref.watch(userRoleProvider);
     final unreadCount = user == null
@@ -103,11 +104,12 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
         : ref.watch(unreadNotificationsCountProvider(user.uid));
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+      padding: EdgeInsets.fromLTRB(isDesktop ? 16 : 0, isDesktop ? 16 : 0, isDesktop ? 16 : 0, 110),
       children: [
         _ProfileHero(
           user: user,
           roleAsync: roleAsync,
+          isDesktop: isDesktop,
           uploadingPhoto: _uploadingPhoto,
           onChangePhoto: user == null
               ? null
@@ -120,7 +122,6 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _infoRow('Nombre', _safeValue(user?.displayName)),
               _infoRow('Correo', _safeValue(user?.email)),
               _infoRow(
                 'Rol',
@@ -128,7 +129,7 @@ class _AdminProfileBodyState extends ConsumerState<_AdminProfileBody> {
                     ? 'Administrador'
                     : 'Sin rol',
               ),
-              _infoRow('UID', _safeValue(user?.uid)),
+              _infoRow('Estado', user == null ? 'Sin sesion' : 'Sesion activa'),
             ],
           ),
         ),
@@ -333,6 +334,7 @@ class _ProfileHero extends ConsumerWidget {
   const _ProfileHero({
     required this.user,
     required this.roleAsync,
+    required this.isDesktop,
     required this.uploadingPhoto,
     this.onChangePhoto,
     this.onDeletePhoto,
@@ -340,6 +342,7 @@ class _ProfileHero extends ConsumerWidget {
 
   final User? user;
   final AsyncValue<String?> roleAsync;
+  final bool isDesktop;
   final bool uploadingPhoto;
   final VoidCallback? onChangePhoto;
   final VoidCallback? onDeletePhoto;
@@ -353,47 +356,93 @@ class _ProfileHero extends ConsumerWidget {
         ? null
         : ref.watch(adminProfileDocProvider(user!.uid)).asData?.value;
     final photoUrl = resolveProfilePhotoUrl(adminDoc);
+    final topPadding = isDesktop ? 0.0 : MediaQuery.paddingOf(context).top + 6;
+    final roleLabel = roleAsync.asData?.value == 'admin'
+        ? 'Administrador'
+        : 'Perfil disponible';
+    final mail = user?.email?.trim() ?? '';
+    final mailLabel = mail.isEmpty ? 'Sin correo registrado' : mail;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.fromLTRB(18, 18 + topPadding, 18, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF21170F), OcgColors.espresso],
+          colors: [Color(0xFF25180F), Color(0xFF5B3C26), Color(0xFF9A7654)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.only(
+          topLeft: isDesktop ? const Radius.circular(22) : Radius.zero,
+          topRight: isDesktop ? const Radius.circular(22) : Radius.zero,
+          bottomLeft: Radius.circular(isDesktop ? 22 : 28),
+          bottomRight: Radius.circular(isDesktop ? 22 : 28),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfilePhotoAvatar(
-            label: label,
-            photoUrl: photoUrl,
-            radius: 30,
-            loading: uploadingPhoto,
-            showActions: true,
-            onChange: onChangePhoto,
-            onDelete: onDeletePhoto,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
+          Row(
+            children: [
+              ProfilePhotoAvatar(
+                label: label,
+                photoUrl: photoUrl,
+                radius: 32,
+                loading: uploadingPhoto,
+                showActions: true,
+                onChange: onChangePhoto,
+                onDelete: onDeletePhoto,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      roleLabel,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.85),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  roleAsync.asData?.value == 'admin'
-                      ? 'Perfil del administrador'
-                      : 'Perfil disponible',
-                  style: TextStyle(color: Colors.white.withOpacity(0.72)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.alternate_email, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    mailLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),

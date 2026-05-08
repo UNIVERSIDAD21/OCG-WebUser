@@ -989,6 +989,7 @@ class _WebSimulatorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = WebLayoutContext.useDesktopShell(context);
     final layout = AdminDesktopLayoutScope.maybeOf(context);
     final tier = layout?.tier ?? AdminDesktopTier.standard;
     final sectionGap = layout?.sectionSpacing ?? 16;
@@ -999,6 +1000,113 @@ class _WebSimulatorView extends StatelessWidget {
       AdminDesktopTier.compact => 36.0,
       AdminDesktopTier.tight => 32.0,
     };
+
+    if (!isDesktop) {
+      return ListView(
+        padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 8, 16, 110),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF25180F), Color(0xFF5B3C26), Color(0xFF9A7654)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Simulador clinico',
+                  style: TextStyle(
+                    color: OcgColors.ivory,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Explora tratamientos por paciente y entra directo al detalle de simulacion.',
+                  style: TextStyle(
+                    color: OcgColors.ivory.withOpacity(0.86),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.45,
+            children: [
+              _PayMiniKpi(
+                value: '${ordered.length}',
+                title: 'Pacientes',
+                subtitle: 'con simulador activo',
+                bg: const Color(0xFFF6EFE7),
+                onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
+              ),
+              _PayMiniKpi(
+                value: '3D',
+                title: 'Vista visual',
+                subtitle: 'navegacion guiada',
+                bg: const Color(0xFFEFF2FA),
+                onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
+              ),
+              _PayMiniKpi(
+                value: 'IA',
+                title: 'Soporte',
+                subtitle: 'asistencia clinica',
+                bg: const Color(0xFFFFF4D8),
+                onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
+              ),
+              _PayMiniKpi(
+                value: '100%',
+                title: 'Trazabilidad',
+                subtitle: 'seguimiento por paciente',
+                bg: const Color(0xFFEAF5EE),
+                onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const _MobileSectionHeader(title: 'Pacientes del simulador'),
+          const SizedBox(height: 10),
+          if (ordered.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE7D6C6)),
+              ),
+              child: const Text('No hay pacientes registrados.'),
+            )
+          else
+            ...ordered.map(
+              (p) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _AdminSimulatorPatientCard(
+                  patient: p,
+                  onOpen: () => context.go(
+                    '${RouteNames.adminPatientDetail.replaceFirst(':patientId', p.id)}?section=simulador',
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(0, 0, 0, sectionGap + 20),
       child: Column(
@@ -1033,7 +1141,7 @@ class _WebSimulatorView extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Gestión clínica de simulaciones por paciente',
+                  'Gestion clinica de simulaciones por paciente',
                   style: TextStyle(color: Color(0xD9F6EDE5), fontSize: 13),
                 ),
               ],
@@ -1061,21 +1169,21 @@ class _WebSimulatorView extends StatelessWidget {
               _PayMiniKpi(
                 value: '${ordered.length}',
                 title: 'Pacientes',
-                subtitle: 'con acceso a simulación',
+                subtitle: 'con acceso a simulacion',
                 bg: const Color(0xFFF6EFE7),
                 onTap: () => context.goAdminTab(1, RouteNames.adminPatients),
               ),
               _PayMiniKpi(
                 value: '3D',
-                title: 'Módulo visual',
-                subtitle: 'simulación guiada',
+                title: 'Modulo visual',
+                subtitle: 'simulacion guiada',
                 bg: const Color(0xFFEFF2FA),
                 onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
               ),
               _PayMiniKpi(
                 value: 'IA',
                 title: 'Asistencia',
-                subtitle: 'apoyo clínico',
+                subtitle: 'apoyo clinico',
                 bg: const Color(0xFFFFF4D8),
                 onTap: () => context.goAdminTab(3, RouteNames.adminSimulator),
               ),
@@ -1083,7 +1191,7 @@ class _WebSimulatorView extends StatelessWidget {
           ),
           SizedBox(height: sectionGap),
           const _MobileSectionHeader(
-            title: 'Pacientes con acceso a simulación',
+            title: 'Pacientes con acceso a simulacion',
           ),
           const SizedBox(height: 10),
           if (ordered.isEmpty)
