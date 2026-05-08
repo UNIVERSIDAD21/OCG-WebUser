@@ -56,6 +56,8 @@ enum _AgendaFilter {
 
 enum _AgendaInnerTab { hoy, mes, historial }
 
+enum _AgendaDayQuickFilter { dia, manana, pendientes, vencidas, historicas }
+
 bool _esPerdida(AppointmentModel a) {
   if (a.estado == AppointmentStatus.noAsistio) return true;
   if (a.estado == AppointmentStatus.programada) {
@@ -1104,6 +1106,7 @@ class _AdminAppointmentsScreenState
   );
   DateTime? _selectedMonthDay;
   _AgendaFilter _historyFilter = _AgendaFilter.activas;
+  _AgendaDayQuickFilter _dayQuickFilter = _AgendaDayQuickFilter.dia;
   int _historyPage = 1;
 
   Future<void> _handleSignOut() async {
@@ -2422,6 +2425,144 @@ class _AdminAppointmentsScreenState
     );
   }
 
+  String _quickFilterLabel(_AgendaDayQuickFilter filter) {
+    return switch (filter) {
+      _AgendaDayQuickFilter.dia => 'Día',
+      _AgendaDayQuickFilter.manana => 'Mañana',
+      _AgendaDayQuickFilter.pendientes => 'Pendientes',
+      _AgendaDayQuickFilter.vencidas => 'Vencidas',
+      _AgendaDayQuickFilter.historicas => 'Históricas',
+    };
+  }
+
+  IconData _quickFilterIcon(_AgendaDayQuickFilter filter) {
+    return switch (filter) {
+      _AgendaDayQuickFilter.dia => Icons.today_outlined,
+      _AgendaDayQuickFilter.manana => Icons.wb_twilight_outlined,
+      _AgendaDayQuickFilter.pendientes => Icons.pending_actions_outlined,
+      _AgendaDayQuickFilter.vencidas => Icons.warning_amber_outlined,
+      _AgendaDayQuickFilter.historicas => Icons.history_toggle_off_outlined,
+    };
+  }
+
+  int _quickFilterCount(
+    _AgendaDayQuickFilter filter,
+    List<AppointmentModel> appointments,
+    DateTime selectedDate,
+  ) {
+    return _quickFilteredItems(filter, appointments, selectedDate).length;
+  }
+
+  List<AppointmentModel> _quickFilteredItems(
+    _AgendaDayQuickFilter filter,
+    List<AppointmentModel> appointments,
+    DateTime selectedDate,
+  ) {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final items = switch (filter) {
+      _AgendaDayQuickFilter.dia => _appointmentsForDay(
+        appointments,
+        selectedDate,
+      ),
+      _AgendaDayQuickFilter.manana => _appointmentsForDay(
+        appointments,
+        tomorrow,
+      ),
+      _AgendaDayQuickFilter.pendientes =>
+        appointments
+            .where(
+              (a) =>
+                  (a.estado == AppointmentStatus.programada ||
+                      a.estado == AppointmentStatus.confirmada) &&
+                  !_esPerdida(a) &&
+                  a.fechaHora.isAfter(now.subtract(const Duration(minutes: 1))),
+            )
+            .toList(),
+      _AgendaDayQuickFilter.vencidas =>
+        appointments
+            .where(
+              (a) =>
+                  a.estado == AppointmentStatus.programada &&
+                  a.fechaHora.isBefore(now),
+            )
+            .toList(),
+      _AgendaDayQuickFilter.historicas =>
+        appointments
+            .where(
+              (a) =>
+                  a.estado == AppointmentStatus.cancelada ||
+                  a.estado == AppointmentStatus.noAsistio ||
+                  a.estado == AppointmentStatus.reprogramada,
+            )
+            .toList(),
+    };
+
+    items.sort((a, b) {
+      if (filter == _AgendaDayQuickFilter.historicas ||
+          filter == _AgendaDayQuickFilter.vencidas) {
+        return b.fechaHora.compareTo(a.fechaHora);
+      }
+      return a.fechaHora.compareTo(b.fechaHora);
+    });
+    return items;
+  }
+
+  Widget _buildQuickFilters(
+    List<AppointmentModel> appointments,
+    DateTime selectedDate,
+  ) {
+    final filters = _AgendaDayQuickFilter.values;
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: filters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final active = _dayQuickFilter == filter;
+          final count = _quickFilterCount(filter, appointments, selectedDate);
+          return ChoiceChip(
+            selected: active,
+            avatar: Icon(
+              _quickFilterIcon(filter),
+              size: 16,
+              color: active ? OcgColors.ivory : OcgColors.espresso,
+            ),
+            label: Text('${_quickFilterLabel(filter)} · $count'),
+            selectedColor: OcgColors.espresso,
+            backgroundColor: OcgColors.ivory,
+            labelStyle: TextStyle(
+              color: active ? OcgColors.ivory : OcgColors.espresso,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+            side: BorderSide(
+              color: active
+                  ? OcgColors.espresso
+                  : OcgColors.bronze.withOpacity(0.24),
+            ),
+            onSelected: (_) {
+              final now = DateTime.now();
+              if (filter == _AgendaDayQuickFilter.manana) {
+                ref
+                    .read(selectedAppointmentsDateProvider.notifier)
+                    .setDate(DateTime(now.year, now.month, now.day + 1));
+              } else if (filter == _AgendaDayQuickFilter.dia) {
+                ref
+                    .read(selectedAppointmentsDateProvider.notifier)
+                    .setDate(DateTime(now.year, now.month, now.day));
+              }
+              setState(() => _dayQuickFilter = filter);
+            },
+          );
+        },
+      ),
+    );
+  }
+
   Widget _agendaEmptyState({
     required String title,
     required String subtitle,
@@ -2488,7 +2629,11 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
-    final dayItems = _appointmentsForDay(appointments, selectedDate);
+    final dayItems = _quickFilteredItems(
+      _dayQuickFilter,
+      appointments,
+      selectedDate,
+    );
     final total = dayItems.length;
     final confirmadas = dayItems
         .where((a) => a.estado == AppointmentStatus.confirmada)
@@ -2508,9 +2653,10 @@ class _AdminAppointmentsScreenState
 
     Widget timeline = dayItems.isEmpty
         ? _agendaEmptyState(
-            title: 'Sin citas para este día',
+            title:
+                'Sin citas en ${_quickFilterLabel(_dayQuickFilter).toLowerCase()}',
             subtitle:
-                'Agenda un control o revisa otro día para continuar el seguimiento clínico.',
+                'Usa los filtros rápidos para revisar pendientes, vencidas o historial sin perder el contexto operativo.',
             icon: Icons.event_busy_outlined,
             onPrimary: () => AdminAppointmentsScreen.showCreateDialog(
               context,
@@ -2555,27 +2701,39 @@ class _AdminAppointmentsScreenState
 
     final desktop = WebLayoutContext.useDesktopShell(context);
     if (desktop) {
-      return Row(
+      return Column(
         children: [
+          _buildQuickFilters(appointments, selectedDate),
+          const SizedBox(height: 10),
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: OcgColors.ivory,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
-              ),
-              padding: const EdgeInsets.all(10),
-              child: timeline,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: OcgColors.ivory,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: OcgColors.bronze.withOpacity(0.22),
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: timeline,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(width: 220, child: summary),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          SizedBox(width: 220, child: summary),
         ],
       );
     }
 
     return Column(
       children: [
+        const SizedBox(height: 8),
+        _buildQuickFilters(appointments, selectedDate),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: summary,
@@ -3188,9 +3346,12 @@ class _AdminAppointmentsScreenState
         .length;
     final next = upcoming.isEmpty ? null : upcoming.first;
 
-    void setDay(DateTime day) {
+    void setDay(DateTime day, {_AgendaDayQuickFilter? quickFilter}) {
       ref.read(selectedAppointmentsDateProvider.notifier).setDate(day);
-      setState(() => _innerTab = _AgendaInnerTab.hoy);
+      setState(() {
+        _innerTab = _AgendaInnerTab.hoy;
+        if (quickFilter != null) _dayQuickFilter = quickFilter;
+      });
     }
 
     Widget metric(String label, String value, IconData icon) {
@@ -3431,12 +3592,16 @@ class _AdminAppointmentsScreenState
                 action(
                   label: 'Hoy',
                   icon: Icons.today_outlined,
-                  onTap: () => setDay(now),
+                  onTap: () =>
+                      setDay(now, quickFilter: _AgendaDayQuickFilter.dia),
                 ),
                 action(
                   label: 'Mañana',
                   icon: Icons.wb_twilight_outlined,
-                  onTap: () => setDay(now.add(const Duration(days: 1))),
+                  onTap: () => setDay(
+                    now.add(const Duration(days: 1)),
+                    quickFilter: _AgendaDayQuickFilter.manana,
+                  ),
                 ),
                 action(
                   label: 'Historial',

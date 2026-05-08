@@ -619,3 +619,45 @@ Resultado:
 Commit:
 
 - Pendiente de hash al confirmar cambios.
+
+---
+
+## Registro de cierre — 2026-05-08 — P2 Agenda móvil admin cerrada
+
+Alcance implementado para cerrar P2:
+
+- Se completó el rediseño operativo de Agenda móvil admin con filtros rápidos reales dentro de la vista diaria:
+  - Día,
+  - Mañana,
+  - Pendientes,
+  - Vencidas,
+  - Históricas.
+- Los filtros muestran conteo inmediato y permiten revisar operación clínica sin saltar manualmente entre calendario/historial.
+- El resumen del día y la lista de cards responden al filtro activo.
+- Se conservaron las vistas de Mes e Historial, las cards premium, acciones rápidas, flujo guiado de crear/reprogramar y validaciones de reglas de negocio ya implementadas en commits anteriores.
+- Se mantuvieron intactos `AppointmentsBusinessRules`, providers, rutas, FCM, Firebase y comportamiento desktop.
+
+Estado P2:
+
+- P2 queda cerrada funcionalmente para móvil admin según el roadmap actual:
+  - header premium,
+  - filtros rápidos,
+  - cards visuales por estado,
+  - empty states,
+  - crear/reprogramar guiado,
+  - conflictos/reglas visibles,
+  - acciones rápidas por cita.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+
+Commit:
+
+- Pendiente de hash al confirmar cambios.
