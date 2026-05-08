@@ -496,3 +496,38 @@ Resultado:
 Commit:
 
 - `mejorar header operativo de agenda movil admin`.
+
+---
+
+## Registro de implementación — 2026-05-08 — Simulador móvil admin / botón Nueva funcional
+
+Alcance implementado:
+
+- Se corrigió el botón `+ Nueva` del encabezado de `Última simulación` dentro del detalle móvil admin del paciente.
+- El botón ahora abre realmente el flujo embebido de nueva simulación, limpia cualquier simulación histórica abierta y enfoca el bloque activo para iniciar con `Paso 1: subir foto original`.
+- Las acciones principales de cámara/galería también marcan explícitamente que se está creando una nueva simulación para mantener consistente el estado visual.
+- Al abrir una simulación del historial se desactiva el modo de creación nueva, evitando mezclar una simulación existente con el flujo nuevo.
+- Se agregó test widget específico para impedir regresión del botón `Nueva`.
+
+Archivos tocados:
+
+- `lib/features/patients/presentation/tabs/patient_simulator_tab.dart`
+- `test/features/simulator/simulator_mobile_flow_test.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/patients/presentation/tabs/patient_simulator_tab.dart test/features/simulator/simulator_mobile_flow_test.dart`
+- `flutter test test/features/simulator/simulator_mobile_flow_test.dart`
+- `flutter analyze`
+- `flutter test`
+
+Resultado:
+
+- Test focalizado de simulador móvil: verde.
+- `flutter analyze`: verde, sin issues.
+- Suite completa `flutter test`: verde.
+
+Commit:
+
+- `hacer funcional nueva simulacion en detalle paciente`.

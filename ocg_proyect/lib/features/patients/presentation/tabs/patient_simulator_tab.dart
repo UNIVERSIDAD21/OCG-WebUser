@@ -28,6 +28,7 @@ class PatientSimulatorTab extends ConsumerStatefulWidget {
 
 class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
   SimulationModel? _openedSimulation;
+  bool _creatingNewSimulation = false;
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _activeFlowKey = GlobalKey();
   ProviderSubscription<AsyncValue<SimulatorFlowState>>? _flowSubscription;
@@ -74,6 +75,7 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patient.id != widget.patient.id) {
       _openedSimulation = null;
+      _creatingNewSimulation = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(simulatorFlowProvider.notifier).resetFlow();
@@ -90,6 +92,15 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
       curve: Curves.easeOutCubic,
       alignment: 0.05,
     );
+  }
+
+  void _startNewSimulation() {
+    setState(() {
+      _openedSimulation = null;
+      _creatingNewSimulation = true;
+    });
+    ref.read(simulatorFlowProvider.notifier).resetFlow();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
   }
 
   @override
@@ -115,10 +126,12 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
           Center(child: Text('No se pudieron cargar simulaciones: $e')),
       data: (items) {
         final latest = items.isEmpty ? null : items.first;
-        final showActiveFlow = shouldPrioritizeActiveSimulation(
-          flow: flow,
-          openedSimulation: _openedSimulation,
-        );
+        final showActiveFlow =
+            _creatingNewSimulation ||
+            shouldPrioritizeActiveSimulation(
+              flow: flow,
+              openedSimulation: _openedSimulation,
+            );
         return ListView(
           controller: widget.scrollable ? _scrollController : null,
           shrinkWrap: !widget.scrollable,
@@ -130,16 +143,16 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
             _SimulatorMobileHeader(
               patientName: widget.patient.nombre,
               latestSimulation: latest,
-              onNew: () {
-                setState(() => _openedSimulation = null);
-                ref.read(simulatorFlowProvider.notifier).resetFlow();
-              },
+              onNew: _startNewSimulation,
             ),
             const SizedBox(height: 14),
             _SimulatorPrimaryActionsCard(
               hasSimulations: items.isNotEmpty,
               onCamera: () {
-                setState(() => _openedSimulation = null);
+                setState(() {
+                  _openedSimulation = null;
+                  _creatingNewSimulation = true;
+                });
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
                 ref
                     .read(simulatorFlowProvider.notifier)
@@ -150,7 +163,10 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                     );
               },
               onGallery: () {
-                setState(() => _openedSimulation = null);
+                setState(() {
+                  _openedSimulation = null;
+                  _creatingNewSimulation = true;
+                });
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
                 ref
                     .read(simulatorFlowProvider.notifier)
@@ -178,7 +194,10 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
             if (items.isEmpty && !showActiveFlow)
               _SimulatorEmptyState(
                 onCamera: () {
-                  setState(() => _openedSimulation = null);
+                  setState(() {
+                    _openedSimulation = null;
+                    _creatingNewSimulation = true;
+                  });
                   ref.read(simulatorFlowProvider.notifier).resetFlow();
                   ref
                       .read(simulatorFlowProvider.notifier)
@@ -204,7 +223,10 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                 (s) => _AdminSimulationCard(
                   simulation: s,
                   onOpen: () {
-                    setState(() => _openedSimulation = s);
+                    setState(() {
+                      _openedSimulation = s;
+                      _creatingNewSimulation = false;
+                    });
                     WidgetsBinding.instance.addPostFrameCallback(
                       (_) => _focusActiveFlow(),
                     );
@@ -278,7 +300,10 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                           );
 
                       if (_openedSimulation?.id == s.id) {
-                        setState(() => _openedSimulation = null);
+                        setState(() {
+                          _openedSimulation = null;
+                          _creatingNewSimulation = false;
+                        });
                         ref.read(simulatorFlowProvider.notifier).resetFlow();
                       }
 
