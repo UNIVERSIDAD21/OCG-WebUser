@@ -104,6 +104,28 @@ void main() {
       expect(route, RouteNames.patientPayments);
     });
 
+    test('patient treatment_stage_updated abre tab Tratamiento', () {
+      final route = payloadRouter.resolveRoute({
+        'type': 'treatment_stage_updated',
+        'entityType': 'treatment',
+      }, userRole: 'patient');
+
+      expect(route, RouteNames.patientTreatment);
+    });
+
+    test(
+      'patient treatment con route genérica /patient/home normaliza a Tratamiento',
+      () {
+        final route = payloadRouter.resolveRoute({
+          'targetRoute': RouteNames.patientHome,
+          'type': 'treatment_stage_updated',
+          'entityType': 'treatment',
+        }, userRole: 'patient');
+
+        expect(route, RouteNames.patientTreatment);
+      },
+    );
+
     test('patient document abre /patient/clinical-files', () {
       final route = payloadRouter.resolveRoute({
         'type': 'clinical_file_shared',

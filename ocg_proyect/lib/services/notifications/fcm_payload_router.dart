@@ -29,6 +29,7 @@ class FcmPayloadRouter {
     RouteNames.adminNotifications,
     RouteNames.patientRoot,
     RouteNames.patientHome,
+    RouteNames.patientTreatment,
     RouteNames.patientAppointments,
     RouteNames.patientPayments,
     RouteNames.patientClinicalFiles,
@@ -51,20 +52,71 @@ class FcmPayloadRouter {
     final explicitRoute = (data['route'] ?? data['targetRoute'] ?? '')
         .toString()
         .trim();
+    final role = userRole == 'admin' ? 'admin' : 'patient';
+    final type = (data['type'] ?? '').toString().trim();
+    final entityType = (data['entityType'] ?? '').toString().trim();
+
     if (explicitRoute.isNotEmpty) {
+      final normalizedRoute = _normalizeExplicitRoute(
+        explicitRoute,
+        role: role,
+        type: type,
+        entityType: entityType,
+      );
+      if (normalizedRoute != null) return normalizedRoute;
       if (_isAllowedInternalRoute(explicitRoute)) {
         return explicitRoute;
       }
       _logRejectedRoute(explicitRoute, data, userRole: userRole);
     }
 
-    return _fallbackRoute(data, userRole: userRole);
+    return _fallbackRoute(
+      data,
+      userRole: userRole,
+      roleOverride: role,
+      typeOverride: type,
+      entityTypeOverride: entityType,
+    );
   }
 
-  String _fallbackRoute(Map<String, dynamic> data, {String? userRole}) {
-    final role = userRole == 'admin' ? 'admin' : 'patient';
-    final type = (data['type'] ?? '').toString().trim();
-    final entityType = (data['entityType'] ?? '').toString().trim();
+  String? _normalizeExplicitRoute(
+    String route, {
+    required String role,
+    required String type,
+    required String entityType,
+  }) {
+    if (role != 'patient' || !_isTreatmentNotification(type, entityType)) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(route);
+    if (uri == null || uri.hasAuthority) return null;
+
+    // Notificaciones antiguas de tratamiento pueden venir guardadas con la
+    // ruta genérica del home. En ese caso priorizamos el destino semántico
+    // para no abrir Inicio cuando el evento pertenece a Tratamiento.
+    if (uri.path == RouteNames.patientHome && uri.queryParameters.isEmpty) {
+      return RouteNames.patientTreatment;
+    }
+
+    return null;
+  }
+
+  bool _isTreatmentNotification(String type, String entityType) {
+    return _isTreatmentType(type) || entityType == 'treatment';
+  }
+
+  String _fallbackRoute(
+    Map<String, dynamic> data, {
+    String? userRole,
+    String? roleOverride,
+    String? typeOverride,
+    String? entityTypeOverride,
+  }) {
+    final role = roleOverride ?? (userRole == 'admin' ? 'admin' : 'patient');
+    final type = typeOverride ?? (data['type'] ?? '').toString().trim();
+    final entityType =
+        entityTypeOverride ?? (data['entityType'] ?? '').toString().trim();
     final patientId = _patientIdFromPayload(data, role);
 
     if (_isAppointmentType(type) || entityType == 'appointment') {
@@ -104,13 +156,13 @@ class FcmPayloadRouter {
       return RouteNames.patientProfile;
     }
 
-    if (_isTreatmentType(type) || entityType == 'treatment') {
+    if (_isTreatmentNotification(type, entityType)) {
       if (role == 'admin') {
         return patientId.isEmpty
             ? RouteNames.adminTreatments
             : _adminPatientSectionRoute(patientId, 'tratamientos');
       }
-      return RouteNames.patientHome;
+      return RouteNames.patientTreatment;
     }
 
     switch (type) {

@@ -216,6 +216,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PatientHomeScreen(),
       ),
       GoRoute(
+        path: RouteNames.patientTreatment,
+        builder: (context, state) => const PatientHomeScreen(initialSection: 2),
+      ),
+      GoRoute(
         path: RouteNames.patientAppointments,
         builder: (context, state) => const PatientHomeScreen(initialSection: 1),
       ),
