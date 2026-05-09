@@ -188,98 +188,157 @@ class _PatientClinicalFileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final dateFmt = DateFormat('dd/MM/yyyy  HH:mm');
     final treatmentName = file.treatmentNameSnapshot?.trim();
     final notes = file.notes?.trim();
+    final accentColor = _fileAccentColor(file);
+    final fileIcon = _fileIcon(file);
+    final fileLabel = file.isPdf ? 'PDF' : (file.isImage ? 'IMG' : 'DOC');
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: OcgColors.espresso.withValues(alpha: 0.10)),
-        boxShadow: const [
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFCF8), Color(0xFFF7F2E8)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accentColor.withOpacity(0.18)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x102C2016),
+            color: const Color(0xFF2C2016).withOpacity(0.04),
             blurRadius: 14,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // File type badge with gradient
               Container(
-                width: 46,
-                height: 46,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: _fileAccentColor(file).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(_fileIcon(file), color: _fileAccentColor(file)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      file.displayName.trim().isEmpty
-                          ? file.originalName
-                          : file.displayName,
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [accentColor, accentColor.withOpacity(0.7)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor.withOpacity(0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_categoryLabel(file.category)} • ${dateFmt.format(file.uploadedAt)}',
-                      style: const TextStyle(
-                        color: OcgColors.bronze,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(fileIcon, color: Colors.white, size: 24),
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(fileLabel,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800)),
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      file.displayName.trim().isEmpty ? file.originalName : file.displayName,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2016),
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _categoryLabel(file.category),
+                          style: TextStyle(
+                            color: accentColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.access_time, size: 12, color: const Color(0xFFA89078)),
+                      const SizedBox(width: 4),
+                      Text(
+                        dateFmt.format(file.uploadedAt),
+                        style: const TextStyle(
+                          color: Color(0xFFA89078),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ]),
+            if (treatmentName != null && treatmentName.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _InfoLine(
+                icon: Icons.medical_information_outlined,
+                text: 'Tratamiento: $treatmentName',
+              ),
             ],
-          ),
-          if (treatmentName != null && treatmentName.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _InfoLine(
-              icon: Icons.medical_information_outlined,
-              text: 'Tratamiento: $treatmentName',
-            ),
-          ],
-          if (notes != null && notes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _InfoLine(icon: Icons.notes_outlined, text: 'Notas: $notes'),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => _openFile(context, file.downloadUrl),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: Text(file.isPdf ? 'Abrir PDF' : 'Ver archivo'),
-              style: FilledButton.styleFrom(
-                backgroundColor: OcgColors.espresso,
-                foregroundColor: OcgColors.ivory,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            if (notes != null && notes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _InfoLine(icon: Icons.notes_outlined, text: 'Notas: $notes'),
+            ],
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: () => _openFile(context, file.downloadUrl),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: Text(file.isPdf ? 'Abrir PDF' : 'Ver archivo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2C2016),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
