@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
+import '../../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
@@ -614,24 +615,13 @@ class _PatientClinicalHistoryTabState
   }
 
   Future<void> _deleteFile(ClinicalFileModel file) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Desactivar documento'),
-        content: Text(
-          '¿Deseas desactivar “${file.displayName}”? El archivo dejará de aparecer en el expediente activo.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Desactivar'),
-          ),
-        ],
-      ),
+    final confirm = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.danger,
+      title: 'Desactivar documento',
+      message: '¿Deseas desactivar "${file.displayName}"? El archivo dejará de aparecer en el expediente activo.',
+      confirmLabel: 'Desactivar',
+      onConfirm: () {},
     );
     if (confirm != true) return;
     final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/constants/firestore_paths.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
+import '../../../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../../auth/providers/auth_providers.dart';
 import '../layout/admin_desktop_layout.dart';
 
@@ -648,22 +649,13 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Cerrar sesión'),
-                          content: const Text('¿Deseas cerrar tu sesión?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('Cancelar'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Cerrar sesión'),
-                            ),
-                          ],
-                        ),
+                      final confirm = await OcgConfirmDialog.show(
+                        context,
+                        type: OcgConfirmDialogType.danger,
+                        title: 'Cerrar sesión',
+                        message: '¿Deseas cerrar tu sesión?',
+                        confirmLabel: 'Cerrar sesión',
+                        onConfirm: () {},
                       );
 
                       if (confirm != true) return;

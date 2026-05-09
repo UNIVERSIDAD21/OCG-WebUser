@@ -7,6 +7,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_button.dart';
+import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -458,24 +459,14 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   Future<bool> _confirmDiscardChangesIfNeeded() async {
     if (!_hasUnsavedChanges()) return true;
 
-    final shouldDiscard = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Descartar cambios'),
-        content: const Text(
-          'Tienes cambios sin guardar. ¿Deseas salir y descartarlos?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Seguir editando'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Descartar'),
-          ),
-        ],
-      ),
+    final shouldDiscard = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.warning,
+      title: 'Descartar cambios',
+      message: 'Tienes cambios sin guardar. ¿Deseas salir y descartarlos?',
+      confirmLabel: 'Descartar',
+      cancelLabel: 'Seguir editando',
+      onConfirm: () {},
     );
 
     return shouldDiscard == true;

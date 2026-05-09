@@ -8,6 +8,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/currency_input_formatter.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_data_resolution.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
@@ -715,24 +716,13 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     String patientEmail,
     String patientName,
   ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirmar pago'),
-        content: Text(
-          'Vas a pagar ${treatmentName.trim().isEmpty ? 'este tratamiento' : treatmentName} por ${monto.toStringAsFixed(0)} COP. ¿Deseas continuar?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Continuar'),
-          ),
-        ],
-      ),
+    final ok = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.info,
+      title: 'Confirmar pago',
+      message: 'Vas a pagar ${treatmentName.trim().isEmpty ? 'este tratamiento' : treatmentName} por ${monto.toStringAsFixed(0)} COP. ¿Deseas continuar?',
+      confirmLabel: 'Continuar',
+      onConfirm: () {},
     );
 
     if (ok != true) return;

@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import 'admin_mobile_shell_controller.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
@@ -26,26 +27,13 @@ class AdminDashboardScreen extends ConsumerWidget {
   final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Deseas cerrar tu sesión de administrador?'),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.error,
-              foregroundColor: OcgColors.ivory,
-            ),
-            onPressed: () => popDialog(ctx, true),
-            child: const Text('Cerrar sesión'),
-          ),
-        ],
-      ),
+    final confirm = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.danger,
+      title: 'Cerrar sesión',
+      message: '¿Deseas cerrar tu sesión de administrador?',
+      confirmLabel: 'Cerrar sesión',
+      onConfirm: () {},
     );
 
     if (confirm != true) return;

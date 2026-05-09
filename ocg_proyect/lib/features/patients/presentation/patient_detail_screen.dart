@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
+import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
@@ -55,24 +56,13 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   Future<void> _deletePatient(PatientModel patient) async {
     if (_deleting) return;
 
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar paciente'),
-        content: Text(
-          '¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final shouldDelete = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.danger,
+      title: 'Eliminar paciente',
+      message: '¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      onConfirm: () {},
     );
 
     if (shouldDelete != true || !mounted) return;

@@ -12,6 +12,7 @@ import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
+import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -153,26 +154,13 @@ class _PatientAppointmentsScreenState
   _PatientFilter _filter = _PatientFilter.activas;
 
   Future<void> _handleSignOut() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Deseas cerrar tu sesión?'),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.error,
-              foregroundColor: OcgColors.ivory,
-            ),
-            onPressed: () => popDialog(ctx, true),
-            child: const Text('Cerrar sesión'),
-          ),
-        ],
-      ),
+    final confirm = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.danger,
+      title: 'Cerrar sesión',
+      message: '¿Deseas cerrar tu sesión?',
+      confirmLabel: 'Cerrar sesión',
+      onConfirm: () {},
     );
 
     if (confirm != true) return;
@@ -756,11 +744,11 @@ class _PatientAppointmentsScreenState
 
   // ─── Cancelar cita (con regla de 24 horas) ───────────────────────────────
 
-  void _handleCancelTap(
+  Future<void> _handleCancelTap(
     BuildContext context,
     WidgetRef ref,
     AppointmentModel appt,
-  ) {
+  ) async {
     final horasHastaCita = appt.fechaHora.difference(DateTime.now()).inHours;
 
     if (horasHastaCita < 24) {
@@ -826,60 +814,46 @@ class _PatientAppointmentsScreenState
     }
 
     // ≥ 24h → confirmar cancelación normal
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Cancelar esta cita?'),
-        content: Text(
-          'Cita del ${_fmtDateTime(appt.fechaHora)}.\n'
-          'Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx),
-            child: const Text('No, mantenerla'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: OcgColors.error,
-              foregroundColor: OcgColors.ivory,
-            ),
-            onPressed: () async {
-              popDialog(ctx); // ✅ cerrar primero
-              try {
-                final currentUser = ref.read(authStateProvider).asData?.value;
-                await ref
-                    .read(appointmentsRepositoryProvider)
-                    .updateAppointmentStatus(
-                      appt.id,
-                      AppointmentStatus.cancelada,
-                      actorRole: 'patient',
-                      actorUserId: currentUser?.uid,
-                      updatedByRole: 'patient',
-                      updatedBy: currentUser?.uid,
-                    );
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Cita cancelada.'),
-                    backgroundColor: OcgColors.error,
-                  ),
-                );
-              } catch (e) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('No se pudo cancelar: $e'),
-                    backgroundColor: OcgColors.error,
-                  ),
-                );
-              }
-            },
-            child: const Text('Sí, cancelar'),
-          ),
-        ],
-      ),
+    final confirmed = await OcgConfirmDialog.show(
+      context,
+      type: OcgConfirmDialogType.danger,
+      title: '¿Cancelar esta cita?',
+      message: 'Cita del ${_fmtDateTime(appt.fechaHora)}.\nEsta acción no se puede deshacer.',
+      confirmLabel: 'Sí, cancelar',
+      cancelLabel: 'No, mantenerla',
+      onConfirm: () {},
     );
+
+    if (confirmed != true) return;
+
+    try {
+      final currentUser = ref.read(authStateProvider).asData?.value;
+      await ref
+          .read(appointmentsRepositoryProvider)
+          .updateAppointmentStatus(
+            appt.id,
+            AppointmentStatus.cancelada,
+            actorRole: 'patient',
+            actorUserId: currentUser?.uid,
+            updatedByRole: 'patient',
+            updatedBy: currentUser?.uid,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cita cancelada.'),
+          backgroundColor: OcgColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cancelar: $e'),
+          backgroundColor: OcgColors.error,
+        ),
+      );
+    }
   }
 
   // ─── Build ───────────────────────────────────────────────────────────────
