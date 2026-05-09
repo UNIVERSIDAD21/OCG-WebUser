@@ -13,6 +13,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,30 +151,28 @@ class PatientAppointmentsScreen extends ConsumerStatefulWidget {
 }
 
 class _PatientAppointmentsScreenState
-    extends ConsumerState<PatientAppointmentsScreen> {
+    extends ConsumerState<PatientAppointmentsScreen>
+    with SingleTickerProviderStateMixin {
   _PatientFilter _filter = _PatientFilter.activas;
+  late final AnimationController _animCtrl;
+  late final Animation<double> _fadeSlide;
 
-  Future<void> _handleSignOut() async {
-    final confirm = await OcgConfirmDialog.show(
-      context,
-      type: OcgConfirmDialogType.danger,
-      title: 'Cerrar sesión',
-      message: '¿Deseas cerrar tu sesión?',
-      confirmLabel: 'Cerrar sesión',
-      onConfirm: () {},
-    );
-
-    if (confirm != true) return;
-
-    try {
-      await ref.read(authServiceProvider).signOut();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('No se pudo cerrar sesión: $e')));
-    }
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeSlide =
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
+    _animCtrl.forward();
   }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
 
   // ─── Diálogo nueva cita ──────────────────────────────────────────────────
 
@@ -882,155 +881,21 @@ class _PatientAppointmentsScreenState
 
     final content = Column(
       children: [
-        Container(
-          width: double.infinity,
-          color: const Color(0xFFF8F5F0),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            MediaQuery.paddingOf(context).top + 22,
-            20,
-            8,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isAdminViewer ? 'Citas del paciente' : 'Mis citas',
-                style: TextStyle(
-                  color: Color(0xFF1A1410),
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                isAdminViewer
-                    ? 'Filtra por estado clínico para gestionar al paciente'
-                    : 'Organiza tus citas por estado real del proceso',
-                style: const TextStyle(color: Color(0xFF8A6F59), fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF8F2EA), Color(0xFFF1E7DB)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE8D8C8)),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth < 360) {
-                      return Column(
-                        children: [
-                          Row(
-                            children: [
-                              _KpiMini(
-                                label: 'Activas',
-                                value: activasCount,
-                                color: const Color(0xFF1565C0),
-                              ),
-                              const SizedBox(width: 8),
-                              _KpiMini(
-                                label: 'Completadas',
-                                value: completadasCount,
-                                color: const Color(0xFF2E7D32),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _KpiMini(
-                                label: 'Incidencias',
-                                value: incidenciasCount,
-                                color: OcgColors.error,
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    }
-
-                    return Row(
-                      children: [
-                        _KpiMini(
-                          label: 'Activas',
-                          value: activasCount,
-                          color: const Color(0xFF1565C0),
-                        ),
-                        const SizedBox(width: 8),
-                        _KpiMini(
-                          label: 'Completadas',
-                          value: completadasCount,
-                          color: const Color(0xFF2E7D32),
-                        ),
-                        const SizedBox(width: 8),
-                        _KpiMini(
-                          label: 'Incidencias',
-                          value: incidenciasCount,
-                          color: OcgColors.error,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 390;
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _FilterPill(
-                          label: 'Activas',
-                          active: _filter == _PatientFilter.activas,
-                          icon: Icons.upcoming_outlined,
-                          count: activasCount,
-                          compact: compact,
-                          fill: true,
-                          onTap: () =>
-                              setState(() => _filter = _PatientFilter.activas),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _FilterPill(
-                          label: 'Completadas',
-                          active: _filter == _PatientFilter.completadas,
-                          icon: Icons.task_alt,
-                          count: completadasCount,
-                          compact: compact,
-                          fill: true,
-                          onTap: () => setState(
-                            () => _filter = _PatientFilter.completadas,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _FilterPill(
-                          label: 'Incidencias',
-                          active: _filter == _PatientFilter.incidencias,
-                          icon: Icons.warning_amber_outlined,
-                          count: incidenciasCount,
-                          compact: compact,
-                          fill: true,
-                          onTap: () => setState(
-                            () => _filter = _PatientFilter.incidencias,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
+        _HeroHeader(
+          isAdminViewer: isAdminViewer,
+          activasCount: activasCount,
+          completadasCount: completadasCount,
+          incidenciasCount: incidenciasCount,
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: _FilterBar(
+              filter: _filter,
+              activasCount: activasCount,
+              completadasCount: completadasCount,
+              incidenciasCount: incidenciasCount,
+              onChanged: (f) => setState(() => _filter = f)),
         ),
         Expanded(
           child: appointmentsAsync.when(
@@ -1038,16 +903,10 @@ class _PatientAppointmentsScreenState
               child: CircularProgressIndicator(color: OcgColors.espresso),
             ),
             error: (e, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  isAdminViewer
-                      ? 'No se pudieron cargar las citas del paciente.\n$e'
-                      : 'No se pudieron cargar tus citas.\n$e',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF8A6F59)),
-                ),
-              ),
+              child: OcgEmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: 'No se pudieron cargar las citas',
+                  subtitle: '$e'),
             ),
             data: (all) {
               final filtered = switch (_filter) {
@@ -1060,35 +919,20 @@ class _PatientAppointmentsScreenState
 
               if (filtered.isEmpty) {
                 return Center(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 22),
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFECD9C6)),
-                    ),
-                    child: Text(
-                      switch (_filter) {
-                        _PatientFilter.activas =>
-                          isAdminViewer
-                              ? 'No hay citas activas para este paciente.\nPulsa + para agendar una nueva cita.'
-                              : 'No tienes citas activas por ahora.\nPulsa + para agendar una nueva cita.',
-                        _PatientFilter.completadas =>
-                          isAdminViewer
-                              ? 'Aún no hay citas completadas para este paciente.'
-                              : 'Aún no tienes citas completadas.',
-                        _PatientFilter.incidencias =>
-                          isAdminViewer
-                              ? 'No hay incidencias registradas en citas para este paciente.'
-                              : 'No tienes incidencias registradas en tus citas.',
-                      },
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF8A6F59),
-                        height: 1.45,
-                      ),
-                    ),
+                  child: OcgEmptyState(
+                    icon: switch (_filter) {
+                      _PatientFilter.activas => Icons.calendar_month_outlined,
+                      _PatientFilter.completadas => Icons.task_alt,
+                      _PatientFilter.incidencias => Icons.warning_amber_outlined,
+                    },
+                    title: switch (_filter) {
+                      _PatientFilter.activas => 'No hay citas activas',
+                      _PatientFilter.completadas => 'Aún no hay citas completadas',
+                      _PatientFilter.incidencias => 'Sin incidencias registradas',
+                    },
+                    subtitle: _filter == _PatientFilter.activas
+                        ? 'Pulsa + para agendar una nueva cita'
+                        : null,
                   ),
                 );
               }
@@ -1102,7 +946,7 @@ class _PatientAppointmentsScreenState
                   final canCancel =
                       appt.estado == AppointmentStatus.programada ||
                       appt.estado == AppointmentStatus.confirmada;
-                  return _AppointmentTile(
+                  return _ApptCard(
                     appointment: appt,
                     onCancel: canCancel
                         ? () => _handleCancelTap(context, ref, appt)
@@ -1117,180 +961,45 @@ class _PatientAppointmentsScreenState
     );
 
     if (widget.embedded) {
-      return Stack(
-        children: [
-          content,
-          Positioned(
-            bottom: 18,
-            right: 16,
-            child: _AddAppointmentFab(
-              onPressed: () => _showNewAppointmentDialog(
-                context,
-                ref,
-                effectivePatientId,
-                appointmentsAsync.asData?.value ?? const [],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isAdminViewer ? 'Citas del paciente' : 'Mis citas'),
-        actions: [
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout, color: OcgColors.error),
-            onPressed: _handleSignOut,
-          ),
-        ],
-      ),
-      floatingActionButton: _AddAppointmentFab(
-        onPressed: () => _showNewAppointmentDialog(
-          context,
-          ref,
-          effectivePatientId,
-          appointmentsAsync.asData?.value ?? const [],
-        ),
-      ),
-      body: content,
-    );
-  }
-}
-
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({
-    required this.label,
-    required this.active,
-    required this.icon,
-    required this.onTap,
-    this.count,
-    this.compact = false,
-    this.fill = false,
-  });
-
-  final String label;
-  final bool active;
-  final IconData icon;
-  final VoidCallback onTap;
-  final int? count;
-  final bool compact;
-  final bool fill;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        constraints: fill
-            ? null
-            : BoxConstraints(minWidth: compact ? 104 : 120),
-        padding: EdgeInsets.symmetric(
-          vertical: compact ? 9 : 10,
-          horizontal: compact ? 10 : 12,
-        ),
-        decoration: BoxDecoration(
-          color: active ? OcgColors.espresso : const Color(0xFFF2EDE8),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: active ? OcgColors.espresso : const Color(0xFFE6D7C8),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: compact ? 14 : 15,
-              color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
-            ),
-            SizedBox(width: compact ? 5 : 6),
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
-                    fontSize: compact ? 11.8 : 12.5,
-                  ),
-                ),
-              ),
-            ),
-            if (count != null && !compact) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: active
-                      ? OcgColors.ivory.withOpacity(0.2)
-                      : OcgColors.espresso.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    color: active ? OcgColors.ivory : OcgColors.espresso,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+      return FadeTransition(
+        opacity: _fadeSlide,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero)
+              .animate(_fadeSlide),
+          child: Stack(
+            children: [
+              content,
+              Positioned(
+                bottom: 18,
+                right: 16,
+                child: _AddAppointmentFab(
+                  onPressed: () => _showNewAppointmentDialog(
+                    context,
+                    ref,
+                    effectivePatientId,
+                    appointmentsAsync.asData?.value ?? const [],
                   ),
                 ),
               ),
             ],
-          ],
+          ),
         ),
-      ),
-    );
-  }
-}
+      );
+    }
 
-class _KpiMini extends StatelessWidget {
-  const _KpiMini({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.88),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      backgroundColor: const Color(0xFFEDE8DC),
+      body: SafeArea(
+        child: Stack(
           children: [
-            Text(
-              '$value',
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF8A6F59),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            const _Blob(top: -60, right: -40, size: 180, color: Color(0x30C8AF8C)),
+            const _Blob(bottom: -40, left: -30, size: 140, color: Color(0x22B49B78)),
+            FadeTransition(
+              opacity: _fadeSlide,
+              child: SlideTransition(
+                position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero)
+                    .animate(_fadeSlide),
+                child: content,
               ),
             ),
           ],
@@ -1299,6 +1008,10 @@ class _KpiMini extends StatelessWidget {
     );
   }
 }
+
+
+
+
 
 class _AddAppointmentFab extends StatelessWidget {
   const _AddAppointmentFab({required this.onPressed});
@@ -1327,214 +1040,320 @@ class _AddAppointmentFab extends StatelessWidget {
 
 // ─── Tarjeta de cita del paciente ─────────────────────────────────────────────
 
-class _AppointmentTile extends StatelessWidget {
-  const _AppointmentTile({required this.appointment, this.onCancel});
-
+class _ApptCard extends StatelessWidget {
+  const _ApptCard({required this.appointment, this.onCancel});
   final AppointmentModel appointment;
   final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
-    final statusStyle = _appointmentStatusStyle(appointment.estado);
-    final statusColor = statusStyle.color;
-    const months = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
-
-    final localBogota = _toBogota(appointment.fechaHora);
-    final day = localBogota.day.toString().padLeft(2, '0');
-    final month = months[localBogota.month - 1];
+    final s = _appointmentStatusStyle(appointment.estado);
+    final statusColor = s.color;
+    final local = _toBogota(appointment.fechaHora);
+    final day = local.day.toString().padLeft(2, '0');
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final month = months[local.month - 1];
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final amPm = local.hour >= 12 ? 'PM' : 'AM';
+    final timeStr =
+        '${hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} $amPm';
 
     return Container(
       decoration: BoxDecoration(
-        color: statusStyle.softBackground.withOpacity(0.42),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.30)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x122C2016),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
+        gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [const Color(0xFFFFFCF8), s.softBackground.withOpacity(0.25)]),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withOpacity(0.22)),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF2C2016).withOpacity(0.04),
+              blurRadius: 12, offset: const Offset(0, 3))
         ],
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border(left: BorderSide(color: statusColor, width: 4)),
-        ),
+      child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Date badge with gradient
+          Container(
+            width: 56, height: 64,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [statusColor, statusColor.withOpacity(0.7)]),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: statusColor.withOpacity(0.25),
+                  blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(month,
+                  style: const TextStyle(color: Colors.white, fontSize: 10.5,
+                      fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+              Text(day,
+                  style: const TextStyle(color: Colors.white, fontSize: 22,
+                      fontWeight: FontWeight.w800, height: 1.05)),
+            ]),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
                 Container(
-                  width: 52,
-                  height: 60,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        month,
-                        style: const TextStyle(
-                          color: OcgColors.ivory,
-                          fontSize: 10,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      Text(
-                        day,
-                        style: const TextStyle(
-                          color: OcgColors.ivory,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
-                          height: 1.05,
-                        ),
-                      ),
-                    ],
-                  ),
+                      color: s.softBackground, borderRadius: BorderRadius.circular(20)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(s.icon, size: 12, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(_estadoLabel(appointment.estado),
+                        style: TextStyle(color: statusColor, fontSize: 11.5,
+                            fontWeight: FontWeight.w700)),
+                  ]),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _tipoLabel(appointment.tipo),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                                color: Color(0xFF1A1410),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusStyle.softBackground,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: statusColor.withOpacity(0.16),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  statusStyle.icon,
-                                  size: 12,
-                                  color: statusColor,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _estadoLabel(appointment.estado),
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            size: 13,
-                            color: statusColor.withOpacity(0.76),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              _fmtDateTime(appointment.fechaHora),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: statusColor.withOpacity(0.82),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.72),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          (appointment.notas != null &&
-                                  appointment.notas!.trim().isNotEmpty)
-                              ? appointment.notas!.trim()
-                              : 'Detalle disponible en la cita',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: Color(0xFF8A6F59),
-                          ),
-                        ),
-                      ),
-                    ],
+                const Spacer(),
+                Icon(Icons.schedule, size: 14, color: statusColor.withOpacity(0.7)),
+                const SizedBox(width: 4),
+                Text(timeStr,
+                    style: TextStyle(color: statusColor.withOpacity(0.8), fontSize: 12.5,
+                        fontWeight: FontWeight.w600)),
+              ]),
+              const SizedBox(height: 8),
+              Text(_tipoLabel(appointment.tipo),
+                  style: const TextStyle(color: Color(0xFF1A1410), fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+              if (appointment.notas != null && appointment.notas!.trim().isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(10)),
+                  child: Text(appointment.notas!.trim(), maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF8A6F59))),
+                ),
+              ],
+              if (onCancel != null) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onCancel,
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Cancelar cita'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OcgColors.error,
+                      side: const BorderSide(color: OcgColors.error),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                   ),
                 ),
               ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Hero header ────────────────────────────────────────────────────────────
+
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader({required this.isAdminViewer,
+      required this.activasCount, required this.completadasCount, required this.incidenciasCount});
+  final bool isAdminViewer;
+  final int activasCount, completadasCount, incidenciasCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.paddingOf(context).top + 20, 20, 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+            colors: [Color(0xFF2C2016), Color(0xFF4A3628), Color(0xFF2C2016)]),
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFC8AF8C), Color(0xFFA88F6E)]),
+              borderRadius: BorderRadius.circular(14),
             ),
-            if (onCancel != null) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.cancel_outlined, size: 16),
-                  label: const Text('Cancelar cita'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: OcgColors.error,
-                    side: const BorderSide(color: OcgColors.error),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: onCancel,
-                ),
+            child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(isAdminViewer ? 'Citas del paciente' : 'Mis citas',
+                  style: const TextStyle(color: OcgColors.ivory, fontSize: 20,
+                      fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+              const SizedBox(height: 3),
+              Text(
+                  isAdminViewer
+                      ? 'Filtra por estado clínico para gestionar'
+                      : 'Organiza tus citas por estado real',
+                  style: TextStyle(color: OcgColors.ivory.withOpacity(0.65), fontSize: 12.5)),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        Row(children: [
+          _Kpi(label: 'Activas', value: activasCount, color: const Color(0xFF64B5F6)),
+          const SizedBox(width: 8),
+          _Kpi(label: 'Completadas', value: completadasCount, color: const Color(0xFF81C784)),
+          const SizedBox(width: 8),
+          _Kpi(label: 'Incidencias', value: incidenciasCount, color: const Color(0xFFEF9A9A)),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _Kpi extends StatelessWidget {
+  const _Kpi({required this.label, required this.value, required this.color});
+  final String label;
+  final int value;
+  final Color color;
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+            color: OcgColors.ivory.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: OcgColors.ivory.withOpacity(0.12))),
+        child: Column(children: [
+          Text('$value',
+              style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800, height: 1.1)),
+          const SizedBox(height: 3),
+          Text(label,
+              style: TextStyle(color: OcgColors.ivory.withOpacity(0.6), fontSize: 10.5,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Filter bar ─────────────────────────────────────────────────────────────
+
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({required this.filter, required this.activasCount,
+      required this.completadasCount, required this.incidenciasCount, required this.onChanged});
+  final _PatientFilter filter;
+  final int activasCount, completadasCount, incidenciasCount;
+  final ValueChanged<_PatientFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE7DDD2).withOpacity(0.5)),
+          boxShadow: [BoxShadow(color: const Color(0xFF2C2016).withOpacity(0.03),
+              blurRadius: 12, offset: const Offset(0, 4))]),
+      child: Row(children: [
+        _Pill(
+            filter: _PatientFilter.activas, current: filter, label: 'Activas',
+            count: activasCount, icon: Icons.upcoming_outlined,
+            onTap: () => onChanged(_PatientFilter.activas)),
+        const SizedBox(width: 4),
+        _Pill(
+            filter: _PatientFilter.completadas, current: filter, label: 'Completadas',
+            count: completadasCount, icon: Icons.task_alt,
+            onTap: () => onChanged(_PatientFilter.completadas)),
+        const SizedBox(width: 4),
+        _Pill(
+            filter: _PatientFilter.incidencias, current: filter, label: 'Incidencias',
+            count: incidenciasCount, icon: Icons.warning_amber_outlined,
+            onTap: () => onChanged(_PatientFilter.incidencias)),
+      ]),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.filter, required this.current, required this.label,
+      required this.count, required this.icon, required this.onTap});
+  final _PatientFilter filter, current;
+  final String label;
+  final int count;
+  final IconData icon;
+  final VoidCallback onTap;
+  bool get active => filter == current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFF2C2016) : const Color(0xFFF7F3EC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: active ? const Color(0xFF2C2016) : const Color(0xFFE7DDD2), width: active ? 1 : 0.8),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 15,
+                color: active ? OcgColors.ivory : const Color(0xFF8A6F59)),
+            const SizedBox(width: 5),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                child: Text(label,
+                    style: TextStyle(
+                        color: active ? OcgColors.ivory : const Color(0xFF8A6F59),
+                        fontWeight: FontWeight.w600, fontSize: 12)),
               ),
-            ],
-          ],
+            ),
+            const SizedBox(width: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                  color: active
+                      ? OcgColors.ivory.withOpacity(0.18)
+                      : const Color(0xFF2C2016).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(999)),
+              child: Text('$count',
+                  style: TextStyle(
+                      color: active ? OcgColors.ivory : const Color(0xFF2C2016),
+                      fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+          ]),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Blob ───────────────────────────────────────────────────────────────────
+
+class _Blob extends StatelessWidget {
+  final double? top, right, bottom, left;
+  final double size;
+  final Color color;
+  const _Blob({this.top, this.right, this.bottom, this.left,
+      required this.size, required this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: top, right: right, bottom: bottom, left: left,
+      child: IgnorePointer(
+        child: Container(width: size, height: size,
+          decoration: BoxDecoration(shape: BoxShape.circle,
+              gradient: RadialGradient(
+                  colors: [color, color.withOpacity(0)], stops: const [0, 0.7]))),
       ),
     );
   }
