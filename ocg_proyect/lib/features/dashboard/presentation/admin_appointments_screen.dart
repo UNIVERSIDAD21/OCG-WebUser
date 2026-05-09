@@ -2109,7 +2109,7 @@ class _AdminAppointmentsScreenState
 
   Widget _buildAgendaAppointmentCard(
     AppointmentModel a, {
-    bool showDate = false,
+    bool showDate = true,
     bool dense = false,
   }) {
     final ui = appointmentStatusUi(a);
