@@ -155,7 +155,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   }
 }
 
-enum _TreatmentSubView { hub, payments, documents }
+
 
 class _PatientDetailView extends ConsumerWidget {
   const _PatientDetailView({
@@ -177,27 +177,19 @@ class _PatientDetailView extends ConsumerWidget {
     ).uri.queryParameters['section'];
     final initialMobileSection = switch (sectionParam) {
       'perfil' || 'resumen' => 0,
-      'tratamiento' ||
-      'tratamientos' ||
-      'pagos' ||
-      'docs' ||
-      'documentos' ||
-      'historial' => 1,
-      'citas' => 2,
-      'simulador' => 3,
+      'tratamiento' || 'tratamientos' => 1,
+      'pagos' => 2,
+      'docs' || 'documentos' || 'historial' => 3,
+      'citas' => 4,
+      'simulador' => 5,
       _ => 0,
     };
-    final initialTreatmentSubView = switch (sectionParam) {
-      'pagos' => _TreatmentSubView.payments,
-      'docs' || 'documentos' || 'historial' => _TreatmentSubView.documents,
-      _ => _TreatmentSubView.hub,
-    };
+
 
     final content = _AdminPatientWorkspace(
       patient: patient,
       embeddedInAdminMobileShell: embeddedInAdminMobileShell,
       initialSection: initialMobileSection,
-      initialTreatmentSubView: initialTreatmentSubView,
       onEdit: () => context.go(
         RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
       ),
@@ -224,18 +216,18 @@ class _PatientDetailView extends ConsumerWidget {
 
       final initialDesktopTab = switch (sectionParam) {
         'tratamiento' ||
-        'tratamientos' ||
-        'pagos' ||
+        'tratamientos' => 1,
+        'pagos' => 2,
         'docs' ||
         'documentos' ||
-        'historial' => 1,
-        'citas' => 2,
-        'simulador' => 3,
+        'historial' => 3,
+        'citas' => 4,
+        'simulador' => 5,
         _ => 0,
       };
 
       final desktopContent = DefaultTabController(
-        length: 4,
+        length: 6,
         initialIndex: initialDesktopTab,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,6 +248,8 @@ class _PatientDetailView extends ConsumerWidget {
                 tabs: [
                   Tab(text: 'Perfil'),
                   Tab(text: 'Tratamiento'),
+                  Tab(text: 'Pagos'),
+                  Tab(text: 'Documentos clínicos'),
                   Tab(text: 'Citas'),
                   Tab(text: 'Simulador'),
                 ],
@@ -395,9 +389,19 @@ class _PatientDetailView extends ConsumerWidget {
                             ),
                             onDelete: onDelete,
                           ),
-                          _DesktopTreatmentModule(
+                          PatientTreatmentTab(
+                            patientId: patient.id,
                             patient: patient,
-                            initialSubView: initialTreatmentSubView,
+                            scrollable: false,
+                          ),
+                          PatientPaymentsTab(
+                            patientId: patient.id,
+                            scrollable: false,
+                          ),
+                          PatientClinicalHistoryTab(
+                            patientId: patient.id,
+                            patient: patient,
+                            scrollable: false,
                           ),
                           PatientAppointmentsTab(patient: patient),
                           PatientSimulatorTab(patient: patient),
@@ -430,7 +434,6 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
     required this.onEdit,
     required this.onDelete,
     this.initialSection = 0,
-    this.initialTreatmentSubView = _TreatmentSubView.hub,
   });
 
   final PatientModel patient;
@@ -438,7 +441,6 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final int initialSection;
-  final _TreatmentSubView initialTreatmentSubView;
 
   @override
   ConsumerState<_AdminPatientWorkspace> createState() =>
@@ -448,13 +450,11 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
 class _AdminPatientWorkspaceState
     extends ConsumerState<_AdminPatientWorkspace> {
   late int _section;
-  late _TreatmentSubView _treatmentSubView;
 
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection.clamp(0, 3);
-    _treatmentSubView = widget.initialTreatmentSubView;
+    _section = widget.initialSection.clamp(0, 5);
   }
 
   @override
@@ -552,8 +552,17 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      2 => PatientAppointmentsTab(patient: widget.patient, scrollable: false),
-      3 => PatientSimulatorTab(patient: widget.patient, scrollable: false),
+      2 => PatientPaymentsTab(
+        patientId: widget.patient.id,
+        scrollable: false,
+      ),
+      3 => PatientClinicalHistoryTab(
+        patientId: widget.patient.id,
+        patient: widget.patient,
+        scrollable: false,
+      ),
+      4 => PatientAppointmentsTab(patient: widget.patient, scrollable: false),
+      5 => PatientSimulatorTab(patient: widget.patient, scrollable: false),
       _ => const SizedBox.shrink(),
     };
   }
@@ -578,14 +587,24 @@ class _AdminPatientWorkspaceState
           icon: Icons.monitor_heart_outlined,
           badge: treatmentsCount == 0 ? null : '$treatmentsCount',
         ),
-        OcgSegmentedTabItem(
+        const OcgSegmentedTabItem(
           value: 2,
+          label: 'Pagos',
+          icon: Icons.payments_outlined,
+        ),
+        const OcgSegmentedTabItem(
+          value: 3,
+          label: 'Documentos clínicos',
+          icon: Icons.description_outlined,
+        ),
+        OcgSegmentedTabItem(
+          value: 4,
           label: 'Citas',
           icon: Icons.calendar_month_outlined,
           badge: appointmentsCount == 0 ? null : '$appointmentsCount',
         ),
         OcgSegmentedTabItem(
-          value: 3,
+          value: 5,
           label: 'Simulador',
           icon: Icons.auto_awesome_outlined,
           badge: simulationsCount == 0 ? null : '$simulationsCount',
@@ -694,10 +713,10 @@ class _AdminPatientWorkspaceState
   }) {
     return switch (_section) {
       0 => PatientProfileTab(patient: widget.patient, scrollable: false),
-      1 => _buildTreatmentModuleSection(
-        treatments: treatments,
-        nextAppointment: nextAppointment,
-        paymentsResolution: paymentsResolution,
+      1 => PatientTreatmentTab(
+        patientId: widget.patient.id,
+        patient: widget.patient,
+        scrollable: false,
       ),
       2 => Card(
         clipBehavior: Clip.antiAlias,
@@ -719,578 +738,6 @@ class _AdminPatientWorkspaceState
       ),
       _ => const SizedBox.shrink(),
     };
-  }
-
-  Widget _buildTreatmentModuleSection({
-    required List<PatientTreatment> treatments,
-    required AppointmentModel? nextAppointment,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeOutCubic,
-      transitionBuilder: (child, animation) {
-        final slide = Tween<Offset>(
-          begin: const Offset(0.02, 0),
-          end: Offset.zero,
-        ).animate(animation);
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: slide, child: child),
-        );
-      },
-      child: KeyedSubtree(
-        key: ValueKey(_treatmentSubView),
-        child: switch (_treatmentSubView) {
-          _TreatmentSubView.hub => _buildTreatmentsHubSection(
-            treatments: treatments,
-            nextAppointment: nextAppointment,
-            paymentsResolution: paymentsResolution,
-          ),
-          _TreatmentSubView.payments => _buildTreatmentPaymentsSubview(
-            treatments: treatments,
-            paymentsResolution: paymentsResolution,
-          ),
-          _TreatmentSubView.documents => _buildTreatmentDocumentsSubview(),
-        },
-      ),
-    );
-  }
-
-  Widget _buildTreatmentsHubSection({
-    required List<PatientTreatment> treatments,
-    required AppointmentModel? nextAppointment,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
-    final legacyOnly =
-        treatments.isNotEmpty &&
-        treatments.every((item) => item.id.startsWith('legacy-primary-'));
-    final activeTreatment = _resolvePrimaryTreatment(treatments);
-    final pending = paymentsResolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.saldoPendiente,
-    );
-    final paid = paymentsResolution.paymentAccounts.fold<double>(
-      0.0,
-      (sum, item) => sum + item.payment.montoPagado,
-    );
-    final summaryText = treatments.isEmpty
-        ? 'Aún no hay tratamientos registrados. Mantén pagos y documentos clínicos centralizados cuando el plan esté listo.'
-        : legacyOnly
-        ? 'Tratamiento principal migrado desde datos legacy.'
-        : '${treatments.length} tratamiento${treatments.length == 1 ? '' : 's'} con pagos y documentos asociados.';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTreatmentPremiumHero(
-          activeTreatment: activeTreatment,
-          treatmentsCount: treatments.length,
-          summaryText: summaryText,
-          pending: pending,
-          paid: paid,
-        ),
-        const SizedBox(height: 12),
-        if (activeTreatment != null) ...[
-          _buildTreatmentAlertStrip(activeTreatment, pending, nextAppointment),
-          const SizedBox(height: 12),
-          _buildMobileTreatmentTimeline(activeTreatment),
-          const SizedBox(height: 12),
-          _buildTreatmentActionPanel(activeTreatment),
-          const SizedBox(height: 12),
-        ] else ...[
-          _buildEmptyTreatmentActionPanel(),
-          const SizedBox(height: 12),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: _treatmentAccessCard(
-                title: 'Pagos',
-                subtitle: paymentsResolution.paymentAccounts.isEmpty
-                    ? 'Sin cuentas activas'
-                    : '${paymentsResolution.paymentAccounts.length} cuenta${paymentsResolution.paymentAccounts.length == 1 ? '' : 's'} · pendiente ${_money(pending)}',
-                metric: 'Pagado ${_money(paid)}',
-                icon: Icons.account_balance_wallet_outlined,
-                onTap: () => _openTreatmentSubview(_TreatmentSubView.payments),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _treatmentAccessCard(
-                title: 'Documentos',
-                subtitle: 'Archivos clínicos, radiografías y soportes',
-                metric: 'Documentos clínicos',
-                icon: Icons.folder_open_outlined,
-                onTap: () => _openTreatmentSubview(_TreatmentSubView.documents),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (treatments.isNotEmpty)
-          for (final treatment in treatments) ...[
-            _buildTreatmentListCard(treatment),
-            const SizedBox(height: 12),
-          ],
-      ],
-    );
-  }
-
-  Widget _buildTreatmentPaymentsSubview({
-    required List<PatientTreatment> treatments,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _treatmentSubviewHeader(
-          title: 'Pagos del tratamiento',
-          subtitle: 'Estado financiero del paciente dentro del módulo clínico.',
-          icon: Icons.account_balance_wallet_outlined,
-        ),
-        const SizedBox(height: 12),
-        _buildMobilePaymentsSection(
-          treatments: treatments,
-          paymentsResolution: paymentsResolution,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTreatmentDocumentsSubview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _treatmentSubviewHeader(
-          title: 'Documentos clínicos',
-          subtitle:
-              'Archivos, radiografías y soportes asociados al tratamiento.',
-          icon: Icons.folder_open_outlined,
-        ),
-        const SizedBox(height: 12),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
-          ),
-          child: PatientClinicalHistoryTab(
-            patientId: widget.patient.id,
-            patient: widget.patient,
-            scrollable: false,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _treatmentSubviewHeader({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    return _patientCard(
-      title: title,
-      icon: icon,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconButton.filledTonal(
-            onPressed: _backToTreatmentHub,
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Volver a tratamientos',
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: OcgColors.bronze,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'La flecha vuelve al hub de Tratamientos sin salir del detalle del paciente.',
-                  style: TextStyle(color: OcgColors.ink, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentPremiumHero({
-    required PatientTreatment? activeTreatment,
-    required int treatmentsCount,
-    required String summaryText,
-    required double pending,
-    required double paid,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF4A3527), Color(0xFF9A7654)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: OcgColors.ivory.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: OcgColors.ivory.withOpacity(0.20)),
-                ),
-                child: const Icon(
-                  Icons.monitor_heart_outlined,
-                  color: OcgColors.ivory,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tratamientos',
-                      style: TextStyle(
-                        color: OcgColors.ivory,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      summaryText,
-                      style: TextStyle(
-                        color: OcgColors.ivory.withOpacity(0.82),
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (activeTreatment == null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: OcgColors.ivory.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
-              ),
-              child: const Text(
-                'Estado vacío: aún no hay tratamiento activo o principal para resumir.',
-                style: TextStyle(
-                  color: OcgColors.ivory,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            )
-          else ...[
-            Text(
-              activeTreatment.displayName,
-              style: const TextStyle(
-                color: OcgColors.ivory,
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _treatmentHeroChip(
-                  activeTreatment.isPrimary ? 'Principal' : 'Secundario',
-                  Icons.star_border,
-                ),
-                _treatmentHeroChip(
-                  activeTreatment.statusLabel,
-                  Icons.favorite_border,
-                ),
-                _treatmentHeroChip(
-                  activeTreatment.currentStageName,
-                  Icons.timeline_outlined,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _treatmentHeroMetric(
-                    'Tratamientos',
-                    treatmentsCount.toString(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: _treatmentHeroMetric('Pagado', _money(paid))),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _treatmentHeroMetric('Pendiente', _money(pending)),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _treatmentHeroChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: OcgColors.ivory.withOpacity(0.20)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: OcgColors.ivory),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: OcgColors.ivory,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _treatmentHeroMetric(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: OcgColors.ivory.withOpacity(0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: OcgColors.ivory.withOpacity(0.72),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: OcgColors.ivory,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentAlertStrip(
-    PatientTreatment treatment,
-    double globalPending,
-    AppointmentModel? nextAppointment,
-  ) {
-    final alerts = <({IconData icon, String text, Color color})>[];
-    if (nextAppointment == null && !treatment.isFinished) {
-      alerts.add((
-        icon: Icons.event_busy_outlined,
-        text: 'Sin próxima cita registrada para seguimiento clínico.',
-        color: const Color(0xFF8A5A00),
-      ));
-    }
-    if (treatment.isFinished) {
-      alerts.add((
-        icon: Icons.check_circle_outline,
-        text:
-            'Tratamiento marcado como ${treatment.statusLabel.toLowerCase()}.',
-        color: const Color(0xFF2E7D32),
-      ));
-    }
-    if ((treatment.saldoPendiente ?? globalPending) > 0) {
-      alerts.add((
-        icon: Icons.account_balance_wallet_outlined,
-        text: 'Saldo pendiente asociado al módulo clínico.',
-        color: OcgColors.bronze,
-      ));
-    }
-    if (treatment.fechaFin == null && !treatment.isFinished) {
-      alerts.add((
-        icon: Icons.flag_outlined,
-        text: 'Sin fecha estimada de finalización registrada.',
-        color: const Color(0xFF8A5A00),
-      ));
-    }
-    if ((treatment.notas ?? '').trim().isEmpty) {
-      alerts.add((
-        icon: Icons.notes_outlined,
-        text: 'Sin notas clínicas para este tratamiento.',
-        color: OcgColors.bronze,
-      ));
-    }
-
-    if (alerts.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: alerts.take(3).map((alert) {
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: alert.color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: alert.color.withOpacity(0.18)),
-          ),
-          child: Row(
-            children: [
-              Icon(alert.icon, color: alert.color, size: 19),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  alert.text,
-                  style: TextStyle(
-                    color: alert.color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildEmptyTreatmentActionPanel() {
-    return _patientCard(
-      title: 'Acciones del tratamiento',
-      icon: Icons.flash_on_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FilledButton.icon(
-            onPressed: () => _openManageTreatmentDialog(),
-            icon: const Icon(Icons.add_circle_outline, size: 18),
-            label: const Text('Crear primer tratamiento'),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Crea el tratamiento inicial para activar etapa clínica, pagos asociados y documentos del módulo.',
-            style: TextStyle(
-              color: OcgColors.bronze,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentActionPanel(PatientTreatment treatment) {
-    final canUpdateStage = !treatment.isFinished;
-
-    return _patientCard(
-      title: 'Acciones del tratamiento',
-      icon: Icons.flash_on_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              FilledButton.icon(
-                onPressed: canUpdateStage
-                    ? () => _openUpdateStageDialog(treatment)
-                    : null,
-                icon: const Icon(Icons.trending_up_outlined, size: 18),
-                label: const Text('Actualizar etapa'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openManageTreatmentDialog(treatment),
-                icon: const Icon(Icons.edit_note_outlined, size: 18),
-                label: const Text('Editar tratamiento'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openManageTreatmentDialog(),
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                label: const Text('Nuevo tratamiento'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _openTreatmentSubview(_TreatmentSubView.payments),
-                icon: const Icon(Icons.payments_outlined, size: 18),
-                label: const Text('Pagos'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _openTreatmentSubview(_TreatmentSubView.documents),
-                icon: const Icon(Icons.folder_open_outlined, size: 18),
-                label: const Text('Documentos'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            canUpdateStage
-                ? 'Las acciones se mantienen dentro del módulo de Tratamientos para no sacar al admin del detalle móvil.'
-                : 'Este tratamiento ya está ${treatment.statusLabel.toLowerCase()}; la etapa no se puede actualizar desde esta acción rápida.',
-            style: const TextStyle(
-              color: OcgColors.bronze,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _openManageTreatmentDialog([PatientTreatment? treatment]) async {
@@ -1319,571 +766,6 @@ class _AdminPatientWorkspaceState
     );
   }
 
-  Widget _buildMobileTreatmentTimeline(PatientTreatment treatment) {
-    final stages = TreatmentStage.values;
-    final currentIndex = stages.indexOf(treatment.etapaActual);
-
-    return _patientCard(
-      title: 'Progreso clínico',
-      icon: Icons.timeline_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Etapa actual: ${treatment.currentStageName}',
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (var index = 0; index < stages.length; index++) ...[
-                  _buildMiniStageChip(
-                    label: stageNames[stages[index]] ?? stages[index].name,
-                    completed: index < currentIndex,
-                    active: index == currentIndex,
-                  ),
-                  if (index != stages.length - 1)
-                    Container(
-                      width: 18,
-                      height: 2,
-                      color: index < currentIndex
-                          ? OcgColors.espresso
-                          : OcgColors.bronze.withOpacity(0.22),
-                    ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _mobileMetricRow('Inicio', _date(treatment.fechaInicio)),
-          _mobileMetricRow(
-            'Fin estimado',
-            treatment.fechaFin == null
-                ? 'Sin fecha estimada'
-                : _date(treatment.fechaFin!),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniStageChip({
-    required String label,
-    required bool completed,
-    required bool active,
-  }) {
-    final color = active
-        ? OcgColors.espresso
-        : completed
-        ? const Color(0xFF2E7D32)
-        : OcgColors.bronze;
-    return Container(
-      width: 96,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(active ? 0.12 : 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(active ? 0.30 : 0.16)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            completed
-                ? Icons.check_circle
-                : active
-                ? Icons.radio_button_checked
-                : Icons.radio_button_unchecked,
-            size: 18,
-            color: color,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              height: 1.1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _treatmentAccessCard({
-    required String title,
-    required String subtitle,
-    required String metric,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
-          boxShadow: [
-            BoxShadow(
-              color: OcgColors.espresso.withOpacity(0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: OcgColors.espresso,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: OcgColors.ivory, size: 22),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: OcgColors.espresso,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: OcgColors.ink, fontSize: 12),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              metric,
-              style: const TextStyle(
-                color: OcgColors.bronze,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  PatientTreatment? _resolvePrimaryTreatment(
-    List<PatientTreatment> treatments,
-  ) {
-    for (final treatment in treatments) {
-      if (treatment.isPrimary) return treatment;
-    }
-    if (treatments.isEmpty) return null;
-    return treatments.first;
-  }
-
-  Widget _buildMobilePaymentsSection({
-    required List<PatientTreatment> treatments,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
-    double total = 0.0;
-    double paid = 0.0;
-    double pending = 0.0;
-
-    for (final EffectivePatientPaymentAccount account
-        in paymentsResolution.paymentAccounts) {
-      total += account.payment.totalTratamiento;
-      paid += account.payment.montoPagado;
-      pending += account.payment.saldoPendiente;
-    }
-
-    final transactions = paymentsResolution.transactions;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _patientCard(
-          title: 'Resumen global de pagos',
-          icon: Icons.account_balance_wallet_outlined,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _mobileMetricRow('Total del paciente', _money(total)),
-              _mobileMetricRow('Total pagado', _money(paid)),
-              _mobileMetricRow('Saldo pendiente', _money(pending)),
-              _mobileMetricRow(
-                'Cuentas activas',
-                paymentsResolution.paymentAccounts.isEmpty
-                    ? 'Sin cuentas'
-                    : '${paymentsResolution.paymentAccounts.length}',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _patientCard(
-          title: 'Cuentas por tratamiento',
-          icon: Icons.layers_outlined,
-          child: paymentsResolution.paymentAccounts.isEmpty
-              ? const Text(
-                  'No hay cuentas de pago registradas todavía.',
-                  style: TextStyle(color: OcgColors.ink),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final account
-                        in paymentsResolution.paymentAccounts) ...[
-                      _buildMobilePaymentAccountCard(
-                        account: account,
-                        treatment: _resolveTreatmentForAccount(
-                          treatments,
-                          account,
-                        ),
-                        allTransactions: transactions,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-        ),
-        const SizedBox(height: 12),
-        _patientCard(
-          title: 'Historial reciente',
-          icon: Icons.receipt_long_outlined,
-          child: transactions.isEmpty
-              ? const Text(
-                  'No hay pagos registrados para este paciente.',
-                  style: TextStyle(color: OcgColors.ink),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final tx in transactions.take(8)) ...[
-                      _buildMobileTransactionCard(
-                        tx,
-                        _resolveTreatmentForTransaction(
-                          treatments,
-                          paymentsResolution.paymentAccounts,
-                          tx,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionsCard(BuildContext context) {
-    return _patientCard(
-      title: 'Acciones rápidas',
-      icon: Icons.flash_on_outlined,
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 2.1,
-        children: [
-          _quickActionButton(
-            icon: Icons.calendar_month_outlined,
-            label: 'Agendar cita',
-            onTap: () => AdminAppointmentsScreen.showCreateDialog(
-              context,
-              ref,
-              preselectedPatient: widget.patient,
-              existingAppointments:
-                  ref.watch(appointmentsProvider).asData?.value ?? const [],
-            ),
-          ),
-          _quickActionButton(
-            icon: Icons.payments_outlined,
-            label: 'Registrar pago',
-            onTap: () => _openTreatmentSubview(_TreatmentSubView.payments),
-          ),
-          _quickActionButton(
-            icon: Icons.photo_camera_outlined,
-            label: 'Tomar foto',
-            onTap: () => _startSimulatorCameraFlow(),
-          ),
-          _quickActionButton(
-            icon: Icons.auto_awesome_outlined,
-            label: 'Abrir simulador',
-            onTap: () => _openSection(3),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentListCard(PatientTreatment treatment) {
-    final note = treatment.notas?.trim();
-    final isLegacy = treatment.id.startsWith('legacy-primary-');
-    final roleLabel = treatment.isPrimary || isLegacy
-        ? 'Principal'
-        : 'Secundario';
-    final currentIndex = TreatmentStage.values.indexOf(treatment.etapaActual);
-    final stageProgress = TreatmentStage.values.length <= 1
-        ? 1.0
-        : (currentIndex + 1) / TreatmentStage.values.length;
-    final pending = treatment.saldoPendiente ?? 0;
-    final total = treatment.totalTratamiento ?? 0;
-    final statusColor = treatment.isFinished
-        ? const Color(0xFF2E7D32)
-        : treatment.isActive
-        ? OcgColors.espresso
-        : OcgColors.bronze;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: OcgColors.ivory,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: treatment.isPrimary
-              ? OcgColors.espresso.withOpacity(0.24)
-              : OcgColors.bronze.withOpacity(0.14),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(
-              treatment.isPrimary ? 0.08 : 0.04,
-            ),
-            blurRadius: treatment.isPrimary ? 18 : 10,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  treatment.isFinished
-                      ? Icons.check_circle_outline
-                      : Icons.monitor_heart_outlined,
-                  color: statusColor,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      treatment.displayName,
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _statusBadge(roleLabel),
-                        _statusBadge(treatment.statusLabel),
-                        _statusBadge(treatment.currentStageName),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 7,
-              value: stageProgress.clamp(0.0, 1.0),
-              backgroundColor: OcgColors.bronze.withOpacity(0.14),
-              valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Progreso clínico ${(stageProgress * 100).round()}% · ${treatment.currentStageName}',
-            style: const TextStyle(
-              color: OcgColors.bronze,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _treatmentListMetric(
-                  'Inicio',
-                  _date(treatment.fechaInicio),
-                  Icons.calendar_today_outlined,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _treatmentListMetric(
-                  'Valor',
-                  total <= 0 ? 'Sin valor' : _money(total),
-                  Icons.attach_money_outlined,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _treatmentListMetric(
-                  'Pendiente',
-                  pending <= 0 ? 'Al día' : _money(pending),
-                  Icons.account_balance_wallet_outlined,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _treatmentListMetric(
-                  'Control',
-                  treatment.nextControlDate == null
-                      ? 'Sin fecha'
-                      : _date(treatment.nextControlDate!),
-                  Icons.event_available_outlined,
-                ),
-              ),
-            ],
-          ),
-          if (note != null && note.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F3ED),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE8DDD2)),
-              ),
-              child: Text(
-                note,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: OcgColors.ink,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: treatment.isFinished
-                    ? null
-                    : () => _openUpdateStageDialog(treatment),
-                icon: const Icon(Icons.trending_up_outlined, size: 18),
-                label: const Text('Etapa'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openManageTreatmentDialog(treatment),
-                icon: const Icon(Icons.edit_note_outlined, size: 18),
-                label: const Text('Editar'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _openTreatmentSubview(_TreatmentSubView.payments),
-                icon: const Icon(Icons.payments_outlined, size: 18),
-                label: const Text('Pagos'),
-              ),
-              OutlinedButton.icon(
-                onPressed: note == null || note.isEmpty
-                    ? null
-                    : () => _showTreatmentNotes(treatment),
-                icon: const Icon(Icons.notes_outlined, size: 18),
-                label: const Text('Notas'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _treatmentListMetric(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F3ED),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8DDD2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: OcgColors.bronze, size: 14),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: OcgColors.bronze,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: OcgColors.espresso,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _patientCard({
     required String title,
@@ -1925,6 +807,49 @@ class _AdminPatientWorkspaceState
             child,
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(BuildContext context) {
+    return _patientCard(
+      title: 'Acciones rápidas',
+      icon: Icons.flash_on_outlined,
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 2.1,
+        children: [
+          _quickActionButton(
+            icon: Icons.calendar_month_outlined,
+            label: 'Agendar cita',
+            onTap: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              preselectedPatient: widget.patient,
+              existingAppointments:
+                  ref.watch(appointmentsProvider).asData?.value ?? const [],
+            ),
+          ),
+          _quickActionButton(
+            icon: Icons.payments_outlined,
+            label: 'Registrar pago',
+            onTap: () => _openSection(2),
+          ),
+          _quickActionButton(
+            icon: Icons.photo_camera_outlined,
+            label: 'Tomar foto',
+            onTap: () => _startSimulatorCameraFlow(),
+          ),
+          _quickActionButton(
+            icon: Icons.auto_awesome_outlined,
+            label: 'Abrir simulador',
+            onTap: () => _openSection(3),
+          ),
+        ],
       ),
     );
   }
@@ -2341,22 +1266,8 @@ class _AdminPatientWorkspaceState
 
   void _openSection(int index) {
     setState(() {
-      _section = index.clamp(0, 3);
-      if (_section != 1) {
-        _treatmentSubView = _TreatmentSubView.hub;
-      }
+      _section = index.clamp(0, 5);
     });
-  }
-
-  void _openTreatmentSubview(_TreatmentSubView subView) {
-    setState(() {
-      _section = 1;
-      _treatmentSubView = subView;
-    });
-  }
-
-  void _backToTreatmentHub() {
-    setState(() => _treatmentSubView = _TreatmentSubView.hub);
   }
 
   String _money(num value) => '\$${formatCop(value)}';
@@ -2366,265 +1277,6 @@ class _AdminPatientWorkspaceState
 
   String _dateTime(DateTime value) =>
       '${_date(value)} · ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-}
-
-class _DesktopTreatmentModule extends StatefulWidget {
-  const _DesktopTreatmentModule({
-    required this.patient,
-    required this.initialSubView,
-  });
-
-  final PatientModel patient;
-  final _TreatmentSubView initialSubView;
-
-  @override
-  State<_DesktopTreatmentModule> createState() =>
-      _DesktopTreatmentModuleState();
-}
-
-class _DesktopTreatmentModuleState extends State<_DesktopTreatmentModule> {
-  late _TreatmentSubView _subView;
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _subView = widget.initialSubView;
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _setSubView(_TreatmentSubView subView) {
-    setState(() => _subView = subView);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(0);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scrollbar(
-      controller: _scrollController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.only(right: 12, bottom: 24),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          child: KeyedSubtree(
-            key: ValueKey(_subView),
-            child: switch (_subView) {
-              _TreatmentSubView.hub => _buildHub(),
-              _TreatmentSubView.payments => _buildSubview(
-                title: 'Pagos del tratamiento',
-                subtitle:
-                    'Estado financiero del paciente dentro del módulo clínico.',
-                icon: Icons.account_balance_wallet_outlined,
-                child: PatientPaymentsTab(
-                  patientId: widget.patient.id,
-                  scrollable: false,
-                ),
-              ),
-              _TreatmentSubView.documents => _buildSubview(
-                title: 'Documentos clínicos',
-                subtitle:
-                    'Archivos, radiografías y soportes asociados al tratamiento.',
-                icon: Icons.folder_open_outlined,
-                child: PatientClinicalHistoryTab(
-                  patientId: widget.patient.id,
-                  patient: widget.patient,
-                  scrollable: false,
-                ),
-              ),
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHub() {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Módulo de tratamientos',
-                style: TextStyle(
-                  color: OcgColors.espresso,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Tratamiento, pagos y documentos clínicos quedan integrados en una sola experiencia.',
-                style: TextStyle(color: OcgColors.bronze),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _DesktopTreatmentAccessCard(
-                      title: 'Pagos',
-                      subtitle: 'Resumen financiero y cuentas del tratamiento',
-                      icon: Icons.account_balance_wallet_outlined,
-                      onTap: () => _setSubView(_TreatmentSubView.payments),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _DesktopTreatmentAccessCard(
-                      title: 'Documentos clínicos',
-                      subtitle:
-                          'Archivos, radiografías y soportes del paciente',
-                      icon: Icons.folder_open_outlined,
-                      onTap: () => _setSubView(_TreatmentSubView.documents),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        PatientTreatmentTab(
-          patientId: widget.patient.id,
-          patient: widget.patient,
-          scrollable: false,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubview({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Widget child,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
-          ),
-          child: Row(
-            children: [
-              IconButton.filledTonal(
-                onPressed: () => _setSubView(_TreatmentSubView.hub),
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Volver a tratamientos',
-              ),
-              const SizedBox(width: 12),
-              Icon(icon, color: OcgColors.espresso),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(color: OcgColors.bronze),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        child,
-      ],
-    );
-  }
-}
-
-class _DesktopTreatmentAccessCard extends StatelessWidget {
-  const _DesktopTreatmentAccessCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F3ED),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: OcgColors.espresso,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: OcgColors.ivory),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: OcgColors.espresso,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: OcgColors.ink)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: OcgColors.bronze),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _PatientProfileAdminTab extends StatelessWidget {
@@ -2720,9 +1372,9 @@ class PatientDetailDesktopWorkspaceTestHarness extends StatelessWidget {
                       tabs: [
                         Tab(text: 'Perfil'),
                         Tab(text: 'Tratamiento'),
-                        Tab(text: 'Historial clínico'),
-                        Tab(text: 'Citas'),
                         Tab(text: 'Pagos'),
+                        Tab(text: 'Documentos clínicos'),
+                        Tab(text: 'Citas'),
                         Tab(text: 'Simulador'),
                       ],
                     ),
@@ -2735,9 +1387,9 @@ class PatientDetailDesktopWorkspaceTestHarness extends StatelessWidget {
                   children: [
                     Center(child: Text('Perfil content')),
                     Center(child: Text('Tratamiento content')),
-                    Center(child: Text('Historial content')),
-                    Center(child: Text('Citas content')),
                     Center(child: Text('Pagos content')),
+                    Center(child: Text('Documentos clínicos content')),
+                    Center(child: Text('Citas content')),
                     Center(child: Text('Simulador content')),
                   ],
                 ),
