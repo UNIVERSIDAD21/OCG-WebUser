@@ -219,44 +219,54 @@ class _ManagePatientTreatmentDialogState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(otherPrimary),
-                const SizedBox(height: 20),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth >= 900) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 5,
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: _buildClinicalColumn(
-                                  canTogglePrimary,
-                                  otherPrimary,
-                                  catalogAsync,
-                                ),
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildHeader(otherPrimary),
+                              const SizedBox(height: 20),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 5,
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: _buildClinicalColumn(
+                                        canTogglePrimary,
+                                        otherPrimary,
+                                        catalogAsync,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    flex: 4,
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.only(left: 8),
+                                      child: _buildFinancialColumn(
+                                        remoteItemsAsync,
+                                        effectiveFinancialItems,
+                                        summary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              flex: 4,
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: _buildFinancialColumn(
-                                  remoteItemsAsync,
-                                  effectiveFinancialItems,
-                                  summary,
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         );
                       }
                       return SingleChildScrollView(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildHeader(otherPrimary),
+                            const SizedBox(height: 20),
                             _buildClinicalColumn(
                               canTogglePrimary,
                               otherPrimary,
