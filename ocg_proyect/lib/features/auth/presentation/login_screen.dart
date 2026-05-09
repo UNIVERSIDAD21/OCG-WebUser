@@ -1393,7 +1393,8 @@ class _RegisterPatientDialog extends ConsumerStatefulWidget {
 }
 
 class _RegisterPatientDialogState
-    extends ConsumerState<_RegisterPatientDialog> {
+    extends ConsumerState<_RegisterPatientDialog>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
   bool _isSubmitting = false;
@@ -1405,6 +1406,29 @@ class _RegisterPatientDialogState
   String _confirm = '';
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+
+  late final AnimationController _animCtrl;
+  late final Animation<double> _fadeSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeSlide = CurvedAnimation(
+      parent: _animCtrl,
+      curve: Curves.easeOutCubic,
+    );
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -1459,7 +1483,7 @@ class _RegisterPatientDialogState
     }
   }
 
-  InputDecoration _inputDecoration({
+  static InputDecoration _fieldDecoration({
     required String label,
     required IconData icon,
     Widget? suffixIcon,
@@ -1468,12 +1492,14 @@ class _RegisterPatientDialogState
       labelText: label,
       labelStyle: const TextStyle(
         color: Color(0xFF8A6F59),
-        fontSize: 13,
+        fontSize: 13.5,
+        fontWeight: FontWeight.w500,
       ),
       prefixIcon: Icon(icon, color: const Color(0xFF8A6F59), size: 20),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: const Color(0xFFF9F5EF),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -1494,7 +1520,6 @@ class _RegisterPatientDialogState
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 2),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
@@ -1502,256 +1527,444 @@ class _RegisterPatientDialogState
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 460),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFFFCF8), Color(0xFFF7F0E8)],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE7DDD2)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2C2016).withOpacity(0.1),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: FadeTransition(
+        opacity: _fadeSlide,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          ).animate(_fadeSlide),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 480),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFFCF8), Color(0xFFF7F2E8)],
+              ),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: const Color(0xFFE7DDD2).withOpacity(0.7),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2C2016).withOpacity(0.1),
+                  blurRadius: 40,
+                  offset: const Offset(0, 16),
+                ),
+                BoxShadow(
+                  color: const Color(0xFF2C2016).withOpacity(0.04),
+                  blurRadius: 80,
+                  offset: const Offset(0, 30),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFC8AF8C), Color(0xFFA88F6E)],
+                    // ── Header ──
+                    _RegisterHeader(),
+                    const SizedBox(height: 28),
+
+                    // ── Name field ──
+                    _FieldLabel(
+                      label: 'Nombre completo',
+                      icon: Icons.person_outline_rounded,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2016),
+                        fontSize: 14.5,
+                        letterSpacing: 0.15,
+                      ),
+                      decoration: _fieldDecoration(
+                        label: 'Tu nombre',
+                        icon: Icons.person_outline_rounded,
+                      ),
+                      onChanged: (v) => _name = v,
+                      validator: Validators.fullName,
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ── Email field ──
+                    _FieldLabel(
+                      label: 'Correo electrónico',
+                      icon: Icons.email_outlined,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2016),
+                        fontSize: 14.5,
+                        letterSpacing: 0.15,
+                      ),
+                      decoration: _fieldDecoration(
+                        label: 'correo@ejemplo.com',
+                        icon: Icons.email_outlined,
+                      ),
+                      onChanged: (v) => _email = v,
+                      validator: Validators.email,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Divider ──
+                    _SectionDivider(label: 'Seguridad'),
+                    const SizedBox(height: 18),
+
+                    // ── Password field ──
+                    _FieldLabel(
+                      label: 'Contraseña',
+                      icon: Icons.lock_outline_rounded,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      obscureText: _obscurePass,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2016),
+                        fontSize: 14.5,
+                        letterSpacing: 0.15,
+                      ),
+                      decoration: _fieldDecoration(
+                        label: 'Mínimo 8 caracteres',
+                        icon: Icons.lock_outline_rounded,
+                        suffixIcon: _EyeToggle(
+                          visible: !_obscurePass,
+                          onTap: () =>
+                              setState(() => _obscurePass = !_obscurePass),
                         ),
-                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
-                        Icons.person_add_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                      onChanged: (v) => _pass = v,
+                      validator: Validators.passwordForRegister,
                     ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Crear cuenta',
-                            style: TextStyle(
-                              color: Color(0xFF2C2016),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Regístrate como paciente OCG',
-                            style: TextStyle(
-                              color: Color(0xFF8A6F59),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 18),
+
+                    // ── Confirm password field ──
+                    _FieldLabel(
+                      label: 'Confirmar contraseña',
+                      icon: Icons.shield_outlined,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Name field
-                TextFormField(
-                  textCapitalization: TextCapitalization.words,
-                  style: const TextStyle(
-                    color: Color(0xFF2C2016),
-                    fontSize: 14,
-                  ),
-                  decoration: _inputDecoration(
-                    label: 'Nombre completo',
-                    icon: Icons.person_outline_rounded,
-                  ),
-                  onChanged: (v) => _name = v,
-                  validator: Validators.fullName,
-                ),
-                const SizedBox(height: 14),
-                // Email field
-                TextFormField(
-                  keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(
-                    color: Color(0xFF2C2016),
-                    fontSize: 14,
-                  ),
-                  decoration: _inputDecoration(
-                    label: 'Correo electrónico',
-                    icon: Icons.email_outlined,
-                  ),
-                  onChanged: (v) => _email = v,
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: 14),
-                // Password field
-                TextFormField(
-                  obscureText: _obscurePass,
-                  style: const TextStyle(
-                    color: Color(0xFF2C2016),
-                    fontSize: 14,
-                  ),
-                  decoration: _inputDecoration(
-                    label: 'Contraseña',
-                    icon: Icons.lock_outline_rounded,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePass
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: const Color(0xFF8A6F59),
-                        size: 20,
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      obscureText: _obscureConfirm,
+                      textInputAction: TextInputAction.done,
+                      style: const TextStyle(
+                        color: Color(0xFF2C2016),
+                        fontSize: 14.5,
+                        letterSpacing: 0.15,
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePass = !_obscurePass),
-                    ),
-                  ),
-                  onChanged: (v) => _pass = v,
-                  validator: Validators.passwordForRegister,
-                ),
-                const SizedBox(height: 14),
-                // Confirm password field
-                TextFormField(
-                  obscureText: _obscureConfirm,
-                  style: const TextStyle(
-                    color: Color(0xFF2C2016),
-                    fontSize: 14,
-                  ),
-                  decoration: _inputDecoration(
-                    label: 'Confirmar contraseña',
-                    icon: Icons.lock_outline_rounded,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: const Color(0xFF8A6F59),
-                        size: 20,
+                      decoration: _fieldDecoration(
+                        label: 'Repite tu contraseña',
+                        icon: Icons.shield_outlined,
+                        suffixIcon: _EyeToggle(
+                          visible: !_obscureConfirm,
+                          onTap: () =>
+                              setState(() => _obscureConfirm = !_obscureConfirm),
+                        ),
                       ),
-                      onPressed: () =>
-                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      onChanged: (v) => _confirm = v,
+                      validator: (value) =>
+                          Validators.confirmPassword(value, _pass),
+                      onFieldSubmitted: _isSubmitting ? null : (_) => _submit(),
                     ),
-                  ),
-                  onChanged: (v) => _confirm = v,
-                  validator: (value) => Validators.confirmPassword(value, _pass),
-                ),
-                // Error message
-                if (_registerError != null) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD32F2F).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFD32F2F).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
+
+                    // ── Error ──
+                    if (_registerError != null) ...[
+                      const SizedBox(height: 16),
+                      _RegisterErrorBanner(message: _registerError!),
+                    ],
+                    const SizedBox(height: 26),
+
+                    // ── Buttons ──
+                    Row(
                       children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: Color(0xFFD32F2F),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            _registerError!,
-                            style: const TextStyle(
-                              color: Color(0xFFD32F2F),
-                              fontSize: 12,
+                          child: SizedBox(
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => Navigator.of(context).pop(false),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF6E5442),
+                                side: const BorderSide(
+                                  color: Color(0xFFD9CCBE),
+                                  width: 1.2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancelar',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2C2016),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Crear cuenta',
+                                      style: TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                // Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed:
-                            _isSubmitting ? null : () => Navigator.of(context).pop(false),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6E5442),
-                          side: const BorderSide(color: Color(0xFFD9CCBE)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2C2016),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Crear cuenta',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                      ),
-                    ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGISTER DIALOG SUB-WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RegisterHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Gradient icon
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFC8AF8C), Color(0xFFA88F6E)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFC8AF8C).withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.person_add_rounded,
+            color: Colors.white,
+            size: 26,
+          ),
+        ),
+        const SizedBox(width: 16),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Crear cuenta',
+                style: TextStyle(
+                  color: Color(0xFF2C2016),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  height: 1.2,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Completa tus datos para registrarte',
+                style: TextStyle(
+                  color: Color(0xFF8A6F59),
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _FieldLabel({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFFA89078)),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFA89078),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  final String label;
+
+  const _SectionDivider({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 1,
+            color: const Color(0xFFE0C7AF).withOpacity(0.6),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: const Color(0xFF8A6F59).withOpacity(0.7),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: const Color(0xFFE0C7AF).withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EyeToggle extends StatelessWidget {
+  final bool visible;
+  final VoidCallback onTap;
+
+  const _EyeToggle({required this.visible, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(
+            visible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: const Color(0xFF8A6F59),
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RegisterErrorBanner extends StatelessWidget {
+  final String message;
+
+  const _RegisterErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD32F2F).withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFD32F2F).withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD32F2F).withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFD32F2F),
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFD32F2F),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
