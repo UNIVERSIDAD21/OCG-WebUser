@@ -262,6 +262,7 @@ class FcmPayloadRouter {
   bool _isAppointmentType(String type) {
     return type == 'appointment' ||
         type == 'appointment_created' ||
+        type == 'appointment_confirmed' ||
         type == 'appointment_cancelled' ||
         type == 'appointment_rescheduled' ||
         type == 'appointment_reminder' ||

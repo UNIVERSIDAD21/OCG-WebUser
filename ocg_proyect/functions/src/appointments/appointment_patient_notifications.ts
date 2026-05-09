@@ -168,6 +168,26 @@ export async function notifyAppointmentPatientChanges(
     return;
   }
 
+  if (currentStatus === 'confirmada' && previousStatus !== 'confirmada') {
+    await notifyPatientAppointmentEvent(db, {
+      notificationId: `appointment_${appointmentId}_confirmed`,
+      patientId,
+      appointmentId,
+      treatmentId,
+      type: 'appointment_confirmed',
+      title: 'Tu cita fue confirmada',
+      body: `Tu cita para ${formatDateTimeBogota(after.fechaHora)} ha sido confirmada.`,
+      appointmentAt: after.fechaHora,
+    });
+
+    logger.info('ADMIN_APPOINTMENT_NOTIFICATION_CONFIRMATION', {
+      appointmentId,
+      patientId,
+      patientName,
+      type: 'appointment_confirmed',
+    });
+  }
+
   const becameRescheduled = currentStatus === 'reprogramada' && previousStatus !== 'reprogramada';
   if (dateChanged || becameRescheduled) {
     await notifyPatientAppointmentEvent(db, {

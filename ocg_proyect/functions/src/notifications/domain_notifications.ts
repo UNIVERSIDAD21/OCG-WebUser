@@ -8,6 +8,7 @@ const BOGOTA_TIME_ZONE = 'America/Bogota';
 
 export type AppointmentEventType =
   | 'appointment_created'
+  | 'appointment_confirmed'
   | 'appointment_cancelled'
   | 'appointment_rescheduled'
   | 'appointment_reminder'
@@ -182,6 +183,7 @@ export async function notifyAdminAppointmentEvent(
     treatmentId?: string | null;
     type:
       | 'appointment_created'
+      | 'appointment_confirmed'
       | 'appointment_cancelled'
       | 'appointment_rescheduled'
       | 'appointment_pending_confirmation';
