@@ -17,7 +17,10 @@ enum AgendaFilter {
 enum AgendaInnerTab { hoy, mes, historial }
 
 /// Filtros rápidos del detalle móvil de agenda.
-enum AgendaDayQuickFilter { dia, manana, pendientes, vencidas, historicas }
+enum AgendaDayQuickFilter { dia, manana, pendientes, incidencias, historicas }
+
+/// Sub-filtros dentro de Incidencias.
+enum AgendaIncidenceSubFilter { todas, perdidas, canceladas, reprogramadas }
 
 bool isLostAppointment(AppointmentModel appointment) {
   if (appointment.estado == AppointmentStatus.noAsistio) return true;
@@ -197,7 +200,7 @@ String quickFilterLabel(AgendaDayQuickFilter filter) {
     AgendaDayQuickFilter.dia => 'Día',
     AgendaDayQuickFilter.manana => 'Mañana',
     AgendaDayQuickFilter.pendientes => 'Pendientes',
-    AgendaDayQuickFilter.vencidas => 'Vencidas',
+    AgendaDayQuickFilter.incidencias => 'Incidencias',
     AgendaDayQuickFilter.historicas => 'Históricas',
   };
 }
@@ -207,7 +210,7 @@ IconData quickFilterIcon(AgendaDayQuickFilter filter) {
     AgendaDayQuickFilter.dia => Icons.today_outlined,
     AgendaDayQuickFilter.manana => Icons.wb_twilight_outlined,
     AgendaDayQuickFilter.pendientes => Icons.pending_actions_outlined,
-    AgendaDayQuickFilter.vencidas => Icons.warning_amber_outlined,
+    AgendaDayQuickFilter.incidencias => Icons.flag_outlined,
     AgendaDayQuickFilter.historicas => Icons.history_toggle_off_outlined,
   };
 }
@@ -242,12 +245,13 @@ List<AppointmentModel> quickFilteredItems(
                 ),
           )
           .toList(),
-    AgendaDayQuickFilter.vencidas =>
+    AgendaDayQuickFilter.incidencias =>
       appointments
           .where(
             (appointment) =>
-                appointment.estado == AppointmentStatus.programada &&
-                appointment.fechaHora.isBefore(now),
+                appointment.estado == AppointmentStatus.cancelada ||
+                appointment.estado == AppointmentStatus.noAsistio ||
+                appointment.estado == AppointmentStatus.reprogramada,
           )
           .toList(),
     AgendaDayQuickFilter.historicas =>
@@ -263,7 +267,7 @@ List<AppointmentModel> quickFilteredItems(
 
   items.sort((a, b) {
     if (filter == AgendaDayQuickFilter.historicas ||
-        filter == AgendaDayQuickFilter.vencidas) {
+        filter == AgendaDayQuickFilter.incidencias) {
       return b.fechaHora.compareTo(a.fechaHora);
     }
     return a.fechaHora.compareTo(b.fechaHora);
