@@ -1253,9 +1253,28 @@ class _TratamientoSection extends ConsumerStatefulWidget {
       _TratamientoSectionState();
 }
 
-class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
+class _TratamientoSectionState extends ConsumerState<_TratamientoSection>
+    with SingleTickerProviderStateMixin {
   String? _selectedTreatmentId;
   bool _stagesExpanded = false;
+  late final AnimationController _animCtrl;
+  late final Animation<double> _fadeSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeSlide =
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
+    _animCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(covariant _TratamientoSection oldWidget) {
@@ -1355,7 +1374,13 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
             final stageIndex = TreatmentStage.values
                 .indexOf(selectedTreatment.etapaActual)
                 .clamp(0, TreatmentStage.values.length - 1);
-            return SingleChildScrollView(
+            return FadeTransition(
+              opacity: _fadeSlide,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                    begin: const Offset(0, 0.03), end: Offset.zero)
+                    .animate(_fadeSlide),
+                child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1611,7 +1636,9 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection> {
                   ),
                 ],
               ),
-            );
+            ),
+          ),
+        );
           },
         );
       },
