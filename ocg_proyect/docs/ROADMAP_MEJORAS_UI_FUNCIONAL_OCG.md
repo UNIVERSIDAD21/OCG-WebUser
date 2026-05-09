@@ -1176,3 +1176,46 @@ Pendiente antes de commit:
 Commit:
 
 - Pendiente de hash al confirmar cambios.
+
+---
+
+## Registro de implementación — 2026-05-08 — Agenda móvil completamente scrolleable / Historial sin overflow
+
+Problema corregido:
+
+- Tras corregir el tab Hoy, Flutter reportó otro `RenderFlex overflowed` en móvil dentro de `AgendaInnerTab.historial`.
+- La causa era equivalente: la sección móvil de Agenda seguía usando una estructura raíz `Column` con header + tabs + `Expanded` para el tab activo. En pantallas pequeñas, el header premium dejaba un alto muy reducido para el tab (`h<=243.4`).
+- En Historial, la rama móvil de `_buildHistoryAgenda` era otra `Column` con panel de filtros + `Expanded` para la lista, y el panel de filtros ya podía superar el alto disponible.
+
+Solución aplicada:
+
+- La sección móvil completa de Agenda clínica ahora es un `ListView` vertical único: header premium, tabs y contenido del tab participan en el mismo scroll natural.
+- La rama móvil de `Historial` ya no usa `Expanded` ni lista vertical propia; renderiza el panel de filtros y las cards como contenido normal dentro del scroll principal.
+- La rama móvil de `Hoy` también queda como contenido no-scrollable interno, para evitar scroll vertical anidado.
+- La tarjeta/header marrón de Agenda clínica elimina el margen superior interno anterior para que el diseño arranque desde arriba del área móvil disponible.
+- Desktop conserva su estructura original con `Expanded` y listas internas dentro del panel de 720px.
+
+Cuidado aplicado:
+
+- Sin `SizedBox(height: 1000)` ni alturas arbitrarias.
+- Sin `ClipRect` ni ocultar overflow.
+- Sin esconder contenido.
+- Sin tocar providers, diálogos, navegación, `AdminMobileShell`, bottom nav, `AppointmentsBusinessRules`, Firebase ni FCM.
+
+Archivos tocados:
+
+- `lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `docs/ROADMAP_MEJORAS_UI_FUNCIONAL_OCG.md`
+
+Validaciones ejecutadas:
+
+- `dart format lib/features/dashboard/presentation/admin_appointments_screen.dart`
+- `flutter analyze`
+
+Pendiente antes de commit:
+
+- Tests focalizados y suite completa.
+
+Commit:
+
+- Pendiente de hash al confirmar cambios.

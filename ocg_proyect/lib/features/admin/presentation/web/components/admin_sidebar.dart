@@ -27,6 +27,47 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
     super.dispose();
   }
 
+  Future<void> _showSearchDialog(
+    BuildContext context,
+    List<({String label, IconData icon, String route})> sections,
+  ) async {
+    final dialogCtrl = TextEditingController();
+
+    final query = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buscar'),
+        content: TextField(
+          controller: dialogCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Pacientes, secciones...',
+            prefixIcon: Icon(Icons.search),
+          ),
+          onSubmitted: (value) => Navigator.of(ctx).pop(value.trim()),
+          textInputAction: TextInputAction.search,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(dialogCtrl.text.trim()),
+            child: const Text('Buscar'),
+          ),
+        ],
+      ),
+    );
+
+    dialogCtrl.dispose();
+
+    if (query == null || query.isEmpty || !mounted) return;
+
+    _searchCtrl.text = query;
+    await _runSystemSearch(context, sections);
+  }
+
   Future<void> _runSystemSearch(
     BuildContext context,
     List<({String label, IconData icon, String route})> sections,
@@ -237,7 +278,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                     borderRadius: BorderRadius.circular(999),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(999),
-                      onTap: () => _runSystemSearch(context, items),
+                      onTap: () => _showSearchDialog(context, items),
                       child: Padding(
                         padding: EdgeInsets.all(compactRail ? 10 : 12),
                         child: Icon(
