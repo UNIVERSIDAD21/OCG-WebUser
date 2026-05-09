@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_breakpoints.dart';
-import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../providers/auth_providers.dart';
@@ -1384,6 +1383,7 @@ class _SuccessBanner extends StatelessWidget {
   }
 }
 
+
 class _RegisterPatientDialog extends ConsumerStatefulWidget {
   const _RegisterPatientDialog();
 
@@ -1403,6 +1403,8 @@ class _RegisterPatientDialogState
   String _email = '';
   String _pass = '';
   String _confirm = '';
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -1457,92 +1459,300 @@ class _RegisterPatientDialogState
     }
   }
 
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(
+        color: Color(0xFF8A6F59),
+        fontSize: 13,
+      ),
+      prefixIcon: Icon(icon, color: const Color(0xFF8A6F59), size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: const Color(0xFFF9F5EF),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE0C7AF), width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFC8AF8C), width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Crear cuenta de paciente'),
-      content: Form(
-        key: _formKey,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFFFCF8), Color(0xFFF7F0E8)],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE7DDD2)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2C2016).withOpacity(0.1),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre completo',
-                  prefixIcon: Icon(Icons.person_outlined),
+          padding: const EdgeInsets.all(28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFC8AF8C), Color(0xFFA88F6E)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.person_add_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Crear cuenta',
+                            style: TextStyle(
+                              color: Color(0xFF2C2016),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Regístrate como paciente OCG',
+                            style: TextStyle(
+                              color: Color(0xFF8A6F59),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                onChanged: (v) => _name = v,
-                validator: Validators.fullName,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
-                  prefixIcon: Icon(Icons.email_outlined),
+                const SizedBox(height: 24),
+                // Name field
+                TextFormField(
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(
+                    color: Color(0xFF2C2016),
+                    fontSize: 14,
+                  ),
+                  decoration: _inputDecoration(
+                    label: 'Nombre completo',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  onChanged: (v) => _name = v,
+                  validator: Validators.fullName,
                 ),
-                onChanged: (v) => _email = v,
-                onSaved: (v) => _email = v?.trim() ?? '',
-                validator: Validators.email,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Contraseña',
-                  prefixIcon: Icon(Icons.lock_outlined),
+                const SizedBox(height: 14),
+                // Email field
+                TextFormField(
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(
+                    color: Color(0xFF2C2016),
+                    fontSize: 14,
+                  ),
+                  decoration: _inputDecoration(
+                    label: 'Correo electrónico',
+                    icon: Icons.email_outlined,
+                  ),
+                  onChanged: (v) => _email = v,
+                  validator: Validators.email,
                 ),
-                onChanged: (v) => _pass = v,
-                validator: Validators.passwordForRegister,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmar contraseña',
-                  prefixIcon: Icon(Icons.lock_outlined),
+                const SizedBox(height: 14),
+                // Password field
+                TextFormField(
+                  obscureText: _obscurePass,
+                  style: const TextStyle(
+                    color: Color(0xFF2C2016),
+                    fontSize: 14,
+                  ),
+                  decoration: _inputDecoration(
+                    label: 'Contraseña',
+                    icon: Icons.lock_outline_rounded,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: const Color(0xFF8A6F59),
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                    ),
+                  ),
+                  onChanged: (v) => _pass = v,
+                  validator: Validators.passwordForRegister,
                 ),
-                onChanged: (v) => _confirm = v,
-                validator: (value) => Validators.confirmPassword(value, _pass),
-              ),
-              if (_registerError != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _registerError!,
-                  style: const TextStyle(color: OcgColors.error, fontSize: 12),
+                const SizedBox(height: 14),
+                // Confirm password field
+                TextFormField(
+                  obscureText: _obscureConfirm,
+                  style: const TextStyle(
+                    color: Color(0xFF2C2016),
+                    fontSize: 14,
+                  ),
+                  decoration: _inputDecoration(
+                    label: 'Confirmar contraseña',
+                    icon: Icons.lock_outline_rounded,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: const Color(0xFF8A6F59),
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                  onChanged: (v) => _confirm = v,
+                  validator: (value) => Validators.confirmPassword(value, _pass),
+                ),
+                // Error message
+                if (_registerError != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD32F2F).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFD32F2F).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: Color(0xFFD32F2F),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _registerError!,
+                            style: const TextStyle(
+                              color: Color(0xFFD32F2F),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                // Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed:
+                            _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF6E5442),
+                          side: const BorderSide(color: Color(0xFFD9CCBE)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Cancelar',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2C2016),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Crear cuenta',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSubmitting
-              ? null
-              : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: OcgColors.espresso,
-            foregroundColor: OcgColors.ivory,
-          ),
-          onPressed: _isSubmitting ? null : _submit,
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: OcgColors.ivory,
-                  ),
-                )
-              : const Text('Crear cuenta'),
-        ),
-      ],
     );
   }
 }
