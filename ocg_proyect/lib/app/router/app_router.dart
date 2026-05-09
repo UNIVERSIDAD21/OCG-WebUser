@@ -276,11 +276,318 @@ class _AdminTabRoute extends StatelessWidget {
   }
 }
 
-class _AuthResolvingScreen extends StatelessWidget {
+class _AuthResolvingScreen extends StatefulWidget {
   const _AuthResolvingScreen();
 
   @override
+  State<_AuthResolvingScreen> createState() => _AuthResolvingScreenState();
+}
+
+class _AuthResolvingScreenState extends State<_AuthResolvingScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fade = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0, 0.7, curve: Curves.easeOutCubic),
+    );
+    _scale = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0, 1, curve: Curves.elasticOut),
+    );
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: Stack(
+        children: [
+          // ── Background gradient ──
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFEDE8DC),
+                  Color(0xFFF5F0E6),
+                  Color(0xFFE8E0D4),
+                  Color(0xFFF0EBDD),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Decorative blobs ──
+          Positioned(
+            top: -100,
+            right: -60,
+            child: _SplashBlob(size: 300, color: const Color(0x38C8AF8C)),
+          ),
+          Positioned(
+            bottom: -80,
+            left: -50,
+            child: _SplashBlob(size: 250, color: const Color(0x28B49B78)),
+          ),
+          Positioned(
+            top: '30%' as dynamic,
+            left: -30,
+            child: _SplashBlob(size: 130, color: const Color(0x1A8C6239)),
+          ),
+
+          // ── Floating dots ──
+          const _SplashDot(top: 120, right: 50, size: 4, delayMs: 200),
+          const _SplashDot(top: 200, right: 80, size: 3, delayMs: 700),
+          const _SplashDot(bottom: 180, left: 70, size: 5, delayMs: 1200),
+          const _SplashDot(bottom: 280, left: 40, size: 3, delayMs: 1800),
+
+          // ── Center content ──
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo
+                ScaleTransition(
+                  scale: _scale,
+                  child: FadeTransition(
+                    opacity: _fade,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF2C2016), Color(0xFF5B3C26)],
+                        ),
+                        borderRadius: BorderRadius.circular(36),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2C2016).withOpacity(0.18),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'OCG',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Tagline
+                FadeTransition(
+                  opacity: _fade,
+                  child: const Text(
+                    'Human Bionics',
+                    style: TextStyle(
+                      color: Color(0xFF6E5442),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Bottom loading indicator ──
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 48,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _SplashLoadingBar(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SplashBlob extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _SplashBlob({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [color, color.withOpacity(0)],
+          stops: const [0, 0.7],
+        ),
+      ),
+    );
+  }
+}
+
+class _SplashDot extends StatefulWidget {
+  final double? top;
+  final double? right;
+  final double? bottom;
+  final double? left;
+  final double size;
+  final int delayMs;
+
+  const _SplashDot({
+    this.top,
+    this.right,
+    this.bottom,
+    this.left,
+    required this.size,
+    required this.delayMs,
+  });
+
+  @override
+  State<_SplashDot> createState() => _SplashDotState();
+}
+
+class _SplashDotState extends State<_SplashDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _dotCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _dotCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _dotCtrl,
+      builder: (_, __) {
+        final y = -3 + 6 * _dotCtrl.value;
+        final opacity = 0.15 + 0.15 * _dotCtrl.value;
+        return Positioned(
+          top: widget.top,
+          right: widget.right,
+          bottom: widget.bottom,
+          left: widget.left,
+          child: Transform.translate(
+            offset: Offset(0, y),
+            child: Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                color: const Color(0xFF8C6239).withOpacity(opacity),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SplashLoadingBar extends StatefulWidget {
+  @override
+  State<_SplashLoadingBar> createState() => _SplashLoadingBarState();
+}
+
+class _SplashLoadingBarState extends State<_SplashLoadingBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _barCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _barCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _barCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 4,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(99),
+        child: AnimatedBuilder(
+          animation: _barCtrl,
+          builder: (_, __) {
+            final t = _barCtrl.value;
+            final left = t < 0.5 ? 0.0 : (t - 0.5) * 2 * 72;
+            return Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  right: 0,
+                  child: Container(color: const Color(0xFFD9CCBE)),
+                ),
+                Positioned(
+                  left: left,
+                  top: 0,
+                  bottom: 0,
+                  width: 18,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFC8AF8C), Color(0xFF8A6F59)],
+                      ),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
   }
 }
