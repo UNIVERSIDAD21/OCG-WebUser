@@ -6,6 +6,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_premium.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_app_bar.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/data/models/app_notification_model.dart';
@@ -27,7 +28,7 @@ class AdminNotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      appBar: AppBar(title: const Text('Notificaciones')),
+      appBar: OcgAppBar(title: 'Notificaciones', onBack: () => Navigator.of(context).pop()),
       body: body,
     );
   }

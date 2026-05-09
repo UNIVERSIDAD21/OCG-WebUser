@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_app_bar.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/clinical_file_model.dart';
 import '../providers/clinical_files_provider.dart';
@@ -97,7 +98,7 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
-      appBar: AppBar(title: const Text('Documentos clínicos')),
+      appBar: OcgAppBar(title: 'Documentos clínicos', onBack: () => Navigator.of(context).pop()),
       body: content,
     );
   }

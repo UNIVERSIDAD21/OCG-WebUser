@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_app_bar.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/repositories/simulation_repository.dart';
@@ -164,7 +165,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
     if (embedded) return decoratedBody;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones')),
+      appBar: OcgAppBar(title: isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones', onBack: () => Navigator.of(context).pop()),
       body: decoratedBody,
     );
   }

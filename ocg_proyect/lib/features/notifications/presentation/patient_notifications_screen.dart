@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_app_bar.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_premium.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -59,12 +60,11 @@ class _PatientNotificationsScreenState
           : const Color(0xFFF8F5F0),
       appBar: widget.embedded
           ? null
-          : AppBar(
-              title: Text(
-                unreadCount > 0
-                    ? 'Notificaciones ($unreadCount)'
-                    : 'Notificaciones',
-              ),
+          : OcgAppBar(
+              title: unreadCount > 0
+                  ? 'Notificaciones ($unreadCount)'
+                  : 'Notificaciones',
+              onBack: () => Navigator.of(context).pop(),
               actions: [
                 TextButton(
                   onPressed: actionsState.isLoading || unreadCount == 0
@@ -72,7 +72,8 @@ class _PatientNotificationsScreenState
                       : () => ref
                             .read(notificationsActionsProvider.notifier)
                             .markAllAsRead(patientId),
-                  child: const Text('Marcar todas'),
+                  child: const Text('Marcar todas',
+                      style: TextStyle(color: OcgColors.ivory)),
                 ),
               ],
             ),
