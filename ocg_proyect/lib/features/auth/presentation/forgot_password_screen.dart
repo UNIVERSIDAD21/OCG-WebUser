@@ -597,9 +597,7 @@ class _FloatingDotState extends State<_FloatingDot>
     _anim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) _ctrl.repeat(reverse: true);
-    });
+    _ctrl.repeat(reverse: true);
   }
 
   @override

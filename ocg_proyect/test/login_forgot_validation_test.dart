@@ -37,7 +37,7 @@ void main() {
   testWidgets('Forgot password valida correo vacío', (tester) async {
     await tester.pumpWidget(_wrap(const ForgotPasswordScreen()));
 
-    await tester.tap(find.text('Enviar enlace de recuperación'));
+    await tester.tap(find.text('Enviar enlace'));
     await tester.pump();
 
     expect(find.text('Ingresa tu correo'), findsOneWidget);
