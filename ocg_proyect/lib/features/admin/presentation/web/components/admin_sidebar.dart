@@ -162,6 +162,46 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
     );
   }
 
+  Widget _sectionLabel(bool collapsed, bool compactRail, String label) {
+    if (collapsed) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 1,
+            color: OcgColors.bronze.withOpacity(0.25),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: OcgColors.bronze.withOpacity(0.45),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    OcgColors.bronze.withOpacity(0.25),
+                    OcgColors.bronze.withOpacity(0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
@@ -203,65 +243,134 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
     ];
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF1C1208), Color(0xFF21170F), Color(0xFF1A100A)],
-          stops: [0, 0.6, 1],
+          colors: [
+            const Color(0xFF1C1208),
+            const Color(0xFF21170F),
+            const Color(0xFF1A100A),
+            const Color(0xFF130E08),
+          ],
+          stops: const [0, 0.4, 0.75, 1],
         ),
       ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Header: Logo ─────────────────────────────────────
             Padding(
               padding: EdgeInsets.fromLTRB(
                 collapsed ? (compactRail ? 8 : 12) : 20,
                 28,
                 collapsed ? (compactRail ? 8 : 12) : 20,
-                compactRail ? 18 : 24,
+                compactRail ? 14 : 18,
               ),
               child: Column(
                 crossAxisAlignment: collapsed
                     ? CrossAxisAlignment.center
                     : CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'OCG',
-                    style: TextStyle(
-                      color: OcgColors.ivory,
-                      fontSize: collapsed ? (compactRail ? 16 : 18) : 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: collapsed
-                          ? (compactRail ? 1.0 : 1.4)
-                          : 2.8,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 3,
+                        height: collapsed ? 18 : 26,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              OcgColors.bronze.withOpacity(0.8),
+                              OcgColors.bronze.withOpacity(0.1),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'OCG',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: collapsed ? (compactRail ? 16 : 18) : 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: collapsed
+                              ? (compactRail ? 1.0 : 1.4)
+                              : 2.8,
+                        ),
+                      ),
+                    ],
                   ),
                   if (!collapsed) ...[
-                    const SizedBox(height: 2),
-                    const Text(
-                      'PANEL CLÍNICO',
-                      style: TextStyle(
-                        color: Color(0xFF6E5442),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 1.8,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const SizedBox(width: 13),
+                        Container(
+                          width: 18,
+                          height: 1,
+                          color: OcgColors.bronze.withOpacity(0.3),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'PANEL CLÍNICO',
+                          style: TextStyle(
+                            color: Color(0xFF6E5442),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.8,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
               ),
             ),
+            // Línea divisoria header
             Container(
               margin: EdgeInsets.fromLTRB(
                 collapsed ? (compactRail ? 12 : 16) : 20,
                 0,
                 collapsed ? (compactRail ? 12 : 16) : 20,
-                compactRail ? 14 : 20,
+                compactRail ? 8 : 12,
               ),
-              height: 1,
-              color: const Color(0x0DFFFFFF),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0x00FFFFFF),
+                            Color(0x0DFFFFFF),
+                            Color(0x0DFFFFFF),
+                            Color(0x00FFFFFF),
+                          ],
+                          stops: [0, 0.3, 0.7, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!collapsed)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Container(
+                        width: 3,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: OcgColors.bronze.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             if (collapsed)
               Padding(
@@ -353,6 +462,11 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                   ),
                 ),
               ),
+            // ── Navegación principal ─────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: _sectionLabel(collapsed, compactRail, 'MENÚ'),
+            ),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.symmetric(
@@ -364,36 +478,72 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                       currentRoute == item.route ||
                       currentRoute.startsWith('${item.route}/');
 
-                  final bgColor = active
-                      ? const Color(0xFFF5EDE0)
-                      : Colors.transparent;
-                  final fgColor = active
-                      ? const Color(0xFF2C2016)
-                      : const Color(0xFF7E6A5B);
-
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Tooltip(
                       message: item.label,
                       child: Material(
-                        color: bgColor,
+                        color: Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => context.go(item.route),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: collapsed ? 0 : 12,
-                              vertical: collapsed ? (compactRail ? 10 : 12) : 9,
-                            ),
+                          child: Container(
+                            decoration: active
+                                ? BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        const Color(0xFFF5EDE0)
+                                            .withOpacity(0.95),
+                                        const Color(0xFFF5EDE0)
+                                            .withOpacity(0.65),
+                                        const Color(0xFFF5EDE0)
+                                            .withOpacity(0.15),
+                                      ],
+                                      stops: const [0, 0.4, 1],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFF5EDE0)
+                                          .withOpacity(0.2),
+                                    ),
+                                  )
+                                : BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
+                            padding: const EdgeInsets.only(left: 2),
                             child: Row(
-                              mainAxisAlignment: collapsed
-                                  ? MainAxisAlignment.center
-                                  : MainAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
+                                if (active && !collapsed)
+                                  Container(
+                                    width: 3,
+                                    height: 24,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          OcgColors.bronze.withOpacity(0.9),
+                                          OcgColors.bronze.withOpacity(0.3),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  )
+                                else if (collapsed)
+                                  const SizedBox(width: 4),
                                 Icon(
                                   item.icon,
-                                  color: fgColor,
+                                  color: active
+                                      ? const Color(0xFF2C2016)
+                                      : const Color(0xFF7E6A5B),
                                   size: collapsed
                                       ? (compactRail ? 16 : 18)
                                       : 15,
@@ -403,7 +553,9 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                   Text(
                                     item.label,
                                     style: TextStyle(
-                                      color: fgColor,
+                                      color: active
+                                          ? const Color(0xFF2C2016)
+                                          : const Color(0xFF7E6A5B),
                                       fontSize: 13,
                                       fontWeight: active
                                           ? FontWeight.w600
@@ -411,7 +563,24 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                       letterSpacing: 0.12,
                                     ),
                                   ),
+                                  if (active)
+                                    const Spacer(),
+                                  if (active && !collapsed)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: Container(
+                                        width: 5,
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          color: OcgColors.bronze
+                                              .withOpacity(0.6),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
                                 ],
+                                if (collapsed)
+                                  const SizedBox(width: 4),
                               ],
                             ),
                           ),
@@ -422,12 +591,54 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                 }).toList(),
               ),
             ),
+            // Línea divisoria inferior
+            Container(
+              margin: EdgeInsets.fromLTRB(
+                collapsed ? (compactRail ? 12 : 16) : 20,
+                8,
+                collapsed ? (compactRail ? 12 : 16) : 20,
+                compactRail ? 6 : 8,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 1,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0x00FFFFFF),
+                            Color(0x0DFFFFFF),
+                            Color(0x0DFFFFFF),
+                            Color(0x00FFFFFF),
+                          ],
+                          stops: [0, 0.3, 0.7, 1],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!collapsed)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Container(
+                        width: 3,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: OcgColors.bronze.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // ── Footer: Cerrar sesión ────────────────────────────
             Padding(
               padding: EdgeInsets.fromLTRB(
                 compactRail ? 8 : 12,
-                16,
+                8,
                 compactRail ? 8 : 12,
-                collapsed ? 16 : 24,
+                collapsed ? 16 : 20,
               ),
               child: Tooltip(
                 message: 'Cerrar sesión',
