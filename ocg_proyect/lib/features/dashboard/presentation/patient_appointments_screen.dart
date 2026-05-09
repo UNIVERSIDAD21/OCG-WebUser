@@ -14,6 +14,7 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/whatsapp_support.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -900,7 +901,7 @@ class _PatientAppointmentsScreenState
         Expanded(
           child: appointmentsAsync.when(
             loading: () => const Center(
-              child: CircularProgressIndicator(color: OcgColors.espresso),
+              child: OcgLoadingState(),
             ),
             error: (e, _) => Center(
               child: OcgEmptyState(

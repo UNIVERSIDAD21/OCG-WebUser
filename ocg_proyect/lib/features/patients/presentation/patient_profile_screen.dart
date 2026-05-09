@@ -10,6 +10,7 @@ import '../../profile_photo/services/profile_photo_service.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
 import '../providers/patients_provider.dart';
@@ -112,7 +113,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
     final patientAsync = ref.watch(patientByIdProvider(effectivePatientId));
 
     final content = patientAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (error, _) => Center(
         child: Text(
           isAdminViewer

@@ -8,6 +8,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -327,7 +328,7 @@ class _InicioSection extends ConsumerWidget {
     final user = ref.watch(authStateProvider).asData?.value;
 
     return patientAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (_, __) => const OcgEmptyState(
         icon: Icons.error_outline,
         title: 'No se pudo cargar tu información',
@@ -1323,7 +1324,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection>
     final patientAsync = ref.watch(patientByIdProvider(widget.userId));
 
     return patientAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (_, __) => const OcgEmptyState(
         icon: Icons.error_outline,
         title: 'No se pudo cargar tu tratamiento',
@@ -1364,7 +1365,7 @@ class _TratamientoSectionState extends ConsumerState<_TratamientoSection>
               );
 
         return historyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => OcgLoadingState(),
           error: (_, __) => const OcgEmptyState(
             icon: Icons.error_outline,
             title: 'No se pudo cargar el historial',

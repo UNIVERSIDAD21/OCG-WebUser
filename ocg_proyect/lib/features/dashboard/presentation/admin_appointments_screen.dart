@@ -18,6 +18,7 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import 'admin_appointments_agenda_helpers.dart';
 import 'admin_appointments_formatters.dart';
@@ -3426,20 +3427,20 @@ class _AdminAppointmentsScreenState
         appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
 
     final hoyAgendaBody = appointmentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
       data: (appointments) =>
           _buildTodayAgenda(context, appointments, selectedDate),
     );
 
     final mesAgendaBody = appointmentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
       data: (appointments) => _buildMonthAgenda(context, appointments),
     );
 
     final historialAgendaBody = appointmentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
       data: (appointments) => _buildHistoryAgenda(context, appointments),
     );

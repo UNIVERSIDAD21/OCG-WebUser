@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_premium.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/data/models/app_notification_model.dart';
@@ -71,7 +72,7 @@ class _AdminNotificationsBodyState
     final actionsState = ref.watch(notificationsActionsProvider);
 
     return notificationsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (error, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

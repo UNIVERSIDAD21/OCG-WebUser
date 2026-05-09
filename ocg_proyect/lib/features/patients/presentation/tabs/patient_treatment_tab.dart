@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
@@ -141,7 +142,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
 
     return financialItemsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (error, _) => Center(
         child: OcgEmptyState(
           icon: Icons.error_outline,
@@ -158,7 +159,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           ..sort((a, b) => a.order.compareTo(b.order));
 
         return historyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => OcgLoadingState(),
           error: (error, _) => Center(
             child: OcgEmptyState(
               icon: Icons.error_outline,

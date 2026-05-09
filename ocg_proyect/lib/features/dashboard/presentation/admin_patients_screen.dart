@@ -19,6 +19,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../../shared/widgets/ocg_chip.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
@@ -284,7 +285,7 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
       children: [
         Expanded(
           child: asyncPatients.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => OcgLoadingState(),
             error: (error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(20),

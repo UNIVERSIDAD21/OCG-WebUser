@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../appointments/providers/appointments_provider.dart';
 import '../../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../data/models/patient_model.dart';
@@ -24,7 +25,7 @@ class PatientAppointmentsTab extends ConsumerWidget {
     );
 
     return appointmentsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (error, _) => Center(
         child: Text(
           'No se pudo cargar citas: $error',

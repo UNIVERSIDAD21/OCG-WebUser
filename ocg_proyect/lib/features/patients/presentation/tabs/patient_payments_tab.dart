@@ -13,6 +13,7 @@ import '../../../../features/payments/providers/treatment_financial_provider.dar
 import '../../../../features/treatment/data/models/patient_treatment.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../providers/patients_provider.dart';
 
 class PatientPaymentsTab extends ConsumerStatefulWidget {
@@ -38,7 +39,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
 
     return patientAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (error, _) => Text('No se pudo cargar paciente: $error'),
       data: (patient) {
         if (patient == null) {
@@ -202,7 +203,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   const SizedBox(height: 16),
                   financialItemsAsync.when(
                     loading: () =>
-                        const Center(child: CircularProgressIndicator()),
+                        OcgLoadingState(),
                     error: (error, _) =>
                         Text('No se pudieron cargar conceptos: $error'),
                     data: (items) => Column(

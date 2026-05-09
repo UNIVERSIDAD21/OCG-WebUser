@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/models/clinical_file_model.dart';
 import '../providers/clinical_files_provider.dart';
@@ -46,7 +47,7 @@ class PatientSharedClinicalFilesScreen extends ConsumerWidget {
       color: const Color(0xFFF8F5F0),
       child: filesAsync.when(
         loading: () => const Center(
-          child: CircularProgressIndicator(color: OcgColors.espresso),
+          child: OcgLoadingState(),
         ),
         error: (error, _) => Center(
           child: Padding(

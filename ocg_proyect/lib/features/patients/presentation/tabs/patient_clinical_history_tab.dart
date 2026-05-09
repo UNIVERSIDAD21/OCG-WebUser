@@ -7,6 +7,7 @@ import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
@@ -203,7 +204,7 @@ class _PatientClinicalHistoryTabState
           _buildClinicalFilesHero(filesAsync.asData?.value ?? const []),
           const SizedBox(height: 16),
           filesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => OcgLoadingState(),
             error: (error, _) => Text('No se pudieron cargar archivos: $error'),
             data: (files) {
               final filtered = files.where((file) {

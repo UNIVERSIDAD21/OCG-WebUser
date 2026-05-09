@@ -8,6 +8,7 @@ import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import 'admin_mobile_shell_controller.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -472,7 +473,7 @@ class _MobileAdminDashboard extends StatelessWidget {
                 if (loadingAppointments)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: OcgLoadingState(),
                   )
                 else if (appointmentsError)
                   const Text('No se pudo cargar la agenda del día.')
@@ -1534,7 +1535,7 @@ class _TodayAgendaCard extends StatelessWidget {
           if (loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
-              child: Center(child: CircularProgressIndicator()),
+              child: OcgLoadingState(),
             )
           else if (hasError)
             const Text('No se pudo cargar la agenda del día.')

@@ -7,6 +7,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import 'admin_mobile_shell_controller.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -47,7 +48,7 @@ class AdminTreatmentsScreen extends ConsumerWidget {
     final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = patientsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) =>
           Center(child: Text('No se pudieron cargar tratamientos: $e')),
       data: (patients) {
@@ -121,7 +122,7 @@ class AdminPaymentsScreen extends ConsumerWidget {
     final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = overviewAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudieron cargar pagos: $e')),
       data: (overview) {
         final now = DateTime.now();
@@ -604,7 +605,7 @@ class AdminSimulatorScreen extends ConsumerWidget {
     final isDesktop = WebLayoutContext.useDesktopShell(context);
 
     Widget body = patientsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar simulador: $e')),
       data: (patients) {
         final ordered = [...patients]
