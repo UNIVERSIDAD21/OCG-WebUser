@@ -92,8 +92,12 @@ class FcmPayloadRouter {
     );
   }
 
+  static bool _entityMatches(String entityType, String keyword) {
+    return entityType.toLowerCase().contains(keyword);
+  }
+
   /// Convierte cualquier ruta/indicio paciente a su equivalente admin.
-  /// Devuelve null si no hay nada que convertir (el flujo normal sigue).
+  /// NUNCA retorna null para admins — siempre devuelve una ruta admin.
   String? _resolveAdminRoute(
     String explicitRoute,
     Map<String, dynamic> data, {
@@ -108,6 +112,24 @@ class FcmPayloadRouter {
       if (uri != null) {
         final converted = _convertPatientRouteToAdmin(uri, patientId);
         if (converted != null) return converted;
+
+        // Fallback: si no pudimos convertir la ruta paciente (p.ej. patientId
+        // vacío), resolvemos semánticamente por tipo de notificación.
+        if (_isTreatmentNotification(type, entityType)) {
+          return RouteNames.adminTreatments;
+        }
+        if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
+          return RouteNames.adminSimulator;
+        }
+        if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
+          return RouteNames.adminPayments;
+        }
+        // Último recurso: volver al detalle del paciente si hay ID,
+        // o a la lista de pacientes.
+        if (patientId.isNotEmpty) {
+          return _adminPatientSectionRoute(patientId, 'resumen');
+        }
+        return RouteNames.adminPatients;
       }
     }
 
@@ -118,15 +140,15 @@ class FcmPayloadRouter {
             ? RouteNames.adminTreatments
             : _adminPatientSectionRoute(patientId, 'tratamientos');
       }
-      if (_isAppointmentType(type) || entityType == 'appointment') {
+      if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
         return patientId.isEmpty
             ? RouteNames.adminAppointments
             : _adminPatientSectionRoute(patientId, 'citas');
       }
-      if (_isPaymentType(type) || entityType == 'payment') {
+      if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
         return RouteNames.adminPayments;
       }
-      if (_isSimulationType(type) || entityType == 'simulation') {
+      if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
         return patientId.isEmpty
             ? RouteNames.adminSimulator
             : _adminPatientSectionRoute(patientId, 'simulador');
@@ -183,7 +205,7 @@ class FcmPayloadRouter {
     if (patientId.isNotEmpty) {
       return _adminPatientSectionRoute(patientId, 'resumen');
     }
-    return null;
+    return RouteNames.adminPatients;
   }
 
   String? _normalizeExplicitRoute(
@@ -204,13 +226,13 @@ class FcmPayloadRouter {
       if (_isTreatmentNotification(type, entityType)) {
         return RouteNames.patientTreatment;
       }
-      if (_isAppointmentType(type) || entityType == 'appointment') {
+      if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
         return RouteNames.patientAppointments;
       }
-      if (_isSimulationType(type) || entityType == 'simulation') {
+      if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
         return RouteNames.patientSimulations;
       }
-      if (_isPaymentType(type) || entityType == 'payment') {
+      if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
         return RouteNames.patientPayments;
       }
       if (_isClinicalFileType(type) || _isClinicalFileEntity(entityType)) {
@@ -222,7 +244,9 @@ class FcmPayloadRouter {
   }
 
   bool _isTreatmentNotification(String type, String entityType) {
-    return _isTreatmentType(type) || entityType == 'treatment';
+    return _isTreatmentType(type) ||
+        entityType.toLowerCase().contains('treatment') ||
+        entityType.toLowerCase().contains('tratamiento');
   }
 
   String _fallbackRoute(
@@ -238,7 +262,7 @@ class FcmPayloadRouter {
         entityTypeOverride ?? (data['entityType'] ?? '').toString().trim();
     final patientId = _patientIdFromPayload(data, role);
 
-    if (_isAppointmentType(type) || entityType == 'appointment') {
+    if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
       if (role == 'admin' && patientId.isNotEmpty) {
         return _adminPatientSectionRoute(patientId, 'citas');
       }
@@ -247,7 +271,7 @@ class FcmPayloadRouter {
           : RouteNames.patientAppointments;
     }
 
-    if (_isPaymentType(type) || entityType == 'payment') {
+    if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
       if (role == 'admin' && patientId.isNotEmpty) {
         return _adminPatientSectionRoute(patientId, 'pagos');
       }
@@ -261,7 +285,7 @@ class FcmPayloadRouter {
       return RouteNames.patientClinicalFiles;
     }
 
-    if (_isSimulationType(type) || entityType == 'simulation') {
+    if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
       if (role == 'admin') {
         return patientId.isEmpty
             ? RouteNames.adminSimulator
@@ -271,7 +295,7 @@ class FcmPayloadRouter {
     }
 
     if (role == 'patient' &&
-        (_isProfileType(type) || entityType == 'profile')) {
+        (_isProfileType(type) || _entityMatches(entityType, 'profile') || _entityMatches(entityType, 'perfil'))) {
       return RouteNames.patientProfile;
     }
 
@@ -348,10 +372,11 @@ class FcmPayloadRouter {
     final patientId = (data['patientId'] ?? '').toString().trim();
     if (patientId.isNotEmpty) return patientId;
 
-    // recipientId solo es un patientId confiable para notificaciones del paciente.
-    if (role == 'patient') {
-      return (data['recipientId'] ?? '').toString().trim();
-    }
+    // recipientId es un patientId confiable tanto para pacientes
+    // como para admins (cuando el admin ve notificaciones de un paciente
+    // específico, recipientId = id del paciente).
+    final recipientId = (data['recipientId'] ?? '').toString().trim();
+    if (recipientId.isNotEmpty) return recipientId;
 
     return '';
   }
@@ -378,53 +403,45 @@ class FcmPayloadRouter {
     );
   }
 
+  bool _isTreatmentType(String type) {
+    final t = type.toLowerCase();
+    return t.contains('treatment') || t.contains('tratamiento');
+  }
+
   bool _isAppointmentType(String type) {
-    return type == 'appointment' ||
-        type == 'appointment_created' ||
-        type == 'appointment_confirmed' ||
-        type == 'appointment_cancelled' ||
-        type == 'appointment_rescheduled' ||
-        type == 'appointment_reminder' ||
-        type == 'appointment_pending_confirmation';
+    final t = type.toLowerCase();
+    return t.contains('appointment') || t.contains('cita');
   }
 
   bool _isPaymentType(String type) {
-    return type == 'payment' ||
-        type == 'payment_received' ||
-        type == 'payment_due' ||
-        type == 'payment_reported' ||
-        type == 'payment_pending_validation' ||
-        type == 'payment_failed' ||
-        type == 'payment_overdue' ||
-        type == 'payment_due_soon';
-  }
-
-  bool _isClinicalFileType(String type) {
-    return type == 'clinical_file' ||
-        type == 'clinical_file_shared' ||
-        type == 'document' ||
-        type == 'document_shared' ||
-        type == 'treatment_file' ||
-        type == 'treatment_file_shared';
-  }
-
-  bool _isClinicalFileEntity(String entityType) {
-    return entityType == 'clinical_file' ||
-        entityType == 'clinicalFile' ||
-        entityType == 'document' ||
-        entityType == 'treatment_file' ||
-        entityType == 'treatmentFile';
+    final t = type.toLowerCase();
+    return t.contains('payment') || t.contains('pago') || t.contains('payu');
   }
 
   bool _isSimulationType(String type) {
-    return type == 'simulation' || type == 'simulation_ready';
+    final t = type.toLowerCase();
+    return t.contains('simulation') || t.contains('simulador');
+  }
+
+  bool _isClinicalFileType(String type) {
+    final t = type.toLowerCase();
+    return t.contains('clinical_file') ||
+        t.contains('clinical') ||
+        t.contains('document') ||
+        t.contains('archivo') ||
+        t.contains('documento');
+  }
+
+  bool _isClinicalFileEntity(String entityType) {
+    final e = entityType.toLowerCase();
+    return e.contains('clinical') ||
+        e.contains('document') ||
+        e.contains('treatment_file') ||
+        e.contains('treatmentFile');
   }
 
   bool _isProfileType(String type) {
-    return type == 'profile' || type == 'patient_profile';
-  }
-
-  bool _isTreatmentType(String type) {
-    return type == 'treatment' || type == 'treatment_stage_updated';
+    final t = type.toLowerCase();
+    return t.contains('profile') || t.contains('perfil');
   }
 }
