@@ -726,6 +726,24 @@ class _AdminPatientWorkspaceState
         ),
         child: _buildSection(3),
       ),
+      4 => Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+        ),
+        child: _buildSection(4),
+      ),
+      5 => Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
+        ),
+        child: _buildSection(5),
+      ),
       _ => const SizedBox.shrink(),
     };
   }
