@@ -13,14 +13,16 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Firebase App Check — usamos providers de producción siempre.
+  // El provider debug (AndroidProvider.debug / AppleProvider.debug)
+  // tiene rate-limiting muy agresivo que causa "Too many attempts"
+  // cuando se hacen varias operaciones Firestore en ráfaga.
+  // Los providers de producción (playIntegrity, appAttest) no tienen
+  // este problema y funcionan correctamente incluso en debug builds.
   if (!kIsWeb) {
     await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode
-          ? AppleProvider.debug
-          : AppleProvider.appAttestWithDeviceCheckFallback,
+      androidProvider: AndroidProvider.playIntegrity,
+      appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
     );
   }
 
