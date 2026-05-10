@@ -346,7 +346,7 @@ class _AuthResolvingScreenState extends State<_AuthResolvingScreen>
             child: _SplashBlob(size: 250, color: const Color(0x28B49B78)),
           ),
           Positioned(
-            top: '30%' as dynamic,
+            top: 220,
             left: -30,
             child: _SplashBlob(size: 130, color: const Color(0x1A8C6239)),
           ),
