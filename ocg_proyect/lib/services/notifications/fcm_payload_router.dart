@@ -56,6 +56,19 @@ class FcmPayloadRouter {
     final type = (data['type'] ?? '').toString().trim();
     final entityType = (data['entityType'] ?? '').toString().trim();
 
+    // ── Admin blindaje: convertir rutas paciente a rutas admin
+    // antes de cualquier otro procesamiento. Sin esto el redirect
+    // global del router manda al admin al dashboard.
+    if (role == 'admin') {
+      final adminRoute = _resolveAdminRoute(
+        explicitRoute,
+        data,
+        type: type,
+        entityType: entityType,
+      );
+      if (adminRoute != null) return adminRoute;
+    }
+
     if (explicitRoute.isNotEmpty) {
       final normalizedRoute = _normalizeExplicitRoute(
         explicitRoute,
@@ -79,24 +92,130 @@ class FcmPayloadRouter {
     );
   }
 
+  /// Convierte cualquier ruta/indicio paciente a su equivalente admin.
+  /// Devuelve null si no hay nada que convertir (el flujo normal sigue).
+  String? _resolveAdminRoute(
+    String explicitRoute,
+    Map<String, dynamic> data, {
+    required String type,
+    required String entityType,
+  }) {
+    final patientId = _patientIdFromPayload(data, 'admin');
+
+    // Si hay una ruta explícita de paciente, convertirla a admin.
+    if (explicitRoute.isNotEmpty && explicitRoute.startsWith('/patient')) {
+      final uri = Uri.tryParse(explicitRoute);
+      if (uri != null) {
+        final converted = _convertPatientRouteToAdmin(uri, patientId);
+        if (converted != null) return converted;
+      }
+    }
+
+    // Sin ruta explícita: resolver semánticamente por tipo.
+    if (explicitRoute.isEmpty) {
+      if (_isTreatmentNotification(type, entityType)) {
+        return patientId.isEmpty
+            ? RouteNames.adminTreatments
+            : _adminPatientSectionRoute(patientId, 'tratamientos');
+      }
+      if (_isAppointmentType(type) || entityType == 'appointment') {
+        return patientId.isEmpty
+            ? RouteNames.adminAppointments
+            : _adminPatientSectionRoute(patientId, 'citas');
+      }
+      if (_isPaymentType(type) || entityType == 'payment') {
+        return RouteNames.adminPayments;
+      }
+      if (_isSimulationType(type) || entityType == 'simulation') {
+        return patientId.isEmpty
+            ? RouteNames.adminSimulator
+            : _adminPatientSectionRoute(patientId, 'simulador');
+      }
+    }
+
+    return null;
+  }
+
+  /// Convierte una URI de paciente a la ruta admin equivalente.
+  String? _convertPatientRouteToAdmin(Uri uri, String patientId) {
+    final path = uri.path;
+    final section = uri.queryParameters['section'] ?? '';
+
+    if (path == RouteNames.patientHome || path == RouteNames.patientRoot ||
+        path == RouteNames.patientTreatment) {
+      // Home o tratamiento → tratamientos si es notificación de tratamiento,
+      // sino la sección del query param, sino detalle paciente genérico.
+      if (patientId.isNotEmpty) {
+        final targetSection = section.isNotEmpty ? section : 'tratamientos';
+        return _adminPatientSectionRoute(patientId, targetSection);
+      }
+      return RouteNames.adminPatients;
+    }
+
+    if (path == RouteNames.patientAppointments) {
+      return patientId.isEmpty
+          ? RouteNames.adminAppointments
+          : _adminPatientSectionRoute(patientId, 'citas');
+    }
+
+    if (path == RouteNames.patientPayments ||
+        path == RouteNames.patientClinicalFiles) {
+      return RouteNames.adminPayments;
+    }
+
+    if (path == RouteNames.patientSimulations) {
+      return patientId.isEmpty
+          ? RouteNames.adminSimulator
+          : _adminPatientSectionRoute(patientId, 'simulador');
+    }
+
+    if (path == RouteNames.patientProfile) {
+      return patientId.isEmpty
+          ? RouteNames.adminPatients
+          : _adminPatientSectionRoute(patientId, 'resumen');
+    }
+
+    if (path == RouteNames.patientNotifications) {
+      return RouteNames.adminNotifications;
+    }
+
+    // Ruta paciente no reconocida → fallback al detalle del paciente.
+    if (patientId.isNotEmpty) {
+      return _adminPatientSectionRoute(patientId, 'resumen');
+    }
+    return null;
+  }
+
   String? _normalizeExplicitRoute(
     String route, {
     required String role,
     required String type,
     required String entityType,
   }) {
-    if (role != 'patient' || !_isTreatmentNotification(type, entityType)) {
-      return null;
-    }
+    if (role != 'patient') return null;
 
     final uri = Uri.tryParse(route);
     if (uri == null || uri.hasAuthority) return null;
 
-    // Notificaciones antiguas de tratamiento pueden venir guardadas con la
-    // ruta genérica del home. En ese caso priorizamos el destino semántico
-    // para no abrir Inicio cuando el evento pertenece a Tratamiento.
+    // Notificaciones con ruta genérica del home: priorizar el destino
+    // semántico según tipo de notificación para no abrir Inicio cuando
+    // el evento pertenece a otra sección.
     if (uri.path == RouteNames.patientHome && uri.queryParameters.isEmpty) {
-      return RouteNames.patientTreatment;
+      if (_isTreatmentNotification(type, entityType)) {
+        return RouteNames.patientTreatment;
+      }
+      if (_isAppointmentType(type) || entityType == 'appointment') {
+        return RouteNames.patientAppointments;
+      }
+      if (_isSimulationType(type) || entityType == 'simulation') {
+        return RouteNames.patientSimulations;
+      }
+      if (_isPaymentType(type) || entityType == 'payment') {
+        return RouteNames.patientPayments;
+      }
+      if (_isClinicalFileType(type) || _isClinicalFileEntity(entityType)) {
+        return RouteNames.patientClinicalFiles;
+      }
     }
 
     return null;
