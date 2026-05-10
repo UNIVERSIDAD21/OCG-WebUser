@@ -635,34 +635,57 @@ class _ProfileHeroState extends State<_ProfileHero>
           AnimatedBuilder(
             animation: _pulse,
             builder: (_, __) {
-              return Stack(
-                alignment: Alignment.center,
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Pulse ring
-                  Transform.scale(
-                    scale: _pulse.value,
-                    child: Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFC8AF8C)
-                              .withOpacity(0.35 * (1.06 - _pulse.value + 1)),
-                          width: 2,
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Pulse ring
+                      Transform.scale(
+                        scale: _pulse.value,
+                        child: Container(
+                          width: 110,
+                          height: 110,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFC8AF8C)
+                                  .withOpacity(0.35 * (1.06 - _pulse.value + 1)),
+                              width: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      // Photo
+                      ProfilePhotoAvatar(
+                        label: widget.patient.nombre,
+                        photoUrl: widget.patient.fotoUrl,
+                        radius: 44,
+                        loading: widget.uploadingPhoto,
+                        showActions: false,
+                      ),
+                    ],
                   ),
-                  // Photo
-                  ProfilePhotoAvatar(
-                    label: widget.patient.nombre,
-                    photoUrl: widget.patient.fotoUrl,
-                    radius: 44,
-                    loading: widget.uploadingPhoto,
-                    showActions: true,
-                    onChange: widget.onChangePhoto,
-                    onDelete: widget.onDeletePhoto,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: widget.uploadingPhoto ? null : widget.onChangePhoto,
+                        icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                        label: const Text('Cambiar foto'),
+                      ),
+                      if ((widget.patient.fotoUrl ?? '').isNotEmpty)
+                        TextButton.icon(
+                          onPressed: widget.uploadingPhoto ? null : widget.onDeletePhoto,
+                          icon: const Icon(Icons.delete_outline, size: 16),
+                          label: const Text('Eliminar'),
+                          style: TextButton.styleFrom(foregroundColor: OcgColors.error),
+                        ),
+                    ],
                   ),
                 ],
               );

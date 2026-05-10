@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -494,36 +495,59 @@ class _AdminHeroState extends ConsumerState<_AdminHero>
       ),
       child: Column(
         children: [
-          // Photo with pulse ring
+          // Photo with pulse ring + action buttons
           AnimatedBuilder(
             animation: _pulse,
             builder: (_, __) {
-              return Stack(
-                alignment: Alignment.center,
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Transform.scale(
-                    scale: _pulse.value,
-                    child: Container(
-                      width: 95,
-                      height: 95,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFC8AF8C)
-                              .withOpacity(0.3 * (1.06 - _pulse.value + 1)),
-                          width: 2,
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Transform.scale(
+                        scale: _pulse.value,
+                        child: Container(
+                          width: 95,
+                          height: 95,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFC8AF8C)
+                                  .withOpacity(0.3 * (1.06 - _pulse.value + 1)),
+                              width: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      ProfilePhotoAvatar(
+                        label: label,
+                        photoUrl: photoUrl,
+                        radius: 38,
+                        loading: widget.uploadingPhoto,
+                        showActions: false,
+                      ),
+                    ],
                   ),
-                  ProfilePhotoAvatar(
-                    label: label,
-                    photoUrl: photoUrl,
-                    radius: 38,
-                    loading: widget.uploadingPhoto,
-                    showActions: true,
-                    onChange: widget.onChangePhoto,
-                    onDelete: widget.onDeletePhoto,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: widget.uploadingPhoto ? null : widget.onChangePhoto,
+                        icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                        label: const Text('Cambiar foto'),
+                      ),
+                      if (photoUrl != null && photoUrl.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: widget.uploadingPhoto ? null : widget.onDeletePhoto,
+                          icon: const Icon(Icons.delete_outline, size: 16),
+                          label: const Text('Eliminar'),
+                          style: TextButton.styleFrom(foregroundColor: OcgColors.error),
+                        ),
+                    ],
                   ),
                 ],
               );
