@@ -13,17 +13,31 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — usamos providers de producción siempre.
-  // El provider debug (AndroidProvider.debug / AppleProvider.debug)
-  // tiene rate-limiting muy agresivo que causa "Too many attempts"
-  // cuando se hacen varias operaciones Firestore en ráfaga.
-  // Los providers de producción (playIntegrity, appAttest) no tienen
-  // este problema y funcionan correctamente incluso en debug builds.
+  // Firebase App Check — en modo debug usamos providers de debug
+  // con auto-refresh habilitado para evitar "Too many attempts".
+  // En release se usan providers de producción (playIntegrity/
+  // appAttest) que requieren registro del APK en Google Play.
+  //
+  // ⚠️ No usar AndroidProvider.playIntegrity en modo debug:
+  // retorna 403 "App attestation failed" porque la app debug
+  // no está registrada en Google Play Console.
   if (!kIsWeb) {
+    final androidProvider = kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity;
+    final appleProvider = kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttestWithDeviceCheckFallback;
+
     await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.playIntegrity,
-      appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
+      androidProvider: androidProvider,
+      appleProvider: appleProvider,
     );
+
+    // Forzar auto-refresh para reducir presión sobre el token
+    // de debug (evita ciclos de refresh agresivos que agotan
+    // la cuota y causan "Too many attempts").
+    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
   }
 
   runApp(const ProviderScope(child: OcgApp()));

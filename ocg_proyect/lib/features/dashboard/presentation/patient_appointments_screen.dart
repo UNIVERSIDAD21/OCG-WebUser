@@ -20,6 +20,40 @@ import '../../dashboard/presentation/admin_appointments_screen.dart' show Appoin
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/// Reintento con backoff exponencial para operaciones Firestore
+/// que pueden fallar cuando App Check tiene rate-limiting temporal.
+/// Solo reintenta cuando el error contiene "App Check", "token" o
+/// "attempt" — otros errores se lanzan inmediatamente.
+Future<T> _retryFirebaseOperation<T>(
+  Future<T> Function() operation, {
+  int maxRetries = 3,
+  Duration initialDelay = const Duration(seconds: 1),
+}) async {
+  Exception? lastError;
+  for (var attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } on Exception catch (e) {
+      lastError = e;
+      final msg = e.toString().toLowerCase();
+      final isAppCheckError =
+          msg.contains('app check') ||
+          msg.contains('app_check') ||
+          msg.contains('too many attempts') ||
+          msg.contains('token');
+
+      if (!isAppCheckError || attempt == maxRetries) {
+        rethrow;
+      }
+
+      // Backoff exponencial: 1s, 2s, 4s
+      final delay = initialDelay * (1 << attempt);
+      await Future<void>.delayed(delay);
+    }
+  }
+  throw lastError!;
+}
+
 const _bogotaOffset = Duration(hours: 5);
 
 DateTime _toBogota(DateTime dateTime) {
@@ -788,22 +822,24 @@ class _PatientAppointmentsScreenState
                       final notasTexto = notesText.trim();
 
                       try {
-                        await ref
-                            .read(appointmentsRepositoryProvider)
-                            .createAppointmentAsPatient(
-                              AppointmentModel(
-                                id: '',
-                                patientId: patientId,
-                                patientName: finalNombre,
-                                patientPhone: patientPhone,
-                                creadoPor: patientId,
-                                tipo: selectedType,
-                                estado: AppointmentStatus.programada,
-                                fechaHora: selectedDateTime,
-                                duracionMinutos: 30,
-                                notas: notasTexto.isEmpty ? null : notasTexto,
+                        await _retryFirebaseOperation(() =>
+                          ref
+                              .read(appointmentsRepositoryProvider)
+                              .createAppointmentAsPatient(
+                                AppointmentModel(
+                                  id: '',
+                                  patientId: patientId,
+                                  patientName: finalNombre,
+                                  patientPhone: patientPhone,
+                                  creadoPor: patientId,
+                                  tipo: selectedType,
+                                  estado: AppointmentStatus.programada,
+                                  fechaHora: selectedDateTime,
+                                  duracionMinutos: 30,
+                                  notas: notasTexto.isEmpty ? null : notasTexto,
+                                ),
                               ),
-                            );
+                        );
 
                         // ✅ Cerrar con popDialog (safe en Flutter Web).
                         //    NO llamar notesCtrl.dispose() aquí — se hace
