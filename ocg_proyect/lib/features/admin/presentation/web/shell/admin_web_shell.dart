@@ -50,7 +50,15 @@ class AdminWebShell extends StatelessWidget {
                 Expanded(
                   child: scrollable
                       ? SingleChildScrollView(child: page)
-                      : SizedBox.expand(child: page),
+                      // Expanded dentro de Row da altura infinita. Usamos
+                      // ConstrainedBox con maxHeight del LayoutBuilder padre
+                      // para dar altura finita al hijo (el viewport height).
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: constraints.maxHeight,
+                          ),
+                          child: page,
+                        ),
                 ),
               ],
             ),

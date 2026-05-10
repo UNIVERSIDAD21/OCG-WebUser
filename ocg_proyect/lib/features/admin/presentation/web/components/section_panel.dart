@@ -36,26 +36,38 @@ class SectionPanel extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Cuando el padre da altura infinita (ej. dentro de scrollable),
+          // NO podemos usar Expanded ni Flexible. En ese caso dejamos que
+          // el hijo se mida con altura libre.
+          final hasBoundedHeight = constraints.maxHeight < double.infinity;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: OcgColors.espresso,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
                   ),
-                ),
+                  if (trailing != null) trailing!,
+                ],
               ),
-              ?trailing,
+              const SizedBox(height: 10),
+              if (expandChild && hasBoundedHeight)
+                Expanded(child: child)
+              else
+                child,
             ],
-          ),
-          const SizedBox(height: 10),
-          if (expandChild) Expanded(child: child) else child,
-        ],
+          );
+        },
       ),
     );
   }
