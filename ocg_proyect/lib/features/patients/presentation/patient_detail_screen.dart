@@ -246,160 +246,153 @@ class _PatientDetailView extends ConsumerWidget {
               ),
             ),
             SizedBox(height: sectionGap),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: headerPadding,
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: OcgColors.bronze.withOpacity(0.18),
+            // Header card (nombre + acciones)
+            Container(
+              width: double.infinity,
+              padding: headerPadding,
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: OcgColors.bronze.withOpacity(0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: panelGap,
+                    runSpacing: panelGap,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            context.go(RouteNames.adminPatients),
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Volver'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: OcgColors.espresso,
+                          side: BorderSide(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: panelGap,
-                            runSpacing: panelGap,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    context.go(RouteNames.adminPatients),
-                                icon: const Icon(Icons.arrow_back, size: 16),
-                                label: const Text('Volver'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: OcgColors.espresso,
-                                  side: BorderSide(
-                                    color: OcgColors.bronze.withOpacity(0.22),
-                                  ),
-                                ),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: tier == AdminDesktopTier.tight
+                              ? 220
+                              : 280,
+                          maxWidth: tier == AdminDesktopTier.wide
+                              ? 540
+                              : 480,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              patient.nombre,
+                              style: TextStyle(
+                                color: OcgColors.espresso,
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w700,
+                                height: 1.05,
                               ),
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minWidth: tier == AdminDesktopTier.tight
-                                      ? 220
-                                      : 280,
-                                  maxWidth: tier == AdminDesktopTier.wide
-                                      ? 540
-                                      : 480,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      patient.nombre,
-                                      style: TextStyle(
-                                        color: OcgColors.espresso,
-                                        fontSize: titleSize,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.05,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Vista clínica, financiera y operativa del paciente',
-                                      style: TextStyle(
-                                        color: OcgColors.bronze,
-                                        fontSize: tier == AdminDesktopTier.tight
-                                            ? 12
-                                            : 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Vista clínica, financiera y operativa del paciente',
+                              style: TextStyle(
+                                color: OcgColors.bronze,
+                                fontSize: tier == AdminDesktopTier.tight
+                                    ? 12
+                                    : 13,
                               ),
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: [
-                                  OutlinedButton.icon(
-                                    onPressed: () => context.go(
-                                      RouteNames.adminPatientEdit.replaceFirst(
-                                        ':patientId',
-                                        patient.id,
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 16,
-                                    ),
-                                    label: const Text('Editar'),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: onDelete,
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 16,
-                                      color: OcgColors.error,
-                                    ),
-                                    label: const Text('Eliminar'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: OcgColors.error,
-                                    ),
-                                  ),
-                                  FilledButton.icon(
-                                    onPressed: () =>
-                                        AdminAppointmentsScreen.showCreateDialog(
-                                          context,
-                                          ref,
-                                          preselectedPatient: patient,
-                                          existingAppointments:
-                                              existingAppointments,
-                                        ),
-                                    icon: const Icon(Icons.add, size: 16),
-                                    label: const Text('Agendar cita'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(height: sectionGap),
-                    SectionPanel(
-                      title: 'Detalle del paciente',
-                      expandChild: true,
-                      child: TabBarView(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
-                          _PatientProfileAdminTab(
-                            patient: patient,
-                            onEdit: () => context.go(
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(
                               RouteNames.adminPatientEdit.replaceFirst(
                                 ':patientId',
                                 patient.id,
                               ),
                             ),
-                            onDelete: onDelete,
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                            ),
+                            label: const Text('Editar'),
                           ),
-                          PatientTreatmentTab(
-                            patientId: patient.id,
-                            patient: patient,
-                            scrollable: false,
+                          OutlinedButton.icon(
+                            onPressed: onDelete,
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 16,
+                              color: OcgColors.error,
+                            ),
+                            label: const Text('Eliminar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: OcgColors.error,
+                            ),
                           ),
-                          PatientPaymentsTab(
-                            patientId: patient.id,
-                            scrollable: false,
+                          FilledButton.icon(
+                            onPressed: () =>
+                                AdminAppointmentsScreen.showCreateDialog(
+                                  context,
+                                  ref,
+                                  preselectedPatient: patient,
+                                  existingAppointments:
+                                      existingAppointments,
+                                ),
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Agendar cita'),
                           ),
-                          PatientClinicalHistoryTab(
-                            patientId: patient.id,
-                            patient: patient,
-                            scrollable: false,
-                          ),
-                          PatientAppointmentsTab(patient: patient),
-                          PatientSimulatorTab(patient: patient),
                         ],
                       ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: sectionGap),
+            // Tab content — cada tab maneja su propio scroll interno
+            SectionPanel(
+              title: 'Detalle del paciente',
+              expandChild: true,
+              child: TabBarView(
+                children: [
+                  _PatientProfileAdminTab(
+                    patient: patient,
+                    onEdit: () => context.go(
+                      RouteNames.adminPatientEdit.replaceFirst(
+                        ':patientId',
+                        patient.id,
+                      ),
                     ),
-                  ],
-                ),
+                    onDelete: onDelete,
+                  ),
+                  PatientTreatmentTab(
+                    patientId: patient.id,
+                    patient: patient,
+                    scrollable: false,
+                  ),
+                  PatientPaymentsTab(
+                    patientId: patient.id,
+                    scrollable: false,
+                  ),
+                  PatientClinicalHistoryTab(
+                    patientId: patient.id,
+                    patient: patient,
+                    scrollable: false,
+                  ),
+                  PatientAppointmentsTab(patient: patient),
+                  PatientSimulatorTab(patient: patient),
+                ],
               ),
             ),
           ],
