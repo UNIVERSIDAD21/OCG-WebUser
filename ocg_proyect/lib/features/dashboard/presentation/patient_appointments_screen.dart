@@ -16,6 +16,7 @@ import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../patients/presentation/patient_viewer_mode.dart';
+import '../../dashboard/presentation/admin_appointments_screen.dart' show AppointmentCard;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,63 +58,6 @@ String _tipoLabel(AppointmentType t) => switch (t) {
   AppointmentType.urgencia => 'Urgencia',
   AppointmentType.alta => 'Alta',
 };
-
-String _estadoLabel(AppointmentStatus s) => switch (s) {
-  AppointmentStatus.programada => 'Programada',
-  AppointmentStatus.confirmada => 'Confirmada',
-  AppointmentStatus.completada => 'Completada',
-  AppointmentStatus.cancelada => 'Cancelada',
-  AppointmentStatus.noAsistio => 'No asistió',
-  AppointmentStatus.reprogramada => 'Reprogramada',
-};
-
-class _AppointmentStatusStyle {
-  const _AppointmentStatusStyle({
-    required this.color,
-    required this.softBackground,
-    required this.icon,
-  });
-
-  final Color color;
-  final Color softBackground;
-  final IconData icon;
-}
-
-_AppointmentStatusStyle _appointmentStatusStyle(AppointmentStatus status) {
-  const activeBlue = Color(0xFF1565C0);
-  return switch (status) {
-    AppointmentStatus.programada => _AppointmentStatusStyle(
-      color: activeBlue,
-      softBackground: Color(0xFFEAF3FF),
-      icon: Icons.calendar_month_outlined,
-    ),
-    AppointmentStatus.confirmada => _AppointmentStatusStyle(
-      color: activeBlue,
-      softBackground: Color(0xFFEAF3FF),
-      icon: Icons.verified_outlined,
-    ),
-    AppointmentStatus.reprogramada => _AppointmentStatusStyle(
-      color: Color(0xFF7E3AF2),
-      softBackground: Color(0xFFF1E8FF),
-      icon: Icons.event_repeat_outlined,
-    ),
-    AppointmentStatus.completada => _AppointmentStatusStyle(
-      color: OcgColors.success,
-      softBackground: Color(0xFFEAF7EE),
-      icon: Icons.task_alt,
-    ),
-    AppointmentStatus.cancelada => _AppointmentStatusStyle(
-      color: OcgColors.error,
-      softBackground: Color(0xFFFCECEC),
-      icon: Icons.cancel_outlined,
-    ),
-    AppointmentStatus.noAsistio => _AppointmentStatusStyle(
-      color: OcgColors.warning,
-      softBackground: Color(0xFFFFF4E5),
-      icon: Icons.person_off_outlined,
-    ),
-  };
-}
 
 bool _isActiva(AppointmentModel a) => switch (a.estado) {
   AppointmentStatus.programada || AppointmentStatus.confirmada => true,
@@ -248,7 +192,7 @@ class _PatientAppointmentsScreenState
                       labelText: 'Tipo de cita',
                       prefixIcon: Icon(Icons.medical_services_outlined),
                     ),
-                    items: [AppointmentType.valoracion, AppointmentType.control]
+                    items: AppointmentType.values
                         .map(
                           (t) => DropdownMenuItem(
                             value: t,
@@ -403,10 +347,97 @@ class _PatientAppointmentsScreenState
                           .where(isStartAvailable)
                           .toList();
 
+                      // ── Availability summary card ──
+                      final selectedAvailable = availableLabels.any((label) {
+                        final d = dateFromSlotKey(selectedDateTime, label);
+                        return d == selectedDateTime;
+                      });
+                      final summaryColor = selectedAvailable
+                          ? const Color(0xFF2E7D32)
+                          : OcgColors.error;
+
+                      // ── Slot legend ──
+                      Widget legendItem(Color color, String label, {bool outlined = false}) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: outlined ? Colors.transparent : color,
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(color: color, width: outlined ? 2 : 1),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: OcgColors.ink.withOpacity(0.68),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
                       if (availableLabels.isEmpty) {
-                        return const Text(
-                          'No hay horarios disponibles para ese día.',
-                          style: TextStyle(color: OcgColors.error),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: OcgColors.error.withOpacity(0.09),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: OcgColors.error.withOpacity(0.18)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.warning_amber_outlined, size: 19, color: OcgColors.error),
+                                  const SizedBox(width: 9),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'No hay horarios disponibles',
+                                          style: TextStyle(
+                                            color: OcgColors.error,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Selecciona otro día para ver horarios disponibles.',
+                                          style: TextStyle(
+                                            color: OcgColors.ink.withOpacity(0.74),
+                                            fontSize: 12,
+                                            height: 1.25,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 6,
+                              children: [
+                                legendItem(OcgColors.sand, 'Seleccionado'),
+                                legendItem(const Color(0xFF7A8A20), 'Disponible', outlined: true),
+                                legendItem(Colors.grey.shade500, 'Ocupado/no laborable'),
+                              ],
+                            ),
+                          ],
                         );
                       }
 
@@ -424,6 +455,7 @@ class _PatientAppointmentsScreenState
                           selectedDateTime,
                           label,
                         );
+                        final isSelected = slotDate == selectedDateTime;
                         return ChoiceChip(
                           label: Text(
                             AppointmentsBusinessRules.displayLabelFromSlotKey(
@@ -431,8 +463,17 @@ class _PatientAppointmentsScreenState
                             ),
                             style: const TextStyle(color: OcgColors.espresso),
                           ),
-                          selected: slotDate == selectedDateTime,
+                          selected: isSelected,
                           selectedColor: OcgColors.sand,
+                          avatar: Icon(
+                            isSelected
+                                ? Icons.check_circle_outline
+                                : Icons.circle_outlined,
+                            size: 15,
+                            color: isSelected
+                                ? OcgColors.espresso
+                                : OcgColors.bronze.withOpacity(0.5),
+                          ),
                           onSelected: (_) => setDs(() {
                             selectedDateTime = slotDate;
                             errorMsg = null;
@@ -519,15 +560,76 @@ class _PatientAppointmentsScreenState
                                 ),
                               ),
                             ),
+                          // ── Availability summary ──
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: summaryColor.withOpacity(0.09),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: summaryColor.withOpacity(0.18)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  selectedAvailable
+                                      ? Icons.event_available_outlined
+                                      : Icons.warning_amber_outlined,
+                                  size: 19,
+                                  color: summaryColor,
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        selectedAvailable
+                                            ? 'Horario listo para agendar'
+                                            : 'Elige un horario disponible',
+                                        style: TextStyle(
+                                          color: summaryColor,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 12.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${availableLabels.length} disponibles · ${allLabels.length - availableLabels.length} bloqueados. Seleccionado: ${_fmtClinicWallDateTime(selectedDateTime)}.',
+                                        style: TextStyle(
+                                          color: OcgColors.ink.withOpacity(0.74),
+                                          fontSize: 12,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // ── Legend ──
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 6,
+                            children: [
+                              legendItem(OcgColors.sand, 'Seleccionado'),
+                              legendItem(const Color(0xFF7A8A20), 'Disponible', outlined: true),
+                              legendItem(Colors.grey.shade500, 'Ocupado/no laborable'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           buildPeriodSection(
-                            title: 'Mañana',
+                            title: 'Mañana (08:00 - 11:30)',
                             expanded: expandMorning,
                             onToggle: () =>
                                 setDs(() => expandMorning = !expandMorning),
                             labels: morningLabels,
                           ),
                           buildPeriodSection(
-                            title: 'Tarde',
+                            title: 'Tarde (14:00 en adelante)',
                             expanded: expandAfternoon,
                             onToggle: () =>
                                 setDs(() => expandAfternoon = !expandAfternoon),
@@ -947,9 +1049,10 @@ class _PatientAppointmentsScreenState
                   final canCancel =
                       appt.estado == AppointmentStatus.programada ||
                       appt.estado == AppointmentStatus.confirmada;
-                  return _ApptCard(
+                  return AppointmentCard(
                     appointment: appt,
-                    onCancel: canCancel
+                    showReminders: false,
+                    onCancelar: canCancel
                         ? () => _handleCancelTap(context, ref, appt)
                         : null,
                   );
@@ -993,8 +1096,6 @@ class _PatientAppointmentsScreenState
       body: SafeArea(
         child: Stack(
           children: [
-            const _Blob(top: -60, right: -40, size: 180, color: Color(0x30C8AF8C)),
-            const _Blob(bottom: -40, left: -30, size: 140, color: Color(0x22B49B78)),
             FadeTransition(
               opacity: _fadeSlide,
               child: SlideTransition(
@@ -1034,125 +1135,6 @@ class _AddAppointmentFab extends StatelessWidget {
           height: 58,
           child: Icon(Icons.add, color: OcgColors.ivory, size: 28),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Tarjeta de cita del paciente ─────────────────────────────────────────────
-
-class _ApptCard extends StatelessWidget {
-  const _ApptCard({required this.appointment, this.onCancel});
-  final AppointmentModel appointment;
-  final VoidCallback? onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = _appointmentStatusStyle(appointment.estado);
-    final statusColor = s.color;
-    final local = _toBogota(appointment.fechaHora);
-    final day = local.day.toString().padLeft(2, '0');
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    final month = months[local.month - 1];
-    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final amPm = local.hour >= 12 ? 'PM' : 'AM';
-    final timeStr =
-        '${hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} $amPm';
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [const Color(0xFFFFFCF8), s.softBackground.withOpacity(0.25)]),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: statusColor.withOpacity(0.22)),
-        boxShadow: [
-          BoxShadow(color: const Color(0xFF2C2016).withOpacity(0.04),
-              blurRadius: 12, offset: const Offset(0, 3))
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Date badge with gradient
-          Container(
-            width: 56, height: 64,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [statusColor, statusColor.withOpacity(0.7)]),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: statusColor.withOpacity(0.25),
-                  blurRadius: 8, offset: const Offset(0, 3))],
-            ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(month,
-                  style: const TextStyle(color: Colors.white, fontSize: 10.5,
-                      fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-              Text(day,
-                  style: const TextStyle(color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w800, height: 1.05)),
-            ]),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                      color: s.softBackground, borderRadius: BorderRadius.circular(20)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(s.icon, size: 12, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(_estadoLabel(appointment.estado),
-                        style: TextStyle(color: statusColor, fontSize: 11.5,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-                const Spacer(),
-                Icon(Icons.schedule, size: 14, color: statusColor.withOpacity(0.7)),
-                const SizedBox(width: 4),
-                Text(timeStr,
-                    style: TextStyle(color: statusColor.withOpacity(0.8), fontSize: 12.5,
-                        fontWeight: FontWeight.w600)),
-              ]),
-              const SizedBox(height: 8),
-              Text(_tipoLabel(appointment.tipo),
-                  style: const TextStyle(color: Color(0xFF1A1410), fontSize: 15,
-                      fontWeight: FontWeight.w700)),
-              if (appointment.notas != null && appointment.notas!.trim().isNotEmpty) ...[
-                const SizedBox(height: 5),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(10)),
-                  child: Text(appointment.notas!.trim(), maxLines: 2, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF8A6F59))),
-                ),
-              ],
-              if (onCancel != null) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: onCancel,
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: const Text('Cancelar cita'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: OcgColors.error,
-                      side: const BorderSide(color: OcgColors.error),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-              ],
-            ]),
-          ),
-        ]),
       ),
     );
   }
@@ -1333,28 +1315,6 @@ class _Pill extends StatelessWidget {
             ),
           ]),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Blob ───────────────────────────────────────────────────────────────────
-
-class _Blob extends StatelessWidget {
-  final double? top, right, bottom, left;
-  final double size;
-  final Color color;
-  const _Blob({this.top, this.right, this.bottom, this.left,
-      required this.size, required this.color});
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top, right: right, bottom: bottom, left: left,
-      child: IgnorePointer(
-        child: Container(width: size, height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle,
-              gradient: RadialGradient(
-                  colors: [color, color.withOpacity(0)], stops: const [0, 0.7]))),
       ),
     );
   }
