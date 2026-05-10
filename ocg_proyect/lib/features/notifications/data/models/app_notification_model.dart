@@ -95,7 +95,12 @@ class AppNotificationModel {
 
   Map<String, dynamic> toRoutingPayload() {
     final routeCandidate = targetRoute?.trim() ?? '';
+    // ⚠️ Orden crítico: ...payload PRIMERO para que los campos explícitos
+    // (type, entityType, etc.) lo sobreescriban. Si ...payload va al final,
+    // cualquier key duplicada en el payload (ej. type: 'generic') sobreescribe
+    // el valor correcto y el router no puede resolver la ruta.
     final routingPayload = <String, dynamic>{
+      ...payload,
       'type': type,
       'entityId': entityId ?? '',
       'entityType': entityType ?? '',
@@ -104,7 +109,6 @@ class AppNotificationModel {
       'treatmentId': treatmentId ?? payload['treatmentId']?.toString() ?? '',
       'paymentId': paymentId ?? payload['paymentId']?.toString() ?? '',
       'patientId': payload['patientId']?.toString() ?? recipientId,
-      ...payload,
     };
 
     routingPayload.remove('route');
