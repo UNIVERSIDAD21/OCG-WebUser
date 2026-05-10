@@ -480,7 +480,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                       currentRoute.startsWith('${item.route}/');
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Tooltip(
                       message: item.label,
                       child: Material(
