@@ -140,18 +140,34 @@ class FcmPayloadRouter {
             ? RouteNames.adminTreatments
             : _adminPatientSectionRoute(patientId, 'tratamientos');
       }
-      if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
+      if (_isAppointmentType(type) ||
+          _entityMatches(entityType, 'appointment') ||
+          _entityMatches(entityType, 'cita')) {
         return patientId.isEmpty
             ? RouteNames.adminAppointments
             : _adminPatientSectionRoute(patientId, 'citas');
       }
-      if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
-        return RouteNames.adminPayments;
+      // Pagos: si hay patientId abrimos el tab de pagos del paciente,
+      // no la pantalla global de pagos.
+      if (_isPaymentType(type) ||
+          _entityMatches(entityType, 'payment') ||
+          _entityMatches(entityType, 'pago')) {
+        return patientId.isEmpty
+            ? RouteNames.adminPayments
+            : _adminPatientSectionRoute(patientId, 'pagos');
       }
-      if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
+      if (_isSimulationType(type) ||
+          _entityMatches(entityType, 'simulation') ||
+          _entityMatches(entityType, 'simulador')) {
         return patientId.isEmpty
             ? RouteNames.adminSimulator
             : _adminPatientSectionRoute(patientId, 'simulador');
+      }
+      // Archivos clínicos: abrir el tab de historial/documentos del paciente.
+      if (_isClinicalFileType(type) || _isClinicalFileEntity(entityType)) {
+        return patientId.isEmpty
+            ? RouteNames.adminPatients
+            : _adminPatientSectionRoute(patientId, 'historial');
       }
     }
 
@@ -180,9 +196,18 @@ class FcmPayloadRouter {
           : _adminPatientSectionRoute(patientId, 'citas');
     }
 
-    if (path == RouteNames.patientPayments ||
-        path == RouteNames.patientClinicalFiles) {
-      return RouteNames.adminPayments;
+    // Pagos: si hay patientId, abrir el tab de pagos del paciente.
+    if (path == RouteNames.patientPayments) {
+      return patientId.isEmpty
+          ? RouteNames.adminPayments
+          : _adminPatientSectionRoute(patientId, 'pagos');
+    }
+
+    // Archivos clínicos: abrir el tab de historial/documentos del paciente.
+    if (path == RouteNames.patientClinicalFiles) {
+      return patientId.isEmpty
+          ? RouteNames.adminPatients
+          : _adminPatientSectionRoute(patientId, 'historial');
     }
 
     if (path == RouteNames.patientSimulations) {
@@ -219,10 +244,15 @@ class FcmPayloadRouter {
     final uri = Uri.tryParse(route);
     if (uri == null || uri.hasAuthority) return null;
 
-    // Notificaciones con ruta genérica del home: priorizar el destino
-    // semántico según tipo de notificación para no abrir Inicio cuando
-    // el evento pertenece a otra sección.
-    if (uri.path == RouteNames.patientHome && uri.queryParameters.isEmpty) {
+    // Notificaciones con ruta genérica del home o raíz del paciente
+    // (/patient o /patient/home sin query params): priorizar el destino
+    // semántico según tipo de notificación. Sin esto, /patient pasa
+    // _isAllowedInternalRoute y se retorna directamente sin resolución.
+    final isGenericPatientRoot =
+        (uri.path == RouteNames.patientHome ||
+            uri.path == RouteNames.patientRoot) &&
+        uri.queryParameters.isEmpty;
+    if (isGenericPatientRoot) {
       if (_isTreatmentNotification(type, entityType)) {
         return RouteNames.patientTreatment;
       }
@@ -280,8 +310,12 @@ class FcmPayloadRouter {
           : RouteNames.patientPayments;
     }
 
-    if (role == 'patient' &&
-        (_isClinicalFileType(type) || _isClinicalFileEntity(entityType))) {
+    if (_isClinicalFileType(type) || _isClinicalFileEntity(entityType)) {
+      if (role == 'admin') {
+        return patientId.isEmpty
+            ? RouteNames.adminPatients
+            : _adminPatientSectionRoute(patientId, 'historial');
+      }
       return RouteNames.patientClinicalFiles;
     }
 

@@ -363,39 +363,40 @@ class _PatientDetailView extends ConsumerWidget {
             // ── Tab content: el TabBarView usa Expanded para ocupar
             // SOLO el espacio restante después del TabBar + Header.
             // Así nunca overflow, sin importar la altura del viewport.
+            // NOTA: NO envolver TabBarView en SectionPanel (ni en ningún
+            // widget que use Column internamente sin propagar las constraints
+            // de altura), porque el TabBarView es un viewport horizontal que
+            // requiere altura ACOTADA. Expanded se la proporciona directamente.
             Expanded(
-              child: SectionPanel(
-                title: 'Detalle del paciente',
-                child: TabBarView(
-                  children: [
-                    _PatientProfileAdminTab(
-                      patient: patient,
-                      onEdit: () => context.go(
-                        RouteNames.adminPatientEdit.replaceFirst(
-                          ':patientId',
-                          patient.id,
-                        ),
+              child: TabBarView(
+                children: [
+                  _PatientProfileAdminTab(
+                    patient: patient,
+                    onEdit: () => context.go(
+                      RouteNames.adminPatientEdit.replaceFirst(
+                        ':patientId',
+                        patient.id,
                       ),
-                      onDelete: onDelete,
                     ),
-                    PatientTreatmentTab(
-                      patientId: patient.id,
-                      patient: patient,
-                      scrollable: false,
-                    ),
-                    PatientPaymentsTab(
-                      patientId: patient.id,
-                      scrollable: false,
-                    ),
-                    PatientClinicalHistoryTab(
-                      patientId: patient.id,
-                      patient: patient,
-                      scrollable: false,
-                    ),
-                    PatientAppointmentsTab(patient: patient),
-                    PatientSimulatorTab(patient: patient),
-                  ],
-                ),
+                    onDelete: onDelete,
+                  ),
+                  PatientTreatmentTab(
+                    patientId: patient.id,
+                    patient: patient,
+                    scrollable: false,
+                  ),
+                  PatientPaymentsTab(
+                    patientId: patient.id,
+                    scrollable: false,
+                  ),
+                  PatientClinicalHistoryTab(
+                    patientId: patient.id,
+                    patient: patient,
+                    scrollable: false,
+                  ),
+                  PatientAppointmentsTab(patient: patient),
+                  PatientSimulatorTab(patient: patient),
+                ],
               ),
             ),
           ],

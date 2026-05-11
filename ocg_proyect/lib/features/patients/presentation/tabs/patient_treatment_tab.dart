@@ -260,7 +260,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 ),
               );
 
-              if (!widget.scrollable) return content;
+              // En el branch de escritorio (dentro de TabBarView) siempre se
+              // necesita scroll propio: el TabBarView da altura ACOTADA y el
+              // contenido puede superar ese límite. El branch móvil ya retornó
+              // arriba, así que aquí nunca hay riesgo de scroll anidado.
               return SingleChildScrollView(child: content);
             },
           ),
