@@ -6,7 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
-import '../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import 'admin_mobile_shell_controller.dart';
@@ -28,13 +28,9 @@ class AdminDashboardScreen extends ConsumerWidget {
   final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
-    final confirm = await OcgConfirmDialog.show(
+    final confirm = await OcgLogoutDialog.show(
       context,
-      type: OcgConfirmDialogType.warning,
-      title: 'Cerrar sesión',
-      message: 'Tu sesión de administrador se cerrará en este dispositivo.',
-      confirmLabel: 'Cerrar sesión',
-      onConfirm: () {},
+      roleLabel: 'Administrador',
     );
 
     if (confirm != true) return;

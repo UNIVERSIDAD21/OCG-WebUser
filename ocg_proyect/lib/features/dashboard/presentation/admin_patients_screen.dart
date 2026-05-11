@@ -12,7 +12,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
-import '../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
@@ -252,13 +252,9 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
   }
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
-    final confirm = await OcgConfirmDialog.show(
+    final confirm = await OcgLogoutDialog.show(
       context,
-      type: OcgConfirmDialogType.warning,
-      title: 'Cerrar sesión',
-      message: 'Tu sesión se cerrará en este dispositivo.',
-      confirmLabel: 'Cerrar sesión',
-      onConfirm: () {},
+      roleLabel: 'Administrador',
     );
 
     if (confirm != true) return;

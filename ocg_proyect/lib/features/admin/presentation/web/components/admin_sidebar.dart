@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../../app/router/route_names.dart';
 import '../../../../../shared/constants/firestore_paths.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
-import '../../../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../../auth/providers/auth_providers.dart';
 import '../layout/admin_desktop_layout.dart';
 
@@ -649,13 +649,9 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () async {
-                      final confirm = await OcgConfirmDialog.show(
+                      final confirm = await OcgLogoutDialog.show(
                         context,
-                        type: OcgConfirmDialogType.warning,
-                        title: 'Cerrar sesión',
-                        message: 'Tu sesión se cerrará en este dispositivo.',
-                        confirmLabel: 'Cerrar sesión',
-                        onConfirm: () {},
+                        roleLabel: 'Administrador',
                       );
 
                       if (confirm != true) return;

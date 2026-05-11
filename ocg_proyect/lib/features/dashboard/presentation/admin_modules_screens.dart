@@ -7,6 +7,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../auth/providers/auth_providers.dart';
 import 'admin_mobile_shell_controller.dart';
@@ -20,6 +21,11 @@ import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 
 Future<void> _signOutAdminModules(BuildContext context, WidgetRef ref) async {
+  final confirm = await OcgLogoutDialog.show(
+    context,
+    roleLabel: 'Administrador',
+  );
+  if (confirm != true) return;
   await ref.read(authServiceProvider).signOut();
   if (context.mounted) context.go(RouteNames.login);
 }

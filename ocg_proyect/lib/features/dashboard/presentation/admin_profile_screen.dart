@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app/router/route_names.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -21,13 +22,9 @@ class AdminProfileScreen extends ConsumerWidget {
   final bool embeddedInMobileShell;
 
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
-    final confirm = await OcgConfirmDialog.show(
+    final confirm = await OcgLogoutDialog.show(
       context,
-      type: OcgConfirmDialogType.warning,
-      title: 'Cerrar sesión',
-      message: 'Tu sesión de administrador se cerrará en este dispositivo.',
-      confirmLabel: 'Cerrar sesión',
-      onConfirm: () {},
+      roleLabel: 'Administrador',
     );
 
     if (confirm != true) return;

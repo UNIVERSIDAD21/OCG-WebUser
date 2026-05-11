@@ -8,6 +8,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../../profile_photo/providers/profile_photo_provider.dart';
 import '../../profile_photo/services/profile_photo_service.dart';
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
@@ -66,13 +67,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
   Future<void> _handleSignOut() async {
     if (_signingOut) return;
 
-    final confirm = await OcgConfirmDialog.show(
+    final confirm = await OcgLogoutDialog.show(
       context,
-      type: OcgConfirmDialogType.warning,
-      title: 'Cerrar sesión',
-      message: 'Tu sesión se cerrará en este dispositivo.',
-      confirmLabel: 'Cerrar sesión',
-      onConfirm: () {},
+      roleLabel: 'Paciente',
     );
 
     if (confirm != true) return;
