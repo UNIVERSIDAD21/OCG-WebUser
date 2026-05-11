@@ -177,7 +177,9 @@ class AppointmentsRepository {
     });
 
     if (newStatus == AppointmentStatus.cancelada ||
-        newStatus == AppointmentStatus.reprogramada) {
+        newStatus == AppointmentStatus.reprogramada ||
+        newStatus == AppointmentStatus.confirmada ||
+        newStatus == AppointmentStatus.programada) {
       await _updatePatientNextAppointment(patientId);
     }
   }
