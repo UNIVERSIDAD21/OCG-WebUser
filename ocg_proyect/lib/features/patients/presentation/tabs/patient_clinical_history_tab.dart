@@ -348,11 +348,6 @@ class _PatientClinicalHistoryTabState
 
   Widget _buildClinicalFilesHero(List<ClinicalFileModel> files) {
     final visibles = files.where((file) => file.visibleToPatient).length;
-    final vinculados = files
-        .where((file) => (file.treatmentId ?? '').trim().isNotEmpty)
-        .length;
-    final imagenes = files.where((file) => file.isImage).length;
-    final pdfs = files.where((file) => file.isPdf).length;
 
     return OcgPremiumCard(
       padding: const EdgeInsets.all(16),
@@ -384,26 +379,6 @@ class _PatientClinicalHistoryTabState
                   label: 'Paciente',
                   value: '$visibles',
                   icon: Icons.visibility_outlined,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OcgInfoTile(
-                  label: 'Vinculados',
-                  value: '$vinculados',
-                  icon: Icons.monitor_heart_outlined,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OcgInfoTile(
-                  label: 'Img/PDF',
-                  value: '$imagenes/$pdfs',
-                  icon: Icons.image_search_outlined,
                 ),
               ),
             ],

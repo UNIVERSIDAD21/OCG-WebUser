@@ -69,19 +69,28 @@ class _OcgConfirmDialogContent extends StatelessWidget {
   final String? cancelLabel;
   final VoidCallback onConfirm;
 
+  bool get _isSignOutAction {
+    final text = '${title.toLowerCase()} ${message.toLowerCase()} '
+        '${(confirmLabel ?? '').toLowerCase()}';
+    return text.contains('cerrar sesión') || text.contains('cerrar sesion');
+  }
+
   IconData get _icon => switch (type) {
+    _ when _isSignOutAction => Icons.logout_rounded,
     OcgConfirmDialogType.danger => Icons.warning_rounded,
     OcgConfirmDialogType.warning => Icons.error_outline_rounded,
     OcgConfirmDialogType.info => Icons.info_outline_rounded,
   };
 
   Color get _iconBgColor => switch (type) {
+    _ when _isSignOutAction => const Color(0xFF6E5442),
     OcgConfirmDialogType.danger => const Color(0xFFD32F2F),
     OcgConfirmDialogType.warning => const Color(0xFFED8E00),
     OcgConfirmDialogType.info => const Color(0xFF6E5442),
   };
 
   Color get _confirmBgColor => switch (type) {
+    _ when _isSignOutAction => const Color(0xFF6E5442),
     OcgConfirmDialogType.danger => const Color(0xFFD32F2F),
     OcgConfirmDialogType.warning => const Color(0xFFED8E00),
     OcgConfirmDialogType.info => const Color(0xFF2C2016),
@@ -157,6 +166,44 @@ class _OcgConfirmDialogContent extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
+                if (_isSignOutAction) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4ECE2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFFE4D6C6),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: Color(0xFF8A6F59),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Podrás iniciar sesión nuevamente cuando quieras.',
+                            style: TextStyle(
+                              color: Color(0xFF8A6F59),
+                              fontSize: 12.5,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Buttons

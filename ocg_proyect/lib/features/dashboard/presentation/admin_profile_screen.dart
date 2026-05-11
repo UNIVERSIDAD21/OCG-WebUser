@@ -23,9 +23,9 @@ class AdminProfileScreen extends ConsumerWidget {
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await OcgConfirmDialog.show(
       context,
-      type: OcgConfirmDialogType.danger,
+      type: OcgConfirmDialogType.warning,
       title: 'Cerrar sesión',
-      message: '¿Deseas cerrar tu sesión de administrador?',
+      message: 'Tu sesión de administrador se cerrará en este dispositivo.',
       confirmLabel: 'Cerrar sesión',
       onConfirm: () {},
     );

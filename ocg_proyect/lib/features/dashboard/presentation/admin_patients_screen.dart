@@ -254,9 +254,9 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
   Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await OcgConfirmDialog.show(
       context,
-      type: OcgConfirmDialogType.danger,
+      type: OcgConfirmDialogType.warning,
       title: 'Cerrar sesión',
-      message: '¿Deseas cerrar tu sesión?',
+      message: 'Tu sesión se cerrará en este dispositivo.',
       confirmLabel: 'Cerrar sesión',
       onConfirm: () {},
     );
