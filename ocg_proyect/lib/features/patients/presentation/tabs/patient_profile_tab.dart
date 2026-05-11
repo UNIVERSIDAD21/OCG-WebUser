@@ -42,8 +42,12 @@ class PatientProfileTab extends StatelessWidget {
               _ProfileInfoTile(
                 icon: Icons.cake_outlined,
                 label: 'Fecha de nacimiento',
-                value: _fmt(patient.fechaNacimiento),
-                trailing: _ageLabel(patient.fechaNacimiento),
+                value: patient.fechaNacimiento == null
+                    ? 'No registrada'
+                    : _fmt(patient.fechaNacimiento!),
+                trailing: patient.fechaNacimiento == null
+                    ? null
+                    : _ageLabel(patient.fechaNacimiento!),
               ),
               _ProfileInfoTile(
                 icon: Icons.event_available_outlined,

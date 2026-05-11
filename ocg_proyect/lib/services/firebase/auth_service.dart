@@ -304,7 +304,7 @@ class AuthService {
       'nombre': cleanName,
       'email': cleanEmail,
       'telefono': '',
-      'fechaNacimiento': Timestamp.fromDate(now),
+      'fechaNacimiento': null,
       'photoUrl': null,
       'profilePhotoPath': null,
       'tipoTratamiento': null,

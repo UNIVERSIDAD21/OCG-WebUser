@@ -66,7 +66,7 @@ class PatientModel {
     required this.nombre,
     required this.email,
     required this.telefono,
-    required this.fechaNacimiento,
+    this.fechaNacimiento,
     this.fotoUrl,
     this.tipoTratamiento,
     required this.etapaActual,
@@ -86,7 +86,7 @@ class PatientModel {
   final String nombre;
   final String email;
   final String telefono;
-  final DateTime fechaNacimiento;
+  final DateTime? fechaNacimiento;
   final String? fotoUrl;
 
   final TreatmentType? tipoTratamiento;
@@ -239,7 +239,7 @@ class PatientModel {
       nombre: (json['nombre'] ?? json['displayName'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       telefono: (json['telefono'] ?? '').toString(),
-      fechaNacimiento: _parseDate(json['fechaNacimiento']),
+      fechaNacimiento: _parseNullableDate(json['fechaNacimiento']),
       fotoUrl: (json['photoUrl'] ?? json['fotoUrl'])?.toString(),
       tipoTratamiento: _parseTreatmentType(json['tipoTratamiento']),
       etapaActual: _parseTreatmentStage(json['etapaActual']),
@@ -263,7 +263,9 @@ class PatientModel {
       'nombre': nombre,
       'email': email,
       'telefono': telefono,
-      'fechaNacimiento': Timestamp.fromDate(fechaNacimiento),
+      'fechaNacimiento': fechaNacimiento == null
+          ? null
+          : Timestamp.fromDate(fechaNacimiento!),
       'photoUrl': fotoUrl,
       'tipoTratamiento': tipoTratamiento?.name,
       'etapaActual': etapaActual.name,

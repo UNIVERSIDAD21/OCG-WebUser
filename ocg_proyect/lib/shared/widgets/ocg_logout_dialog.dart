@@ -90,39 +90,44 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFFCF8),
-            Color(0xFFF9F3EB),
+    return DefaultTextStyle.merge(
+      style: const TextStyle(
+        decoration: TextDecoration.none,
+        decorationColor: Colors.transparent,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFFFFCF8),
+              Color(0xFFF9F3EB),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: OcgColors.sand.withOpacity(0.5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.14),
+              blurRadius: 48,
+              offset: const Offset(0, 20),
+            ),
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: OcgColors.sand.withOpacity(0.5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.14),
-            blurRadius: 48,
-            offset: const Offset(0, 20),
-          ),
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // ── Header with gradient ──
             _Header(roleLabel: roleLabel, userName: userName),
 
@@ -210,7 +215,8 @@ class _Card extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

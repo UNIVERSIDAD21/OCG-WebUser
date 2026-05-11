@@ -25,6 +25,7 @@ class AdminMobileShell extends ConsumerStatefulWidget {
 
 class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   late int _selectedIndex;
+
   late bool _showDetailChild;
 
   @override

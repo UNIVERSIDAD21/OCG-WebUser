@@ -56,6 +56,9 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
           )),
         );
         final treatments = resolution.treatments;
+        if (treatments.isEmpty) {
+          return _buildNoTreatmentPaymentsView(context, resolution);
+        }
         for (final treatment in treatments.where(
           (item) => !item.id.startsWith('legacy-primary-'),
         )) {
@@ -286,6 +289,46 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
     }
     return treatments.first;
   }
+}
+
+Widget _buildNoTreatmentPaymentsView(
+  BuildContext context,
+  EffectivePatientDataResolution resolution,
+) {
+  final globalTotal = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, account) => sum + account.payment.totalTratamiento,
+  );
+  final globalPaid = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, account) => sum + account.payment.montoPagado,
+  );
+  final globalPending = resolution.paymentAccounts.fold<double>(
+    0.0,
+    (sum, account) => sum + account.payment.saldoPendiente,
+  );
+
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _GlobalPaymentsSummary(
+          total: globalTotal,
+          paid: globalPaid,
+          pending: globalPending,
+          mode: resolution.mode,
+        ),
+        const SizedBox(height: 16),
+        const OcgEmptyState(
+          icon: Icons.monitor_heart_outlined,
+          title: 'Aún no hay tratamiento activo',
+          subtitle:
+              'Cuando el paciente tenga un tratamiento creado, aquí podrás gestionar sus pagos por tratamiento.',
+        ),
+      ],
+    ),
+  );
 }
 
 class _GlobalPaymentsSummary extends StatelessWidget {

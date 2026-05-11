@@ -38,7 +38,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen>
   final _totalCtrl = TextEditingController();
   final _saldoCtrl = TextEditingController();
 
-  DateTime _fechaNacimiento = DateTime(2000, 1, 1);
+  DateTime? _fechaNacimiento;
   DateTime _fechaInicio = DateTime.now();
   DateTime? _fechaEstimadaFin;
 
@@ -54,7 +54,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen>
   String _initialNotas = '';
   String _initialTotal = '';
   String _initialSaldo = '';
-  DateTime _initialFechaNacimiento = DateTime(2000, 1, 1);
+  DateTime? _initialFechaNacimiento;
   DateTime _initialFechaInicio = DateTime.now();
   DateTime? _initialFechaEstimadaFin;
   TreatmentType _initialTipo = TreatmentType.convencional;
@@ -161,6 +161,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen>
               if (v != null) setState(() => _etapa = v);
             },
             onFechaNacimiento: (d) => setState(() => _fechaNacimiento = d),
+            onFechaNacimientoClear: () =>
+                setState(() => _fechaNacimiento = null),
             onFechaInicio: (d) => setState(() => _fechaInicio = d),
             onFechaEstimadaFin: (d) =>
                 setState(() => _fechaEstimadaFin = d),
@@ -337,7 +339,9 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen>
         'id': patient.id, 'uid': patient.id,
         'nombre': patient.nombre, 'email': patient.email,
         'telefono': patient.telefono,
-        'fechaNacimiento': Timestamp.fromDate(patient.fechaNacimiento),
+        'fechaNacimiento': patient.fechaNacimiento == null
+            ? null
+            : Timestamp.fromDate(patient.fechaNacimiento!),
         'fechaEstimadaFin': patient.fechaEstimadaFin == null
             ? null : Timestamp.fromDate(patient.fechaEstimadaFin!),
       };
@@ -437,6 +441,7 @@ class _EditFormView extends StatelessWidget {
     required this.primaryTreatment, required this.patientId,
     required this.loading, required this.onTipoChanged,
     required this.onEtapaChanged, required this.onFechaNacimiento,
+    required this.onFechaNacimientoClear,
     required this.onFechaInicio, required this.onFechaEstimadaFin,
     required this.onFechaEstimadaFinClear, required this.onCancel,
     required this.onSave, required this.applyCopMask,
@@ -447,7 +452,8 @@ class _EditFormView extends StatelessWidget {
       totalCtrl, saldoCtrl;
   final TreatmentType tipo;
   final TreatmentStage etapa;
-  final DateTime fechaNacimiento, fechaInicio;
+  final DateTime? fechaNacimiento;
+  final DateTime fechaInicio;
   final DateTime? fechaEstimadaFin;
   final bool hasStructuredTreatments;
   final PatientTreatment? primaryTreatment;
@@ -457,6 +463,7 @@ class _EditFormView extends StatelessWidget {
   final ValueChanged<TreatmentStage?> onEtapaChanged;
   final ValueChanged<DateTime> onFechaNacimiento, onFechaInicio,
       onFechaEstimadaFin;
+  final VoidCallback onFechaNacimientoClear;
   final VoidCallback onFechaEstimadaFinClear;
   final VoidCallback? onCancel, onSave;
   final void Function(TextEditingController, String) applyCopMask;
@@ -482,7 +489,14 @@ class _EditFormView extends StatelessWidget {
                 keyboardType: TextInputType.phone,
                 validator: (v) => Validators.requiredField(v, message: 'Ingresa teléfono')),
             const SizedBox(height: 14),
-            _dateField(context, 'Fecha de nacimiento', fechaNacimiento, onFechaNacimiento),
+            _dateField(
+              context,
+              'Fecha de nacimiento',
+              fechaNacimiento,
+              onFechaNacimiento,
+              nullable: true,
+              onClear: onFechaNacimientoClear,
+            ),
             const SizedBox(height: 24),
 
             _section('Tratamiento', Icons.medical_services_outlined),

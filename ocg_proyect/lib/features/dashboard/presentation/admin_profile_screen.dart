@@ -536,6 +536,21 @@ class _AdminHeroState extends ConsumerState<_AdminHero>
                         onPressed: widget.uploadingPhoto ? null : widget.onChangePhoto,
                         icon: const Icon(Icons.photo_camera_outlined, size: 16),
                         label: const Text('Cambiar foto'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white.withOpacity(0.10),
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.55),
+                            width: 1.2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
                       if (photoUrl != null && photoUrl.isNotEmpty)
                         TextButton.icon(

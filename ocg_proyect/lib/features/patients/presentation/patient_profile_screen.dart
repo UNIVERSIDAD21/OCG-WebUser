@@ -37,6 +37,7 @@ class PatientProfileScreen extends ConsumerStatefulWidget {
 class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
     with SingleTickerProviderStateMixin {
   bool _savingPhone = false;
+  bool _savingBirthDate = false;
   bool _uploadingPhoto = false;
   bool _sendingReset = false;
   bool _signingOut = false;
@@ -141,11 +142,13 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
               isAdminViewer: isAdminViewer,
               uploadingPhoto: _uploadingPhoto,
               savingPhone: _savingPhone,
+              savingBirthDate: _savingBirthDate,
               sendingReset: _sendingReset,
               signingOut: _signingOut,
               showSignOut: widget.patientIdOverride == null,
               onSignOut: _handleSignOut,
               onEditPhone: () => _editPhone(patient),
+              onEditBirthDate: () => _editBirthDate(patient),
               onChangePhoto: () => _pickAndUploadPhoto(patient.id),
               onDeletePhoto: () => _deletePhoto(patient.id),
               onSendPasswordReset: () => _sendPasswordReset(patient.email),
@@ -229,6 +232,39 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
       );
     } finally {
       if (mounted) setState(() => _savingPhone = false);
+    }
+  }
+
+  Future<void> _editBirthDate(PatientModel patient) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: patient.fechaNacimiento ?? DateTime(now.year - 18),
+      firstDate: DateTime(1950),
+      lastDate: now,
+    );
+    if (picked == null) return;
+    if (patient.fechaNacimiento != null &&
+        _sameDate(patient.fechaNacimiento!, picked)) {
+      return;
+    }
+
+    setState(() => _savingBirthDate = true);
+    try {
+      await ref
+          .read(patientsRepositoryProvider)
+          .updatePatientContactData(patient.id, fechaNacimiento: picked);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fecha de nacimiento actualizada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar fecha de nacimiento: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingBirthDate = false);
     }
   }
 
@@ -336,6 +372,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
       if (mounted) setState(() => _sendingReset = false);
     }
   }
+
+  static bool _sameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -348,11 +387,13 @@ class _ProfileBody extends StatelessWidget {
     required this.isAdminViewer,
     required this.uploadingPhoto,
     required this.savingPhone,
+    required this.savingBirthDate,
     required this.sendingReset,
     required this.signingOut,
     required this.showSignOut,
     required this.onSignOut,
     required this.onEditPhone,
+    required this.onEditBirthDate,
     required this.onChangePhoto,
     required this.onDeletePhoto,
     required this.onSendPasswordReset,
@@ -362,11 +403,13 @@ class _ProfileBody extends StatelessWidget {
   final bool isAdminViewer;
   final bool uploadingPhoto;
   final bool savingPhone;
+  final bool savingBirthDate;
   final bool sendingReset;
   final bool signingOut;
   final bool showSignOut;
   final VoidCallback onSignOut;
   final VoidCallback onEditPhone;
+  final VoidCallback onEditBirthDate;
   final VoidCallback onChangePhoto;
   final VoidCallback onDeletePhoto;
   final VoidCallback onSendPasswordReset;
@@ -437,9 +480,13 @@ class _ProfileBody extends StatelessWidget {
                     onEdit: onEditPhone,
                   ),
                   const _CardDivider(),
-                  _InfoRow(
+                  _EditableInfoRow(
                     label: 'Fecha nacimiento',
-                    value: _fmt(patient.fechaNacimiento),
+                    value: patient.fechaNacimiento == null
+                        ? 'No registrada'
+                        : _fmt(patient.fechaNacimiento!),
+                    loading: savingBirthDate,
+                    onEdit: onEditBirthDate,
                   ),
                   const _CardDivider(),
                   _ActionInfoRow(
@@ -674,6 +721,21 @@ class _ProfileHeroState extends State<_ProfileHero>
                         onPressed: widget.uploadingPhoto ? null : widget.onChangePhoto,
                         icon: const Icon(Icons.photo_camera_outlined, size: 16),
                         label: const Text('Cambiar foto'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white.withOpacity(0.10),
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.55),
+                            width: 1.2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
                       if ((widget.patient.fotoUrl ?? '').isNotEmpty)
                         TextButton.icon(

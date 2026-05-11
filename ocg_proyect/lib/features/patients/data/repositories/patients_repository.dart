@@ -92,11 +92,18 @@ class PatientsRepository {
     String patientId, {
     String? telefono,
     String? photoUrl,
+    DateTime? fechaNacimiento,
+    bool clearFechaNacimiento = false,
   }) async {
     final data = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
 
     if (telefono != null) data['telefono'] = telefono;
     if (photoUrl != null) data['photoUrl'] = photoUrl;
+    if (clearFechaNacimiento) {
+      data['fechaNacimiento'] = FieldValue.delete();
+    } else if (fechaNacimiento != null) {
+      data['fechaNacimiento'] = Timestamp.fromDate(fechaNacimiento);
+    }
 
     await _patientsRef.doc(patientId).update(data);
   }
