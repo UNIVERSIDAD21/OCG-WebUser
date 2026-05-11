@@ -8,6 +8,7 @@ import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
+import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -359,83 +360,43 @@ class _PatientDetailView extends ConsumerWidget {
               ),
             ),
             SizedBox(height: sectionGap),
-            // ── Tab content: SectionPanel con TabBarView de altura
-            // explícita. Se usa LayoutBuilder para detectar si el padre
-            // da altura finita; si no, fallback a 700px.
-            LayoutBuilder(
-              builder: (context, outer) {
-                final tabHeight = outer.maxHeight.isFinite
-                    ? (outer.maxHeight * 0.78).clamp(300.0, 2000.0)
-                    : 700.0;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            // ── Tab content: el TabBarView usa Expanded para ocupar
+            // SOLO el espacio restante después del TabBar + Header.
+            // Así nunca overflow, sin importar la altura del viewport.
+            Expanded(
+              child: SectionPanel(
+                title: 'Detalle del paciente',
+                child: TabBarView(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Text(
-                        'Detalle del paciente',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: OcgColors.espresso,
-                          fontSize: 15,
+                    _PatientProfileAdminTab(
+                      patient: patient,
+                      onEdit: () => context.go(
+                        RouteNames.adminPatientEdit.replaceFirst(
+                          ':patientId',
+                          patient.id,
                         ),
                       ),
+                      onDelete: onDelete,
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: OcgColors.ivory,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: OcgColors.bronze.withOpacity(0.2),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: OcgColors.ink.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: SizedBox(
-                        height: tabHeight,
-                        child: TabBarView(
-                          children: [
-                            _PatientProfileAdminTab(
-                              patient: patient,
-                              onEdit: () => context.go(
-                                RouteNames.adminPatientEdit.replaceFirst(
-                                  ':patientId',
-                                  patient.id,
-                                ),
-                              ),
-                              onDelete: onDelete,
-                            ),
-                            PatientTreatmentTab(
-                              patientId: patient.id,
-                              patient: patient,
-                              scrollable: false,
-                            ),
-                            PatientPaymentsTab(
-                              patientId: patient.id,
-                              scrollable: false,
-                            ),
-                            PatientClinicalHistoryTab(
-                              patientId: patient.id,
-                              patient: patient,
-                              scrollable: false,
-                            ),
-                            PatientAppointmentsTab(patient: patient),
-                            PatientSimulatorTab(patient: patient),
-                          ],
-                        ),
-                      ),
+                    PatientTreatmentTab(
+                      patientId: patient.id,
+                      patient: patient,
+                      scrollable: false,
                     ),
+                    PatientPaymentsTab(
+                      patientId: patient.id,
+                      scrollable: false,
+                    ),
+                    PatientClinicalHistoryTab(
+                      patientId: patient.id,
+                      patient: patient,
+                      scrollable: false,
+                    ),
+                    PatientAppointmentsTab(patient: patient),
+                    PatientSimulatorTab(patient: patient),
                   ],
-                );
-              },
+                ),
+              ),
             ),
           ],
         ),
