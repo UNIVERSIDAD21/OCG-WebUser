@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../data/models/patient_model.dart';
 
 class PatientProfileTab extends StatelessWidget {
@@ -181,10 +182,14 @@ class _ClinicalProfileHero extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: OcgColors.ivory.withOpacity(0.55)),
                 ),
-                child: ProfilePhotoAvatar(
-                  label: patient.nombre,
+                child: OcgPhotoTapWrapper(
                   photoUrl: patient.fotoUrl,
-                  radius: 34,
+                  patientName: patient.nombre,
+                  child: ProfilePhotoAvatar(
+                    label: patient.nombre,
+                    photoUrl: patient.fotoUrl,
+                    radius: 34,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),

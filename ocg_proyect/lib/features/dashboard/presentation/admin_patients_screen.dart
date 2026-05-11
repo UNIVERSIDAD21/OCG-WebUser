@@ -15,6 +15,7 @@ import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
@@ -1154,17 +1155,27 @@ class _DesktopPatientRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 17,
-              backgroundColor: OcgColors.bronze.withOpacity(0.16),
-              child: Text(
-                _initialsFromName(patient.nombre),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: OcgColors.espresso,
-                ),
-              ),
+            OcgPhotoTapWrapper(
+              photoUrl: patient.fotoUrl,
+              patientName: patient.nombre,
+              child: patient.fotoUrl != null && patient.fotoUrl!.trim().isNotEmpty
+                  ? ProfilePhotoAvatar(
+                      label: patient.nombre,
+                      photoUrl: patient.fotoUrl,
+                      radius: 17,
+                    )
+                  : CircleAvatar(
+                      radius: 17,
+                      backgroundColor: OcgColors.bronze.withOpacity(0.16),
+                      child: Text(
+                        _initialsFromName(patient.nombre),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: OcgColors.espresso,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1926,10 +1937,14 @@ class _PatientCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ProfilePhotoAvatar(
-                  label: patient.nombre,
+                OcgPhotoTapWrapper(
                   photoUrl: patient.fotoUrl,
-                  radius: 24,
+                  patientName: patient.nombre,
+                  child: ProfilePhotoAvatar(
+                    label: patient.nombre,
+                    photoUrl: patient.fotoUrl,
+                    radius: 24,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

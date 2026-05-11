@@ -11,6 +11,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/profile_photo_avatar.dart';
+import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../data/models/patient_model.dart';
@@ -702,12 +703,16 @@ class _ProfileHeroState extends State<_ProfileHero>
                         ),
                       ),
                       // Photo
-                      ProfilePhotoAvatar(
-                        label: widget.patient.nombre,
+                      OcgPhotoTapWrapper(
                         photoUrl: widget.patient.fotoUrl,
-                        radius: 44,
-                        loading: widget.uploadingPhoto,
-                        showActions: false,
+                        patientName: widget.patient.nombre,
+                        child: ProfilePhotoAvatar(
+                          label: widget.patient.nombre,
+                          photoUrl: widget.patient.fotoUrl,
+                          radius: 44,
+                          loading: widget.uploadingPhoto,
+                          showActions: false,
+                        ),
                       ),
                     ],
                   ),
