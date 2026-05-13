@@ -194,6 +194,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen>
     if (isDesktop) {
       return AdminWebShell(
         title: isEdit ? 'Editar paciente' : 'Nuevo paciente',
+        scrollable: false,
         child: body,
       );
     }
@@ -474,9 +475,11 @@ class _EditFormView extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 760),
       child: Form(
         key: formKey,
-        child: ListView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
-          children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _section('Datos personales', Icons.person_outline_rounded),
             const SizedBox(height: 12),
             _field(nameCtrl, 'Nombre completo', 'Nombre y apellidos', Icons.person_outline_rounded,
@@ -595,7 +598,8 @@ class _EditFormView extends StatelessWidget {
                 ),
               ),
             ]),
-          ],
+            ],
+          ),
         ),
       ),
     );
