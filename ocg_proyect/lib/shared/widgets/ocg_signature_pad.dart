@@ -8,13 +8,13 @@ import '../../../shared/theme/ocg_colors.dart';
 /// Widget profesional de firma con CustomPainter.
 ///
 /// Captura trazos del dedo/stylus y exporta como PNG.
-/// Diseño alineado con la estética OCG (espresso/bronze/ivory).
+/// Diseño premium alineado con la estética OCG (espresso/bronze/ivory).
 class OcgSignaturePad extends StatefulWidget {
   const OcgSignaturePad({
     super.key,
-    this.height = 180,
-    this.penColor = OcgColors.espresso,
-    this.penWidth = 2.0,
+    this.height = 200,
+    this.penColor = const Color(0xFF3D2B1F),
+    this.penWidth = 2.5,
     this.onSignatureChanged,
     this.onSignatureCleared,
     this.backgroundDecoration,
@@ -36,12 +36,34 @@ class OcgSignaturePad extends StatefulWidget {
   OcgSignaturePadState createState() => OcgSignaturePadState();
 }
 
-class OcgSignaturePadState extends State<OcgSignaturePad> {
+class OcgSignaturePadState extends State<OcgSignaturePad>
+    with TickerProviderStateMixin {
   final List<List<Offset>> _strokes = [];
   List<Offset> _currentStroke = [];
   final GlobalKey _painterKey = GlobalKey();
+  late AnimationController _confirmController;
+  late Animation<double> _confirmAnim;
 
   bool get _isEmpty => _strokes.isEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _confirmController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _confirmAnim = CurvedAnimation(
+      parent: _confirmController,
+      curve: Curves.easeOutBack,
+    );
+  }
+
+  @override
+  void dispose() {
+    _confirmController.dispose();
+    super.dispose();
+  }
 
   void _onPanStart(DragStartDetails details) {
     final box = _painterKey.currentContext!.findRenderObject() as RenderBox;
@@ -49,6 +71,9 @@ class OcgSignaturePadState extends State<OcgSignaturePad> {
     setState(() {
       _currentStroke = [local];
     });
+    if (_confirmController.isCompleted) {
+      _confirmController.reverse();
+    }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -66,6 +91,7 @@ class OcgSignaturePadState extends State<OcgSignaturePad> {
         _currentStroke = [];
       });
       _exportPng();
+      _confirmController.forward();
     } else {
       setState(() {
         _currentStroke = [];
@@ -78,6 +104,9 @@ class OcgSignaturePadState extends State<OcgSignaturePad> {
       _strokes.clear();
       _currentStroke.clear();
     });
+    if (_confirmController.isCompleted) {
+      _confirmController.reset();
+    }
     widget.onSignatureCleared?.call();
   }
 
@@ -107,85 +136,198 @@ class OcgSignaturePadState extends State<OcgSignaturePad> {
   Widget build(BuildContext context) {
     final bgDecoration = widget.backgroundDecoration ??
         BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFFFFFBF5),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: OcgColors.bronze.withOpacity(0.25),
-            width: 1.5,
+            color: OcgColors.bronze.withOpacity(0.2),
+            width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: OcgColors.espresso.withOpacity(0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
         );
 
     return Container(
       height: widget.height,
       decoration: bgDecoration,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
+            // Patrón de fondo sutil (líneas de documento)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _DocumentPatternPainter(),
+              ),
+            ),
             // Área de firma
-            GestureDetector(
-              onPanStart: _onPanStart,
-              onPanUpdate: _onPanUpdate,
-              onPanEnd: _onPanEnd,
-              child: RepaintBoundary(
-                key: _painterKey,
-                child: CustomPaint(
-                  painter: _SignaturePainter(
-                    strokes: _strokes,
-                    currentStroke: _currentStroke,
-                    penColor: widget.penColor,
-                    penWidth: widget.penWidth,
-                  ),
-                  child: _isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 32,
-                                color: OcgColors.bronze.withOpacity(0.35),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Firme aquí con el dedo',
-                                style: TextStyle(
-                                  color: OcgColors.bronze.withOpacity(0.45),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: _onPanStart,
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                child: RepaintBoundary(
+                  key: _painterKey,
+                  child: CustomPaint(
+                    painter: _SignaturePainter(
+                      strokes: _strokes,
+                      currentStroke: _currentStroke,
+                      penColor: widget.penColor,
+                      penWidth: widget.penWidth,
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _confirmAnim,
+                      builder: (context, child) {
+                        return Stack(
+                          children: [
+                            // Placeholder cuando está vacío
+                            if (_isEmpty)
+                              Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Icono de pluma/firma
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween(
+                                        begin: 0,
+                                        end: _confirmController.isCompleted
+                                            ? 0
+                                            : 1,
+                                      ),
+                                      duration: const Duration(milliseconds: 300),
+                                      builder: (context, value, _) {
+                                        return Transform.scale(
+                                          scale: 1 - (value * 0.1),
+                                          child: Opacity(
+                                            opacity: 0.35,
+                                            child: Icon(
+                                              Icons.draw_outlined,
+                                              size: 36,
+                                              color: OcgColors.bronze,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Firme aquí',
+                                      style: TextStyle(
+                                        color: OcgColors.bronze.withOpacity(0.5),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        fontFamily: 'Cormorant Garamond',
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Use el dedo o un stylus',
+                                      style: TextStyle(
+                                        color:
+                                            OcgColors.bronze.withOpacity(0.3),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        )
-                      : null,
+                            // Animación de confirmación (sello)
+                            if (!_isEmpty)
+                              Center(
+                                child: Transform.scale(
+                                  scale: _confirmAnim.value,
+                                  child: Opacity(
+                                    opacity: _confirmAnim.value * 0.15,
+                                    child: Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF166534),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_rounded,
+                                        size: 40,
+                                        color: Color(0xFF166534),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
-            // Línea guía
+            // Línea de firma profesional (como documento legal)
             if (_isEmpty)
               Positioned(
-                bottom: 40,
-                left: 24,
-                right: 24,
-                child: Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        OcgColors.bronze.withOpacity(0),
-                        OcgColors.bronze.withOpacity(0.25),
-                        OcgColors.bronze.withOpacity(0.25),
-                        OcgColors.bronze.withOpacity(0),
-                      ],
-                      stops: const [0, 0.15, 0.85, 1],
+                left: 32,
+                right: 32,
+                bottom: 48,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              OcgColors.bronze.withOpacity(0.3),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '✕',
+                        style: TextStyle(
+                          color: OcgColors.bronze.withOpacity(0.25),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              OcgColors.bronze.withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Marca de agua inferior
+            if (_isEmpty)
+              Positioned(
+                bottom: 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    'FIRMA DEL PACIENTE',
+                    style: TextStyle(
+                      color: OcgColors.bronze.withOpacity(0.12),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
                     ),
                   ),
                 ),
@@ -195,6 +337,24 @@ class OcgSignaturePadState extends State<OcgSignaturePad> {
       ),
     );
   }
+}
+
+/// Patrón sutil de líneas de documento.
+class _DocumentPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFE8DDD0).withOpacity(0.3)
+      ..strokeWidth = 0.5;
+
+    // Líneas horizontales sutiles
+    for (double y = 20; y < size.height - 50; y += 24) {
+      canvas.drawLine(Offset(16, y), Offset(size.width - 16, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DocumentPatternPainter oldDelegate) => false;
 }
 
 class _SignaturePainter extends CustomPainter {

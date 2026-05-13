@@ -13,7 +13,6 @@ import '../../patients/providers/patients_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 import '../data/models/consultation_model.dart';
-import '../data/repositories/consultation_repository.dart';
 import '../providers/consultation_provider.dart';
 
 // ─── Pantalla de Consultación Clínica ────────────────────────────────────────
@@ -37,9 +36,11 @@ class ConsultationScreen extends ConsumerStatefulWidget {
 
 class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   final TextEditingController _notesCtrl = TextEditingController();
-  final ValueNotifier<Uint8List?> _signatureBytes = ValueNotifier<Uint8List?>(null);
+  final ValueNotifier<Uint8List?> _signatureBytes =
+      ValueNotifier<Uint8List?>(null);
   final ValueNotifier<bool> _hasSignature = ValueNotifier<bool>(false);
-  final GlobalKey<OcgSignaturePadState> _signaturePadKey = GlobalKey<OcgSignaturePadState>();
+  final GlobalKey<OcgSignaturePadState> _signaturePadKey =
+      GlobalKey<OcgSignaturePadState>();
 
   bool _saving = false;
   String? _errorMsg;
@@ -140,10 +141,13 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     });
 
     try {
+      final now = DateTime.now();
+      final repo = ref.read(consultationRepositoryProvider);
+
       // 1. Subir firma a Storage
       final signaturePath =
           'patients/${widget.appointment.patientId}/consultations/'
-          'signatures/${DateTime.now().millisecondsSinceEpoch}.png';
+          'signatures/${now.millisecondsSinceEpoch}.png';
       final storageRef = FirebaseStorage.instance.ref().child(signaturePath);
       await storageRef.putData(
         sigBytes,
@@ -152,7 +156,6 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       final signatureUrl = await storageRef.getDownloadURL();
 
       // 2. Crear documento de consulta
-      final now = DateTime.now();
       final auditEntry = AuditEntry(
         action: 'created',
         actorId: 'admin',
@@ -161,7 +164,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       );
 
       PhaseSnapshot? phaseSnapshot;
-      if (_wantsAdvancePhase && _selectedNextStage != null && _patient != null) {
+      if (_wantsAdvancePhase &&
+          _selectedNextStage != null &&
+          _patient != null) {
         phaseSnapshot = PhaseSnapshot(
           previousStage: _patient!.etapaActual,
           currentStage: _selectedNextStage!,
@@ -188,16 +193,17 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         updatedAt: now,
       );
 
-      await ref
-          .read(consultationRepositoryProvider)
-          .createConsultation(consultation);
+      await repo.createConsultation(consultation);
 
       // 3. Si avanzó de fase, actualizar paciente
-      if (_wantsAdvancePhase && _selectedNextStage != null && _patient != null) {
+      if (_wantsAdvancePhase &&
+          _selectedNextStage != null &&
+          _patient != null) {
         await ref.read(patientsRepositoryProvider).updateTreatmentStage(
           patientId: _patient!.id,
           newStage: _selectedNextStage!,
-          notas: 'Avance de fase desde consulta: ${widget.appointment.tipo.name}',
+          notas:
+              'Avance de fase desde consulta: ${widget.appointment.tipo.name}',
           adminId: 'admin',
         );
       }
@@ -958,87 +964,150 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     );
   }
 
+  // ─── Signature Card (Premium) ──────────────────────────────────────────────
+
   Widget _buildSignatureCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, const Color(0xFFFFFDF8)],
+        ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
+        border: Border.all(
+          color: OcgColors.bronze.withOpacity(0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: OcgColors.espresso.withOpacity(0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: OcgColors.bronze.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header con sello animado ──
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [OcgColors.bronze, OcgColors.espresso],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+              TweenAnimationBuilder<double>(
+                tween: Tween(
+                  begin: 0,
+                  end: _hasSignature.value ? 1 : 0,
                 ),
-                child: const Icon(
-                  Icons.edit_note_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOutBack,
+                builder: (context, value, _) {
+                  return Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.lerp(
+                            OcgColors.bronze.withOpacity(0.15),
+                            const Color(0xFF166534),
+                            value,
+                          )!,
+                          Color.lerp(
+                            OcgColors.espresso.withOpacity(0.15),
+                            const Color(0xFF22C55E),
+                            value,
+                          )!,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Color.lerp(
+                          OcgColors.bronze.withOpacity(0.3),
+                          const Color(0xFF166534),
+                          value,
+                        )!,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(
+                      value > 0.5
+                          ? Icons.shield_outlined
+                          : Icons.edit_note_rounded,
+                      color: Color.lerp(
+                        OcgColors.bronze,
+                        Colors.white,
+                        value,
+                      ),
+                      size: 22,
+                    ),
+                  );
+                },
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Firma del Paciente',
-                      style: TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'Cormorant Garamond',
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          'Firma del Paciente',
+                          style: TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Cormorant Garamond',
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: OcgColors.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: OcgColors.error.withOpacity(0.2),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star_rounded,
+                                  size: 9,
+                                  color: OcgColors.error.withOpacity(0.7)),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Req.',
+                                style: TextStyle(
+                                  color: OcgColors.error.withOpacity(0.7),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      'Requerida para validez de la historia clínica',
+                      'Validación legal de la historia clínica',
                       style: TextStyle(
-                        color: OcgColors.bronze.withOpacity(0.6),
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: OcgColors.error.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.star_rounded,
-                      size: 12,
-                      color: OcgColors.error.withOpacity(0.8),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Obligatorio',
-                      style: TextStyle(
-                        color: OcgColors.error.withOpacity(0.8),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        color: OcgColors.bronze.withOpacity(0.55),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -1046,10 +1115,12 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+
+          // ── Pad de firma ──
           OcgSignaturePad(
             key: _signaturePadKey,
-            height: 180,
+            height: 200,
             onSignatureChanged: (bytes) {
               setState(() {
                 _signatureBytes.value = bytes;
@@ -1064,51 +1135,138 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
               });
             },
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () {
-                  _signaturePadKey.currentState?.clear();
-                },
-                icon: const Icon(Icons.clear_all, size: 16),
-                label: const Text('Limpiar firma'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: OcgColors.bronze,
-                  side: BorderSide(
-                    color: OcgColors.bronze.withOpacity(0.3),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          const SizedBox(height: 14),
+
+          // ── Estado / Botón (AnimatedSwitcher) ──
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.3),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
+              );
+            },
+            child: _hasSignature.value
+                ? _buildSignatureSuccess()
+                : _buildClearButton(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClearButton() {
+    return Row(
+      children: [
+        InkWell(
+          onTap: () => _signaturePadKey.currentState?.clear(),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: OcgColors.bronze.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: OcgColors.bronze.withOpacity(0.2),
+                width: 1,
               ),
-              const Spacer(),
-              ValueListenableBuilder<bool>(
-                valueListenable: _hasSignature,
-                builder: (_, has, __) {
-                  if (!has) return const SizedBox.shrink();
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        size: 16,
-                        color: Color(0xFF166534),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Firma capturada',
-                        style: const TextStyle(
-                          color: Color(0xFF166534),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.restart_alt_rounded,
+                    size: 16,
+                    color: OcgColors.bronze.withOpacity(0.7)),
+                const SizedBox(width: 8),
+                Text(
+                  'Limpiar',
+                  style: TextStyle(
+                    color: OcgColors.bronze.withOpacity(0.7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Spacer(),
+        Text(
+          'La firma no se puede editar después de guardar',
+          style: TextStyle(
+            color: OcgColors.bronze.withOpacity(0.35),
+            fontSize: 10.5,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSignatureSuccess() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF166534).withOpacity(0.08),
+            const Color(0xFF22C55E).withOpacity(0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF166534).withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: const BoxDecoration(
+              color: Color(0xFF166534),
+              shape: BoxShape.circle,
+            ),
+            child:
+                const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Firma capturada exitosamente',
+                  style: TextStyle(
+                    color: Color(0xFF166534),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'Documento válido con firma digital del paciente',
+                  style: TextStyle(
+                    color: Color(0xFF166534),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () => _signaturePadKey.currentState?.clear(),
+            borderRadius: BorderRadius.circular(8),
+            child: Icon(Icons.edit_outlined,
+                size: 16,
+                color: const Color(0xFF166534).withOpacity(0.6)),
           ),
         ],
       ),
