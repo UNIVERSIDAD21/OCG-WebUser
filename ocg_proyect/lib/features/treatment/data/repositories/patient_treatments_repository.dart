@@ -27,6 +27,14 @@ class PatientTreatmentsRepository {
   CollectionReference<Map<String, dynamic>> get _appointmentsRef =>
       _db.collection(FirestorePaths.appointments);
 
+  /// One-shot read (para pantallas que necesitan el dato una sola vez).
+  Future<List<PatientTreatment>> getPatientTreatments(String patientId) async {
+    final snap = await _treatmentsRef(patientId).get();
+    return snap.docs
+        .map((doc) => PatientTreatment.fromJson(doc.data()))
+        .toList();
+  }
+
   Stream<List<PatientTreatment>> watchPatientTreatments(String patientId) {
     return _treatmentsRef(
       patientId,

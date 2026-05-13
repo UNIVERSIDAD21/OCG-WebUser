@@ -41,6 +41,14 @@ class PatientsRepository {
     });
   }
 
+  /// One-shot read (para pantallas que necesitan el dato una sola vez).
+  Future<PatientModel?> getPatient(String patientId) async {
+    final doc = await _patientsRef.doc(patientId).get();
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    return PatientModel.fromJson(data);
+  }
+
   Future<void> createPatient(PatientModel patient) async {
     await _patientsRef
         .doc(patient.id)

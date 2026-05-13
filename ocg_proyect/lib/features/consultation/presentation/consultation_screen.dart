@@ -66,27 +66,35 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   }
 
   Future<void> _loadPatientData() async {
+    final patientId = widget.appointment.patientId;
+    debugPrint('[_loadPatientData] Cargando datos para patientId=$patientId');
+
     try {
-      final patientAsync = await ref
-          .read(patientByIdProvider(widget.appointment.patientId).future);
-      final treatmentsAsync = await ref
-          .read(patientTreatmentsProvider(widget.appointment.patientId).future);
+      // Usar el repositorio directamente para evitar problemas con StreamProvider
+      final repo = ref.read(patientsRepositoryProvider);
+      final patient = await repo.getPatient(patientId);
+      debugPrint('[_loadPatientData] Paciente: ${patient?.nombre ?? 'null'}');
+
+      final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
+      final treatments = await treatRepo.getPatientTreatments(patientId);
+      debugPrint('[_loadPatientData] Tratamientos: ${treatments?.length ?? 0}');
 
       if (!mounted) return;
 
       setState(() {
-        _patient = patientAsync;
-        _primaryTreatment = treatmentsAsync
-                ?.where((t) => t.isPrimary)
-                .firstOrNull ??
-            treatmentsAsync?.firstOrNull;
+        _patient = patient;
+        final t = treatments;
+        _primaryTreatment = t?.isNotEmpty == true
+            ? (t.where((x) => x.isPrimary).firstOrNull ?? t.first)
+            : null;
         _loadingPatient = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[_loadPatientData] ERROR: $e\n$st');
       if (!mounted) return;
       setState(() {
         _loadingPatient = false;
-        _errorMsg = 'No se pudo cargar información del paciente.';
+        _errorMsg = 'No se pudo cargar información del paciente: $e';
       });
     }
   }
