@@ -117,4 +117,17 @@ class ConsultationRepository {
         .doc(consultationId)
         .update(updateData);
   }
+
+  // ─── Add files to consultation ────────────────────────────────────────────
+
+  Future<void> addFilesToConsultation({
+    required String patientId,
+    required String consultationId,
+    required List<String> fileUrls,
+  }) async {
+    await _consultationsRef(patientId).doc(consultationId).update({
+      'photos': FieldValue.arrayUnion(fileUrls),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

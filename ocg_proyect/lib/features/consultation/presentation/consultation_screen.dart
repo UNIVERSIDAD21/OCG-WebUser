@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -36,9 +40,11 @@ class ConsultationScreen extends ConsumerStatefulWidget {
 
 class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   final TextEditingController _notesCtrl = TextEditingController();
-  final ValueNotifier<Uint8List?> _signatureBytes =
-      ValueNotifier<Uint8List?>(null);
-  final ValueNotifier<bool> _hasSignature = ValueNotifier<bool>(false);
+  Uint8List? _signatureBytes;
+  bool _hasSignature = false;
+  bool _showingPad = true;
+  final List<String> _uploadedFiles = [];
+  final List<String> _uploadedFileNames = [];
   final GlobalKey<OcgSignaturePadState> _signaturePadKey =
       GlobalKey<OcgSignaturePadState>();
 
@@ -60,8 +66,6 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   @override
   void dispose() {
     _notesCtrl.dispose();
-    _signatureBytes.dispose();
-    _hasSignature.dispose();
     super.dispose();
   }
 
@@ -130,7 +134,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       return;
     }
 
-    final sigBytes = _signatureBytes.value;
+    final sigBytes = _signatureBytes;
     if (sigBytes == null || sigBytes.isEmpty) {
       setState(() =>
           _errorMsg = 'La firma del paciente es obligatoria.');
@@ -201,7 +205,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         updatedAt: now,
       );
 
-      await repo.createConsultation(consultation);
+      final consultationId = await repo.createConsultation(consultation);
 
       // 3. Si avanzó de fase, actualizar paciente
       if (_wantsAdvancePhase &&
@@ -213,6 +217,31 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           notas:
               'Avance de fase desde consulta: ${widget.appointment.tipo.name}',
           adminId: 'admin',
+        );
+      }
+
+      // 3b. Subir archivos adjuntos
+      final List<String> fileUrls = [];
+      for (int i = 0; i < _uploadedFiles.length; i++) {
+        final filePath = _uploadedFiles[i];
+        final fileName = _uploadedFileNames[i];
+        final storagePath =
+            'patients/\${widget.appointment.patientId}/consultations/'
+            'files/\${now.millisecondsSinceEpoch}_\$fileName';
+        final fileRef = FirebaseStorage.instance.ref().child(storagePath);
+        final file = File(filePath);
+        await fileRef.putFile(file);
+        final url = await fileRef.getDownloadURL();
+        fileUrls.add(url);
+      }
+
+      // Actualizar consulta con archivos si hay
+      if (fileUrls.isNotEmpty) {
+        final repo2 = ref.read(consultationRepositoryProvider);
+        await repo2.addFilesToConsultation(
+          patientId: widget.appointment.patientId,
+          consultationId: consultationId,
+          fileUrls: fileUrls,
         );
       }
 
@@ -308,6 +337,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     _buildClinicalNotesCard(),
                     const SizedBox(height: 16),
                     _buildSignatureCard(),
+                    const SizedBox(height: 16),
+                    _buildDocumentsCard(),
                     const SizedBox(height: 24),
                     _buildSaveButton(),
                     const SizedBox(height: 32),
@@ -1005,59 +1036,37 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header con sello animado ──
+          // ── Header con sello ──
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(
-                  begin: 0,
-                  end: _hasSignature.value ? 1 : 0,
-                ),
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeOutBack,
-                builder: (context, value, _) {
-                  return Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color.lerp(
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _hasSignature
+                        ? [const Color(0xFF166534), const Color(0xFF22C55E)]
+                        : [
                             OcgColors.bronze.withOpacity(0.15),
-                            const Color(0xFF166534),
-                            value,
-                          )!,
-                          Color.lerp(
                             OcgColors.espresso.withOpacity(0.15),
-                            const Color(0xFF22C55E),
-                            value,
-                          )!,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Color.lerp(
-                          OcgColors.bronze.withOpacity(0.3),
-                          const Color(0xFF166534),
-                          value,
-                        )!,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Icon(
-                      value > 0.5
-                          ? Icons.shield_outlined
-                          : Icons.edit_note_rounded,
-                      color: Color.lerp(
-                        OcgColors.bronze,
-                        Colors.white,
-                        value,
-                      ),
-                      size: 22,
-                    ),
-                  );
-                },
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _hasSignature
+                        ? const Color(0xFF166534)
+                        : OcgColors.bronze.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  _hasSignature
+                      ? Icons.shield_outlined
+                      : Icons.edit_note_rounded,
+                  color: _hasSignature ? Colors.white : OcgColors.bronze,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1111,7 +1120,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Validación legal de la historia clínica',
+                      _hasSignature
+                          ? 'Documento firmado — listo para guardar'
+                          : 'Validación legal de la historia clínica',
                       style: TextStyle(
                         color: OcgColors.bronze.withOpacity(0.55),
                         fontSize: 12,
@@ -1125,160 +1136,449 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── Pad de firma ──
-          OcgSignaturePad(
-            key: _signaturePadKey,
-            height: 200,
-            onSignatureChanged: (bytes) {
-              setState(() {
-                _signatureBytes.value = bytes;
-                _hasSignature.value = true;
-                _errorMsg = null;
-              });
-            },
-            onSignatureCleared: () {
-              setState(() {
-                _signatureBytes.value = null;
-                _hasSignature.value = false;
-              });
-            },
-          ),
-          const SizedBox(height: 14),
-
-          // ── Estado / Botón (AnimatedSwitcher) ──
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.3),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+          // ── Pad de firma o firma confirmada ──
+          if (_showingPad) ...[
+            OcgSignaturePad(
+              key: _signaturePadKey,
+              height: 200,
+              onSignatureReady: (bytes) {
+                setState(() {
+                  _signatureBytes = bytes;
+                  _hasSignature = true;
+                  _showingPad = false;
+                  _errorMsg = null;
+                });
+              },
+              onSignatureCleared: () {},
+            ),
+            const SizedBox(height: 12),
+            // Botones del pad
+            Row(
+              children: [
+                InkWell(
+                  onTap: () => _signaturePadKey.currentState?.clear(),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: OcgColors.bronze.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: OcgColors.bronze.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restart_alt_rounded,
+                            size: 16,
+                            color: OcgColors.bronze.withOpacity(0.7)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Limpiar',
+                          style: TextStyle(
+                            color: OcgColors.bronze.withOpacity(0.7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              );
-            },
-            child: _hasSignature.value
-                ? _buildSignatureSuccess()
-                : _buildClearButton(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClearButton() {
-    return Row(
-      children: [
-        InkWell(
-          onTap: () => _signaturePadKey.currentState?.clear(),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: OcgColors.bronze.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: OcgColors.bronze.withOpacity(0.2),
-                width: 1,
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: () {
+                    _signaturePadKey.currentState?.confirmSignature();
+                  },
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text('Confirmar firma'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OcgColors.espresso,
+                    foregroundColor: OcgColors.ivory,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            // Firma confirmada - vista previa
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF166534).withOpacity(0.08),
+                    const Color(0xFF22C55E).withOpacity(0.06),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF166534).withOpacity(0.15),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF166534),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_rounded,
+                        size: 14, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Firma capturada exitosamente',
+                          style: TextStyle(
+                            color: Color(0xFF166534),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Documento válido con firma digital del paciente',
+                          style: TextStyle(
+                            color: Color(0xFF166534),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _signatureBytes = null;
+                        _hasSignature = false;
+                        _showingPad = true;
+                      });
+                      _signaturePadKey.currentState?.clear();
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Icon(Icons.edit_outlined,
+                        size: 16,
+                        color:
+                            const Color(0xFF166534).withOpacity(0.6)),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.restart_alt_rounded,
-                    size: 16,
-                    color: OcgColors.bronze.withOpacity(0.7)),
-                const SizedBox(width: 8),
-                Text(
-                  'Limpiar',
-                  style: TextStyle(
-                    color: OcgColors.bronze.withOpacity(0.7),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const Spacer(),
-        Text(
-          'La firma no se puede editar después de guardar',
-          style: TextStyle(
-            color: OcgColors.bronze.withOpacity(0.35),
-            fontSize: 10.5,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
+          ],
+        ],
+      ),
     );
   }
 
-  Widget _buildSignatureSuccess() {
+  // ─── Documentos Adjuntos ───────────────────────────────────────────────────
+
+  Widget _buildDocumentsCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF166534).withOpacity(0.08),
-            const Color(0xFF22C55E).withOpacity(0.06),
-          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, const Color(0xFFFFFDF8)],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF166534).withOpacity(0.15),
+          color: OcgColors.bronze.withOpacity(0.2),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: OcgColors.espresso.withOpacity(0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: const BoxDecoration(
-              color: Color(0xFF166534),
-              shape: BoxShape.circle,
-            ),
-            child:
-                const Icon(Icons.check_rounded, size: 14, color: Colors.white),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Firma capturada exitosamente',
-                  style: TextStyle(
-                    color: Color(0xFF166534),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _uploadedFiles.isNotEmpty
+                        ? [const Color(0xFF166534), const Color(0xFF22C55E)]
+                        : [
+                            OcgColors.bronze.withOpacity(0.15),
+                            OcgColors.espresso.withOpacity(0.15),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _uploadedFiles.isNotEmpty
+                        ? const Color(0xFF166534)
+                        : OcgColors.bronze.withOpacity(0.3),
+                    width: 1.5,
                   ),
                 ),
-                Text(
-                  'Documento válido con firma digital del paciente',
-                  style: TextStyle(
-                    color: Color(0xFF166534),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
+                child: Icon(
+                  _uploadedFiles.isNotEmpty
+                      ? Icons.folder_open_outlined
+                      : Icons.attach_file_rounded,
+                  color: _uploadedFiles.isNotEmpty
+                      ? Colors.white
+                      : OcgColors.bronze,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Documentos Adjuntos',
+                          style: TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Cormorant Garamond',
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        if (_uploadedFiles.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF166534).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              '${_uploadedFiles.length}',
+                              style: const TextStyle(
+                                color: Color(0xFF166534),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Radiografías, fotos clínicas, documentos del paciente',
+                      style: TextStyle(
+                        color: OcgColors.bronze.withOpacity(0.55),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Lista de archivos subidos
+          if (_uploadedFiles.isNotEmpty) ...[
+            ..._uploadedFiles.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final name = _uploadedFileNames[idx];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: OcgColors.mist,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: OcgColors.bronze.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          name.toLowerCase().endsWith('.pdf')
+                              ? Icons.picture_as_pdf_rounded
+                              : name.toLowerCase().endsWith('.jpg') ||
+                                      name.toLowerCase().endsWith('.jpeg') ||
+                                      name.toLowerCase().endsWith('.png')
+                                  ? Icons.image_outlined
+                                  : Icons.description_outlined,
+                          size: 18,
+                          color: OcgColors.bronze,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _uploadedFiles.removeAt(idx);
+                            _uploadedFileNames.removeAt(idx);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: OcgColors.error.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          InkWell(
-            onTap: () => _signaturePadKey.currentState?.clear(),
-            borderRadius: BorderRadius.circular(8),
-            child: Icon(Icons.edit_outlined,
-                size: 16,
-                color: const Color(0xFF166534).withOpacity(0.6)),
+              );
+            }),
+            const SizedBox(height: 12),
+          ],
+
+          // Botones para subir
+          Row(
+            children: [
+              Expanded(
+                child: _uploadButton(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'Cámara',
+                  onTap: () => _pickImage(ImageSource.camera),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _uploadButton(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Galería',
+                  onTap: () => _pickImage(ImageSource.gallery),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _uploadButton(
+                  icon: Icons.description_outlined,
+                  label: 'Archivo',
+                  onTap: () => _pickFile(),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _uploadButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: OcgColors.bronze.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: OcgColors.bronze.withOpacity(0.15),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: OcgColors.bronze),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: OcgColors.bronze,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() {
+          _uploadedFiles.add(picked.path);
+          _uploadedFileNames.add(picked.name);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx',
+          'xls', 'xlsx', 'dicom',
+        ],
+      );
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (file.path != null) {
+          setState(() {
+            _uploadedFiles.add(file.path!);
+            _uploadedFileNames.add(file.name);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking file: $e');
+    }
   }
 
   Widget _buildSaveButton() {

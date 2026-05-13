@@ -7,7 +7,7 @@ import '../../../shared/theme/ocg_colors.dart';
 
 /// Widget profesional de firma con CustomPainter.
 ///
-/// Captura trazos del dedo/stylus y exporta como PNG.
+/// Soporta múltiples trazos (levantar el dedo y seguir firmando).
 /// Diseño premium alineado con la estética OCG (espresso/bronze/ivory).
 class OcgSignaturePad extends StatefulWidget {
   const OcgSignaturePad({
@@ -15,7 +15,7 @@ class OcgSignaturePad extends StatefulWidget {
     this.height = 200,
     this.penColor = const Color(0xFF3D2B1F),
     this.penWidth = 2.5,
-    this.onSignatureChanged,
+    this.onSignatureReady,
     this.onSignatureCleared,
     this.backgroundDecoration,
   });
@@ -24,8 +24,8 @@ class OcgSignaturePad extends StatefulWidget {
   final Color penColor;
   final double penWidth;
 
-  /// Callback que recibe los bytes PNG cuando la firma cambia.
-  final ValueChanged<Uint8List>? onSignatureChanged;
+  /// Callback con los bytes PNG cuando el usuario confirma la firma.
+  final ValueChanged<Uint8List>? onSignatureReady;
 
   /// Callback cuando se limpia la firma.
   final VoidCallback? onSignatureCleared;
@@ -44,7 +44,9 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
   late AnimationController _confirmController;
   late Animation<double> _confirmAnim;
 
-  bool get _isEmpty => _strokes.isEmpty;
+  bool _isDrawing = false;
+
+  bool get _isEmpty => _strokes.isEmpty && _currentStroke.isEmpty;
 
   @override
   void initState() {
@@ -66,18 +68,18 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
   }
 
   void _onPanStart(DragStartDetails details) {
-    final box = _painterKey.currentContext!.findRenderObject() as RenderBox;
+    final box = _painterKey.currentContext?.findRenderObject();
+    if (box == null || box is! RenderBox) return;
     final local = box.globalToLocal(details.globalPosition);
     setState(() {
       _currentStroke = [local];
+      _isDrawing = true;
     });
-    if (_confirmController.isCompleted) {
-      _confirmController.reverse();
-    }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    final box = _painterKey.currentContext!.findRenderObject() as RenderBox;
+    final box = _painterKey.currentContext?.findRenderObject();
+    if (box == null || box is! RenderBox) return;
     final local = box.globalToLocal(details.globalPosition);
     setState(() {
       _currentStroke = [..._currentStroke, local];
@@ -89,12 +91,12 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
       setState(() {
         _strokes.add(List.from(_currentStroke));
         _currentStroke = [];
+        _isDrawing = false;
       });
-      _exportPng();
-      _confirmController.forward();
     } else {
       setState(() {
         _currentStroke = [];
+        _isDrawing = false;
       });
     }
   }
@@ -103,6 +105,7 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
     setState(() {
       _strokes.clear();
       _currentStroke.clear();
+      _isDrawing = false;
     });
     if (_confirmController.isCompleted) {
       _confirmController.reset();
@@ -110,26 +113,23 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
     widget.onSignatureCleared?.call();
   }
 
-  Future<void> _exportPng() async {
+  /// Exporta la firma como PNG y dispara el callback.
+  Future<void> confirmSignature() async {
     if (_isEmpty) return;
     final bytes = await _toPngInternal();
     if (bytes != null) {
-      widget.onSignatureChanged?.call(bytes);
+      widget.onSignatureReady?.call(bytes);
+      _confirmController.forward();
     }
   }
 
   Future<Uint8List?> _toPngInternal() async {
     final boundary =
-        _painterKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        _painterKey.currentContext?.findRenderObject();
+    if (boundary == null || boundary is! RenderRepaintBoundary) return null;
     final image = await boundary.toImage(pixelRatio: 3.0);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData?.buffer.asUint8List();
-  }
-
-  /// Método público para obtener los bytes PNG de la firma actual.
-  Future<Uint8List?> toPng() async {
-    if (_isEmpty) return null;
-    return _toPngInternal();
   }
 
   @override
@@ -153,9 +153,7 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
           children: [
             // Patrón de fondo sutil (líneas de documento)
             Positioned.fill(
-              child: CustomPaint(
-                painter: _DocumentPatternPainter(),
-              ),
+              child: CustomPaint(painter: _DocumentPatternPainter()),
             ),
             // Área de firma
             Positioned.fill(
@@ -173,100 +171,47 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
                       penColor: widget.penColor,
                       penWidth: widget.penWidth,
                     ),
-                    child: AnimatedBuilder(
-                      animation: _confirmAnim,
-                      builder: (context, child) {
-                        return Stack(
-                          children: [
-                            // Placeholder cuando está vacío
-                            if (_isEmpty)
-                              Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Icono de pluma/firma
-                                    TweenAnimationBuilder<double>(
-                                      tween: Tween(
-                                        begin: 0,
-                                        end: _confirmController.isCompleted
-                                            ? 0
-                                            : 1,
-                                      ),
-                                      duration: const Duration(milliseconds: 300),
-                                      builder: (context, value, _) {
-                                        return Transform.scale(
-                                          scale: 1 - (value * 0.1),
-                                          child: Opacity(
-                                            opacity: 0.35,
-                                            child: Icon(
-                                              Icons.draw_outlined,
-                                              size: 36,
-                                              color: OcgColors.bronze,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Firme aquí',
-                                      style: TextStyle(
-                                        color: OcgColors.bronze.withOpacity(0.5),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        fontFamily: 'Cormorant Garamond',
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'Use el dedo o un stylus',
-                                      style: TextStyle(
-                                        color:
-                                            OcgColors.bronze.withOpacity(0.3),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w400,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ],
+                    child: _isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.draw_outlined,
+                                  size: 36,
+                                  color: OcgColors.bronze.withOpacity(0.35),
                                 ),
-                              ),
-                            // Animación de confirmación (sello)
-                            if (!_isEmpty)
-                              Center(
-                                child: Transform.scale(
-                                  scale: _confirmAnim.value,
-                                  child: Opacity(
-                                    opacity: _confirmAnim.value * 0.15,
-                                    child: Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: const Color(0xFF166534),
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.check_rounded,
-                                        size: 40,
-                                        color: Color(0xFF166534),
-                                      ),
-                                    ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Firme aquí',
+                                  style: TextStyle(
+                                    color: OcgColors.bronze.withOpacity(0.5),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Cormorant Garamond',
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Use el dedo o un stylus',
+                                  style: TextStyle(
+                                    color:
+                                        OcgColors.bronze.withOpacity(0.3),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
             ),
-            // Línea de firma profesional (como documento legal)
+            // Línea de firma profesional
             if (_isEmpty)
               Positioned(
                 left: 32,
@@ -332,6 +277,27 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
                   ),
                 ),
               ),
+            // Animación de confirmación
+            if (!_isEmpty && _confirmController.isCompleted)
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF166534).withOpacity(0.12),
+                    border: Border.all(
+                      color: const Color(0xFF166534),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 40,
+                    color: Color(0xFF166534),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -347,7 +313,6 @@ class _DocumentPatternPainter extends CustomPainter {
       ..color = const Color(0xFFE8DDD0).withOpacity(0.3)
       ..strokeWidth = 0.5;
 
-    // Líneas horizontales sutiles
     for (double y = 20; y < size.height - 50; y += 24) {
       canvas.drawLine(Offset(16, y), Offset(size.width - 16, y), paint);
     }
