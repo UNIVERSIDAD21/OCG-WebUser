@@ -29,4 +29,7 @@ class RouteNames {
   static const String patientPayments = '/patient/payments';
   static const String patientSimulations = '/patient/simulations';
   static const String patientPayuCheckout = '/patient/payments/checkout';
+
+  // Consultación clínica (desde cita)
+  static const String adminConsultation = '/admin/consultation';
 }

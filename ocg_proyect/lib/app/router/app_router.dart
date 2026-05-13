@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/appointments/data/models/appointment_model.dart';
 import '../../presentation/web/common/web_layout_context.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
@@ -20,6 +21,7 @@ import '../../features/notifications/presentation/patient_notifications_screen.d
 import '../../features/patients/presentation/patient_detail_screen.dart';
 import '../../features/patients/presentation/patient_form_screen.dart';
 import '../../features/payments/presentation/payu_checkout_screen.dart';
+import '../../features/consultation/presentation/consultation_screen.dart';
 import 'route_names.dart';
 
 bool _isPublicRoute(String location) {
@@ -205,6 +207,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final patientId = state.pathParameters['patientId'] ?? '';
           return PatientFormScreen(patientId: patientId);
+        },
+      ),
+      // Consultación clínica (desde completar cita)
+      GoRoute(
+        path: RouteNames.adminConsultation,
+        builder: (context, state) {
+          final appointment = state.extra as AppointmentModel;
+          return ConsultationScreen(appointment: appointment);
         },
       ),
       GoRoute(

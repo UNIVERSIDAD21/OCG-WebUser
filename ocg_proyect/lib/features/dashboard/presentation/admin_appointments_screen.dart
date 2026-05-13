@@ -1587,54 +1587,14 @@ class _AdminAppointmentsScreenState
     }
   }
 
+  /// ✅ NUEVO: navegar a la pantalla de consultación clínica
+  /// en vez de completar la cita directamente.
   Future<void> _onCompletarCitaConDictamen(AppointmentModel appt) async {
-    try {
-      if (appt.tipo != AppointmentType.valoracion) {
-        await ref
-            .read(appointmentsRepositoryProvider)
-            .updateAppointmentStatus(appt.id, AppointmentStatus.completada);
-        return;
-      }
-
-      final patient = await ref.read(
-        patientByIdProvider(appt.patientId).future,
-      );
-      final alreadyDefined = patient?.tipoTratamiento != null;
-
-      if (!alreadyDefined) {
-        final decision = await _showValoracionDictamenDialog(
-          patientName: appt.patientName,
-        );
-        if (decision == null) return;
-
-        await ref
-            .read(patientsRepositoryProvider)
-            .defineInitialTreatmentPlanAndFinance(
-              patientId: appt.patientId,
-              tipoTratamiento: decision['tipoTratamiento'] as TreatmentType,
-              totalTratamiento: decision['totalTratamiento'] as double,
-              etapaActual: TreatmentStage.estudioPlaneacion,
-              notasClinicas: (decision['nota'] as String?)?.trim() ?? '',
-              fechaProximoPago: decision['fechaProximoPago'] as DateTime?,
-            );
-      }
-
-      await ref
-          .read(appointmentsRepositoryProvider)
-          .updateAppointmentStatus(appt.id, AppointmentStatus.completada);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cita completada y dictamen inicial registrado.'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo completar la cita: $e')),
-      );
-    }
+    if (!mounted) return;
+    context.push(
+      RouteNames.adminConsultation,
+      extra: appt,
+    );
   }
 
   Future<Map<String, dynamic>?> _showValoracionDictamenDialog({
