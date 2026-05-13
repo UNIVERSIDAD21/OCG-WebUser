@@ -84,5 +84,16 @@ service firebase.storage {
     match /simulator_temp/{sessionId}/{fileName} {
       allow read, write: if isAdmin();
     }
+
+    // Consultas clínicas: firmas y documentos adjuntos
+    match /patients/{patientId}/consultations/signatures/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /patients/{patientId}/consultations/files/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
   }
 }
