@@ -187,14 +187,55 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     final uploadedStoragePaths = <String>[];
     try {
       final now = DateTime.now();
-      final repo = ref.read(consultationRepositoryProvider);
       final patientId = widget.appointment.patientId;
       final actorId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+
+      // ── Auto-crear tratamiento si el paciente no tiene ninguno ──────
+      // La primera valoración *es* donde nace el tratamiento. Si no existe,
+      // se crea uno provisional que el admin puede editar después.
+      var treatment = _primaryTreatment;
+      if (treatment == null) {
+        debugPrint(
+          '[Consultation] Paciente sin tratamiento — auto-creando uno',
+        );
+        final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
+        final newTreatmentId =
+            '${patientId}-auto-${now.millisecondsSinceEpoch}';
+        treatment = PatientTreatment(
+          id: newTreatmentId,
+          patientId: patientId,
+          nombre: 'Tratamiento principal',
+          categoria: 'ortodoncia',
+          tipoBase: 'convencional',
+          subtipo: 'metalico',
+          estado: 'activo',
+          etapaActual: _currentStage,
+          fechaInicio: now,
+          createdAt: now,
+          updatedAt: now,
+          isPrimary: true,
+          createdBy: actorId,
+          updatedBy: actorId,
+          notas:
+              'Creado automáticamente durante la consulta '
+              'del ${_fmtDate(widget.appointment.fechaHora)}.',
+        );
+        await treatRepo.saveTreatment(
+          patientId: patientId,
+          treatment: treatment,
+        );
+        // Actualizar estado local para que la consulta use este tratamiento
+        setState(() {
+          _primaryTreatment = treatment;
+        });
+        debugPrint('[Consultation] Tratamiento auto-creado: ${treatment.id}');
+      }
+
+      final repo = ref.read(consultationRepositoryProvider);
       final consultationId = repo.newConsultationId(patientId);
-      final treatment = _primaryTreatment;
-      final treatmentId = treatment?.id.startsWith('legacy-primary-') == true
+      final treatmentId = treatment.id.startsWith('legacy-primary-')
           ? null
-          : treatment?.id;
+          : treatment.id;
       final currentStage = _currentStage;
       final resultingStage = _wantsAdvancePhase
           ? (_selectedNextStage ?? currentStage)
