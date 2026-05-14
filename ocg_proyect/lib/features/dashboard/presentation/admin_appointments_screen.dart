@@ -1938,7 +1938,13 @@ class _AdminAppointmentsScreenState
             .updateAppointmentStatus(a.id, AppointmentStatus.confirmada);
         break;
       case 'completar':
-        await _onCompletarCitaConDictamen(a);
+        await ref
+            .read(appointmentsRepositoryProvider)
+            .updateAppointmentStatus(a.id, AppointmentStatus.completada);
+        break;
+      case 'dictamen':
+        if (!mounted) return;
+        context.push(RouteNames.adminConsultation, extra: a);
         break;
       case 'reprogramar':
         await _showRescheduleDialog(a);
@@ -1999,6 +2005,18 @@ class _AdminAppointmentsScreenState
         style: OutlinedButton.styleFrom(
           foregroundColor: OcgColors.espresso,
           side: BorderSide(color: OcgColors.espresso.withOpacity(0.5)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => _handleStatusAction(a, 'dictamen'),
+        icon: const Icon(Icons.description_outlined, size: 14),
+        label: const Text('Dictamen'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OcgColors.bronze,
+          side: BorderSide(color: OcgColors.bronze.withOpacity(0.6)),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3741,6 +3759,7 @@ class AppointmentCard extends StatelessWidget {
     this.onCancelar,
     this.onReabrirCompletada,
     this.onNoCompletada,
+    this.onDictamen,
     this.showReminders = true,
   });
 
@@ -3751,6 +3770,7 @@ class AppointmentCard extends StatelessWidget {
   final VoidCallback? onCancelar;
   final Future<void> Function()? onReabrirCompletada;
   final Future<void> Function()? onNoCompletada;
+  final VoidCallback? onDictamen;
   final bool showReminders;
 
   @override
@@ -3866,7 +3886,8 @@ class AppointmentCard extends StatelessWidget {
             ],
 
             // ── Acciones ─────────────────────────────────────────────────
-            if (onConfirmar != null ||
+            if (onDictamen != null ||
+                onConfirmar != null ||
                 onCompletar != null ||
                 onReprogramar != null ||
                 onCancelar != null ||
@@ -3877,6 +3898,24 @@ class AppointmentCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
+                  if (onDictamen != null)
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.description_outlined, size: 14),
+                      label: const Text('Dictamen'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: OcgColors.bronze,
+                        side: BorderSide(
+                          color: OcgColors.bronze.withOpacity(0.6),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: onDictamen,
+                    ),
                   if (onConfirmar != null)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.check, size: 14),
