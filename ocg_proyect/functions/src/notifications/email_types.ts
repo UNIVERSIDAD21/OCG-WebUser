@@ -15,6 +15,7 @@ export type EmailDeliveryStatus =
   | 'failed'
   | 'skipped_no_email'
   | 'skipped_disabled'
+  | 'skipped_user_opt_out'
   | 'skipped_unverified'
   | 'pending';
 
@@ -51,7 +52,9 @@ export type ResolveEmailRecipientResult =
   | {ok: true; recipient: EmailRecipient}
   | {
       ok: false;
-      status: Extract<EmailDeliveryStatus, 'skipped_no_email'>;
+      status:
+        | Extract<EmailDeliveryStatus, 'skipped_no_email'>
+        | Extract<EmailDeliveryStatus, 'skipped_user_opt_out'>;
       reason: string;
       recipientId: string;
       recipientRole: NotificationRecipientRole;

@@ -1,3 +1,5 @@
+import {logger} from 'firebase-functions';
+
 import type {
   EmailDeliveryError,
   EmailDeliveryResult,
@@ -58,6 +60,17 @@ export function isValidEmail(value: unknown): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/**
+ * Enmascara email para logs — no expone el email completo.
+ * Ej: "j***@gmail.com" o "jo***@gmail.com"
+ */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return '***';
+  const visible = local.length <= 2 ? local[0] : local.substring(0, 2);
+  return `${visible}***@${domain}`;
+}
+
 export async function resolveEmailRecipient(
   db: FirebaseFirestore.Firestore,
   role: NotificationRecipientRole,
@@ -81,6 +94,20 @@ export async function resolveEmailRecipient(
     const email = normalizeEmail(data[field]);
     if (!email) continue;
     if (!isValidEmail(email)) continue;
+
+    // ── Bloque 07: verificar preferencias del usuario ────────────────
+    const emailEnabled =
+      data.emailEnabled === undefined ? true : Boolean(data.emailEnabled);
+    if (!emailEnabled) {
+      return {
+        ok: false,
+        status: 'skipped_user_opt_out',
+        reason: 'user_disabled_email',
+        recipientId,
+        recipientRole: role,
+      };
+    }
+
     return {
       ok: true,
       recipient: {
@@ -106,7 +133,7 @@ export async function resolveEmailRecipient(
 }
 
 export function buildSkippedEmailDeliveryResult(params: {
-  status: Extract<EmailDeliveryStatus, 'skipped_disabled' | 'skipped_no_email' | 'skipped_unverified'>;
+  status: Extract<EmailDeliveryStatus, 'skipped_disabled' | 'skipped_no_email' | 'skipped_user_opt_out' | 'skipped_unverified'>;
   provider?: EmailProvider;
   to?: string | null;
   code: string;
@@ -345,6 +372,15 @@ export async function sendEmailNotification(
       providerMessageId: `mock_${payload.notificationId ?? payload.type}`,
     });
   }
+
+  // ── Bloque 07: log seguro sin email completo ────────────────────────
+  logger.info('Sending email notification', {
+    notificationId: payload.notificationId ?? null,
+    type: payload.type,
+    recipientRole: payload.recipientRole,
+    recipientPreview: maskEmail(recipient.recipient.email),
+    provider: config.provider,
+  });
 
   if (config.provider === 'brevo') {
     const fetchImpl = options.fetchImpl ?? fetch as EmailFetch;

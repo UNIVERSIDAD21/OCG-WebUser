@@ -78,6 +78,7 @@ class PatientModel {
     this.fechaProximoPago,
     this.proximaCita,
     this.fcmToken,
+    this.emailEnabled,
     this.createdAt,
     this.updatedAt,
   });
@@ -101,6 +102,10 @@ class PatientModel {
   final DateTime? proximaCita;
 
   final String? fcmToken;
+
+  /// Bloque 07: preferencias de notificación. null = true (default).
+  final bool? emailEnabled;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -264,6 +269,9 @@ class PatientModel {
       fechaProximoPago: _parseNullableDate(json['fechaProximoPago']),
       proximaCita: _parseNullableDate(json['proximaCita']),
       fcmToken: json['fcmToken']?.toString(),
+      emailEnabled: (json['emailEnabled'] as bool?) ??
+          // null = true por defecto (Bloque 07)
+          true,
       createdAt: _parseNullableDate(json['createdAt']),
       updatedAt: _parseNullableDate(json['updatedAt']),
     );
@@ -296,6 +304,7 @@ class PatientModel {
           ? null
           : Timestamp.fromDate(proximaCita!),
       'fcmToken': fcmToken,
+      'emailEnabled': emailEnabled,
       'createdAt': createdAt == null
           ? FieldValue.serverTimestamp()
           : Timestamp.fromDate(createdAt!),
