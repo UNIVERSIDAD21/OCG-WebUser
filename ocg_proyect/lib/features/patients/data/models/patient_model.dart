@@ -233,11 +233,24 @@ class PatientModel {
     );
   }
 
-  factory PatientModel.fromJson(Map<String, dynamic> json) {
+  factory PatientModel.fromJson(Map<String, dynamic> json, {String? id}) {
+    final resolvedId = (json['id'] ?? json['uid'] ?? id ?? '').toString();
+    final resolvedEmail = (json['email'] ?? '').toString();
+    final resolvedName =
+        (json['nombre'] ??
+                json['displayName'] ??
+                json['fullName'] ??
+                json['name'] ??
+                '')
+            .toString()
+            .trim();
+
     return PatientModel(
-      id: (json['id'] ?? json['uid'] ?? '').toString(),
-      nombre: (json['nombre'] ?? json['displayName'] ?? '').toString(),
-      email: (json['email'] ?? '').toString(),
+      id: resolvedId,
+      nombre: resolvedName.isNotEmpty
+          ? resolvedName
+          : (resolvedEmail.isNotEmpty ? resolvedEmail : resolvedId),
+      email: resolvedEmail,
       telefono: (json['telefono'] ?? '').toString(),
       fechaNacimiento: _parseNullableDate(json['fechaNacimiento']),
       fotoUrl: (json['photoUrl'] ?? json['fotoUrl'])?.toString(),

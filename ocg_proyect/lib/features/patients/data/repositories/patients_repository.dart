@@ -8,10 +8,10 @@ import '../models/patient_model.dart';
 
 class PatientsRepository {
   PatientsRepository(this._db, [FirebaseFunctions? functions])
-    : _functions = functions ?? FirebaseFunctions.instance;
+    : _functions = functions;
 
   final FirebaseFirestore _db;
-  final FirebaseFunctions _functions;
+  final FirebaseFunctions? _functions;
 
   CollectionReference<Map<String, dynamic>> get _patientsRef =>
       _db.collection(FirestorePaths.patients);
@@ -19,25 +19,26 @@ class PatientsRepository {
   PaymentsRepository get _paymentsRepository => PaymentsRepository(_db);
 
   Stream<List<PatientModel>> watchAllPatients() {
-    return _patientsRef
-        .orderBy('nombre')
-        .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map((doc) => PatientModel.fromJson(doc.data()))
-              .where(
-                (patient) =>
-                    patient.email.trim().toLowerCase() != 'admin@ocg.com',
-              )
-              .toList(),
-        );
+    return _patientsRef.snapshots().map((snap) {
+      final patients = snap.docs
+          .map((doc) => PatientModel.fromJson(doc.data(), id: doc.id))
+          .where(
+            (patient) => patient.email.trim().toLowerCase() != 'admin@ocg.com',
+          )
+          .toList();
+
+      patients.sort(
+        (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
+      );
+      return patients;
+    });
   }
 
   Stream<PatientModel?> watchPatient(String patientId) {
     return _patientsRef.doc(patientId).snapshots().map((doc) {
       final data = doc.data();
       if (!doc.exists || data == null) return null;
-      return PatientModel.fromJson(data);
+      return PatientModel.fromJson(data, id: doc.id);
     });
   }
 
@@ -46,7 +47,7 @@ class PatientsRepository {
     final doc = await _patientsRef.doc(patientId).get();
     final data = doc.data();
     if (!doc.exists || data == null) return null;
-    return PatientModel.fromJson(data);
+    return PatientModel.fromJson(data, id: doc.id);
   }
 
   Future<void> createPatient(PatientModel patient) async {
@@ -177,7 +178,9 @@ class PatientsRepository {
   }
 
   Future<void> deletePatient(String patientId) async {
-    final callable = _functions.httpsCallable('deletePatientAccount');
+    final callable = (_functions ?? FirebaseFunctions.instance).httpsCallable(
+      'deletePatientAccount',
+    );
     await callable.call(<String, dynamic>{'patientId': patientId});
   }
 
