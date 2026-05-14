@@ -67,7 +67,7 @@ export function isValidEmail(value: unknown): boolean {
 export function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
   if (!local || !domain) return '***';
-  const visible = local.length <= 2 ? local[0] : local.substring(0, 2);
+  const visible = local.length <= 2 ? local : local.substring(0, 2);
   return `${visible}***@${domain}`;
 }
 

@@ -10,6 +10,7 @@ import {
   buildPendingEmailDeliveryResult,
   buildSkippedEmailDeliveryResult,
   isValidEmail,
+  maskEmail,
   resolveEmailRecipient,
   sendEmailNotification,
 } from '../lib/notifications/email_delivery.js';
@@ -304,4 +305,58 @@ test('Brevo no intenta enviar si falta secret API key', async () => {
 
   assert.equal(result.status, 'skipped_disabled');
   assert.equal(result.error.code, 'BREVO_API_KEY_MISSING');
+});
+
+// ── Bloque 09: nuevos casos ────────────────────────────────────────────────
+
+test('omite si EMAIL_ENABLED=false global', async () => {
+  const db = new MockFirestore({
+    'patients/p1': {email: 'patient@example.com'},
+  });
+  const result = await sendEmailNotification(db, {
+    notificationId: 'n-disabled-global',
+    recipientId: 'p1',
+    recipientRole: 'patient',
+    title: 'Pago recibido',
+    body: 'Recibimos tu pago.',
+    type: 'payment_received',
+    source: 'test',
+  }, {
+    env: {
+      EMAIL_ENABLED: 'false',
+    },
+  });
+
+  assert.equal(result.status, 'skipped_disabled');
+  assert.equal(result.error.code, 'EMAIL_DISABLED');
+});
+
+test('omite si paciente desactivo emailEnabled en Firestore', async () => {
+  const db = new MockFirestore({
+    'patients/p1': {email: 'patient@example.com', emailEnabled: false},
+  });
+  const result = await sendEmailNotification(db, {
+    notificationId: 'n-user-optout',
+    recipientId: 'p1',
+    recipientRole: 'patient',
+    title: 'Pago recibido',
+    body: 'Recibimos tu pago.',
+    type: 'payment_received',
+    source: 'test',
+  }, {
+    env: {
+      EMAIL_ENABLED: 'true',
+      EMAIL_PROVIDER: 'mock',
+      EMAIL_FROM: 'OCG Clinica <no-reply@example.com>',
+    },
+  });
+
+  assert.equal(result.status, 'skipped_user_opt_out');
+  assert.equal(result.error.code, 'user_disabled_email');
+});
+
+test('maskEmail no expone email completo en logs', () => {
+  assert.equal(maskEmail('juanperez@gmail.com'), 'ju***@gmail.com');
+  assert.equal(maskEmail('a@b.com'), 'a***@b.com');
+  assert.equal(maskEmail('ab@c.com'), 'ab***@c.com');
 });

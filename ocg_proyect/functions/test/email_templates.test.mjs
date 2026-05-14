@@ -26,6 +26,16 @@ test('renderiza template de pago recibido', () => {
   assert.match(rendered.text, /https:\/\/app\.example\.com\/patient\/payments/);
 });
 
+test('renderiza template de pago proximo a vencer', () => {
+  const rendered = renderEmailTemplate(payload('payment_due_soon'), {
+    appLink: 'https://app.example.com/patient/payments',
+  });
+
+  assert.equal(rendered.subject, 'OCG Clinica - Pago proximo a vencer');
+  assert.match(rendered.html, /Ver pagos/);
+  assert.match(rendered.text, /https:\/\/app\.example\.com\/patient\/payments/);
+});
+
 test('renderiza template de avance de tratamiento', () => {
   const rendered = renderEmailTemplate(payload('treatment_stage_updated'), {
     appLink: 'https://app.example.com/patient',
