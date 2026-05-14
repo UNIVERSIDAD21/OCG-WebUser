@@ -28,7 +28,7 @@ type EmailFetchResponse = {
   text?: () => Promise<string>;
 };
 
-type EmailFetch = (
+export type EmailFetch = (
   url: string,
   init: {
     method: string;
@@ -243,7 +243,7 @@ function sentResult(params: {
   };
 }
 
-function configError(config: EmailRuntimeConfig): EmailDeliveryError {
+export function configError(config: EmailRuntimeConfig): EmailDeliveryError {
   if (!config.enabled) {
     return {
       code: 'EMAIL_DISABLED',
@@ -268,7 +268,7 @@ function configError(config: EmailRuntimeConfig): EmailDeliveryError {
   };
 }
 
-async function sendBrevoEmail(params: {
+export async function sendBrevoEmail(params: {
   config: EmailRuntimeConfig;
   payload: EmailNotificationPayload;
   to: string;
@@ -344,9 +344,24 @@ export async function sendEmailNotification(
   payload: EmailNotificationPayload,
   options: SendEmailNotificationOptions = {},
 ): Promise<EmailDeliveryResult> {
+  // ── Bloque 08: logging estructurado ──────────────────────────────────
+  logger.info('EMAIL_DELIVERY_START', {
+    notificationId: payload.notificationId ?? null,
+    type: payload.type,
+    recipientRole: payload.recipientRole,
+    recipientId: payload.recipientId,
+    source: payload.source,
+  });
+
   const config = resolveEmailRuntimeConfig(options.env);
   if (!isEmailRuntimeReady(config)) {
     const error = configError(config);
+    logger.warn('EMAIL_DELIVERY_SKIPPED', {
+      notificationId: payload.notificationId ?? null,
+      reason: 'runtime_not_ready',
+      code: error.code,
+      provider: config.provider,
+    });
     return buildSkippedEmailDeliveryResult({
       status: 'skipped_disabled',
       provider: config.provider,
@@ -357,6 +372,12 @@ export async function sendEmailNotification(
 
   const recipient = await resolveEmailRecipient(db, payload.recipientRole, payload.recipientId);
   if (!recipient.ok) {
+    logger.warn('EMAIL_DELIVERY_SKIPPED', {
+      notificationId: payload.notificationId ?? null,
+      reason: recipient.reason,
+      status: recipient.status,
+      recipientId: recipient.recipientId,
+    });
     return buildSkippedEmailDeliveryResult({
       status: recipient.status,
       provider: config.provider,
@@ -366,6 +387,12 @@ export async function sendEmailNotification(
   }
 
   if (config.provider === 'mock') {
+    logger.info('EMAIL_DELIVERY_RESULT', {
+      notificationId: payload.notificationId ?? null,
+      status: 'sent',
+      provider: 'mock',
+      recipientPreview: maskEmail(recipient.recipient.email),
+    });
     return sentResult({
       provider: 'mock',
       to: recipient.recipient.email,
@@ -384,20 +411,45 @@ export async function sendEmailNotification(
 
   if (config.provider === 'brevo') {
     const fetchImpl = options.fetchImpl ?? fetch as EmailFetch;
-    return sendBrevoEmail({
+    const result = await sendBrevoEmail({
       config,
       payload,
       to: recipient.recipient.email,
       fetchImpl,
     });
+
+    // ── Bloque 08: log de resultado ─────────────────────────────────
+    const logLevel = (s: 'sent' | 'failed') => s === 'sent' ? 'info' : 'error';
+    logger[logLevel(result.status as 'sent' | 'failed')](
+      result.status === 'sent' ? 'EMAIL_DELIVERY_RESULT' : 'EMAIL_DELIVERY_FAILED',
+      {
+        notificationId: payload.notificationId ?? null,
+        status: result.status,
+        provider: result.provider,
+        error: result.error,
+        providerMessageId: result.providerMessageId ?? null,
+        recipientPreview: maskEmail(recipient.recipient.email),
+      },
+    );
+    return result;
   }
 
-  return failedResult({
+  const unsupportedResult = failedResult({
     provider: config.provider,
     to: recipient.recipient.email,
     code: 'EMAIL_PROVIDER_UNSUPPORTED',
     message: `Email provider ${config.provider} is not implemented.`,
     attempted: 0,
   });
+
+  logger.error('EMAIL_DELIVERY_FAILED', {
+    notificationId: payload.notificationId ?? null,
+    status: 'failed',
+    code: 'EMAIL_PROVIDER_UNSUPPORTED',
+    provider: config.provider,
+    recipientPreview: maskEmail(recipient.recipient.email),
+  });
+
+  return unsupportedResult;
 }
 

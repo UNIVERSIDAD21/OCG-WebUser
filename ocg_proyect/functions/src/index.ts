@@ -22,6 +22,7 @@ import {processPaymentDueNotifications} from './payments/payment_due_scheduler';
 import {onPatientStageHistoryCreate} from './treatments/on_stage_history_create';
 import {onPatientStageChangeWrite} from './treatments/on_patient_stage_change_write';
 import {generateSmileSimulation} from './simulator/generate_smile_simulation';
+import {resendEmailNotification} from './notifications/resend_email_notification';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -52,4 +53,5 @@ export {
   onPatientStageHistoryCreate,
   onPatientStageChangeWrite,
   generateSmileSimulation,
+  resendEmailNotification,
 };
