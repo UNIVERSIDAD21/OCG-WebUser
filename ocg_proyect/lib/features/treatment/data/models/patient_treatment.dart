@@ -59,6 +59,8 @@ class PatientTreatment {
     this.suggestedControlEveryMonths = 6,
     this.nextCleaningDate,
     this.nextControlDate,
+    this.autoScheduleCleaning = true,
+    this.autoScheduleControl = true,
     this.totalTratamiento,
     this.saldoPendiente,
     this.notas,
@@ -86,6 +88,8 @@ class PatientTreatment {
   final int suggestedControlEveryMonths;
   final DateTime? nextCleaningDate;
   final DateTime? nextControlDate;
+  final bool autoScheduleCleaning;
+  final bool autoScheduleControl;
   final double? totalTratamiento;
   final double? saldoPendiente;
   final String? notas;
@@ -206,6 +210,8 @@ class PatientTreatment {
           (json['suggestedControlEveryMonths'] as num?)?.toInt() ?? 6,
       nextCleaningDate: _parseNullableDate(json['nextCleaningDate']),
       nextControlDate: _parseNullableDate(json['nextControlDate']),
+      autoScheduleCleaning: (json['autoScheduleCleaning'] as bool?) ?? true,
+      autoScheduleControl: (json['autoScheduleControl'] as bool?) ?? true,
       totalTratamiento: _parseNullableDouble(json['totalTratamiento']),
       saldoPendiente: _parseNullableDouble(json['saldoPendiente']),
       notas: json['notas']?.toString(),
@@ -276,6 +282,8 @@ class PatientTreatment {
     int? suggestedControlEveryMonths,
     DateTime? nextCleaningDate,
     DateTime? nextControlDate,
+    bool? autoScheduleCleaning,
+    bool? autoScheduleControl,
     double? totalTratamiento,
     double? saldoPendiente,
     String? notas,
@@ -309,6 +317,8 @@ class PatientTreatment {
           suggestedControlEveryMonths ?? this.suggestedControlEveryMonths,
       nextCleaningDate: nextCleaningDate ?? this.nextCleaningDate,
       nextControlDate: nextControlDate ?? this.nextControlDate,
+      autoScheduleCleaning: autoScheduleCleaning ?? this.autoScheduleCleaning,
+      autoScheduleControl: autoScheduleControl ?? this.autoScheduleControl,
       totalTratamiento: clearFinancials
           ? null
           : (totalTratamiento ?? this.totalTratamiento),
@@ -367,6 +377,8 @@ class PatientTreatment {
       'nextControlDate': nextControlDate == null
           ? null
           : Timestamp.fromDate(nextControlDate!),
+      'autoScheduleCleaning': autoScheduleCleaning,
+      'autoScheduleControl': autoScheduleControl,
       'totalTratamiento': totalTratamiento,
       'saldoPendiente': saldoPendiente,
       'notas': notas,

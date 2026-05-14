@@ -55,6 +55,8 @@ class _ManagePatientTreatmentDialogState
   late DateTime _startDate;
   late DateTime _nextCleaningDate;
   late DateTime _nextControlDate;
+  late bool _autoScheduleCleaning;
+  late bool _autoScheduleControl;
   late bool _isPrimary;
   String? _selectedCatalogId;
   String? _clinicalTreatmentName;
@@ -99,6 +101,8 @@ class _ManagePatientTreatmentDialogState
     _startDate = initial?.fechaInicio ?? DateTime.now();
     _nextCleaningDate = initial?.nextCleaningDate ?? _addMonths(_startDate, 3);
     _nextControlDate = initial?.nextControlDate ?? _addMonths(_startDate, 6);
+    _autoScheduleCleaning = initial?.autoScheduleCleaning ?? true;
+    _autoScheduleControl = initial?.autoScheduleControl ?? true;
     _isPrimary = initial?.isPrimary ?? true;
     _selectedCatalogId = initial?.catalogTreatmentId;
     _clinicalTreatmentName = initial?.clinicalTreatmentName ?? initial?.nombre;
@@ -593,6 +597,20 @@ class _ManagePatientTreatmentDialogState
                 _saving,
                 () => _pickRecurringDate(isCleaning: false),
               ),
+              const SizedBox(height: 10),
+              _buildAppointmentToggle(
+                'Auto-agendar limpieza',
+                'Crea automáticamente la cita de limpieza en la fecha indicada.',
+                _autoScheduleCleaning,
+                (v) => setState(() => _autoScheduleCleaning = v),
+              ),
+              const SizedBox(height: 6),
+              _buildAppointmentToggle(
+                'Auto-agendar control',
+                'Crea automáticamente la cita de control en la fecha indicada.',
+                _autoScheduleControl,
+                (v) => setState(() => _autoScheduleControl = v),
+              ),
             ],
           ),
         ),
@@ -657,7 +675,7 @@ class _ManagePatientTreatmentDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Edita aquí mismo los conceptos. Inicial y Controles son obligatorios; Retenedores, Aparato 1 y extras pueden activarse, desactivarse o eliminarse.',
+                'Edita aquí mismo los conceptos. Inicial es obligatorio; Controles, Retenedores/Aparato 1 y extras pueden activarse, desactivarse o eliminarse.',
                 style: TextStyle(color: Color(0xFF8A6F59), height: 1.4),
               ),
               const SizedBox(height: 14),
@@ -866,7 +884,8 @@ class _ManagePatientTreatmentDialogState
 
   Widget _buildFinancialItemCard(FinancialItemModel item) {
     final isControls = item.kind == 'controls';
-    final lockedRequired = item.kind == 'initial' || item.kind == 'controls';
+    final isInitial = item.kind == 'initial';
+    final lockedRequired = isInitial;
     final nameController = _financialNameCtrls[item.id]!;
     final amountController = _financialAmountCtrls[item.id]!;
     final qtyController = _financialQtyCtrls[item.id]!;
@@ -1124,6 +1143,71 @@ class _ManagePatientTreatmentDialogState
     );
   }
 
+  Widget _buildAppointmentToggle(
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF8F3ED), Color(0xFFFEFBF7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7DBCF)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE7DBCF)),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_outlined,
+              size: 18,
+              color: OcgColors.espresso,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF8A6F59),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: OcgColors.espresso,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: _saving ? null : onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _summaryRow(String label, String value, {bool emphasized = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1313,13 +1397,37 @@ class _ManagePatientTreatmentDialogState
     List<FinancialItemModel> items,
     PatientTreatment treatment,
   ) {
-    final result = items.toList();
     final defaults = _defaultDraftFinancialItems(treatment);
+    // IDs y kinds esperados para el tipo de tratamiento actual
+    final expectedKindsForThird = defaults
+        .where((d) => _isThirdConcept(d))
+        .map((d) => d.kind)
+        .toSet();
+
+    // Filtrar: eliminar ítems que ya no corresponden al tipo actual
+    final filtered = items.where((item) {
+      // Mantener extras siempre (kinds no reconocidos)
+      if (item.kind != 'initial' &&
+          item.kind != 'controls' &&
+          !_isThirdConcept(item)) {
+        return true;
+      }
+      // Si es un concepto tercero, solo mantener si su kind coincide con
+      // el tipo actual (ej. evitar Retenedores cuando tipo = ortopedia)
+      if (_isThirdConcept(item)) {
+        return expectedKindsForThird.contains(item.kind);
+      }
+      // Inicial y controles siempre se mantienen
+      return item.kind == 'initial' || item.kind == 'controls';
+    }).toList();
+
+    final result = filtered.toList();
+    // Agregar defaults faltantes
     for (final defaultItem in defaults) {
       final exists = result.any(
         (item) =>
             item.id == defaultItem.id ||
-            item.kind == defaultItem.kind && item.kind != 'extra',
+            (item.kind == defaultItem.kind && item.kind != 'extra'),
       );
       if (!exists) result.add(defaultItem);
     }
@@ -1455,7 +1563,8 @@ class _ManagePatientTreatmentDialogState
       treatment,
     ).map((item) {
       if (item.id != updated.id) return item;
-      if (updated.kind == 'initial' || updated.kind == 'controls') {
+      // Inicial siempre obligatorio; controles y terceros son editables
+      if (updated.kind == 'initial') {
         return updated.copyWith(active: true, deletable: false);
       }
       return updated;
@@ -1724,6 +1833,8 @@ class _ManagePatientTreatmentDialogState
           int.tryParse(_controlMonthsCtrl.text.trim()) ?? 6,
       nextCleaningDate: _nextCleaningDate,
       nextControlDate: _nextControlDate,
+      autoScheduleCleaning: _autoScheduleCleaning,
+      autoScheduleControl: _autoScheduleControl,
       notas: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
   }
@@ -1734,12 +1845,9 @@ class _ManagePatientTreatmentDialogState
   ) async {
     if (!_formKey.currentState!.validate()) return;
     final initial = effectiveItems.firstWhere((item) => item.kind == 'initial');
-    final controls = effectiveItems.firstWhere(
-      (item) => item.kind == 'controls',
-    );
-    if (initial.amount <= 0 || controls.effectiveUnitAmount <= 0) {
+    if (initial.amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicial y Controles son obligatorios.')),
+        const SnackBar(content: Text('Inicial es obligatorio.')),
       );
       return;
     }

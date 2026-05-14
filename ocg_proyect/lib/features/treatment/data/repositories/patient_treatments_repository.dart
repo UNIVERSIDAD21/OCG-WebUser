@@ -284,20 +284,22 @@ class PatientTreatmentsRepository {
 
     final definitions =
         <({String kind, DateTime? date, String notes, int duration})>[
-          (
-            kind: 'cleaning',
-            date: treatment.nextCleaningDate,
-            notes:
-                'Limpieza automática del tratamiento ${treatment.displayName}',
-            duration: 45,
-          ),
-          (
-            kind: 'control',
-            date: treatment.nextControlDate,
-            notes:
-                'Control automático del tratamiento ${treatment.displayName}',
-            duration: 30,
-          ),
+          if (treatment.autoScheduleCleaning)
+            (
+              kind: 'cleaning',
+              date: treatment.nextCleaningDate,
+              notes:
+                  'Limpieza automática del tratamiento ${treatment.displayName}',
+              duration: 45,
+            ),
+          if (treatment.autoScheduleControl)
+            (
+              kind: 'control',
+              date: treatment.nextControlDate,
+              notes:
+                  'Control automático del tratamiento ${treatment.displayName}',
+              duration: 30,
+            ),
         ];
 
     for (final item in definitions) {
