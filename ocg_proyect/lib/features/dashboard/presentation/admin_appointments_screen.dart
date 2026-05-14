@@ -596,6 +596,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               fechaHora: _dateTime,
               duracionMinutos: _durationMinutes,
               notas: notasTexto.isEmpty ? null : notasTexto,
+              stageId: _selectedPatient!.etapaActual,
             ),
           );
       popDialog(context);
@@ -1710,7 +1711,7 @@ class _AdminAppointmentsScreenState
                 onPressed: (selected == null || !montoOk)
                     ? null
                     : () => popDialog(ctx, {
-                        'tipoTratamiento': selected,
+                          'tipoTratamiento': selected,
                         'totalTratamiento': double.parse(
                           montoCtrl.text.replaceAll(',', '.').trim(),
                         ),
@@ -2140,6 +2141,12 @@ class _AdminAppointmentsScreenState
                     ? Icons.warning_amber_outlined
                     : Icons.tips_and_updates_outlined,
               ),
+              if (a.stageName != null)
+                _agendaPill(
+                  label: a.stageName!,
+                  color: OcgColors.bronze,
+                  icon: Icons.timeline_outlined,
+                ),
               if (autoLabel != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -3734,6 +3741,32 @@ class AppointmentCard extends StatelessWidget {
                   fontSize: 11,
                   color: Colors.grey.shade500,
                   fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            if (appointment.stageName != null) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: OcgColors.bronze.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.timeline_outlined, size: 12, color: OcgColors.bronze),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Fase: ${appointment.stageName}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: OcgColors.bronze,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

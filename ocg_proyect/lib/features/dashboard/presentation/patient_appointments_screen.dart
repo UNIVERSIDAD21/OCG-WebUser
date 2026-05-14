@@ -165,6 +165,7 @@ class _PatientAppointmentsScreenState
         .read(patientByIdProvider(patientId))
         .asData
         ?.value;
+    final patientStage = cachedPatient?.etapaActual;
     final nameFromAppts = existingAppointments
         .where((a) => a.patientName.isNotEmpty)
         .map((a) => a.patientName)
@@ -819,6 +820,8 @@ class _PatientAppointmentsScreenState
                           ? resolvedFromProvider!
                           : authDisplayName;
 
+                      final patientPhone = cachedPatient?.telefono ?? '';
+
                       final notasTexto = notesText.trim();
 
                       try {
@@ -837,6 +840,7 @@ class _PatientAppointmentsScreenState
                                   fechaHora: selectedDateTime,
                                   duracionMinutos: 30,
                                   notas: notasTexto.isEmpty ? null : notasTexto,
+                                  stageId: patientStage,
                                 ),
                               ),
                         );

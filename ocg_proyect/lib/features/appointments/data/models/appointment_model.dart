@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../patients/data/models/patient_model.dart';
+
 enum AppointmentType { valoracion, control, instalacion, urgencia, alta }
 
 enum AppointmentStatus {
@@ -24,6 +26,7 @@ class AppointmentModel {
     required this.duracionMinutos,
     required this.creadoPor,
     this.notas,
+    this.stageId,
     this.recordatorio24hEnviado = false,
     this.recordatorio2hEnviado = false,
     this.createdAt,
@@ -37,6 +40,10 @@ class AppointmentModel {
   /// telefono del paciente — para contacto rápido del admin
   final String patientPhone;
   final String? treatmentId;
+
+  /// Fase del tratamiento al momento de crear la cita (snapshot congelado).
+  /// No se actualiza si el paciente cambia de etapa después de programar.
+  final TreatmentStage? stageId;
 
   final AppointmentType tipo;
   final AppointmentStatus estado;
@@ -89,6 +96,8 @@ class AppointmentModel {
       // patientPhone — tolera documentos viejos sin el campo
       patientPhone: (json['patientPhone'] ?? '').toString(),
       treatmentId: json['treatmentId']?.toString(),
+      // stageId — snapshot de la fase del tratamiento al crear la cita
+      stageId: _parseNullableStage(json['stageId']),
       tipo: AppointmentType.values.firstWhere(
         (e) => e.name == tipoRaw,
         orElse: () => AppointmentType.control,
@@ -118,6 +127,7 @@ class AppointmentModel {
       'patientName': patientName,
       'patientPhone': patientPhone,
       'treatmentId': treatmentId,
+      'stageId': stageId?.name,
       'tipo': tipo.name,
       'estado': estado.name,
       'fechaHora': Timestamp.fromDate(fechaHora),
@@ -139,6 +149,7 @@ class AppointmentModel {
     String? patientName,
     String? patientPhone,
     String? treatmentId,
+    TreatmentStage? stageId,
     AppointmentType? tipo,
     AppointmentStatus? estado,
     DateTime? fechaHora,
@@ -156,6 +167,7 @@ class AppointmentModel {
       patientName: patientName ?? this.patientName,
       patientPhone: patientPhone ?? this.patientPhone,
       treatmentId: treatmentId ?? this.treatmentId,
+      stageId: stageId ?? this.stageId,
       tipo: tipo ?? this.tipo,
       estado: estado ?? this.estado,
       fechaHora: fechaHora ?? this.fechaHora,
@@ -169,5 +181,30 @@ class AppointmentModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  /// Nombre legible de la fase (solo si tiene stageId).
+  String? get stageName => stageId != null ? stageNames[stageId!] : null;
+
+  // ─── Parser de stage ────────────────────────────────────────────────────
+
+  static TreatmentStage? _parseNullableStage(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString();
+    // Legacy compatibility
+    const legacyMap = {
+      'diagnostico': TreatmentStage.valoracionInicial,
+      'planificacion': TreatmentStage.estudioPlaneacion,
+      'seguimientoActivo': TreatmentStage.controles,
+      'ajusteFinal': TreatmentStage.controles,
+    };
+    if (legacyMap.containsKey(raw)) return legacyMap[raw]!;
+    try {
+      return TreatmentStage.values.firstWhere(
+        (e) => e.name == raw,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

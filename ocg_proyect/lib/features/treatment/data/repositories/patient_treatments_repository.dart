@@ -325,6 +325,7 @@ class PatientTreatmentsRepository {
           creadoPor: 'system',
           notas: item.notes,
           createdAt: DateTime.now(),
+          stageId: treatment.etapaActual,
         );
         await ref.set({...appointment.toJson(), 'autoScheduleKind': item.kind});
       } else {
