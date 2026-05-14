@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import {logger} from 'firebase-functions';
 
-import {deliverAndroidNotification} from './android_notification_service';
+import {deliverNotification} from './notification_delivery_service';
 import {persistNotificationHistory} from './notification_history';
 
 const BOGOTA_TIME_ZONE = 'America/Bogota';
@@ -82,6 +82,7 @@ async function deliverAdminNotification(
     sourceRole: 'patient' | 'admin' | 'system';
     sourceUserId?: string;
     sendPush: boolean;
+    sendEmail?: boolean;
   },
 ): Promise<void> {
   const adminIds = await resolveAdminIds(db);
@@ -102,8 +103,8 @@ async function deliverAdminNotification(
         sourceUserId: input.sourceUserId ?? '',
       };
 
-      if (input.sendPush) {
-        await deliverAndroidNotification(db, {
+      if (input.sendPush || input.sendEmail) {
+        await deliverNotification(db, {
           notificationId,
           recipientId: adminId,
           recipientRole: 'admin',
@@ -115,6 +116,10 @@ async function deliverAdminNotification(
           entityType: input.entityType,
           data,
           source: `trigger:${input.type}`,
+          channels: {
+            app: input.sendPush,
+            email: input.sendEmail ?? false,
+          },
         });
         return;
       }
@@ -153,7 +158,7 @@ export async function notifyPatientAppointmentEvent(
     previousAppointmentAt?: unknown;
   },
 ): Promise<void> {
-  await deliverAndroidNotification(db, {
+  await deliverNotification(db, {
     notificationId: input.notificationId,
     recipientId: input.patientId,
     recipientRole: 'patient',
@@ -170,6 +175,10 @@ export async function notifyPatientAppointmentEvent(
       previousAppointmentAt: asDate(input.previousAppointmentAt)?.toISOString() ?? '',
     },
     source: `trigger:${input.type}`,
+    channels: {
+      app: true,
+      email: true,
+    },
   });
 }
 
@@ -208,6 +217,7 @@ export async function notifyAdminAppointmentEvent(
     sourceRole: input.sourceRole,
     sourceUserId: input.sourceUserId,
     sendPush: input.sendPush ?? true,
+    sendEmail: true,
     payload: {
       patientId: input.patientId,
       patientName: input.patientName,
@@ -234,7 +244,7 @@ export async function notifyPatientPaymentEvent(
     reference?: string | null;
   },
 ): Promise<void> {
-  await deliverAndroidNotification(db, {
+  await deliverNotification(db, {
     notificationId: input.notificationId,
     recipientId: input.patientId,
     recipientRole: 'patient',
@@ -252,6 +262,10 @@ export async function notifyPatientPaymentEvent(
       reference: (input.reference ?? '').toString(),
     },
     source: `trigger:${input.type}`,
+    channels: {
+      app: true,
+      email: true,
+    },
   });
 }
 
@@ -292,6 +306,7 @@ export async function notifyAdminPaymentEvent(
     sourceRole: input.sourceRole,
     sourceUserId: input.sourceUserId,
     sendPush: input.sendPush ?? true,
+    sendEmail: true,
     payload: {
       patientId: input.patientId,
       patientName: input.patientName,
@@ -318,7 +333,7 @@ export async function notifyPatientTreatmentStageEvent(
     body: string;
   },
 ): Promise<void> {
-  await deliverAndroidNotification(db, {
+  await deliverNotification(db, {
     notificationId: input.notificationId,
     recipientId: input.patientId,
     recipientRole: 'patient',
@@ -336,5 +351,9 @@ export async function notifyPatientTreatmentStageEvent(
       newStage: input.newStage,
     },
     source: 'trigger:treatment_stage_updated',
+    channels: {
+      app: true,
+      email: true,
+    },
   });
 }

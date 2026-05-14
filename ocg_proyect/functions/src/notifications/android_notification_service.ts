@@ -1,8 +1,7 @@
 import {logger} from 'firebase-functions';
 
 import type {AndroidNotificationPayload, AndroidDeliveryResult} from './fcm_delivery';
-import {sendAndroidFcmNotification, sendFcmNotification} from './fcm_delivery';
-import {persistNotificationHistory} from './notification_history';
+import {deliverNotification} from './notification_delivery_service';
 
 export interface DeliverAndroidNotificationInput extends AndroidNotificationPayload {
   source: string;
@@ -28,19 +27,21 @@ export async function deliverFcmNotification(
     entityType: input.entityType ?? null,
   });
 
-  const delivery = await sendFcmNotification(db, input);
-  const notificationId = await persistNotificationHistory(
-    db,
-    {
-      ...input,
-      channel: 'app',
-      delivery,
+  const result = await deliverNotification(db, {
+    ...input,
+    channels: {
+      app: true,
+      email: false,
     },
-    input.notificationId,
-  );
+  });
+  const delivery = result.delivery;
+
+  if (!delivery) {
+    throw new Error('FCM delivery result missing after FCM-only notification delivery.');
+  }
 
   logger.info('FCM notification persisted', {
-    notificationId,
+    notificationId: result.notificationId,
     recipientId: input.recipientId,
     type: input.type,
     source: input.source,
@@ -50,7 +51,7 @@ export async function deliverFcmNotification(
     failureCount: delivery.failureCount,
   });
 
-  return {notificationId, delivery};
+  return {notificationId: result.notificationId, delivery};
 }
 
 export async function deliverAndroidNotification(

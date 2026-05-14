@@ -1,11 +1,13 @@
 import * as admin from 'firebase-admin';
 
 import type {AndroidDeliveryResult, AndroidNotificationPayload} from './fcm_delivery';
+import type {EmailDeliveryResult} from './email_types';
 
 export interface PersistNotificationHistoryInput extends AndroidNotificationPayload {
   source: string;
-  channel?: 'app';
+  channel?: 'app' | 'email';
   delivery?: AndroidDeliveryResult;
+  emailDelivery?: EmailDeliveryResult;
 }
 
 function buildDeliverySnapshot(delivery?: AndroidDeliveryResult): Record<string, unknown> {
@@ -32,6 +34,13 @@ function buildDeliverySnapshot(delivery?: AndroidDeliveryResult): Record<string,
   };
 }
 
+function buildChannels(input: PersistNotificationHistoryInput): string[] {
+  const channels = new Set<string>();
+  channels.add(input.channel ?? 'app');
+  if (input.emailDelivery) channels.add('email');
+  return [...channels];
+}
+
 export async function persistNotificationHistory(
   db: FirebaseFirestore.Firestore,
   input: PersistNotificationHistoryInput,
@@ -50,6 +59,7 @@ export async function persistNotificationHistory(
       body: input.body,
       type: input.type,
       channel: input.channel ?? 'app',
+      channels: buildChannels(input),
       read: false,
       targetRoute: input.targetRoute ?? null,
       entityId: input.entityId ?? null,
@@ -65,6 +75,16 @@ export async function persistNotificationHistory(
       sourceUserId: input.data?.sourceUserId ?? null,
       pushSent: (input.delivery?.successCount ?? 0) > 0,
       delivery: buildDeliverySnapshot(input.delivery),
+      emailSent: input.emailDelivery?.status === 'sent',
+      emailStatus: input.emailDelivery?.status ?? null,
+      emailTo: input.emailDelivery?.to ?? null,
+      emailProvider: input.emailDelivery?.provider ?? null,
+      emailProviderMessageId: input.emailDelivery?.providerMessageId ?? null,
+      emailAttemptedAt:
+        (input.emailDelivery?.attempted ?? 0) > 0
+          ? admin.firestore.FieldValue.serverTimestamp()
+          : null,
+      emailError: input.emailDelivery?.error ?? null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },

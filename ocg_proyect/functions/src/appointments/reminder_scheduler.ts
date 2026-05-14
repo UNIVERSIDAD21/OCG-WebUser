@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import {logger} from 'firebase-functions';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 
-import {deliverAndroidNotification} from '../notifications/android_notification_service';
+import {deliverNotification} from '../notifications/notification_delivery_service';
 
 function db(): FirebaseFirestore.Firestore {
   return admin.firestore();
@@ -341,7 +341,7 @@ async function sendAppReminder(
   const treatmentId = (reminder.treatmentId ?? '').toString().trim();
   const kind = (reminder.kind ?? '').toString().trim();
 
-  const {delivery} = await deliverAndroidNotification(db(), {
+  const {delivery, emailDelivery} = await deliverNotification(db(), {
     notificationId: reminderId,
     recipientId: patientId,
     recipientRole: 'patient',
@@ -358,15 +358,25 @@ async function sendAppReminder(
       reminderId,
     },
     source: 'scheduler:appointment_reminder',
+    channels: {
+      app: true,
+      email: true,
+    },
   });
 
-  const ok = delivery.status === 'sent' || delivery.status === 'partial';
-  const errorCode = delivery.status === 'skipped_no_active_tokens'
+  const pushOk = delivery?.status === 'sent' || delivery?.status === 'partial';
+  const emailOk = emailDelivery?.status === 'sent';
+  const ok = pushOk || emailOk;
+  const errorCode = ok
+    ? null
+    : delivery?.status === 'skipped_no_active_tokens'
     ? 'SKIPPED_NO_ACTIVE_TOKENS'
-    : (delivery.errors[0]?.code ?? null);
-  const errorMessage = delivery.status === 'skipped_no_active_tokens'
+    : (delivery?.errors[0]?.code ?? emailDelivery?.error?.code ?? null);
+  const errorMessage = ok
+    ? null
+    : delivery?.status === 'skipped_no_active_tokens'
     ? 'No hay tokens activos para entrega push real.'
-    : (delivery.errors[0]?.message ?? null);
+    : (delivery?.errors[0]?.message ?? emailDelivery?.error?.message ?? null);
 
   logger.info('Appointment reminder app delivery evaluated', {
     reminderId,
@@ -374,10 +384,12 @@ async function sendAppReminder(
     appointmentId,
     treatmentId,
     kind,
-    deliveryStatus: delivery.status,
-    attempted: delivery.attempted,
-    successCount: delivery.successCount,
-    failureCount: delivery.failureCount,
+    deliveryStatus: delivery?.status ?? null,
+    attempted: delivery?.attempted ?? 0,
+    successCount: delivery?.successCount ?? 0,
+    failureCount: delivery?.failureCount ?? 0,
+    emailStatus: emailDelivery?.status ?? null,
+    emailProvider: emailDelivery?.provider ?? null,
     ok,
     errorCode,
     errorMessage,
@@ -385,7 +397,7 @@ async function sendAppReminder(
 
   return {
     ok,
-    providerMessageId: delivery.providerMessageIds[0] ?? null,
+    providerMessageId: delivery?.providerMessageIds[0] ?? emailDelivery?.providerMessageId ?? null,
     errorCode,
     errorMessage,
   };
