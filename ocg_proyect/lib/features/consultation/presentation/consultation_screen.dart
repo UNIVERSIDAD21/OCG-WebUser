@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -9,9 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/constants/storage_paths.dart';
 import '../../../shared/widgets/ocg_signature_pad.dart';
 import '../../appointments/data/models/appointment_model.dart';
-import '../../appointments/providers/appointments_provider.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../clinical_files/data/models/clinical_file_model.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
@@ -28,14 +29,32 @@ import '../providers/consultation_provider.dart';
 // 4. Firma del paciente (obligatoria para validez legal)
 // 5. Guardado con auditoría completa
 
+class _ConsultationAttachment {
+  const _ConsultationAttachment({
+    required this.bytes,
+    required this.fileName,
+    required this.extension,
+    required this.mimeType,
+    required this.sizeBytes,
+  });
+
+  final Uint8List bytes;
+  final String fileName;
+  final String extension;
+  final String mimeType;
+  final int sizeBytes;
+
+  bool get isImage => mimeType.startsWith('image/');
+  bool get isPdf => mimeType == 'application/pdf';
+}
+
 class ConsultationScreen extends ConsumerStatefulWidget {
   const ConsultationScreen({super.key, required this.appointment});
 
   final AppointmentModel appointment;
 
   @override
-  ConsumerState<ConsultationScreen> createState() =>
-      _ConsultationScreenState();
+  ConsumerState<ConsultationScreen> createState() => _ConsultationScreenState();
 }
 
 class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
@@ -43,8 +62,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   Uint8List? _signatureBytes;
   bool _hasSignature = false;
   bool _showingPad = true;
-  final List<String> _uploadedFiles = [];
-  final List<String> _uploadedFileNames = [];
+  final List<_ConsultationAttachment> _attachments = [];
   final GlobalKey<OcgSignaturePadState> _signaturePadKey =
       GlobalKey<OcgSignaturePadState>();
 
@@ -81,15 +99,15 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
 
       final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
       final treatments = await treatRepo.getPatientTreatments(patientId);
-      debugPrint('[_loadPatientData] Tratamientos: ${treatments?.length ?? 0}');
+      debugPrint('[_loadPatientData] Tratamientos: ${treatments.length}');
 
       if (!mounted) return;
 
       setState(() {
         _patient = patient;
-        final t = treatments;
-        _primaryTreatment = t?.isNotEmpty == true
-            ? (t.where((x) => x.isPrimary).firstOrNull ?? t.first)
+        _primaryTreatment = treatments.isNotEmpty
+            ? (treatments.where((x) => x.isPrimary).firstOrNull ??
+                  treatments.first)
             : null;
         _loadingPatient = false;
       });
@@ -103,47 +121,61 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     }
   }
 
+  TreatmentStage get _currentStage =>
+      _primaryTreatment?.etapaActual ??
+      _patient?.etapaActual ??
+      TreatmentStage.valoracionInicial;
+
   List<TreatmentStage> get _nextStages {
-    if (_patient == null) return TreatmentStage.values.toList();
-    final current = _patient!.etapaActual;
+    final current = _currentStage;
     final idx = TreatmentStage.values.indexOf(current);
     if (idx < 0 || idx >= TreatmentStage.values.length - 1) return [];
     return TreatmentStage.values.sublist(idx + 1);
   }
 
   String get _tipoLabel => switch (widget.appointment.tipo) {
-        AppointmentType.valoracion => 'Valoración',
-        AppointmentType.control => 'Control',
-        AppointmentType.instalacion => 'Instalación',
-        AppointmentType.urgencia => 'Urgencia',
-        AppointmentType.alta => 'Alta',
-      };
+    AppointmentType.valoracion => 'Valoración',
+    AppointmentType.control => 'Control',
+    AppointmentType.instalacion => 'Instalación',
+    AppointmentType.urgencia => 'Urgencia',
+    AppointmentType.alta => 'Alta',
+  };
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
     ];
     return '${d.day.toString().padLeft(2, '0')} de ${months[d.month - 1]} ${d.year}';
   }
 
   Future<void> _saveConsultation() async {
-    if (_notesCtrl.text.trim().isEmpty) {
-      setState(() =>
-          _errorMsg = 'Debes escribir las notas de la consulta.');
+    final notes = _notesCtrl.text.trim();
+    if (notes.isEmpty) {
+      setState(() => _errorMsg = 'Debes escribir las notas de la consulta.');
       return;
     }
 
     final sigBytes = _signatureBytes;
     if (sigBytes == null || sigBytes.isEmpty) {
-      setState(() =>
-          _errorMsg = 'La firma del paciente es obligatoria.');
+      setState(() => _errorMsg = 'La firma del paciente es obligatoria.');
       return;
     }
 
     if (_wantsAdvancePhase && _selectedNextStage == null) {
-      setState(() =>
-          _errorMsg = 'Selecciona la fase a la que avanza el paciente.');
+      setState(
+        () => _errorMsg = 'Selecciona la fase a la que avanza el paciente.',
+      );
       return;
     }
 
@@ -152,50 +184,107 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       _errorMsg = null;
     });
 
+    final uploadedStoragePaths = <String>[];
     try {
       final now = DateTime.now();
       final repo = ref.read(consultationRepositoryProvider);
+      final patientId = widget.appointment.patientId;
+      final actorId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+      final consultationId = repo.newConsultationId(patientId);
+      final treatment = _primaryTreatment;
+      final treatmentId = treatment?.id.startsWith('legacy-primary-') == true
+          ? null
+          : treatment?.id;
+      final currentStage = _currentStage;
+      final resultingStage = _wantsAdvancePhase
+          ? (_selectedNextStage ?? currentStage)
+          : currentStage;
 
       // 1. Subir firma a Storage
+      final signatureFileId = '${consultationId}_signature';
       final signaturePath =
-          'patients/${widget.appointment.patientId}/consultations/'
-          'signatures/${now.millisecondsSinceEpoch}.png';
+          'patients/$patientId/consultations/signatures/$signatureFileId.png';
       final storageRef = FirebaseStorage.instance.ref().child(signaturePath);
       await storageRef.putData(
         sigBytes,
         SettableMetadata(contentType: 'image/png'),
       );
       final signatureUrl = await storageRef.getDownloadURL();
+      uploadedStoragePaths.add(signaturePath);
+
+      final clinicalFiles = <ClinicalFileModel>[];
+      final attachmentUrls = <String>[];
+      for (var i = 0; i < _attachments.length; i++) {
+        final attachment = _attachments[i];
+        final fileId = '${consultationId}_doc_${i + 1}';
+        final storagePath = StoragePaths.patientClinicalFile(
+          patientId,
+          fileId,
+          attachment.fileName,
+          treatmentId: treatmentId,
+        );
+        final fileRef = FirebaseStorage.instance.ref(storagePath);
+        await fileRef.putData(
+          attachment.bytes,
+          SettableMetadata(contentType: attachment.mimeType),
+        );
+        final url = await fileRef.getDownloadURL();
+        uploadedStoragePaths.add(storagePath);
+        attachmentUrls.add(url);
+
+        clinicalFiles.add(
+          ClinicalFileModel(
+            id: fileId,
+            patientId: patientId,
+            treatmentId: treatmentId,
+            treatmentNameSnapshot: treatment?.displayName,
+            stageId: currentStage.name,
+            stageNameSnapshot: stageNames[currentStage] ?? currentStage.name,
+            originalName: attachment.fileName,
+            displayName: attachment.fileName,
+            storagePath: storagePath,
+            downloadUrl: url,
+            mimeType: attachment.mimeType,
+            extension: attachment.extension,
+            sizeBytes: attachment.sizeBytes,
+            category: _categoryForAttachment(attachment),
+            notes: 'Adjunto cargado desde consulta clinica.',
+            uploadedBy: actorId,
+            uploadedAt: now,
+            updatedAt: now,
+            active: true,
+            visibleToPatient: false,
+          ),
+        );
+      }
 
       // 2. Crear documento de consulta
       final auditEntry = AuditEntry(
         action: 'created',
-        actorId: 'admin',
+        actorId: actorId,
         actorName: 'Doctora',
         timestamp: now,
       );
 
       PhaseSnapshot? phaseSnapshot;
-      if (_wantsAdvancePhase &&
-          _selectedNextStage != null &&
-          _patient != null) {
+      if (_wantsAdvancePhase && _selectedNextStage != null) {
         phaseSnapshot = PhaseSnapshot(
-          previousStage: _patient!.etapaActual,
+          previousStage: currentStage,
           currentStage: _selectedNextStage!,
           phaseAdvanced: true,
         );
       }
 
       final consultation = ConsultationModel(
-        id: '',
-        patientId: widget.appointment.patientId,
+        id: consultationId,
+        patientId: patientId,
         patientName: widget.appointment.patientName,
         appointmentId: widget.appointment.id,
-        doctorId: 'admin',
+        doctorId: actorId,
         doctorName: 'Doctora',
         date: now,
-        clinicalNotes: _notesCtrl.text.trim(),
-        photos: [],
+        clinicalNotes: notes,
+        photos: attachmentUrls,
         phaseSnapshot: phaseSnapshot,
         signatureUrl: signatureUrl,
         signatureCapturedAt: now,
@@ -205,53 +294,29 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         updatedAt: now,
       );
 
-      final consultationId = await repo.createConsultation(consultation);
-
       // 3. Si avanzó de fase, actualizar paciente
-      if (_wantsAdvancePhase &&
-          _selectedNextStage != null &&
-          _patient != null) {
-        await ref.read(patientsRepositoryProvider).updateTreatmentStage(
-          patientId: _patient!.id,
-          newStage: _selectedNextStage!,
-          notas:
-              'Avance de fase desde consulta: ${widget.appointment.tipo.name}',
-          adminId: 'admin',
-        );
-      }
-
-      // 3b. Subir archivos adjuntos
-      final List<String> fileUrls = [];
-      for (int i = 0; i < _uploadedFiles.length; i++) {
-        final filePath = _uploadedFiles[i];
-        final fileName = _uploadedFileNames[i];
-        final storagePath =
-            'patients/\${widget.appointment.patientId}/consultations/'
-            'files/\${now.millisecondsSinceEpoch}_\$fileName';
-        final fileRef = FirebaseStorage.instance.ref().child(storagePath);
-        final file = File(filePath);
-        await fileRef.putFile(file);
-        final url = await fileRef.getDownloadURL();
-        fileUrls.add(url);
-      }
-
-      // Actualizar consulta con archivos si hay
-      if (fileUrls.isNotEmpty) {
-        final repo2 = ref.read(consultationRepositoryProvider);
-        await repo2.addFilesToConsultation(
-          patientId: widget.appointment.patientId,
-          consultationId: consultationId,
-          fileUrls: fileUrls,
-        );
-      }
-
-      // 4. Marcar cita como completada
-      await ref
-          .read(appointmentsRepositoryProvider)
-          .updateAppointmentStatus(
-            widget.appointment.id,
-            AppointmentStatus.completada,
-          );
+      final attachmentsSummary = _buildAttachmentsSummary();
+      await repo.saveCompletedConsultation(
+        consultation: consultation,
+        clinicalFiles: clinicalFiles,
+        appointmentId: widget.appointment.id,
+        currentStage: currentStage,
+        resultingStage: resultingStage,
+        stageSummary: _buildHistorySummary(
+          notes: notes,
+          currentStage: currentStage,
+          resultingStage: resultingStage,
+        ),
+        actorId: actorId,
+        advancePhase: _wantsAdvancePhase,
+        treatmentId: treatmentId,
+        treatmentIsPrimary: treatment?.isPrimary ?? true,
+        stageReason: null,
+        nextStagePlan: _wantsAdvancePhase
+            ? 'Paciente avanza a ${stageNames[resultingStage] ?? resultingStage.name}.'
+            : null,
+        attachmentsSummary: attachmentsSummary,
+      );
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -263,6 +328,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         ),
       );
     } catch (e) {
+      for (final path in uploadedStoragePaths.reversed) {
+        try {
+          await FirebaseStorage.instance.ref(path).delete();
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -272,6 +342,40 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────
+
+  String _buildHistorySummary({
+    required String notes,
+    required TreatmentStage currentStage,
+    required TreatmentStage resultingStage,
+  }) {
+    final lines = <String>[
+      'Consulta clinica: $_tipoLabel',
+      'Notas: $notes',
+      'Firma: capturada',
+    ];
+    if (_attachments.isNotEmpty) {
+      lines.add(
+        'Documentos: ${_attachments.map((f) => f.fileName).join(', ')}',
+      );
+    }
+    if (_wantsAdvancePhase && resultingStage != currentStage) {
+      lines.add(
+        'Cambio de etapa: ${stageNames[currentStage] ?? currentStage.name} -> '
+        '${stageNames[resultingStage] ?? resultingStage.name}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  String _buildAttachmentsSummary() {
+    final items = <String>['Firma capturada'];
+    if (_attachments.isNotEmpty) {
+      items.add(
+        'Documentos: ${_attachments.map((f) => f.fileName).join(', ')}',
+      );
+    }
+    return items.join(' | ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -365,11 +469,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            OcgColors.espresso,
-            Color(0xFF4A3628),
-            OcgColors.espresso,
-          ],
+          colors: [OcgColors.espresso, Color(0xFF4A3628), OcgColors.espresso],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
@@ -508,10 +608,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _patient?.telefono ?? '',
-                      style: TextStyle(
-                        color: OcgColors.bronze,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: OcgColors.bronze, fontSize: 13),
                     ),
                   ],
                 ),
@@ -673,9 +770,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                 decoration: BoxDecoration(
                   color: OcgColors.sand.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: OcgColors.bronze.withOpacity(0.2),
-                  ),
+                  border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -810,8 +905,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                       color: isCurrent
                           ? OcgColors.espresso
                           : isPast
-                              ? OcgColors.bronze
-                              : OcgColors.mist,
+                          ? OcgColors.bronze
+                          : OcgColors.mist,
                       borderRadius: BorderRadius.circular(99),
                       border: Border.all(
                         color: isCurrent || isPast
@@ -915,8 +1010,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: OcgColors.error.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(99),
@@ -949,7 +1043,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
             maxLines: 6,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'Ej: Se realizó ajuste de brackets en arcada superior. '
+              hintText:
+                  'Ej: Se realizó ajuste de brackets en arcada superior. '
                   'Paciente reporta mejoría en alineación. '
                   'Se indica uso de elásticos intermaxilares...',
               filled: true,
@@ -1016,10 +1111,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           colors: [Colors.white, const Color(0xFFFFFDF8)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: OcgColors.bronze.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
             color: OcgColors.espresso.withOpacity(0.06),
@@ -1088,7 +1180,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: OcgColors.error.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
@@ -1100,9 +1194,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star_rounded,
-                                  size: 9,
-                                  color: OcgColors.error.withOpacity(0.7)),
+                              Icon(
+                                Icons.star_rounded,
+                                size: 9,
+                                color: OcgColors.error.withOpacity(0.7),
+                              ),
                               const SizedBox(width: 3),
                               Text(
                                 'Req.',
@@ -1160,7 +1256,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: OcgColors.bronze.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
@@ -1172,9 +1270,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.restart_alt_rounded,
-                            size: 16,
-                            color: OcgColors.bronze.withOpacity(0.7)),
+                        Icon(
+                          Icons.restart_alt_rounded,
+                          size: 16,
+                          color: OcgColors.bronze.withOpacity(0.7),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Limpiar',
@@ -1199,7 +1299,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     backgroundColor: OcgColors.espresso,
                     foregroundColor: OcgColors.ivory,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1232,8 +1334,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                       color: Color(0xFF166534),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check_rounded,
-                        size: 14, color: Colors.white),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Expanded(
@@ -1269,10 +1374,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                       _signaturePadKey.currentState?.clear();
                     },
                     borderRadius: BorderRadius.circular(8),
-                    child: Icon(Icons.edit_outlined,
-                        size: 16,
-                        color:
-                            const Color(0xFF166534).withOpacity(0.6)),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      size: 16,
+                      color: const Color(0xFF166534).withOpacity(0.6),
+                    ),
                   ),
                 ],
               ),
@@ -1296,10 +1402,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           colors: [Colors.white, const Color(0xFFFFFDF8)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: OcgColors.bronze.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
             color: OcgColors.espresso.withOpacity(0.06),
@@ -1318,7 +1421,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: _uploadedFiles.isNotEmpty
+                    colors: _attachments.isNotEmpty
                         ? [const Color(0xFF166534), const Color(0xFF22C55E)]
                         : [
                             OcgColors.bronze.withOpacity(0.15),
@@ -1327,17 +1430,17 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _uploadedFiles.isNotEmpty
+                    color: _attachments.isNotEmpty
                         ? const Color(0xFF166534)
                         : OcgColors.bronze.withOpacity(0.3),
                     width: 1.5,
                   ),
                 ),
                 child: Icon(
-                  _uploadedFiles.isNotEmpty
+                  _attachments.isNotEmpty
                       ? Icons.folder_open_outlined
                       : Icons.attach_file_rounded,
-                  color: _uploadedFiles.isNotEmpty
+                  color: _attachments.isNotEmpty
                       ? Colors.white
                       : OcgColors.bronze,
                   size: 22,
@@ -1360,17 +1463,19 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                             letterSpacing: 0.3,
                           ),
                         ),
-                        if (_uploadedFiles.isNotEmpty) ...[
+                        if (_attachments.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFF166534).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
-                              '${_uploadedFiles.length}',
+                              '${_attachments.length}',
                               style: const TextStyle(
                                 color: Color(0xFF166534),
                                 fontSize: 11,
@@ -1398,15 +1503,18 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           const SizedBox(height: 16),
 
           // Lista de archivos subidos
-          if (_uploadedFiles.isNotEmpty) ...[
-            ..._uploadedFiles.asMap().entries.map((entry) {
+          if (_attachments.isNotEmpty) ...[
+            ..._attachments.asMap().entries.map((entry) {
               final idx = entry.key;
-              final name = _uploadedFileNames[idx];
+              final attachment = entry.value;
+              final name = attachment.fileName;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: OcgColors.mist,
                     borderRadius: BorderRadius.circular(12),
@@ -1423,13 +1531,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
-                          name.toLowerCase().endsWith('.pdf')
-                              ? Icons.picture_as_pdf_rounded
-                              : name.toLowerCase().endsWith('.jpg') ||
-                                      name.toLowerCase().endsWith('.jpeg') ||
-                                      name.toLowerCase().endsWith('.png')
-                                  ? Icons.image_outlined
-                                  : Icons.description_outlined,
+                          _iconForAttachment(attachment),
                           size: 18,
                           color: OcgColors.bronze,
                         ),
@@ -1450,8 +1552,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                       InkWell(
                         onTap: () {
                           setState(() {
-                            _uploadedFiles.removeAt(idx);
-                            _uploadedFileNames.removeAt(idx);
+                            _attachments.removeAt(idx);
                           });
                         },
                         borderRadius: BorderRadius.circular(8),
@@ -1548,9 +1649,18 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         imageQuality: 85,
       );
       if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        final extension = _extensionFromName(picked.name, fallback: 'jpg');
         setState(() {
-          _uploadedFiles.add(picked.path);
-          _uploadedFileNames.add(picked.name);
+          _attachments.add(
+            _ConsultationAttachment(
+              bytes: bytes,
+              fileName: picked.name,
+              extension: extension,
+              mimeType: _mimeFromExtension(extension),
+              sizeBytes: bytes.length,
+            ),
+          );
         });
       }
     } catch (e) {
@@ -1562,23 +1672,88 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
+        withData: true,
         allowedExtensions: [
-          'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx',
-          'xls', 'xlsx', 'dicom',
+          'pdf',
+          'jpg',
+          'jpeg',
+          'png',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx',
+          'dicom',
+          'dcm',
         ],
       );
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        if (file.path != null) {
-          setState(() {
-            _uploadedFiles.add(file.path!);
-            _uploadedFileNames.add(file.name);
-          });
-        }
+        final bytes = file.bytes;
+        if (bytes == null) return;
+        final extension = _extensionFromName(
+          file.name,
+          fallback: file.extension ?? '',
+        );
+        setState(() {
+          _attachments.add(
+            _ConsultationAttachment(
+              bytes: bytes,
+              fileName: file.name,
+              extension: extension,
+              mimeType: _mimeFromExtension(extension),
+              sizeBytes: file.size,
+            ),
+          );
+        });
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
     }
+  }
+
+  String _extensionFromName(String name, {String fallback = ''}) {
+    final cleanFallback = fallback.toLowerCase().replaceAll('.', '');
+    final idx = name.lastIndexOf('.');
+    if (idx < 0 || idx == name.length - 1) return cleanFallback;
+    return name.substring(idx + 1).toLowerCase();
+  }
+
+  String _mimeFromExtension(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'dicom':
+      case 'dcm':
+        return 'application/dicom';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  String _categoryForAttachment(_ConsultationAttachment attachment) {
+    if (attachment.isImage) return 'foto_clinica';
+    if (attachment.isPdf) return 'pdf_clinico';
+    return 'otro';
+  }
+
+  IconData _iconForAttachment(_ConsultationAttachment attachment) {
+    if (attachment.isPdf) return Icons.picture_as_pdf_rounded;
+    if (attachment.isImage) return Icons.image_outlined;
+    return Icons.description_outlined;
   }
 
   Widget _buildSaveButton() {
@@ -1612,10 +1787,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   SizedBox(width: 10),
                   Text(
                     'Guardar Consulta',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),

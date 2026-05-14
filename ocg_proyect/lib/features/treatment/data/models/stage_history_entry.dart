@@ -15,6 +15,8 @@ class StageHistoryEntry {
     this.diagnosticoBreve,
     this.planSiguienteEtapa,
     this.adjuntosDescripcion,
+    this.consultationId,
+    this.signatureUrl,
     this.fechaEfectiva,
     required this.adminId,
     required this.fechaCambio,
@@ -35,6 +37,8 @@ class StageHistoryEntry {
   final String? diagnosticoBreve;
   final String? planSiguienteEtapa;
   final String? adjuntosDescripcion;
+  final String? consultationId;
+  final String? signatureUrl;
   final DateTime? fechaEfectiva;
 
   final String adminId;
@@ -86,9 +90,14 @@ class StageHistoryEntry {
       diagnosticoBreve: json['diagnosticoBreve']?.toString(),
       planSiguienteEtapa: json['planSiguienteEtapa']?.toString(),
       adjuntosDescripcion: json['adjuntosDescripcion']?.toString(),
+      consultationId: json['consultationId']?.toString(),
+      signatureUrl: json['signatureUrl']?.toString(),
       fechaEfectiva: _parseNullableDate(json['fechaEfectiva']),
       adminId: (json['createdBy'] ?? json['adminId'] ?? '').toString(),
-      fechaCambio: _parseDate(json['createdAt'] ?? json['fechaCambio'], DateTime.now()),
+      fechaCambio: _parseDate(
+        json['createdAt'] ?? json['fechaCambio'],
+        DateTime.now(),
+      ),
       status: (json['status'] ?? 'completed').toString(),
       startedAt: _parseNullableDate(json['startedAt']),
       completedAt: _parseNullableDate(json['completedAt']),
@@ -107,6 +116,8 @@ class StageHistoryEntry {
     String? diagnosticoBreve,
     String? planSiguienteEtapa,
     String? adjuntosDescripcion,
+    String? consultationId,
+    String? signatureUrl,
     DateTime? fechaEfectiva,
     String? adminId,
     DateTime? fechaCambio,
@@ -126,6 +137,8 @@ class StageHistoryEntry {
       diagnosticoBreve: diagnosticoBreve ?? this.diagnosticoBreve,
       planSiguienteEtapa: planSiguienteEtapa ?? this.planSiguienteEtapa,
       adjuntosDescripcion: adjuntosDescripcion ?? this.adjuntosDescripcion,
+      consultationId: consultationId ?? this.consultationId,
+      signatureUrl: signatureUrl ?? this.signatureUrl,
       fechaEfectiva: fechaEfectiva ?? this.fechaEfectiva,
       adminId: adminId ?? this.adminId,
       fechaCambio: fechaCambio ?? this.fechaCambio,
@@ -138,27 +151,33 @@ class StageHistoryEntry {
   String get stageName => stageNames[etapaNueva] ?? etapaNueva.name;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'patientId': patientId,
-        'treatmentId': treatmentId,
-        'stageName': stageName,
-        'status': status,
-        'startedAt': startedAt == null ? null : Timestamp.fromDate(startedAt!),
-        'completedAt': completedAt == null ? null : Timestamp.fromDate(completedAt!),
-        'createdAt': Timestamp.fromDate(fechaCambio),
-        'createdBy': adminId,
-        // Compatibilidad temporal
-        'etapaAnterior': etapaAnterior.name,
-        'etapaNueva': etapaNueva.name,
-        'esRetroceso': esRetroceso,
-        'notes': notas,
-        'notas': notas,
-        'motivoCambio': motivoCambio,
-        'diagnosticoBreve': diagnosticoBreve,
-        'planSiguienteEtapa': planSiguienteEtapa,
-        'adjuntosDescripcion': adjuntosDescripcion,
-        'fechaEfectiva': fechaEfectiva == null ? null : Timestamp.fromDate(fechaEfectiva!),
-        'adminId': adminId,
-        'fechaCambio': Timestamp.fromDate(fechaCambio),
-      };
+    'id': id,
+    'patientId': patientId,
+    'treatmentId': treatmentId,
+    'stageName': stageName,
+    'status': status,
+    'startedAt': startedAt == null ? null : Timestamp.fromDate(startedAt!),
+    'completedAt': completedAt == null
+        ? null
+        : Timestamp.fromDate(completedAt!),
+    'createdAt': Timestamp.fromDate(fechaCambio),
+    'createdBy': adminId,
+    // Compatibilidad temporal
+    'etapaAnterior': etapaAnterior.name,
+    'etapaNueva': etapaNueva.name,
+    'esRetroceso': esRetroceso,
+    'notes': notas,
+    'notas': notas,
+    'motivoCambio': motivoCambio,
+    'diagnosticoBreve': diagnosticoBreve,
+    'planSiguienteEtapa': planSiguienteEtapa,
+    'adjuntosDescripcion': adjuntosDescripcion,
+    'consultationId': consultationId,
+    'signatureUrl': signatureUrl,
+    'fechaEfectiva': fechaEfectiva == null
+        ? null
+        : Timestamp.fromDate(fechaEfectiva!),
+    'adminId': adminId,
+    'fechaCambio': Timestamp.fromDate(fechaCambio),
+  };
 }
