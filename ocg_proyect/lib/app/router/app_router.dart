@@ -209,12 +209,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return PatientFormScreen(patientId: patientId);
         },
       ),
-      // Consultación clínica (desde completar cita)
+      // Dictamen clínico (desde botón Dictamen en citas)
       GoRoute(
         path: RouteNames.adminConsultation,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final appointment = state.extra as AppointmentModel;
-          return ConsultationScreen(appointment: appointment);
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: ConsultationScreen(appointment: appointment),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                ),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.08),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          );
         },
       ),
       GoRoute(

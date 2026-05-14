@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/constants/storage_paths.dart';
+import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/widgets/ocg_signature_pad.dart';
 import '../../appointments/data/models/appointment_model.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -119,6 +120,43 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         _errorMsg = 'No se pudo cargar información del paciente: $e';
       });
     }
+  }
+
+  bool get _hasUnsavedChanges =>
+      _notesCtrl.text.trim().isNotEmpty ||
+      _signatureBytes != null ||
+      _attachments.isNotEmpty;
+
+  Future<void> _onBackPressed() async {
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop(false);
+      return;
+    }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Descartar dictamen?'),
+        content: const Text(
+          'Tienes información sin guardar. Si sales ahora, perderás las notas, '
+          'firma y documentos que hayas agregado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => popDialog(ctx, false),
+            child: const Text('Continuar editando'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OcgColors.error,
+              foregroundColor: OcgColors.ivory,
+            ),
+            onPressed: () => popDialog(ctx, true),
+            child: const Text('Descartar y salir'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) Navigator.of(context).pop(false);
   }
 
   TreatmentStage get _currentStage =>
@@ -462,7 +500,13 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _onBackPressed();
+      },
+      child: Scaffold(
       backgroundColor: OcgColors.ivory,
       body: SafeArea(
         child: Column(
@@ -494,10 +538,16 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildHeader() {
+    final patientName = widget.appointment.patientName;
+    final tipoLabel = _tipoLabel;
+    final fechaFormatted = _fmtDate(widget.appointment.fechaHora);
+    final stageLabel = widget.appointment.stageName;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -528,29 +578,56 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   color: OcgColors.ivory,
                   size: 20,
                 ),
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: () => _onBackPressed(),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Consultación Clínica',
-                      style: TextStyle(
+                    Text(
+                      'Dictamen · $patientName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                         color: OcgColors.ivory,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         fontFamily: 'Cormorant Garamond',
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$_tipoLabel · ${_fmtDate(widget.appointment.fechaHora)}',
-                      style: TextStyle(
-                        color: OcgColors.ivory.withOpacity(0.65),
-                        fontSize: 12.5,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          '$tipoLabel · $fechaFormatted',
+                          style: TextStyle(
+                            color: OcgColors.ivory.withOpacity(0.7),
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (stageLabel != null) ...[
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: OcgColors.bronze.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              stageLabel,
+                              style: TextStyle(
+                                color: OcgColors.ivory.withOpacity(0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
