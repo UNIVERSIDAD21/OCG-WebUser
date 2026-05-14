@@ -359,7 +359,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   late final TextEditingController _notesCtrl;
 
   PatientModel? _selectedPatient;
-  AppointmentType _type = AppointmentType.control;
+  AppointmentType? _type; // derivado de la fase del paciente
   final int _durationMinutes = 30;
   late DateTime _dateTime;
   bool _saving = false;
@@ -373,6 +373,11 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     final seed = widget.baseDate ?? DateTime.now();
     _dateTime = DateTime(seed.year, seed.month, seed.day, 10, 0);
     _selectedPatient = widget.preselectedPatient;
+    _type = _selectedPatient != null
+        ? AppointmentsBusinessRules.appointmentTypeForStage(
+            _selectedPatient!.etapaActual,
+          )
+        : null;
     _searchCtrl = TextEditingController(
       text: widget.preselectedPatient?.nombre ?? '',
     );
@@ -545,6 +550,13 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       setState(() => _errorMsg = 'Selecciona un paciente de la lista.');
       return;
     }
+    if (_type == null) {
+      setState(
+        () => _errorMsg =
+            'No se pudo determinar el tipo de cita para la fase actual del paciente.',
+      );
+      return;
+    }
     final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
       start: _dateTime,
     );
@@ -591,7 +603,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               patientName: _selectedPatient!.nombre,
               patientPhone: _selectedPatient!.telefono,
               creadoPor: 'admin',
-              tipo: _type,
+              tipo: _type!,
               estado: AppointmentStatus.programada,
               fechaHora: _dateTime,
               duracionMinutos: _durationMinutes,
@@ -706,6 +718,9 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                               onTap: () => setState(() {
                                 _selectedPatient = p;
                                 _searchCtrl.text = p.nombre;
+                                _type = AppointmentsBusinessRules.appointmentTypeForStage(
+                                  p.etapaActual,
+                                );
                                 _errorMsg = null;
                               }),
                             );
@@ -778,24 +793,99 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
               const SizedBox(height: 12),
 
-              // ── Tipo ───────────────────────────────────────────────────
-              DropdownButtonFormField<AppointmentType>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Tipo de cita',
-                  prefixIcon: Icon(Icons.medical_services_outlined),
-                ),
-                items: AppointmentType.values
-                    .map(
-                      (t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(appointmentTypeLabel(t)),
+              // ── Tipo de cita (derivado de la fase del tratamiento) ────
+              if (_type != null && _selectedPatient != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: OcgColors.bronze.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 18,
+                        color: OcgColors.bronze.withOpacity(0.7),
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) =>
-                    setState(() => _type = v ?? AppointmentType.control),
-              ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tipo de cita',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: OcgColors.ink.withOpacity(0.5),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              appointmentTypeLabel(_type!),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: OcgColors.espresso,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OcgColors.bronze.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          stageNames[_selectedPatient!.etapaActual] ??
+                              _selectedPatient!.etapaActual.name,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: OcgColors.bronze,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: OcgColors.mist,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: OcgColors.ink.withOpacity(0.4),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Selecciona un paciente para ver el tipo de cita',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: OcgColors.ink.withOpacity(0.5),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 10),
 
               // ── Fecha y hora ───────────────────────────────────────────

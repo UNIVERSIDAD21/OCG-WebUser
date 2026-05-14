@@ -7,6 +7,7 @@ import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/constants/contact_channels.dart';
 import '../../../shared/theme/ocg_colors.dart';
@@ -185,7 +186,10 @@ class _PatientAppointmentsScreenState
     bool expandMorning = false;
     bool expandAfternoon = false;
 
-    AppointmentType selectedType = AppointmentType.valoracion;
+    // Tipo de cita derivado de la fase del tratamiento
+    final AppointmentType selectedType = patientStage != null
+        ? AppointmentsBusinessRules.appointmentTypeForStage(patientStage)
+        : AppointmentType.valoracion;
     final bogotaNow = AppointmentsBusinessRules.toBogota(DateTime.now());
     DateTime selectedDateTime = AppointmentsBusinessRules.fromBogotaComponents(
       year: bogotaNow.year,
@@ -221,22 +225,67 @@ class _PatientAppointmentsScreenState
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<AppointmentType>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de cita',
-                      prefixIcon: Icon(Icons.medical_services_outlined),
+                  // ── Tipo de cita (derivado de la fase) ──────────────────
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: OcgColors.bronze.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: OcgColors.bronze.withOpacity(0.2),
+                      ),
                     ),
-                    items: AppointmentType.values
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(_tipoLabel(t)),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 18,
+                          color: OcgColors.bronze.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tipo de cita',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: OcgColors.ink.withOpacity(0.5),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                _tipoLabel(selectedType),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: OcgColors.espresso,
+                                ),
+                              ),
+                            ],
                           ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setDs(
-                      () => selectedType = v ?? AppointmentType.valoracion,
+                        ),
+                        if (patientStage != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: OcgColors.bronze.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              stageNames[patientStage] ?? patientStage.name,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: OcgColors.bronze,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 14),

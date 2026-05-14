@@ -1,4 +1,5 @@
 import '../data/models/appointment_model.dart';
+import '../../patients/data/models/patient_model.dart';
 
 const _bogotaUtcOffset = Duration(hours: 5);
 
@@ -352,4 +353,31 @@ class AppointmentsBusinessRules {
     return endAt.isBefore(referenceNow);
   }
 
+  /// Mapeo fase del tratamiento → tipo de cita correspondiente.
+  /// Garantiza coherencia clínica: cada cita refleja la fase activa
+  /// del paciente, creando auditoría trazable en consultación.
+  static AppointmentType appointmentTypeForStage(TreatmentStage stage) {
+    return switch (stage) {
+      TreatmentStage.valoracionInicial => AppointmentType.valoracion,
+      TreatmentStage.estudioPlaneacion => AppointmentType.control,
+      TreatmentStage.instalacion => AppointmentType.instalacion,
+      TreatmentStage.controles => AppointmentType.control,
+      TreatmentStage.retencion => AppointmentType.control,
+      TreatmentStage.alta => AppointmentType.alta,
+    };
+  }
+
+  /// Etiqueta descriptiva del tipo de cita derivado de la fase.
+  static String stageAppointmentTypeHint(TreatmentStage stage) {
+    final tipo = appointmentTypeForStage(stage);
+    final phaseName = stageNames[stage] ?? stage.name;
+    final typeName = switch (tipo) {
+      AppointmentType.valoracion => 'Valoración',
+      AppointmentType.control => 'Control',
+      AppointmentType.instalacion => 'Instalación',
+      AppointmentType.urgencia => 'Urgencia',
+      AppointmentType.alta => 'Alta',
+    };
+    return '$phaseName → $typeName';
+  }
 }
