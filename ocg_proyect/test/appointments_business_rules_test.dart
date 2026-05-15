@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ocg_proyect/features/appointments/data/models/appointment_model.dart';
 import 'package:ocg_proyect/features/appointments/domain/appointments_business_rules.dart';
+import 'package:ocg_proyect/features/dashboard/presentation/admin_appointments_agenda_helpers.dart';
 
 AppointmentModel _appt({
   required String id,
@@ -24,16 +25,51 @@ AppointmentModel _appt({
 void main() {
   group('AppointmentsBusinessRules status domain', () {
     test('históricos: cancelada/noAsistio/reprogramada', () {
-      expect(AppointmentsBusinessRules.isHistoricalStatus(AppointmentStatus.cancelada), isTrue);
-      expect(AppointmentsBusinessRules.isHistoricalStatus(AppointmentStatus.noAsistio), isTrue);
-      expect(AppointmentsBusinessRules.isHistoricalStatus(AppointmentStatus.reprogramada), isTrue);
-      expect(AppointmentsBusinessRules.isHistoricalStatus(AppointmentStatus.programada), isFalse);
+      expect(
+        AppointmentsBusinessRules.isHistoricalStatus(
+          AppointmentStatus.cancelada,
+        ),
+        isTrue,
+      );
+      expect(
+        AppointmentsBusinessRules.isHistoricalStatus(
+          AppointmentStatus.noAsistio,
+        ),
+        isTrue,
+      );
+      expect(
+        AppointmentsBusinessRules.isHistoricalStatus(
+          AppointmentStatus.reprogramada,
+        ),
+        isTrue,
+      );
+      expect(
+        AppointmentsBusinessRules.isHistoricalStatus(
+          AppointmentStatus.programada,
+        ),
+        isFalse,
+      );
     });
 
     test('operativos excluyen históricos y opcionalmente completadas', () {
-      expect(AppointmentsBusinessRules.isOperationalStatus(AppointmentStatus.programada), isTrue);
-      expect(AppointmentsBusinessRules.isOperationalStatus(AppointmentStatus.confirmada), isTrue);
-      expect(AppointmentsBusinessRules.isOperationalStatus(AppointmentStatus.completada), isTrue);
+      expect(
+        AppointmentsBusinessRules.isOperationalStatus(
+          AppointmentStatus.programada,
+        ),
+        isTrue,
+      );
+      expect(
+        AppointmentsBusinessRules.isOperationalStatus(
+          AppointmentStatus.confirmada,
+        ),
+        isTrue,
+      );
+      expect(
+        AppointmentsBusinessRules.isOperationalStatus(
+          AppointmentStatus.completada,
+        ),
+        isTrue,
+      );
       expect(
         AppointmentsBusinessRules.isOperationalStatus(
           AppointmentStatus.completada,
@@ -41,7 +77,49 @@ void main() {
         ),
         isFalse,
       );
-      expect(AppointmentsBusinessRules.isOperationalStatus(AppointmentStatus.reprogramada), isFalse);
+      expect(
+        AppointmentsBusinessRules.isOperationalStatus(
+          AppointmentStatus.reprogramada,
+        ),
+        isFalse,
+      );
+    });
+
+    test('no marca automaticamente citas abiertas como no asistidas', () {
+      final appointment = _appt(
+        id: 'a1',
+        at: DateTime(2026, 3, 13, 8, 0),
+        status: AppointmentStatus.confirmada,
+      );
+
+      expect(
+        AppointmentsBusinessRules.shouldMarkAsNoShow(
+          appointment,
+          now: DateTime(2026, 3, 14, 12, 0),
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('Admin agenda completion rule', () {
+    test('cita abierta vencida mas de 24h sigue en pendientes', () {
+      final now = DateTime(2026, 3, 14, 12, 0);
+      final appointment = _appt(
+        id: 'a1',
+        at: DateTime(2026, 3, 13, 8, 0),
+        status: AppointmentStatus.confirmada,
+      );
+
+      expect(isLostAppointment(appointment), isFalse);
+      expect(isPendingAdminCompletion(appointment, now: now), isTrue);
+      expect(isPastAdminCompletionWindow(appointment, now: now), isTrue);
+
+      final pending = quickFilteredItems(AgendaDayQuickFilter.pendientes, [
+        appointment,
+      ], now);
+
+      expect(pending, [appointment]);
     });
   });
 

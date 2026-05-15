@@ -1,12 +1,8 @@
-import * as admin from 'firebase-admin';
 import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
 
 type ReconcileNoShowData = {
   appointmentIds?: string[];
 };
-
-const ALLOWED_CURRENT = new Set(['programada', 'confirmada']);
-const BLOCKING_FINAL = new Set(['completada', 'cancelada', 'reprogramada', 'noAsistio']);
 
 export const reconcileNoShowAppointments = onCall<ReconcileNoShowData>(
   async (request: CallableRequest<ReconcileNoShowData>) => {
@@ -21,37 +17,14 @@ export const reconcileNoShowAppointments = onCall<ReconcileNoShowData>(
       .slice(0, 200);
 
     if (ids.length === 0) {
-      return {ok: true, updated: 0};
+      return {ok: true, updated: 0, skipped: 0};
     }
 
-    const db = admin.firestore();
-    const now = new Date();
-
-    let updated = 0;
-
-    for (const id of ids) {
-      const ref = db.collection('appointments').doc(id);
-      const snap = await ref.get();
-      if (!snap.exists) continue;
-
-      const data = snap.data() as any;
-      const estado = (data?.estado ?? '').toString();
-      if (BLOCKING_FINAL.has(estado) || !ALLOWED_CURRENT.has(estado)) continue;
-
-      const fechaTs = data?.fechaHora as admin.firestore.Timestamp | undefined;
-      if (!fechaTs) continue;
-
-      const duracion = Number(data?.duracionMinutos ?? 30);
-      const endAt = new Date(fechaTs.toDate().getTime() + duracion * 60 * 1000);
-      if (endAt >= now) continue;
-
-      await ref.update({
-        estado: 'noAsistio',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      updated++;
-    }
-
-    return {ok: true, updated};
+    return {
+      ok: true,
+      updated: 0,
+      skipped: ids.length,
+      policy: 'manual_completion_required',
+    };
   },
 );

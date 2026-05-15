@@ -340,17 +340,7 @@ class AppointmentsBusinessRules {
     AppointmentModel appointment, {
     DateTime? now,
   }) {
-    if (appointment.estado != AppointmentStatus.programada &&
-        appointment.estado != AppointmentStatus.confirmada) {
-      return false;
-    }
-
-    final referenceNow = now ?? _bogotaNowWallClock();
-    final endAt = appointment.fechaHora.add(
-      Duration(minutes: appointment.duracionMinutos),
-    );
-
-    return endAt.isBefore(referenceNow);
+    return false;
   }
 
   /// Mapeo fase del tratamiento → tipo de cita correspondiente.

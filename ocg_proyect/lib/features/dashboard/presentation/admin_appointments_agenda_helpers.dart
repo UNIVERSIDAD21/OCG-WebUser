@@ -22,26 +22,61 @@ enum AgendaDayQuickFilter { dia, manana, pendientes, incidencias, historicas }
 /// Sub-filtros dentro de Incidencias.
 enum AgendaIncidenceSubFilter { todas, perdidas, canceladas, reprogramadas }
 
+const Duration adminCompletionWindow = Duration(hours: 24);
+
+bool _isOpenAppointment(AppointmentModel appointment) =>
+    appointment.estado == AppointmentStatus.programada ||
+    appointment.estado == AppointmentStatus.confirmada;
+
+DateTime _appointmentEndAt(AppointmentModel appointment) =>
+    appointment.fechaHora.add(Duration(minutes: appointment.duracionMinutos));
+
+bool isPendingAdminCompletion(AppointmentModel appointment, {DateTime? now}) {
+  if (!_isOpenAppointment(appointment)) return false;
+  final referenceNow = now ?? DateTime.now();
+  return _appointmentEndAt(appointment).isBefore(referenceNow);
+}
+
+bool isPastAdminCompletionWindow(
+  AppointmentModel appointment, {
+  DateTime? now,
+}) {
+  if (!isPendingAdminCompletion(appointment, now: now)) return false;
+  final referenceNow = now ?? DateTime.now();
+  return _appointmentEndAt(
+    appointment,
+  ).add(adminCompletionWindow).isBefore(referenceNow);
+}
+
 bool isLostAppointment(AppointmentModel appointment) {
-  if (appointment.estado == AppointmentStatus.noAsistio) return true;
-  if (appointment.estado == AppointmentStatus.programada) {
-    final limit = DateTime.now().subtract(const Duration(days: 1));
-    return appointment.fechaHora.isBefore(limit);
-  }
-  return false;
+  return appointment.estado == AppointmentStatus.noAsistio;
 }
 
 bool isAgendaIncident(AppointmentModel appointment) =>
     appointment.estado == AppointmentStatus.cancelada ||
     appointment.estado == AppointmentStatus.noAsistio ||
     appointment.estado == AppointmentStatus.reprogramada ||
-    isLostAppointment(appointment);
+    isPastAdminCompletionWindow(appointment);
 
 ({Color dot, Color line, String label}) appointmentStatusUi(
   AppointmentModel appointment,
 ) {
   if (isLostAppointment(appointment)) {
     return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
+  }
+  if (isPastAdminCompletionWindow(appointment)) {
+    return (
+      dot: OcgColors.error,
+      line: OcgColors.error,
+      label: 'Pendiente +24 h',
+    );
+  }
+  if (isPendingAdminCompletion(appointment)) {
+    return (
+      dot: const Color(0xFFC56B16),
+      line: const Color(0xFFC56B16),
+      label: 'Por completar',
+    );
   }
 
   return switch (appointment.estado) {
@@ -80,6 +115,9 @@ bool isAgendaIncident(AppointmentModel appointment) =>
 
 IconData agendaStatusIcon(AppointmentModel appointment) {
   if (isLostAppointment(appointment)) return Icons.person_off_outlined;
+  if (isPendingAdminCompletion(appointment)) {
+    return Icons.pending_actions_outlined;
+  }
   return switch (appointment.estado) {
     AppointmentStatus.programada => Icons.schedule_outlined,
     AppointmentStatus.confirmada => Icons.verified_outlined,
@@ -93,6 +131,12 @@ IconData agendaStatusIcon(AppointmentModel appointment) {
 String agendaOperationalHint(AppointmentModel appointment) {
   final now = DateTime.now();
   if (isLostAppointment(appointment)) return 'Requiere seguimiento del equipo.';
+  if (isPastAdminCompletionWindow(appointment, now: now)) {
+    return 'Vencio la ventana de 24 h; sigue pendiente hasta cerrar manualmente.';
+  }
+  if (isPendingAdminCompletion(appointment, now: now)) {
+    return 'Ventana de 24 h para completar o cerrar manualmente.';
+  }
   if (appointment.estado == AppointmentStatus.programada &&
       appointment.fechaHora.isBefore(now)) {
     return 'Cita vencida: confirma asistencia o reprograma.';
@@ -239,21 +283,11 @@ List<AppointmentModel> quickFilteredItems(
             (appointment) =>
                 (appointment.estado == AppointmentStatus.programada ||
                     appointment.estado == AppointmentStatus.confirmada) &&
-                !isLostAppointment(appointment) &&
-                appointment.fechaHora.isAfter(
-                  now.subtract(const Duration(minutes: 1)),
-                ),
+                !isLostAppointment(appointment),
           )
           .toList(),
     AgendaDayQuickFilter.incidencias =>
-      appointments
-          .where(
-            (appointment) =>
-                appointment.estado == AppointmentStatus.cancelada ||
-                appointment.estado == AppointmentStatus.noAsistio ||
-                appointment.estado == AppointmentStatus.reprogramada,
-          )
-          .toList(),
+      appointments.where(isAgendaIncident).toList(),
     AgendaDayQuickFilter.historicas =>
       appointments
           .where(

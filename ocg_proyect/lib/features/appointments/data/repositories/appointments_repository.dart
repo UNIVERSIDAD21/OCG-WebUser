@@ -7,7 +7,7 @@ import '../models/appointment_model.dart';
 
 class AppointmentsRepository {
   AppointmentsRepository(this._db, [FirebaseFunctions? functions])
-      : _functions = functions ?? FirebaseFunctions.instance;
+    : _functions = functions ?? FirebaseFunctions.instance;
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
@@ -46,12 +46,10 @@ class AppointmentsRepository {
     return _appointmentsRef
         .orderBy('fechaHora', descending: true)
         .snapshots()
-        .asyncMap((s) async {
-          final items = _dedupeAppointments(
+        .map((s) {
+          return _dedupeAppointments(
             s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
           );
-          final reconciled = await _reconcileNoShowStatuses(items);
-          return reconciled;
         });
   }
 
@@ -60,12 +58,10 @@ class AppointmentsRepository {
         .where('patientId', isEqualTo: patientId)
         .orderBy('fechaHora', descending: true)
         .snapshots()
-        .asyncMap((s) async {
-          final items = _dedupeAppointments(
+        .map((s) {
+          return _dedupeAppointments(
             s.docs.map((d) => AppointmentModel.fromJson(d.data())).toList(),
           );
-          final reconciled = await _reconcileNoShowStatuses(items);
-          return reconciled;
         });
   }
 
@@ -80,10 +76,11 @@ class AppointmentsRepository {
     }
 
     try {
-      final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-        start: appointment.fechaHora,
-        durationMinutes: appointment.duracionMinutos,
-      );
+      final workingHoursError =
+          AppointmentsBusinessRules.validateWithinWorkingHours(
+            start: appointment.fechaHora,
+            durationMinutes: appointment.duracionMinutos,
+          );
       if (workingHoursError != null) {
         throw FirebaseException(
           plugin: 'appointments',
@@ -207,10 +204,11 @@ class AppointmentsRepository {
     required String originalId,
     required AppointmentModel newAppointment,
   }) async {
-    final workingHoursError = AppointmentsBusinessRules.validateWithinWorkingHours(
-      start: newAppointment.fechaHora,
-      durationMinutes: newAppointment.duracionMinutos,
-    );
+    final workingHoursError =
+        AppointmentsBusinessRules.validateWithinWorkingHours(
+          start: newAppointment.fechaHora,
+          durationMinutes: newAppointment.duracionMinutos,
+        );
     if (workingHoursError != null) {
       throw FirebaseException(
         plugin: 'appointments',
@@ -257,7 +255,10 @@ class AppointmentsRepository {
     final newEnd = start.add(Duration(minutes: durationMinutes));
 
     final snapshot = await _appointmentsRef
-        .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart))
+        .where(
+          'fechaHora',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
+        )
         .where('fechaHora', isLessThan: Timestamp.fromDate(dayEnd))
         .get();
 
@@ -282,7 +283,8 @@ class AppointmentsRepository {
               AppointmentsBusinessRules.bufferMinutesBetweenAppointments,
         ),
       );
-      final overlaps = start.isBefore(existingEnd) && existingStart.isBefore(newEnd);
+      final overlaps =
+          start.isBefore(existingEnd) && existingStart.isBefore(newEnd);
 
       if (overlaps) return true;
     }
@@ -315,36 +317,6 @@ class AppointmentsRepository {
     }
   }
 
-  Future<List<AppointmentModel>> _reconcileNoShowStatuses(
-    List<AppointmentModel> items,
-  ) async {
-    final now = DateTime.now();
-    final toNoShow = items
-        .where((a) => AppointmentsBusinessRules.shouldMarkAsNoShow(a, now: now))
-        .toList();
-
-    if (toNoShow.isEmpty) return items;
-
-    try {
-      final callable = _functions.httpsCallable('reconcileNoShowAppointments');
-      await callable.call(<String, dynamic>{
-        'appointmentIds': toNoShow.map((e) => e.id).toList(),
-      });
-    } catch (_) {
-      // Si la función no está desplegada o falla, mantenemos consistencia visual
-      // en cliente sin romper flujo ni permisos.
-    }
-
-    final noShowIds = toNoShow.map((e) => e.id).toSet();
-    return items
-        .map(
-          (a) => noShowIds.contains(a.id)
-              ? a.copyWith(estado: AppointmentStatus.noAsistio)
-              : a,
-        )
-        .toList();
-  }
-
   List<AppointmentModel> _dedupeAppointments(List<AppointmentModel> items) {
     final map = <String, AppointmentModel>{};
 
@@ -358,7 +330,8 @@ class AppointmentsRepository {
         map[key] = a;
       } else {
         final currentTs = a.createdAt ?? a.updatedAt ?? a.fechaHora;
-        final existingTs = existing.createdAt ?? existing.updatedAt ?? existing.fechaHora;
+        final existingTs =
+            existing.createdAt ?? existing.updatedAt ?? existing.fechaHora;
         if (currentTs.isAfter(existingTs)) {
           map[key] = a;
         }
@@ -370,7 +343,9 @@ class AppointmentsRepository {
     return deduped;
   }
 
-  Future<String?> _findExistingSameSlotForPatient(AppointmentModel appointment) async {
+  Future<String?> _findExistingSameSlotForPatient(
+    AppointmentModel appointment,
+  ) async {
     final start = appointment.fechaHora;
     final end = start.add(Duration(minutes: appointment.duracionMinutos));
 
@@ -379,7 +354,10 @@ class AppointmentsRepository {
 
     final snapshot = await _appointmentsRef
         .where('patientId', isEqualTo: appointment.patientId)
-        .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(sameDayStart))
+        .where(
+          'fechaHora',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(sameDayStart),
+        )
         .where('fechaHora', isLessThan: Timestamp.fromDate(sameDayEnd))
         .get();
 
@@ -393,7 +371,9 @@ class AppointmentsRepository {
       }
 
       final currentStart = current.fechaHora;
-      final currentEnd = currentStart.add(Duration(minutes: current.duracionMinutos));
+      final currentEnd = currentStart.add(
+        Duration(minutes: current.duracionMinutos),
+      );
       final overlaps = currentStart.isBefore(end) && start.isBefore(currentEnd);
 
       if (overlaps) {
