@@ -2036,102 +2036,6 @@ class _AdminAppointmentsScreenState
     }).toList();
   }
 
-  List<PopupMenuEntry<_AppointmentAction>> _buildMenuItemsForAppointment(AppointmentModel a) {
-    final items = <PopupMenuEntry<_AppointmentAction>>[];
-
-    // Always-available actions
-    items.addAll([
-      PopupMenuItem<_AppointmentAction>(
-        value: _AppointmentAction(
-          label: 'Perfil del paciente',
-          icon: Icons.person_outline,
-          onTap: () => _openPatientProfile(a.patientId),
-        ),
-        height: 42,
-        child: _actionRow(Icons.person_outline, 'Perfil del paciente', OcgColors.espresso),
-      ),
-      PopupMenuItem<_AppointmentAction>(
-        value: _AppointmentAction(
-          label: 'Generar dictamen',
-          icon: Icons.description_outlined,
-          onTap: () => _handleStatusAction(a, 'dictamen'),
-        ),
-        height: 42,
-        child: _actionRow(Icons.description_outlined, 'Generar dictamen', OcgColors.bronze),
-      ),
-    ]);
-
-    void addDivider() => items.add(const PopupMenuDivider(height: 1));
-    void addAction({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
-      items.add(
-        PopupMenuItem<_AppointmentAction>(
-          value: _AppointmentAction(label: label, icon: icon, color: color, onTap: onTap),
-          height: 42,
-          child: _actionRow(icon, label, color ?? OcgColors.espresso),
-        ),
-      );
-    }
-
-    if (a.estado == AppointmentStatus.programada) {
-      addDivider();
-      addAction(
-        icon: Icons.check_circle_outline,
-        label: 'Confirmar cita',
-        color: const Color(0xFF1565C0),
-        onTap: () => _handleStatusAction(a, 'confirmar'),
-      );
-      addAction(
-        icon: Icons.edit_calendar_outlined,
-        label: 'Reprogramar',
-        color: OcgColors.bronze,
-        onTap: () => _handleStatusAction(a, 'reprogramar'),
-      );
-    } else if (a.estado == AppointmentStatus.confirmada) {
-      addDivider();
-      addAction(
-        icon: Icons.done_all,
-        label: 'Completar',
-        color: const Color(0xFF2E7D32),
-        onTap: () => _handleStatusAction(a, 'completar'),
-      );
-      addAction(
-        icon: Icons.edit_calendar_outlined,
-        label: 'Reprogramar',
-        color: OcgColors.bronze,
-        onTap: () => _handleStatusAction(a, 'reprogramar'),
-      );
-    }
-
-    if (a.estado == AppointmentStatus.completada) {
-      addDivider();
-      addAction(
-        icon: Icons.lock_open_outlined,
-        label: 'Reabrir cita',
-        color: const Color(0xFF1565C0),
-        onTap: () => _handleStatusAction(a, 'reabrir'),
-      );
-    }
-
-    if (a.estado == AppointmentStatus.programada ||
-        a.estado == AppointmentStatus.confirmada) {
-      addDivider();
-      addAction(
-        icon: Icons.person_off_outlined,
-        label: 'No asistió',
-        color: const Color(0xFFC56B16),
-        onTap: () => _handleStatusAction(a, 'no_asistio'),
-      );
-      addAction(
-        icon: Icons.cancel_outlined,
-        label: 'Cancelar cita',
-        color: OcgColors.error,
-        onTap: () => _handleStatusAction(a, 'cancelar'),
-      );
-    }
-
-    return items;
-  }
-
   Widget _actionRow(IconData icon, String label, Color color) {
     return Row(
       children: [
@@ -2149,21 +2053,155 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  Widget _buildAppointmentActionsInline(AppointmentModel a) {
-    final items = _buildMenuItemsForAppointment(a);
+  /// Acciones de acceso rápido (botones visibles fuera del popup)
+  List<Widget> _buildQuickActions(AppointmentModel a) {
+    final quick = <Widget>[];
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: PopupMenuButton<_AppointmentAction>(
-        icon: const Icon(Icons.more_vert, size: 20),
-        tooltip: 'Acciones',
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        elevation: 8,
-        itemBuilder: (context) => items,
-        onSelected: (action) => action.onTap(),
+    // Dictamen — siempre visible
+    quick.add(
+      _quickActionBtn(
+        icon: Icons.description_outlined,
+        label: 'Dictamen',
+        color: OcgColors.bronze,
+        onTap: () => _handleStatusAction(a, 'dictamen'),
       ),
+    );
+
+    // Confirmar o Completar según estado
+    if (a.estado == AppointmentStatus.programada) {
+      quick.add(
+        _quickActionBtn(
+          icon: Icons.check_circle_outline,
+          label: 'Confirmar',
+          color: const Color(0xFF1565C0),
+          onTap: () => _handleStatusAction(a, 'confirmar'),
+        ),
+      );
+    } else if (a.estado == AppointmentStatus.confirmada) {
+      quick.add(
+        _quickActionBtn(
+          icon: Icons.done_all,
+          label: 'Completar',
+          color: const Color(0xFF2E7D32),
+          onTap: () => _handleStatusAction(a, 'completar'),
+        ),
+      );
+    }
+
+    return quick;
+  }
+
+  Widget _quickActionBtn({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 14),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withOpacity(0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  /// Acciones secundarias (dentro del popup)
+  List<PopupMenuEntry<_AppointmentAction>> _buildSecondaryMenuItems(AppointmentModel a) {
+    final items = <PopupMenuEntry<_AppointmentAction>>[];
+
+    items.add(
+      PopupMenuItem<_AppointmentAction>(
+        value: _AppointmentAction(
+          label: 'Perfil del paciente',
+          icon: Icons.person_outline,
+          onTap: () => _openPatientProfile(a.patientId),
+        ),
+        height: 42,
+        child: _actionRow(Icons.person_outline, 'Perfil del paciente', OcgColors.espresso),
+      ),
+    );
+
+    void addDivider() => items.add(const PopupMenuDivider(height: 1));
+    void addAction({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
+      items.add(
+        PopupMenuItem<_AppointmentAction>(
+          value: _AppointmentAction(label: label, icon: icon, color: color, onTap: onTap),
+          height: 42,
+          child: _actionRow(icon, label, color ?? OcgColors.espresso),
+        ),
+      );
+    }
+
+    if (a.estado == AppointmentStatus.programada ||
+        a.estado == AppointmentStatus.confirmada) {
+      addDivider();
+      addAction(
+        icon: Icons.edit_calendar_outlined,
+        label: 'Reprogramar',
+        color: OcgColors.bronze,
+        onTap: () => _handleStatusAction(a, 'reprogramar'),
+      );
+      addAction(
+        icon: Icons.person_off_outlined,
+        label: 'No asistió',
+        color: const Color(0xFFC56B16),
+        onTap: () => _handleStatusAction(a, 'no_asistio'),
+      );
+      addAction(
+        icon: Icons.cancel_outlined,
+        label: 'Cancelar cita',
+        color: OcgColors.error,
+        onTap: () => _handleStatusAction(a, 'cancelar'),
+      );
+    }
+
+    if (a.estado == AppointmentStatus.completada) {
+      addDivider();
+      addAction(
+        icon: Icons.lock_open_outlined,
+        label: 'Reabrir cita',
+        color: const Color(0xFF1565C0),
+        onTap: () => _handleStatusAction(a, 'reabrir'),
+      );
+    }
+
+    return items;
+  }
+
+  Widget _buildAppointmentActionsInline(AppointmentModel a) {
+    final quickActions = _buildQuickActions(a);
+    final menuItems = _buildSecondaryMenuItems(a);
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      children: [
+        ...quickActions,
+        if (menuItems.isNotEmpty)
+          PopupMenuButton<_AppointmentAction>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            tooltip: 'Más acciones',
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 8,
+            itemBuilder: (context) => menuItems,
+            onSelected: (action) => action.onTap(),
+          ),
+      ],
     );
   }
 

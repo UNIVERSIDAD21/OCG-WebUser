@@ -1304,16 +1304,20 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Firma del Paciente',
-                          style: TextStyle(
-                            color: _signatureRequired
-                                ? OcgColors.espresso
-                                : Colors.grey.withOpacity(0.5),
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Cormorant Garamond',
-                            letterSpacing: 0.3,
+                        Flexible(
+                          child: Text(
+                            'Firma del Paciente',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _signatureRequired
+                                  ? OcgColors.espresso
+                                  : Colors.grey.withOpacity(0.5),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Cormorant Garamond',
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                         if (_signatureRequired) ...[
