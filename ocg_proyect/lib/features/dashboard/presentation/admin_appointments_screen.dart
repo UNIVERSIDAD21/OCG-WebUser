@@ -20,6 +20,7 @@ import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import 'admin_appointments_agenda_helpers.dart';
 import 'admin_appointments_formatters.dart';
@@ -627,6 +628,27 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     }
   }
 
+  Widget _patientAvatar(PatientModel patient) {
+    final url = (patient.fotoUrl ?? '').trim();
+    if (url.isNotEmpty) {
+      return CircleAvatar(
+        radius: 17,
+        backgroundImage: NetworkImage(url),
+        backgroundColor: OcgColors.bronze.withOpacity(0.15),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+    return const CircleAvatar(
+      radius: 17,
+      backgroundColor: OcgColors.espresso,
+      child: Icon(
+        Icons.person,
+        size: 17,
+        color: OcgColors.ivory,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // ✅ ref.watch() aquí — si el stream emite, solo rebuild este widget,
@@ -710,6 +732,19 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                           children: filtered.take(6).map((p) {
                             return ListTile(
                               dense: true,
+                              leading: GestureDetector(
+                                onTap: () {
+                                  final url = (p.fotoUrl ?? '').trim();
+                                  if (url.isNotEmpty) {
+                                    OcgPhotoViewer.show(
+                                      context,
+                                      photoUrl: url,
+                                      patientName: p.nombre,
+                                    );
+                                  }
+                                },
+                                child: _patientAvatar(p),
+                              ),
                               title: Text(p.nombre),
                               subtitle: Text(
                                 p.telefono,
@@ -743,14 +778,19 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                   ),
                   child: Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 17,
-                        backgroundColor: OcgColors.espresso,
-                        child: Icon(
-                          Icons.person,
-                          size: 17,
-                          color: OcgColors.ivory,
-                        ),
+                      GestureDetector(
+                        onTap: () {
+                          final url =
+                              (_selectedPatient!.fotoUrl ?? '').trim();
+                          if (url.isNotEmpty) {
+                            OcgPhotoViewer.show(
+                              context,
+                              photoUrl: url,
+                              patientName: _selectedPatient!.nombre,
+                            );
+                          }
+                        },
+                        child: _patientAvatar(_selectedPatient!),
                       ),
                       const SizedBox(width: 10),
                       Expanded(

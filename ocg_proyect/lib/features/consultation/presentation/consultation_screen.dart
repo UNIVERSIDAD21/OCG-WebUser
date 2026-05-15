@@ -63,6 +63,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   Uint8List? _signatureBytes;
   bool _hasSignature = false;
   bool _showingPad = true;
+  bool _signatureRequired = true;
   final List<_ConsultationAttachment> _attachments = [];
   final GlobalKey<OcgSignaturePadState> _signaturePadKey =
       GlobalKey<OcgSignaturePadState>();
@@ -205,7 +206,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     }
 
     final sigBytes = _signatureBytes;
-    if (sigBytes == null || sigBytes.isEmpty) {
+    if (_signatureRequired && (sigBytes == null || sigBytes.isEmpty)) {
       setState(() => _errorMsg = 'La firma del paciente es obligatoria.');
       return;
     }
@@ -279,17 +280,20 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
           ? (_selectedNextStage ?? currentStage)
           : currentStage;
 
-      // 1. Subir firma a Storage
-      final signatureFileId = '${consultationId}_signature';
-      final signaturePath =
-          'patients/$patientId/consultations/signatures/$signatureFileId.png';
-      final storageRef = FirebaseStorage.instance.ref().child(signaturePath);
-      await storageRef.putData(
-        sigBytes,
-        SettableMetadata(contentType: 'image/png'),
-      );
-      final signatureUrl = await storageRef.getDownloadURL();
-      uploadedStoragePaths.add(signaturePath);
+      // 1. Subir firma a Storage (solo si fue capturada)
+      String? signatureUrl;
+      if (sigBytes != null && sigBytes.isNotEmpty) {
+        final signatureFileId = '${consultationId}_signature';
+        final signaturePath =
+            'patients/$patientId/consultations/signatures/$signatureFileId.png';
+        final storageRef = FirebaseStorage.instance.ref().child(signaturePath);
+        await storageRef.putData(
+          sigBytes,
+          SettableMetadata(contentType: 'image/png'),
+        );
+        signatureUrl = await storageRef.getDownloadURL();
+        uploadedStoragePaths.add(signaturePath);
+      }
 
       final clinicalFiles = <ClinicalFileModel>[];
       final attachmentUrls = <String>[];
@@ -1216,7 +1220,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     );
   }
 
-  // ─── Signature Card (Premium) ──────────────────────────────────────────────
+  // ─── Signature Card (Premium con Toggle) ───────────────────────────────────
 
   Widget _buildSignatureCard() {
     return Container(
@@ -1226,27 +1230,37 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, const Color(0xFFFFFDF8)],
+          colors: _signatureRequired
+              ? [Colors.white, const Color(0xFFFFFDF8)]
+              : [const Color(0xFFF5F3F0), const Color(0xFFEDEAE5)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: _signatureRequired
+              ? OcgColors.bronze.withOpacity(0.2)
+              : OcgColors.bronze.withOpacity(0.08),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.06),
+            color: OcgColors.espresso.withOpacity(
+              _signatureRequired ? 0.06 : 0.02,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 6),
           ),
-          BoxShadow(
-            color: OcgColors.bronze.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (_signatureRequired)
+            BoxShadow(
+              color: OcgColors.bronze.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header con sello ──
+          // ── Header con toggle ──
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1255,26 +1269,31 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: _hasSignature
-                        ? [const Color(0xFF166534), const Color(0xFF22C55E)]
-                        : [
-                            OcgColors.bronze.withOpacity(0.15),
-                            OcgColors.espresso.withOpacity(0.15),
-                          ],
+                    colors: _signatureRequired
+                        ? (_hasSignature
+                              ? [const Color(0xFF166534), const Color(0xFF22C55E)]
+                              : [OcgColors.bronze.withOpacity(0.15), OcgColors.espresso.withOpacity(0.15)])
+                        : [Colors.grey.withOpacity(0.1), Colors.grey.withOpacity(0.05)],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _hasSignature
-                        ? const Color(0xFF166534)
-                        : OcgColors.bronze.withOpacity(0.3),
+                    color: _signatureRequired
+                        ? (_hasSignature
+                              ? const Color(0xFF166534)
+                              : OcgColors.bronze.withOpacity(0.3))
+                        : Colors.grey.withOpacity(0.2),
                     width: 1.5,
                   ),
                 ),
                 child: Icon(
-                  _hasSignature
-                      ? Icons.shield_outlined
+                  _signatureRequired
+                      ? (_hasSignature
+                            ? Icons.shield_outlined
+                            : Icons.edit_note_rounded)
                       : Icons.edit_note_rounded,
-                  color: _hasSignature ? Colors.white : OcgColors.bronze,
+                  color: _signatureRequired
+                      ? (_hasSignature ? Colors.white : OcgColors.bronze)
+                      : Colors.grey.withOpacity(0.4),
                   size: 22,
                 ),
               ),
@@ -1285,60 +1304,89 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   children: [
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'Firma del Paciente',
                           style: TextStyle(
-                            color: OcgColors.espresso,
+                            color: _signatureRequired
+                                ? OcgColors.espresso
+                                : Colors.grey.withOpacity(0.5),
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Cormorant Garamond',
                             letterSpacing: 0.3,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: OcgColors.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: OcgColors.error.withOpacity(0.2),
-                              width: 0.5,
+                        if (_signatureRequired) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: OcgColors.error.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: OcgColors.error.withOpacity(0.2),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  size: 9,
+                                  color: OcgColors.error.withOpacity(0.7),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Req.',
+                                  style: TextStyle(
+                                    color: OcgColors.error.withOpacity(0.7),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.star_rounded,
-                                size: 9,
-                                color: OcgColors.error.withOpacity(0.7),
+                        ] else ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Opcional',
+                              style: TextStyle(
+                                color: Colors.grey.withOpacity(0.5),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
                               ),
-                              const SizedBox(width: 3),
-                              Text(
-                                'Req.',
-                                style: TextStyle(
-                                  color: OcgColors.error.withOpacity(0.7),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _hasSignature
-                          ? 'Documento firmado — listo para guardar'
-                          : 'Validación legal de la historia clínica',
+                      _signatureRequired
+                          ? (_hasSignature
+                                ? 'Documento firmado — listo para guardar'
+                                : 'Validación legal de la historia clínica')
+                          : 'Firma deshabilitada — no se solicitará al paciente',
                       style: TextStyle(
-                        color: OcgColors.bronze.withOpacity(0.55),
+                        color: _signatureRequired
+                            ? OcgColors.bronze.withOpacity(0.55)
+                            : Colors.grey.withOpacity(0.35),
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1346,156 +1394,209 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   ],
                 ),
               ),
+              // ── Toggle Switch ──
+              _buildSignatureToggle(),
             ],
           ),
           const SizedBox(height: 16),
 
-          // ── Pad de firma o firma confirmada ──
-          if (_showingPad) ...[
-            OcgSignaturePad(
-              key: _signaturePadKey,
-              height: 200,
-              onSignatureReady: (bytes) {
-                setState(() {
-                  _signatureBytes = bytes;
-                  _hasSignature = true;
-                  _showingPad = false;
-                  _errorMsg = null;
-                });
-              },
-              onSignatureCleared: () {},
-            ),
-            const SizedBox(height: 12),
-            // Botones del pad
-            Row(
-              children: [
-                InkWell(
-                  onTap: () => _signaturePadKey.currentState?.clear(),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: OcgColors.bronze.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: OcgColors.bronze.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+          // ── Pad de firma o firma confirmada (solo si requerida) ──
+          if (_signatureRequired) ...[
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              child: _showingPad
+                  ? Column(
+                      key: const ValueKey('pad'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.restart_alt_rounded,
-                          size: 16,
-                          color: OcgColors.bronze.withOpacity(0.7),
+                        OcgSignaturePad(
+                          key: _signaturePadKey,
+                          height: 200,
+                          onSignatureReady: (bytes) {
+                            setState(() {
+                              _signatureBytes = bytes;
+                              _hasSignature = true;
+                              _showingPad = false;
+                              _errorMsg = null;
+                            });
+                          },
+                          onSignatureCleared: () {},
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Limpiar',
-                          style: TextStyle(
-                            color: OcgColors.bronze.withOpacity(0.7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        const SizedBox(height: 12),
+                        // Botones del pad
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () => _signaturePadKey.currentState?.clear(),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: OcgColors.bronze.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: OcgColors.bronze.withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.restart_alt_rounded,
+                                      size: 16,
+                                      color: OcgColors.bronze.withOpacity(0.7),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Limpiar',
+                                      style: TextStyle(
+                                        color: OcgColors.bronze.withOpacity(0.7),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            FilledButton.icon(
+                              onPressed: () {
+                                _signaturePadKey.currentState?.confirmSignature();
+                              },
+                              icon: const Icon(Icons.check_circle_outline, size: 18),
+                              label: const Text('Confirmar firma'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: OcgColors.espresso,
+                                foregroundColor: OcgColors.ivory,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
+                    )
+                  : Container(
+                      key: const ValueKey('confirmed'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF166534).withOpacity(0.08),
+                            const Color(0xFF22C55E).withOpacity(0.06),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF166534).withOpacity(0.15),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF166534),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Firma capturada exitosamente',
+                                  style: TextStyle(
+                                    color: Color(0xFF166534),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  'Documento válido con firma digital del paciente',
+                                  style: TextStyle(
+                                    color: Color(0xFF166534),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _signatureBytes = null;
+                                _hasSignature = false;
+                                _showingPad = true;
+                              });
+                              _signaturePadKey.currentState?.clear();
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                              color: const Color(0xFF166534).withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: () {
-                    _signaturePadKey.currentState?.confirmSignature();
-                  },
-                  icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text('Confirmar firma'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: OcgColors.espresso,
-                    foregroundColor: OcgColors.ivory,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ] else ...[
-            // Firma confirmada - vista previa
+            // Estado deshabilitado — mensaje sutil
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF166534).withOpacity(0.08),
-                    const Color(0xFF22C55E).withOpacity(0.06),
-                  ],
-                ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFF166534).withOpacity(0.15),
+                  color: Colors.grey.withOpacity(0.12),
                   width: 1,
                 ),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF166534),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      size: 14,
-                      color: Colors.white,
+                  Icon(
+                    Icons.draw_outlined,
+                    size: 40,
+                    color: Colors.grey.withOpacity(0.25),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Firma deshabilitada',
+                    style: TextStyle(
+                      color: Colors.grey.withOpacity(0.4),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Firma capturada exitosamente',
-                          style: TextStyle(
-                            color: Color(0xFF166534),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          'Documento válido con firma digital del paciente',
-                          style: TextStyle(
-                            color: Color(0xFF166534),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _signatureBytes = null;
-                        _hasSignature = false;
-                        _showingPad = true;
-                      });
-                      _signaturePadKey.currentState?.clear();
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Icon(
-                      Icons.edit_outlined,
-                      size: 16,
-                      color: const Color(0xFF166534).withOpacity(0.6),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Actívala para capturar la firma del paciente',
+                    style: TextStyle(
+                      color: Colors.grey.withOpacity(0.3),
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -1503,6 +1604,89 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildSignatureToggle() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _signatureRequired = !_signatureRequired;
+          if (!_signatureRequired) {
+            // Al desactivar, limpiar firma y resetear pad
+            _signatureBytes = null;
+            _hasSignature = false;
+            _showingPad = true;
+            _signaturePadKey.currentState?.clear();
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+        width: 52,
+        height: 28,
+        decoration: BoxDecoration(
+          gradient: _signatureRequired
+              ? const LinearGradient(
+                  colors: [OcgColors.espresso, Color(0xFF4A3728)],
+                )
+              : null,
+          color: _signatureRequired ? null : Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _signatureRequired
+                ? OcgColors.espresso
+                : Colors.grey.withOpacity(0.25),
+            width: 1.5,
+          ),
+          boxShadow: _signatureRequired
+              ? [
+                  BoxShadow(
+                    color: OcgColors.espresso.withOpacity(0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOut,
+              alignment:
+                  _signatureRequired ? Alignment.centerRight : Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _signatureRequired ? OcgColors.ivory : Colors.grey.shade300,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _signatureRequired ? Icons.check_rounded : Icons.close_rounded,
+                    size: 14,
+                    color: _signatureRequired
+                        ? OcgColors.espresso
+                        : Colors.grey.shade500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

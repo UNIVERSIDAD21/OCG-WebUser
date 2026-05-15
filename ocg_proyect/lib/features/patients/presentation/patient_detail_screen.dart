@@ -6,6 +6,7 @@ import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
+import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
@@ -13,6 +14,7 @@ import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/domain/appointments_business_rules.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/widgets/register_payment_dialog.dart';
@@ -33,6 +35,67 @@ import 'tabs/patient_payments_tab.dart';
 import 'tabs/patient_profile_tab.dart';
 import 'tabs/patient_simulator_tab.dart';
 import 'tabs/patient_treatment_tab.dart';
+
+/// Avatar reutilizable para paciente con foto o fallback gradient.
+class _PatientAvatarWidget extends StatelessWidget {
+  const _PatientAvatarWidget({required this.patient, this.size = 56});
+
+  final PatientModel patient;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = (patient.fotoUrl ?? '').trim();
+    if (url.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _DefaultAvatarIcon(size: size),
+          loadingBuilder: (ctx, child, progress) {
+            if (progress == null) return child;
+            return Center(
+              child: SizedBox(
+                width: size * 0.35,
+                height: size * 0.35,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: OcgColors.bronze,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+    return _DefaultAvatarIcon(size: size);
+  }
+}
+
+class _DefaultAvatarIcon extends StatelessWidget {
+  const _DefaultAvatarIcon({this.size = 56});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [OcgColors.sand, OcgColors.bronze],
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person_rounded,
+        color: Colors.white,
+        size: size * 0.5,
+      ),
+    );
+  }
+}
 
 class PatientDetailScreen extends ConsumerStatefulWidget {
   const PatientDetailScreen({
@@ -286,26 +349,60 @@ class _PatientDetailView extends ConsumerWidget {
                               ? 540
                               : 480,
                         ),
-                        child: Column(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              patient.nombre,
-                              style: TextStyle(
-                                color: OcgColors.espresso,
-                                fontSize: titleSize,
-                                fontWeight: FontWeight.w700,
-                                height: 1.05,
+                            OcgPhotoTapWrapper(
+                              photoUrl: patient.fotoUrl,
+                              patientName: patient.nombre,
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                margin: const EdgeInsets.only(right: 14),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: OcgColors.bronze.withOpacity(0.25),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: OcgColors.espresso.withOpacity(0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: _PatientAvatarWidget(
+                                  patient: patient,
+                                  size: 56,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Vista clínica, financiera y operativa del paciente',
-                              style: TextStyle(
-                                color: OcgColors.bronze,
-                                fontSize: tier == AdminDesktopTier.tight
-                                    ? 12
-                                    : 13,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    patient.nombre,
+                                    style: TextStyle(
+                                      color: OcgColors.espresso,
+                                      fontSize: titleSize,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.05,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Vista clínica, financiera y operativa del paciente',
+                                    style: TextStyle(
+                                      color: OcgColors.bronze,
+                                      fontSize: tier == AdminDesktopTier.tight
+                                          ? 12
+                                          : 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -757,18 +854,28 @@ class _AdminPatientWorkspaceState
   }
 
   Future<void> _openUpdateStageDialog(PatientTreatment treatment) async {
-    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
-    await showDialog<void>(
-      context: context,
-      builder: (_) => UpdateStageDialog(
-        patientId: widget.patient.id,
-        treatmentId: treatment.id.startsWith('legacy-primary-')
-            ? null
-            : treatment.id,
-        etapaActual: treatment.etapaActual,
-        adminId: adminId,
+    final patient = widget.patient;
+    // En vez del diálogo "Avanzar etapa", abrimos el Dictamen (ConsultationScreen)
+    // Creamos una cita sintética con los datos del paciente para la navegación.
+    final syntheticAppt = AppointmentModel(
+      id: 'dictamen-${patient.id}-${DateTime.now().millisecondsSinceEpoch}',
+      patientId: patient.id,
+      patientName: patient.nombre,
+      patientPhone: patient.telefono,
+      treatmentId: treatment.id.startsWith('legacy-primary-')
+          ? null
+          : treatment.id,
+      tipo: AppointmentsBusinessRules.appointmentTypeForStage(
+        treatment.etapaActual,
       ),
+      estado: AppointmentStatus.programada,
+      fechaHora: DateTime.now(),
+      duracionMinutos: 30,
+      creadoPor: ref.read(authStateProvider).asData?.value?.uid ?? 'admin',
+      stageId: treatment.etapaActual,
     );
+    if (!mounted) return;
+    context.push(RouteNames.adminConsultation, extra: syntheticAppt);
   }
 
 
