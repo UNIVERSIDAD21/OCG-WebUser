@@ -717,18 +717,57 @@ class _AdminPatientWorkspaceState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.patient.nombre,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: OcgColors.espresso,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Contacto: $contact',
-            style: const TextStyle(color: OcgColors.ink),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OcgPhotoTapWrapper(
+                photoUrl: widget.patient.fotoUrl,
+                patientName: widget.patient.nombre,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  margin: const EdgeInsets.only(right: 14),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.25),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: OcgColors.espresso.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: _PatientAvatarWidget(
+                    patient: widget.patient,
+                    size: 56,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.patient.nombre,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Contacto: $contact',
+                      style: const TextStyle(color: OcgColors.ink),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Wrap(
