@@ -2254,7 +2254,12 @@ class _AdminAppointmentsScreenState
 
     return Container(
       margin: EdgeInsets.only(bottom: dense ? 8 : 10),
-      padding: EdgeInsets.all(dense ? 12 : 14),
+      padding: EdgeInsets.only(
+        top: dense ? 12 : 14,
+        left: dense ? 12 : 14,
+        bottom: dense ? 12 : 14,
+        right: dense ? 46 : 48, // espacio para el botón ⋮ fijo a la derecha
+      ),
       decoration: BoxDecoration(
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(dense ? 18 : 22),
@@ -2267,94 +2272,102 @@ class _AdminAppointmentsScreenState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Row(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: ui.line.withOpacity(0.11),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(agendaStatusIcon(a), color: ui.line, size: 21),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: ui.line.withOpacity(0.11),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(agendaStatusIcon(a), color: ui.line, size: 21),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.patientName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: OcgColors.espresso,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '$timeLabel · ${appointmentTypeLabel(a.tipo)} · ${a.duracionMinutos} min',
+                          style: TextStyle(
+                            color: OcgColors.ink.withOpacity(0.72),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _agendaPill(
+                    label: ui.label,
+                    color: ui.line,
+                    icon: agendaStatusIcon(a),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 10),
+              // Pills deslizables horizontalmente en móvil
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
-                    Text(
-                      a.patientName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    _agendaPill(
+                      label: agendaOperationalHint(a),
+                      color: isAgendaIncident(a) ? OcgColors.error : OcgColors.bronze,
+                      icon: isAgendaIncident(a)
+                          ? Icons.warning_amber_outlined
+                          : Icons.tips_and_updates_outlined,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '$timeLabel · ${appointmentTypeLabel(a.tipo)} · ${a.duracionMinutos} min',
-                      style: TextStyle(
-                        color: OcgColors.ink.withOpacity(0.72),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    if (a.stageName != null)
+                      _agendaPill(
+                        label: a.stageName!,
+                        color: OcgColors.bronze,
+                        icon: Icons.timeline_outlined,
                       ),
-                    ),
+                    if (autoLabel != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: autoScheduleBg(a),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          autoLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: autoScheduleFg(a),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              _agendaPill(
-                label: ui.label,
-                color: ui.line,
-                icon: agendaStatusIcon(a),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _agendaPill(
-                label: agendaOperationalHint(a),
-                color: isAgendaIncident(a) ? OcgColors.error : OcgColors.bronze,
-                icon: isAgendaIncident(a)
-                    ? Icons.warning_amber_outlined
-                    : Icons.tips_and_updates_outlined,
-              ),
-              if (a.stageName != null)
-                _agendaPill(
-                  label: a.stageName!,
-                  color: OcgColors.bronze,
-                  icon: Icons.timeline_outlined,
-                ),
-              if (autoLabel != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: autoScheduleBg(a),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    autoLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: autoScheduleFg(a),
-                    ),
-                  ),
-                ),
-            ],
-          ),
           if ((a.notas ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -2379,8 +2392,25 @@ class _AdminAppointmentsScreenState
           _buildAppointmentActionsInline(a),
         ],
       ),
-    );
-  }
+      // ── Botón ⋮ fijo en esquina inferior derecha ──
+      Positioned(
+        right: 0,
+        bottom: 0,
+        child: PopupMenuButton<_AppointmentAction>(
+          icon: const Icon(Icons.more_vert, size: 20),
+          tooltip: 'Más acciones',
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 8,
+          itemBuilder: (context) => _buildSecondaryMenuItems(a),
+          onSelected: (action) => action.onTap(),
+        ),
+      ),
+    ],
+    ),
+  );
+}
 
   Widget _buildQuickFilters(
     List<AppointmentModel> appointments,
