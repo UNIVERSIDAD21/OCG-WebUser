@@ -111,6 +111,7 @@ class UploadClinicalFileNotifier extends AsyncNotifier<void> {
           id: fileId,
           patientId: patientId,
           treatmentId: treatment?.id,
+          sourceType: 'manual_upload',
           treatmentNameSnapshot: treatment?.displayName,
           originalName: picked.fileName,
           displayName: displayName.trim().isEmpty

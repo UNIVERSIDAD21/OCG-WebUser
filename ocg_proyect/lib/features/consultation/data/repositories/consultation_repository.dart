@@ -29,6 +29,18 @@ class ConsultationRepository {
   String newConsultationId(String patientId) =>
       _consultationsRef(patientId).doc().id;
 
+  String? _cleanId(String? value) {
+    final clean = value?.trim();
+    if (clean == null || clean.isEmpty) return null;
+    return clean;
+  }
+
+  bool _shouldUpdateAppointment(String? appointmentId) {
+    final clean = _cleanId(appointmentId);
+    if (clean == null) return false;
+    return !clean.startsWith('dictamen-');
+  }
+
   // ─── Streams ──────────────────────────────────────────────────────────────
 
   Stream<List<ConsultationModel>> watchPatientConsultations(String patientId) {
@@ -69,37 +81,77 @@ class ConsultationRepository {
     if (consultationId.isEmpty) {
       throw ArgumentError('consultation.id is required');
     }
+    final patientId = consultation.patientId.trim();
+    if (patientId.isEmpty) {
+      throw ArgumentError('consultation.patientId is required');
+    }
 
     final now = DateTime.now();
     final batch = _db.batch();
-    final consultationRef = _consultationRef(
-      consultation.patientId,
-      consultationId,
-    );
-    final clinicalFileIds = clinicalFiles.map((file) => file.id).toList();
+    final consultationRef = _consultationRef(patientId, consultationId);
+    final cleanAppointmentId = _cleanId(appointmentId);
+    final cleanTreatmentId =
+        _cleanId(treatmentId) ?? _cleanId(consultation.treatmentId);
+    final hasTreatment = cleanTreatmentId != null;
+    final consultationStage = consultation.stageId ?? currentStage;
+    final consultationStageName =
+        consultation.stageNameSnapshot ??
+        stageNames[consultationStage] ??
+        consultationStage.name;
+    final consultationTreatmentName = consultation.treatmentNameSnapshot;
+    final normalizedClinicalFiles = clinicalFiles.map((file) {
+      final fileId = file.id.trim();
+      if (fileId.isEmpty) {
+        throw ArgumentError('clinicalFiles cannot contain empty ids');
+      }
+      if (file.patientId.trim() != patientId) {
+        throw ArgumentError(
+          'clinicalFile.patientId must match consultation.patientId',
+        );
+      }
+
+      return file.copyWith(
+        id: fileId,
+        patientId: patientId,
+        treatmentId: cleanTreatmentId,
+        consultationId: consultationId,
+        sourceType: _cleanId(file.sourceType) ?? 'consultation_attachment',
+        sourceId: _cleanId(file.sourceId) ?? consultationId,
+        treatmentNameSnapshot: consultationTreatmentName,
+        stageId: file.stageId ?? consultationStage.name,
+        stageNameSnapshot: file.stageNameSnapshot ?? consultationStageName,
+        clearTreatment: !hasTreatment,
+      );
+    }).toList();
+    final clinicalFileIds = normalizedClinicalFiles
+        .map((file) => file.id)
+        .toList(growable: false);
 
     batch.set(consultationRef, {
       ...consultation.toJson(),
+      'patientId': patientId,
+      'appointmentId': consultation.appointmentId ?? cleanAppointmentId,
+      'treatmentId': cleanTreatmentId,
+      'treatmentNameSnapshot': consultationTreatmentName,
+      'stageId': consultationStage.name,
+      'stageNameSnapshot': consultationStageName,
       'clinicalFileIds': clinicalFileIds,
     }, SetOptions(merge: true));
 
-    for (final file in clinicalFiles) {
+    for (final file in normalizedClinicalFiles) {
       final fileRef = _db
           .collection(FirestorePaths.patientClinicalFiles(file.patientId))
           .doc(file.id);
       batch.set(fileRef, file.toJson(), SetOptions(merge: true));
     }
 
-    final cleanTreatmentId = treatmentId?.trim();
-    final hasTreatment =
-        cleanTreatmentId != null && cleanTreatmentId.isNotEmpty;
     final shouldMirrorToPatientHistory = !hasTreatment || treatmentIsPrimary;
     final shouldUpdateStageProjection =
         advancePhase && resultingStage != currentStage;
 
     final historyEntry = StageHistoryEntry(
       id: '',
-      patientId: consultation.patientId,
+      patientId: patientId,
       treatmentId: cleanTreatmentId ?? '',
       etapaAnterior: currentStage,
       etapaNueva: resultingStage,
@@ -123,10 +175,7 @@ class ConsultationRepository {
 
     if (hasTreatment) {
       final treatmentRef = _db.doc(
-        FirestorePaths.patientTreatmentDoc(
-          consultation.patientId,
-          cleanTreatmentId,
-        ),
+        FirestorePaths.patientTreatmentDoc(patientId, cleanTreatmentId),
       );
       if (shouldUpdateStageProjection) {
         batch.update(treatmentRef, {
@@ -139,10 +188,7 @@ class ConsultationRepository {
 
       final treatmentHistoryRef = _db
           .collection(
-            FirestorePaths.treatmentStageHistory(
-              consultation.patientId,
-              cleanTreatmentId,
-            ),
+            FirestorePaths.treatmentStageHistory(patientId, cleanTreatmentId),
           )
           .doc();
       batch.set(
@@ -154,9 +200,7 @@ class ConsultationRepository {
     }
 
     if (shouldMirrorToPatientHistory) {
-      final patientRef = _db
-          .collection(FirestorePaths.patients)
-          .doc(consultation.patientId);
+      final patientRef = _db.collection(FirestorePaths.patients).doc(patientId);
       if (shouldUpdateStageProjection) {
         batch.update(patientRef, {
           'etapaActual': resultingStage.name,
@@ -165,7 +209,7 @@ class ConsultationRepository {
       }
 
       final patientHistoryRef = _db
-          .collection(FirestorePaths.stageHistory(consultation.patientId))
+          .collection(FirestorePaths.stageHistory(patientId))
           .doc();
       batch.set(
         patientHistoryRef,
@@ -178,11 +222,16 @@ class ConsultationRepository {
       );
     }
 
-    if (appointmentId.trim().isNotEmpty) {
+    if (_shouldUpdateAppointment(cleanAppointmentId)) {
       batch.update(
-        _db.collection(FirestorePaths.appointments).doc(appointmentId),
+        _db.collection(FirestorePaths.appointments).doc(cleanAppointmentId),
         {
           'estado': AppointmentStatus.completada.name,
+          'consultationId': consultationId,
+          'treatmentId': cleanTreatmentId,
+          'treatmentNameSnapshot': consultationTreatmentName,
+          'stageId': consultationStage.name,
+          'stageNameSnapshot': consultationStageName,
           'lastActionByRole': 'admin',
           'lastActionBy': actorId,
           'updatedByRole': 'admin',

@@ -12,6 +12,8 @@ import '../../notifications/providers/notifications_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
+import '../../treatment/providers/patient_treatments_provider.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
@@ -360,7 +362,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   late final TextEditingController _notesCtrl;
 
   PatientModel? _selectedPatient;
-  AppointmentType? _type; // derivado de la fase del paciente
+  String? _selectedTreatmentId;
   final int _durationMinutes = 30;
   late DateTime _dateTime;
   bool _saving = false;
@@ -374,11 +376,6 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     final seed = widget.baseDate ?? DateTime.now();
     _dateTime = DateTime(seed.year, seed.month, seed.day, 10, 0);
     _selectedPatient = widget.preselectedPatient;
-    _type = _selectedPatient != null
-        ? AppointmentsBusinessRules.appointmentTypeForStage(
-            _selectedPatient!.etapaActual,
-          )
-        : null;
     _searchCtrl = TextEditingController(
       text: widget.preselectedPatient?.nombre ?? '',
     );
@@ -416,6 +413,68 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
           ),
         )
         .toList();
+  }
+
+  bool _isWritableTreatment(PatientTreatment treatment) =>
+      !treatment.id.startsWith('legacy-primary-');
+
+  List<PatientTreatment> _writableTreatments(
+    List<PatientTreatment> treatments,
+  ) {
+    return treatments.where(_isWritableTreatment).toList();
+  }
+
+  PatientTreatment? _resolveSelectedTreatment(
+    List<PatientTreatment> treatments,
+  ) {
+    final writable = _writableTreatments(treatments);
+    if (writable.isEmpty) return null;
+
+    final selectedId = _selectedTreatmentId;
+    if (selectedId != null && selectedId.isNotEmpty) {
+      for (final treatment in writable) {
+        if (treatment.id == selectedId) return treatment;
+      }
+    }
+
+    for (final treatment in writable) {
+      if (treatment.isPrimary && treatment.isActive) return treatment;
+    }
+    for (final treatment in writable) {
+      if (treatment.isActive) return treatment;
+    }
+    for (final treatment in writable) {
+      if (treatment.isPrimary) return treatment;
+    }
+    return writable.first;
+  }
+
+  TreatmentStage _appointmentStage(PatientTreatment? treatment) {
+    return treatment?.etapaActual ??
+        _selectedPatient?.etapaActual ??
+        TreatmentStage.valoracionInicial;
+  }
+
+  AppointmentType? _appointmentTypeFor(PatientTreatment? treatment) {
+    final patient = _selectedPatient;
+    if (patient == null) return null;
+    return AppointmentsBusinessRules.appointmentTypeForStage(
+      _appointmentStage(treatment),
+    );
+  }
+
+  void _selectPatient(PatientModel patient) {
+    _selectedPatient = patient;
+    _selectedTreatmentId = null;
+    _searchCtrl.text = patient.nombre;
+    _errorMsg = null;
+  }
+
+  void _clearSelectedPatient() {
+    _selectedPatient = null;
+    _selectedTreatmentId = null;
+    _searchCtrl.clear();
+    _errorMsg = null;
   }
 
   Future<void> _pickDateTime() async {
@@ -546,12 +605,14 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(PatientTreatment? selectedTreatment) async {
     if (_selectedPatient == null) {
       setState(() => _errorMsg = 'Selecciona un paciente de la lista.');
       return;
     }
-    if (_type == null) {
+    final effectiveType = _appointmentTypeFor(selectedTreatment);
+    final effectiveStage = _appointmentStage(selectedTreatment);
+    if (effectiveType == null) {
       setState(
         () => _errorMsg =
             'No se pudo determinar el tipo de cita para la fase actual del paciente.',
@@ -603,13 +664,17 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               patientId: _selectedPatient!.id,
               patientName: _selectedPatient!.nombre,
               patientPhone: _selectedPatient!.telefono,
+              treatmentId: selectedTreatment?.id,
+              treatmentNameSnapshot: selectedTreatment?.displayName,
               creadoPor: 'admin',
-              tipo: _type!,
+              tipo: effectiveType,
               estado: AppointmentStatus.programada,
               fechaHora: _dateTime,
               duracionMinutos: _durationMinutes,
               notas: notasTexto.isEmpty ? null : notasTexto,
-              stageId: _selectedPatient!.etapaActual,
+              stageId: effectiveStage,
+              stageNameSnapshot:
+                  stageNames[effectiveStage] ?? effectiveStage.name,
             ),
           );
       popDialog(context);
@@ -641,11 +706,63 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     return const CircleAvatar(
       radius: 17,
       backgroundColor: OcgColors.espresso,
-      child: Icon(
-        Icons.person,
-        size: 17,
-        color: OcgColors.ivory,
+      child: Icon(Icons.person, size: 17, color: OcgColors.ivory),
+    );
+  }
+
+  Widget _treatmentAssociationCard({
+    required List<PatientTreatment> treatments,
+    required PatientTreatment? selectedTreatment,
+  }) {
+    if (_selectedPatient == null) return const SizedBox.shrink();
+
+    if (treatments.isEmpty) {
+      return _flowInfoCard(
+        icon: Icons.link_off_outlined,
+        title: 'Cita sin tratamiento asociado',
+        subtitle:
+            'Este paciente no tiene tratamientos nuevos disponibles. La cita queda en modo legacy hasta crear o migrar un tratamiento.',
+        color: const Color(0xFF9A5B2C),
+      );
+    }
+
+    if (treatments.length == 1) {
+      final treatment = treatments.first;
+      return _flowInfoCard(
+        icon: Icons.medical_services_outlined,
+        title: 'Tratamiento asociado',
+        subtitle:
+            '${treatment.displayName} - ${stageNames[treatment.etapaActual] ?? treatment.etapaActual.name}',
+        color: OcgColors.bronze,
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      value: selectedTreatment?.id,
+      decoration: const InputDecoration(
+        labelText: 'Tratamiento asociado',
+        prefixIcon: Icon(Icons.medical_services_outlined),
+        helperText: 'Obligatorio cuando el paciente tiene varios tratamientos.',
       ),
+      items: treatments
+          .map(
+            (treatment) => DropdownMenuItem<String>(
+              value: treatment.id,
+              child: Text(
+                treatment.isPrimary
+                    ? '${treatment.displayName} - principal'
+                    : treatment.displayName,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: _saving
+          ? null
+          : (value) => setState(() {
+              _selectedTreatmentId = value;
+              _errorMsg = null;
+            }),
     );
   }
 
@@ -659,6 +776,19 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
         .watch(availabilityByDayProvider(appointmentDayKey(_dateTime)))
         .asData
         ?.value;
+    final selectedPatient = _selectedPatient;
+    final treatments = selectedPatient == null
+        ? const <PatientTreatment>[]
+        : ref.watch(
+            effectivePatientTreatmentsProvider((
+              patientId: selectedPatient.id,
+              patient: selectedPatient,
+            )),
+          );
+    final writableTreatments = _writableTreatments(treatments);
+    final selectedTreatment = _resolveSelectedTreatment(treatments);
+    final effectiveStage = _appointmentStage(selectedTreatment);
+    final effectiveType = _appointmentTypeFor(selectedTreatment);
 
     // Lista filtrada — solo se calcula en build, no en StatefulBuilder
     final filtered = _searchCtrl.text.isEmpty
@@ -694,15 +824,13 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       ? IconButton(
                           icon: const Icon(Icons.close, size: 18),
                           tooltip: 'Cambiar paciente',
-                          onPressed: () => setState(() {
-                            _selectedPatient = null;
-                            _searchCtrl.clear();
-                          }),
+                          onPressed: () => setState(_clearSelectedPatient),
                         )
                       : null,
                 ),
                 onChanged: (_) => setState(() {
                   _selectedPatient = null;
+                  _selectedTreatmentId = null;
                   _errorMsg = null;
                 }),
               ),
@@ -750,14 +878,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                                 p.telefono,
                                 style: const TextStyle(fontSize: 11),
                               ),
-                              onTap: () => setState(() {
-                                _selectedPatient = p;
-                                _searchCtrl.text = p.nombre;
-                                _type = AppointmentsBusinessRules.appointmentTypeForStage(
-                                  p.etapaActual,
-                                );
-                                _errorMsg = null;
-                              }),
+                              onTap: () => setState(() => _selectPatient(p)),
                             );
                           }).toList(),
                         ),
@@ -780,8 +901,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          final url =
-                              (_selectedPatient!.fotoUrl ?? '').trim();
+                          final url = (_selectedPatient!.fotoUrl ?? '').trim();
                           if (url.isNotEmpty) {
                             OcgPhotoViewer.show(
                               context,
@@ -820,10 +940,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                       ),
                       IconButton(
                         tooltip: 'Cambiar paciente',
-                        onPressed: () => setState(() {
-                          _selectedPatient = null;
-                          _searchCtrl.clear();
-                        }),
+                        onPressed: () => setState(_clearSelectedPatient),
                         icon: const Icon(Icons.close, size: 18),
                       ),
                     ],
@@ -831,16 +948,26 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 ),
               ],
 
+              if (_selectedPatient != null) ...[
+                const SizedBox(height: 10),
+                _treatmentAssociationCard(
+                  treatments: writableTreatments,
+                  selectedTreatment: selectedTreatment,
+                ),
+              ],
+
               const SizedBox(height: 12),
 
               // ── Tipo de cita (derivado de la fase del tratamiento) ────
-              if (_type != null && _selectedPatient != null)
+              if (effectiveType != null && _selectedPatient != null)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: OcgColors.bronze.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: OcgColors.bronze.withOpacity(0.2)),
+                    border: Border.all(
+                      color: OcgColors.bronze.withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -863,7 +990,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                               ),
                             ),
                             Text(
-                              appointmentTypeLabel(_type!),
+                              appointmentTypeLabel(effectiveType),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -883,8 +1010,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          stageNames[_selectedPatient!.etapaActual] ??
-                              _selectedPatient!.etapaActual.name,
+                          stageNames[effectiveStage] ?? effectiveStage.name,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -1121,7 +1247,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
             backgroundColor: OcgColors.bronze,
             foregroundColor: OcgColors.ivory,
           ),
-          onPressed: _saving ? null : _submit,
+          onPressed: _saving ? null : () => _submit(selectedTreatment),
           child: _saving
               ? const SizedBox(
                   width: 18,
@@ -1720,14 +1846,13 @@ class _AdminAppointmentsScreenState
 
   /// ✅ NUEVO: navegar a la pantalla de consultación clínica
   /// en vez de completar la cita directamente.
+  // ignore: unused_element
   Future<void> _onCompletarCitaConDictamen(AppointmentModel appt) async {
     if (!mounted) return;
-    context.push(
-      RouteNames.adminConsultation,
-      extra: appt,
-    );
+    context.push(RouteNames.adminConsultation, extra: appt);
   }
 
+  // ignore: unused_element
   Future<Map<String, dynamic>?> _showValoracionDictamenDialog({
     required String patientName,
   }) async {
@@ -1841,7 +1966,7 @@ class _AdminAppointmentsScreenState
                 onPressed: (selected == null || !montoOk)
                     ? null
                     : () => popDialog(ctx, {
-                          'tipoTratamiento': selected,
+                        'tipoTratamiento': selected,
                         'totalTratamiento': double.parse(
                           montoCtrl.text.replaceAll(',', '.').trim(),
                         ),
@@ -2110,15 +2235,15 @@ class _AdminAppointmentsScreenState
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   /// Acciones secundarias (dentro del popup)
-  List<PopupMenuEntry<_AppointmentAction>> _buildSecondaryMenuItems(AppointmentModel a) {
+  List<PopupMenuEntry<_AppointmentAction>> _buildSecondaryMenuItems(
+    AppointmentModel a,
+  ) {
     final items = <PopupMenuEntry<_AppointmentAction>>[];
 
     items.add(
@@ -2129,15 +2254,29 @@ class _AdminAppointmentsScreenState
           onTap: () => _openPatientProfile(a.patientId),
         ),
         height: 42,
-        child: _actionRow(Icons.person_outline, 'Perfil del paciente', OcgColors.espresso),
+        child: _actionRow(
+          Icons.person_outline,
+          'Perfil del paciente',
+          OcgColors.espresso,
+        ),
       ),
     );
 
     void addDivider() => items.add(const PopupMenuDivider(height: 1));
-    void addAction({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
+    void addAction({
+      required IconData icon,
+      required String label,
+      Color? color,
+      required VoidCallback onTap,
+    }) {
       items.add(
         PopupMenuItem<_AppointmentAction>(
-          value: _AppointmentAction(label: label, icon: icon, color: color, onTap: onTap),
+          value: _AppointmentAction(
+            label: label,
+            icon: icon,
+            color: color,
+            onTap: onTap,
+          ),
           height: 42,
           child: _actionRow(icon, label, color ?? OcgColors.espresso),
         ),
@@ -2182,26 +2321,12 @@ class _AdminAppointmentsScreenState
 
   Widget _buildAppointmentActionsInline(AppointmentModel a) {
     final quickActions = _buildQuickActions(a);
-    final menuItems = _buildSecondaryMenuItems(a);
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       alignment: WrapAlignment.end,
-      children: [
-        ...quickActions,
-        if (menuItems.isNotEmpty)
-          PopupMenuButton<_AppointmentAction>(
-            icon: const Icon(Icons.more_vert, size: 20),
-            tooltip: 'Más acciones',
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: 8,
-            itemBuilder: (context) => menuItems,
-            onSelected: (action) => action.onTap(),
-          ),
-      ],
+      children: [...quickActions],
     );
   }
 
@@ -2335,7 +2460,9 @@ class _AdminAppointmentsScreenState
                   children: [
                     _agendaPill(
                       label: agendaOperationalHint(a),
-                      color: isAgendaIncident(a) ? OcgColors.error : OcgColors.bronze,
+                      color: isAgendaIncident(a)
+                          ? OcgColors.error
+                          : OcgColors.bronze,
                       icon: isAgendaIncident(a)
                           ? Icons.warning_amber_outlined
                           : Icons.tips_and_updates_outlined,
@@ -2368,49 +2495,49 @@ class _AdminAppointmentsScreenState
                   ],
                 ),
               ),
-          if ((a.notas ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F1EA),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                'Notas clínicas: ${a.notas!.trim()}',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  height: 1.25,
-                  color: OcgColors.ink.withOpacity(0.78),
-                  fontStyle: FontStyle.italic,
+              if ((a.notas ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F1EA),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    'Notas clínicas: ${a.notas!.trim()}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.25,
+                      color: OcgColors.ink.withOpacity(0.78),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ),
+              ],
+              const SizedBox(height: 10),
+              _buildAppointmentActionsInline(a),
+            ],
+          ),
+          // ── Botón ⋮ fijo en esquina inferior derecha ──
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: PopupMenuButton<_AppointmentAction>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              tooltip: 'Más acciones',
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
+              elevation: 8,
+              itemBuilder: (context) => _buildSecondaryMenuItems(a),
+              onSelected: (action) => action.onTap(),
             ),
-          ],
-          const SizedBox(height: 10),
-          _buildAppointmentActionsInline(a),
+          ),
         ],
       ),
-      // ── Botón ⋮ fijo en esquina inferior derecha ──
-      Positioned(
-        right: 0,
-        bottom: 0,
-        child: PopupMenuButton<_AppointmentAction>(
-          icon: const Icon(Icons.more_vert, size: 20),
-          tooltip: 'Más acciones',
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 8,
-          itemBuilder: (context) => _buildSecondaryMenuItems(a),
-          onSelected: (action) => action.onTap(),
-        ),
-      ),
-    ],
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildQuickFilters(
     List<AppointmentModel> appointments,
@@ -2544,11 +2671,7 @@ class _AdminAppointmentsScreenState
     final chipColor = accentColor ?? OcgColors.espresso;
     return ChoiceChip(
       selected: active,
-      avatar: Icon(
-        icon,
-        size: 14,
-        color: active ? OcgColors.ivory : chipColor,
-      ),
+      avatar: Icon(icon, size: 14, color: active ? OcgColors.ivory : chipColor),
       label: Text('$label · $count'),
       selectedColor: chipColor,
       backgroundColor: Colors.white,
@@ -2557,9 +2680,7 @@ class _AdminAppointmentsScreenState
         fontWeight: FontWeight.w700,
         fontSize: 11,
       ),
-      side: BorderSide(
-        color: active ? chipColor : const Color(0xFFD9CCBE),
-      ),
+      side: BorderSide(color: active ? chipColor : const Color(0xFFD9CCBE)),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
       onSelected: (_) => setState(() => _incidenceSubFilter = filter),
@@ -2645,9 +2766,9 @@ class _AdminAppointmentsScreenState
           AgendaIncidenceSubFilter.todas => true,
           AgendaIncidenceSubFilter.perdidas => isLostAppointment(a),
           AgendaIncidenceSubFilter.canceladas =>
-              a.estado == AppointmentStatus.cancelada,
+            a.estado == AppointmentStatus.cancelada,
           AgendaIncidenceSubFilter.reprogramadas =>
-              a.estado == AppointmentStatus.reprogramada,
+            a.estado == AppointmentStatus.reprogramada,
         };
       }).toList();
     }
@@ -2687,7 +2808,7 @@ class _AdminAppointmentsScreenState
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (incidenceSubFilterBar != null) incidenceSubFilterBar,
+              ?incidenceSubFilterBar,
               _agendaEmptyState(
                 title:
                     'Sin citas en ${quickFilterLabel(_dayQuickFilter).toLowerCase()}',
@@ -2706,7 +2827,7 @@ class _AdminAppointmentsScreenState
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (incidenceSubFilterBar != null) incidenceSubFilterBar,
+              ?incidenceSubFilterBar,
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
@@ -3200,11 +3321,8 @@ class _AdminAppointmentsScreenState
                 },
               ),
               ...groups[key]!.map(
-                (a) => _buildAgendaAppointmentCard(
-                  a,
-                  showDate: true,
-                  dense: true,
-                ),
+                (a) =>
+                    _buildAgendaAppointmentCard(a, showDate: true, dense: true),
               ),
             ],
             if (hasMore)
@@ -3635,7 +3753,11 @@ class _AdminAppointmentsScreenState
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
           SliverToBoxAdapter(
-            child: _buildMobileAgendaHero(context, loadedAppointments, selectedDate),
+            child: _buildMobileAgendaHero(
+              context,
+              loadedAppointments,
+              selectedDate,
+            ),
           ),
           SliverToBoxAdapter(child: _buildInnerTabs()),
         ];
@@ -3975,7 +4097,11 @@ class AppointmentCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.timeline_outlined, size: 12, color: OcgColors.bronze),
+                    Icon(
+                      Icons.timeline_outlined,
+                      size: 12,
+                      color: OcgColors.bronze,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Fase: ${appointment.stageName}',

@@ -31,7 +31,7 @@ class PatientTreatmentsRepository {
   Future<List<PatientTreatment>> getPatientTreatments(String patientId) async {
     final snap = await _treatmentsRef(patientId).get();
     return snap.docs
-        .map((doc) => PatientTreatment.fromJson(doc.data()))
+        .map((doc) => PatientTreatment.fromJson(doc.data(), id: doc.id))
         .toList();
   }
 
@@ -320,6 +320,7 @@ class PatientTreatmentsRepository {
           patientName: patientName,
           patientPhone: patientPhone,
           treatmentId: treatment.id,
+          treatmentNameSnapshot: treatment.displayName,
           tipo: AppointmentType.control,
           estado: AppointmentStatus.programada,
           fechaHora: when,
@@ -328,6 +329,8 @@ class PatientTreatmentsRepository {
           notas: item.notes,
           createdAt: DateTime.now(),
           stageId: treatment.etapaActual,
+          stageNameSnapshot:
+              stageNames[treatment.etapaActual] ?? treatment.etapaActual.name,
         );
         await ref.set({...appointment.toJson(), 'autoScheduleKind': item.kind});
       } else {

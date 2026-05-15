@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../app/router/route_names.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
@@ -24,11 +26,13 @@ class PatientClinicalHistoryTab extends ConsumerStatefulWidget {
     required this.patientId,
     required this.patient,
     this.scrollable = true,
+    this.initialTreatmentId,
   });
 
   final String patientId;
   final PatientModel patient;
   final bool scrollable;
+  final String? initialTreatmentId;
 
   @override
   ConsumerState<PatientClinicalHistoryTab> createState() =>
@@ -40,6 +44,42 @@ class _PatientClinicalHistoryTabState
   String? _selectedTreatmentId;
   String? _selectedCategory;
   _ClinicalVisibilityFilter _visibilityFilter = _ClinicalVisibilityFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+  }
+
+  @override
+  void didUpdateWidget(covariant PatientClinicalHistoryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId ||
+        oldWidget.initialTreatmentId != widget.initialTreatmentId) {
+      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+    }
+  }
+
+  String? _cleanTreatmentId(String? value) {
+    final clean = value?.trim();
+    if (clean == null || clean.isEmpty) return null;
+    return clean;
+  }
+
+  String _patientTreatmentHistoryLocation(String treatmentId) {
+    final path = RouteNames.adminPatientDetail.replaceFirst(
+      ':patientId',
+      widget.patientId,
+    );
+    return Uri(
+      path: path,
+      queryParameters: <String, String>{
+        'section': 'tratamientos',
+        'treatmentId': treatmentId,
+        'focus': 'history',
+      },
+    ).toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -241,6 +281,14 @@ class _PatientClinicalHistoryTabState
                     .map(
                       (file) => _ClinicalFileTile(
                         file: file,
+                        onOpenTreatmentHistory:
+                            (file.treatmentId ?? '').trim().isEmpty
+                            ? null
+                            : () => context.go(
+                                _patientTreatmentHistoryLocation(
+                                  file.treatmentId!.trim(),
+                                ),
+                              ),
                         onDelete: () => _deleteFile(file),
                       ),
                     )
@@ -598,7 +646,8 @@ class _PatientClinicalHistoryTabState
       context,
       type: OcgConfirmDialogType.danger,
       title: 'Desactivar documento',
-      message: '¿Deseas desactivar "${file.displayName}"? El archivo dejará de aparecer en el expediente activo.',
+      message:
+          '¿Deseas desactivar "${file.displayName}"? El archivo dejará de aparecer en el expediente activo.',
       confirmLabel: 'Desactivar',
       onConfirm: () {},
     );
@@ -723,10 +772,15 @@ class _ClinicalUploadProgressCard extends StatelessWidget {
 }
 
 class _ClinicalFileTile extends StatelessWidget {
-  const _ClinicalFileTile({required this.file, required this.onDelete});
+  const _ClinicalFileTile({
+    required this.file,
+    required this.onDelete,
+    this.onOpenTreatmentHistory,
+  });
 
   final ClinicalFileModel file;
   final VoidCallback onDelete;
+  final VoidCallback? onOpenTreatmentHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -863,6 +917,18 @@ class _ClinicalFileTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onOpenTreatmentHistory != null)
+                OutlinedButton.icon(
+                  onPressed: onOpenTreatmentHistory,
+                  icon: const Icon(Icons.history_outlined, size: 16),
+                  label: const Text('Ver historial clÃ­nico'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OcgColors.espresso,
+                    side: BorderSide(
+                      color: OcgColors.bronze.withValues(alpha: 0.42),
+                    ),
+                  ),
+                ),
               TextButton.icon(
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline, size: 16),

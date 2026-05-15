@@ -30,11 +30,15 @@ class PatientTreatmentTab extends ConsumerStatefulWidget {
     required this.patientId,
     required this.patient,
     this.scrollable = true,
+    this.initialTreatmentId,
+    this.focusHistory = false,
   });
 
   final String patientId;
   final PatientModel patient;
   final bool scrollable;
+  final String? initialTreatmentId;
+  final bool focusHistory;
 
   @override
   ConsumerState<PatientTreatmentTab> createState() =>
@@ -45,6 +49,8 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   String? _selectedTreatmentId;
   bool _legacyMigrationQueued = false;
   String? _ensuredFinancialItemsForTreatmentId;
+  bool _historyFocusPending = false;
+  final GlobalKey _historySectionKey = GlobalKey();
 
   final NumberFormat _currency = NumberFormat.currency(
     locale: 'es_CO',
@@ -53,13 +59,68 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+    _historyFocusPending = widget.focusHistory;
+  }
+
+  @override
   void didUpdateWidget(covariant PatientTreatmentTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId) {
-      _selectedTreatmentId = null;
+      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
       _legacyMigrationQueued = false;
       _ensuredFinancialItemsForTreatmentId = null;
     }
+    if (oldWidget.initialTreatmentId != widget.initialTreatmentId) {
+      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+    }
+    if (oldWidget.focusHistory != widget.focusHistory ||
+        oldWidget.initialTreatmentId != widget.initialTreatmentId) {
+      _historyFocusPending = widget.focusHistory;
+    }
+  }
+
+  String? _cleanTreatmentId(String? value) {
+    final clean = value?.trim();
+    if (clean == null || clean.isEmpty) return null;
+    return clean;
+  }
+
+  void _scheduleHistoryFocusIfNeeded() {
+    if (!_historyFocusPending) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final targetContext = _historySectionKey.currentContext;
+      if (targetContext == null) return;
+      _historyFocusPending = false;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    });
+  }
+
+  void _openTreatmentHistory(PatientTreatment treatment) {
+    context.go(_patientTreatmentHistoryLocation(treatment.id));
+  }
+
+  String _patientTreatmentHistoryLocation(String treatmentId) {
+    final path = RouteNames.adminPatientDetail.replaceFirst(
+      ':patientId',
+      widget.patientId,
+    );
+    return Uri(
+      path: path,
+      queryParameters: <String, String>{
+        'section': 'tratamientos',
+        'treatmentId': treatmentId,
+        'focus': 'history',
+      },
+    ).toString();
   }
 
   @override
@@ -170,106 +231,109 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
               subtitle: '$error',
             ),
           ),
-          data: (history) => LayoutBuilder(
-            builder: (context, constraints) {
-              final isMobile = constraints.maxWidth < 700;
-              if (isMobile) {
-                return _buildMobileTreatmentView(
-                  context,
-                  selectedTreatment,
-                  summary,
-                  activeItems,
-                  history,
-                  saveState.isLoading,
-                );
-              }
+          data: (history) {
+            _scheduleHistoryFocusIfNeeded();
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 700;
+                if (isMobile) {
+                  return _buildMobileTreatmentView(
+                    context,
+                    selectedTreatment,
+                    summary,
+                    activeItems,
+                    history,
+                    saveState.isLoading,
+                  );
+                }
 
-              final content = Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHero(
-                      context,
-                      treatments,
-                      selectedTreatment,
-                      summary,
-                      saveState.isLoading,
-                    ),
-                    const SizedBox(height: 18),
-                    _buildTreatmentSelector(
-                      treatments,
-                      selectedTreatment,
-                      patientDataMode,
-                    ),
-                    const SizedBox(height: 18),
-                    _buildSummaryGrid(selectedTreatment, treatments, summary),
-                    const SizedBox(height: 18),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final singleColumn = constraints.maxWidth < 1180;
-                        if (singleColumn) {
-                          return Column(
+                final content = Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHero(
+                        context,
+                        treatments,
+                        selectedTreatment,
+                        summary,
+                        saveState.isLoading,
+                      ),
+                      const SizedBox(height: 18),
+                      _buildTreatmentSelector(
+                        treatments,
+                        selectedTreatment,
+                        patientDataMode,
+                      ),
+                      const SizedBox(height: 18),
+                      _buildSummaryGrid(selectedTreatment, treatments, summary),
+                      const SizedBox(height: 18),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final singleColumn = constraints.maxWidth < 1180;
+                          if (singleColumn) {
+                            return Column(
+                              children: [
+                                _buildClinicalColumn(
+                                  context,
+                                  selectedTreatment,
+                                  treatments,
+                                  history,
+                                  adminId,
+                                ),
+                                const SizedBox(height: 18),
+                                _buildFinancialColumn(
+                                  context,
+                                  selectedTreatment,
+                                  summary,
+                                  activeItems,
+                                  financialItems,
+                                  saveState.isLoading,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildClinicalColumn(
-                                context,
-                                selectedTreatment,
-                                treatments,
-                                history,
-                                adminId,
+                              Expanded(
+                                flex: 11,
+                                child: _buildClinicalColumn(
+                                  context,
+                                  selectedTreatment,
+                                  treatments,
+                                  history,
+                                  adminId,
+                                ),
                               ),
-                              const SizedBox(height: 18),
-                              _buildFinancialColumn(
-                                context,
-                                selectedTreatment,
-                                summary,
-                                activeItems,
-                                financialItems,
-                                saveState.isLoading,
+                              const SizedBox(width: 18),
+                              Expanded(
+                                flex: 9,
+                                child: _buildFinancialColumn(
+                                  context,
+                                  selectedTreatment,
+                                  summary,
+                                  activeItems,
+                                  financialItems,
+                                  saveState.isLoading,
+                                ),
                               ),
                             ],
                           );
-                        }
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 11,
-                              child: _buildClinicalColumn(
-                                context,
-                                selectedTreatment,
-                                treatments,
-                                history,
-                                adminId,
-                              ),
-                            ),
-                            const SizedBox(width: 18),
-                            Expanded(
-                              flex: 9,
-                              child: _buildFinancialColumn(
-                                context,
-                                selectedTreatment,
-                                summary,
-                                activeItems,
-                                financialItems,
-                                saveState.isLoading,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
+                        },
+                      ),
+                    ],
+                  ),
+                );
 
-              // En el branch de escritorio (dentro de TabBarView) siempre se
-              // necesita scroll propio: el TabBarView da altura ACOTADA y el
-              // contenido puede superar ese límite. El branch móvil ya retornó
-              // arriba, así que aquí nunca hay riesgo de scroll anidado.
-              return SingleChildScrollView(child: content);
-            },
-          ),
+                // En el branch de escritorio (dentro de TabBarView) siempre se
+                // necesita scroll propio: el TabBarView da altura ACOTADA y el
+                // contenido puede superar ese límite. El branch móvil ya retornó
+                // arriba, así que aquí nunca hay riesgo de scroll anidado.
+                return SingleChildScrollView(child: content);
+              },
+            );
+          },
         );
       },
     );
@@ -312,13 +376,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                     ),
                     const SizedBox(width: 9),
                     Expanded(
-                      child: Text(
-                        selectedTreatment.displayName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: OcgColors.espresso,
-                        ),
+                      child: _buildMobileTreatmentName(
+                        selectedTreatment,
+                        stageLabel: stageLabel,
+                        statusColor: statusColor,
                       ),
                     ),
                   ],
@@ -446,6 +507,13 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           ),
           const SizedBox(height: 14),
           _buildMobileTreatmentCard(
+            key: _historySectionKey,
+            title: 'Historial del tratamiento',
+            icon: Icons.history_outlined,
+            child: StageHistoryList(historial: history, isAdmin: true),
+          ),
+          const SizedBox(height: 14),
+          _buildMobileTreatmentCard(
             title: 'Acciones',
             icon: Icons.flash_on_outlined,
             child: Column(
@@ -466,6 +534,11 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                       ),
                       icon: const Icon(Icons.visibility_outlined, size: 18),
                       label: const Text('Ver tratamiento completo'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _openTreatmentHistory(selectedTreatment),
+                      icon: const Icon(Icons.history_outlined, size: 18),
+                      label: const Text('Ver historial clÃ­nico'),
                     ),
                     OutlinedButton.icon(
                       onPressed: () {
@@ -519,12 +592,102 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     return SingleChildScrollView(child: content);
   }
 
+  Widget _buildMobileTreatmentName(
+    PatientTreatment treatment, {
+    required String stageLabel,
+    required Color statusColor,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showTreatmentNameSheet(
+        treatment,
+        stageLabel: stageLabel,
+        statusColor: statusColor,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Text(
+          treatment.displayName,
+          maxLines: 1,
+          softWrap: false,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: OcgColors.espresso,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTreatmentNameSheet(
+    PatientTreatment treatment, {
+    required String stageLabel,
+    required Color statusColor,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: OcgColors.ivory,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _StatusDot(color: statusColor, size: 10),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        treatment.displayName,
+                        style: const TextStyle(
+                          color: OcgColors.espresso,
+                          fontSize: 22,
+                          height: 1.15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _mobileInfoRow('Estado', treatment.statusLabel),
+                _mobileInfoRow('Etapa actual', stageLabel),
+                _mobileInfoRow(
+                  'Tipo',
+                  PatientTreatment.labelForBaseTreatment(treatment.tipoBase),
+                ),
+                if (treatment.normalizedSubtypeLabel != null)
+                  _mobileInfoRow('Subtipo', treatment.normalizedSubtypeLabel!),
+                _mobileInfoRow('Inicio', _formatDate(treatment.fechaInicio)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildMobileTreatmentCard({
+    Key? key,
     required String title,
     required IconData icon,
     required Widget child,
   }) {
     return Container(
+      key: key,
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -784,6 +947,11 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                         initialTreatment: selectedTreatment,
                       ),
                     ),
+                  ),
+                  _HeroActionButton(
+                    icon: Icons.history_outlined,
+                    label: 'Ver historial clÃ­nico',
+                    onPressed: () => _openTreatmentHistory(selectedTreatment),
                   ),
                   if (!selectedTreatment.id.startsWith('legacy-primary-'))
                     _HeroActionButton(
@@ -1088,6 +1256,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
         ),
         const SizedBox(height: 18),
         _PremiumPanel(
+          key: _historySectionKey,
           title: 'Historial del tratamiento',
           subtitle:
               'Historial cronológico de cambios de etapa y acciones clínicas registradas.',
@@ -1355,6 +1524,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       treatmentId: treatment.id.startsWith('legacy-primary-')
           ? null
           : treatment.id,
+      treatmentNameSnapshot: treatment.displayName,
       tipo: AppointmentsBusinessRules.appointmentTypeForStage(
         treatment.etapaActual,
       ),
@@ -1363,6 +1533,8 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       duracionMinutos: 30,
       creadoPor: ref.read(authStateProvider).asData?.value?.uid ?? 'admin',
       stageId: treatment.etapaActual,
+      stageNameSnapshot:
+          stageNames[treatment.etapaActual] ?? treatment.etapaActual.name,
     );
     context.push(RouteNames.adminConsultation, extra: syntheticAppt);
   }
@@ -1436,6 +1608,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
 
 class _PremiumPanel extends StatelessWidget {
   const _PremiumPanel({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.child,

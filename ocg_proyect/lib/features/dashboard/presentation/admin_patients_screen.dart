@@ -19,7 +19,6 @@ import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
-import '../../../shared/widgets/ocg_chip.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -844,13 +843,6 @@ String _fmtDate(DateTime value) {
   return '$d/$m/${value.year}';
 }
 
-String _initialsFromName(String name) {
-  final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts[0][0].toUpperCase();
-  return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-}
-
 class _KpiRow extends StatelessWidget {
   const _KpiRow({
     required this.totalPacientes,
@@ -1119,150 +1111,255 @@ class _DesktopPatientRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stage = formatTreatmentStage(patient.etapaActual);
-    final stageLower = stage.toLowerCase();
-    final stageBg = stageLower.contains('valor')
-        ? const Color(0xFFFFF3E0)
-        : stageLower.contains('alta') || stageLower.contains('reten')
-        ? const Color(0xFFE8F5E9)
-        : OcgColors.mist;
-    final stageFg = stageLower.contains('valor')
-        ? const Color(0xFFE65100)
-        : stageLower.contains('alta') || stageLower.contains('reten')
-        ? const Color(0xFF2E7D32)
-        : OcgColors.ink;
+    final stageStyle = _stageStatusStyle(stage);
+    final treatmentStatusStyle = _treatmentStatusStyle(patient.treatmentStatus);
+    final accentColor = treatmentStatusStyle.foregroundColor;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(18),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: OcgColors.ivory,
-          borderRadius: BorderRadius.circular(10),
+          color: const Color(0xFFFFFDFC),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? OcgColors.bronze : OcgColors.sand,
+            color: selected ? OcgColors.bronze : const Color(0xFFE8DDD2),
             width: selected ? 1.3 : .7,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: OcgColors.bronze.withOpacity(.15),
-                    blurRadius: 2,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            BoxShadow(
+              color: selected
+                  ? OcgColors.bronze.withValues(alpha: .16)
+                  : const Color(0x122C2016),
+              blurRadius: selected ? 12 : 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            OcgPhotoTapWrapper(
-              photoUrl: patient.fotoUrl,
-              patientName: patient.nombre,
-              child: patient.fotoUrl != null && patient.fotoUrl!.trim().isNotEmpty
-                  ? ProfilePhotoAvatar(
-                      label: patient.nombre,
-                      photoUrl: patient.fotoUrl,
-                      radius: 17,
-                    )
-                  : CircleAvatar(
-                      radius: 17,
-                      backgroundColor: OcgColors.bronze.withOpacity(0.16),
-                      child: Text(
-                        _initialsFromName(patient.nombre),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: OcgColors.espresso,
-                        ),
-                      ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(width: 5, color: accentColor),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(17, 14, 14, 14),
+                child: Row(
+                  children: [
+                    _PatientProfilePhoto(
+                      patient: patient,
+                      radius: 25,
+                      accentColor: accentColor,
                     ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patient.nombre,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: OcgColors.espresso,
-                    ),
-                  ),
-                  Text(
-                    patient.email,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: OcgColors.ink.withOpacity(.55),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      OcgChip(
-                        label: patient.tipoTratamiento?.name ?? 'Pendiente',
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: stageBg,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          stage,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: stageFg,
-                            fontWeight: FontWeight.w500,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  patient.nombre,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: OcgColors.espresso,
+                                    fontSize: 15.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _ClinicalStatusChip(
+                                style: treatmentStatusStyle,
+                                dense: true,
+                              ),
+                            ],
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _patientContactLine(patient),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: OcgColors.ink.withValues(alpha: .58),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _PatientInfoPill(
+                                icon: Icons.medical_services_outlined,
+                                label: _patientTreatmentLabel(patient),
+                                color: OcgColors.bronze,
+                                dense: true,
+                              ),
+                              _PatientInfoPill(
+                                icon: Icons.flag_outlined,
+                                label: stage,
+                                color: stageStyle.foregroundColor,
+                                dense: true,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '\$${formatCop(patient.saldoPendiente)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: OcgColors.espresso,
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 130),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            patient.saldoPendiente > 0
+                                ? '\$${formatCop(patient.saldoPendiente)}'
+                                : 'Sin saldo',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: patient.saldoPendiente > 0
+                                  ? OcgColors.espresso
+                                  : const Color(0xFF6F7A6B),
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            patient.proximaCita == null
+                                ? 'Sin cita'
+                                : 'Cita ${_fmtDate(patient.proximaCita!)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: OcgColors.ink.withValues(alpha: .5),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F5F0),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFFE8DDD2)),
+                      ),
+                      child: const Icon(
+                        Icons.chevron_right,
+                        color: OcgColors.bronze,
+                        size: 16,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  patient.proximaCita == null
-                      ? 'Sin cita'
-                      : _fmtDate(patient.proximaCita!),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: OcgColors.ink.withOpacity(.5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 10),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F5F0),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0xFFE8DDD2)),
               ),
-              child: const Icon(
-                Icons.chevron_right,
-                color: OcgColors.bronze,
-                size: 14,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientProfilePhoto extends StatelessWidget {
+  const _PatientProfilePhoto({
+    required this.patient,
+    required this.radius,
+    required this.accentColor,
+  });
+
+  final PatientModel patient;
+  final double radius;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return OcgPhotoTapWrapper(
+      photoUrl: patient.fotoUrl,
+      patientName: patient.nombre,
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFDFC),
+          shape: BoxShape.circle,
+          border: Border.all(color: accentColor.withValues(alpha: .32)),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: .12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ProfilePhotoAvatar(
+          label: patient.nombre,
+          photoUrl: patient.fotoUrl,
+          radius: radius,
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientInfoPill extends StatelessWidget {
+  const _PatientInfoPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.dense = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: dense ? 190 : 260),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: dense ? 8 : 10,
+          vertical: dense ? 5 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .1),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: .18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: dense ? 13 : 15, color: color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: dense ? 10.8 : 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
               ),
             ),
           ],
@@ -1270,6 +1367,72 @@ class _DesktopPatientRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _patientContactLine(PatientModel patient) {
+  final email = patient.email.trim();
+  final phone = patient.telefono.trim();
+  final parts = <String>[
+    if (email.isNotEmpty) email,
+    if (phone.isNotEmpty) phone,
+  ];
+  return parts.isEmpty ? 'Contacto no registrado' : parts.join(' · ');
+}
+
+String _patientTreatmentLabel(PatientModel patient) {
+  final treatmentType = patient.tipoTratamiento;
+  return treatmentType == null
+      ? 'Sin tratamiento'
+      : _tipoTratamientoLabel(treatmentType);
+}
+
+_StatusStyle _treatmentStatusStyle(TreatmentStatus status) {
+  return switch (status) {
+    TreatmentStatus.activo => const _StatusStyle(
+      label: 'Activo',
+      backgroundColor: Color(0xFFEAF7EF),
+      foregroundColor: Color(0xFF2E7D5B),
+      borderColor: Color(0xFFCDE8D7),
+    ),
+    TreatmentStatus.enEspera => const _StatusStyle(
+      label: 'En espera',
+      backgroundColor: Color(0xFFFFF4E7),
+      foregroundColor: Color(0xFF9A5B2C),
+      borderColor: Color(0xFFE7C7A4),
+    ),
+    TreatmentStatus.finalizado => const _StatusStyle(
+      label: 'Finalizado',
+      backgroundColor: Color(0xFFE8F5E9),
+      foregroundColor: Color(0xFF2E7D32),
+      borderColor: Color(0xFFCDE8D7),
+    ),
+  };
+}
+
+_StatusStyle _stageStatusStyle(String stage) {
+  final lower = stage.toLowerCase();
+  if (lower.contains('valor')) {
+    return _StatusStyle(
+      label: stage,
+      backgroundColor: const Color(0xFFFFF3E0),
+      foregroundColor: const Color(0xFFE65100),
+      borderColor: const Color(0xFFE7C7A4),
+    );
+  }
+  if (lower.contains('alta') || lower.contains('reten')) {
+    return _StatusStyle(
+      label: stage,
+      backgroundColor: const Color(0xFFE8F5E9),
+      foregroundColor: const Color(0xFF2E7D32),
+      borderColor: const Color(0xFFCDE8D7),
+    );
+  }
+  return _StatusStyle(
+    label: stage,
+    backgroundColor: OcgColors.mist,
+    foregroundColor: OcgColors.ink,
+    borderColor: OcgColors.sand,
+  );
 }
 
 class AdminPatientsDesktopTestHarness extends StatelessWidget {
@@ -1906,6 +2069,8 @@ class _PatientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusStyle = _statusStyle(insight.cardStatus);
+    final stage = formatTreatmentStage(patient.etapaActual);
+    final stageStyle = _stageStatusStyle(stage);
     final primaryAction = insight.noFollowUp || insight.hasUpcomingAppointment
         ? ('Cita', onCita)
         : insight.hasBalance
@@ -1918,7 +2083,6 @@ class _PatientCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: const Color(0xFFFFFDFC),
           borderRadius: BorderRadius.circular(22),
@@ -1931,85 +2095,139 @@ class _PatientCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                OcgPhotoTapWrapper(
-                  photoUrl: patient.fotoUrl,
-                  patientName: patient.nombre,
-                  child: ProfilePhotoAvatar(
-                    label: patient.nombre,
-                    photoUrl: patient.fotoUrl,
-                    radius: 24,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    width: 5,
+                    color: statusStyle.foregroundColor,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              patient.nombre,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15.5,
-                                color: OcgColors.espresso,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _ClinicalStatusChip(style: statusStyle),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        insight.clinicalLine,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: Color(0xFF7E6A5B),
-                          fontWeight: FontWeight.w600,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(17, 14, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _PatientProfilePhoto(
+                          patient: patient,
+                          radius: 31,
+                          accentColor: statusStyle.foregroundColor,
                         ),
-                      ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                patient.nombre,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16.5,
+                                  color: OcgColors.espresso,
+                                  height: 1.05,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                _patientContactLine(patient),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.2,
+                                  color: Color(0xFF7E6A5B),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _ClinicalStatusChip(
+                                    style: statusStyle,
+                                    dense: true,
+                                  ),
+                                  _PatientInfoPill(
+                                    icon: Icons.medical_services_outlined,
+                                    label: _patientTreatmentLabel(patient),
+                                    color: OcgColors.bronze,
+                                    dense: true,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFFB59D87),
+                          size: 22,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        _PatientInfoPill(
+                          icon: Icons.flag_outlined,
+                          label: stage,
+                          color: stageStyle.foregroundColor,
+                        ),
+                        _PatientInfoPill(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: patient.saldoPendiente > 0
+                              ? 'Saldo: \$${formatCop(patient.saldoPendiente)}'
+                              : 'Sin saldo',
+                          color: patient.saldoPendiente > 0
+                              ? const Color(0xFF9A5B2C)
+                              : const Color(0xFF6F7A6B),
+                        ),
+                        _PatientInfoPill(
+                          icon: Icons.event_available_outlined,
+                          label: patient.proximaCita == null
+                              ? 'Sin cita'
+                              : 'Cita ${_fmtDate(patient.proximaCita!)}',
+                          color: patient.proximaCita == null
+                              ? const Color(0xFF8A6F59)
+                              : const Color(0xFF2F6F9F),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    for (final highlight in insight.highlights) ...[
+                      _PatientHighlightRow(highlight: highlight),
+                      if (highlight != insight.highlights.last)
+                        const SizedBox(height: 6),
                     ],
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _CompactPatientAction(label: 'Ver', onTap: onOpen),
+                        const SizedBox(width: 8),
+                        _CompactPatientAction(
+                          label: primaryAction.$1,
+                          onTap: primaryAction.$2,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFFB59D87),
-                  size: 22,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            for (final highlight in insight.highlights) ...[
-              _PatientHighlightRow(highlight: highlight),
-              if (highlight != insight.highlights.last)
-                const SizedBox(height: 6),
+              ),
             ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _CompactPatientAction(label: 'Ver', onTap: onOpen),
-                const SizedBox(width: 8),
-                _CompactPatientAction(
-                  label: primaryAction.$1,
-                  onTap: primaryAction.$2,
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -2017,27 +2235,45 @@ class _PatientCard extends StatelessWidget {
 }
 
 class _ClinicalStatusChip extends StatelessWidget {
-  const _ClinicalStatusChip({required this.style});
+  const _ClinicalStatusChip({required this.style, this.dense = false});
 
   final _StatusStyle style;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? 8 : 9,
+        vertical: dense ? 5 : 5,
+      ),
       decoration: BoxDecoration(
         color: style.backgroundColor,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: style.borderColor),
       ),
-      child: Text(
-        style.label,
-        style: TextStyle(
-          color: style.foregroundColor,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w900,
-          height: 1,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: dense ? 5 : 6,
+            height: dense ? 5 : 6,
+            decoration: BoxDecoration(
+              color: style.foregroundColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            style.label,
+            style: TextStyle(
+              color: style.foregroundColor,
+              fontSize: dense ? 10.2 : 10.5,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }

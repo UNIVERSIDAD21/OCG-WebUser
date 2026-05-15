@@ -3,12 +3,7 @@ import '../../../patients/data/models/patient_model.dart';
 
 // ─── Estados de una consulta ─────────────────────────────────────────────────
 
-enum ConsultationStatus {
-  draft,
-  pendingSignature,
-  completed,
-  voided,
-}
+enum ConsultationStatus { draft, pendingSignature, completed, voided }
 
 // ─── Fase en el momento de la consulta (para auditoría) ──────────────────────
 
@@ -101,6 +96,10 @@ class ConsultationModel {
     required this.patientId,
     required this.patientName,
     this.appointmentId,
+    this.treatmentId,
+    this.treatmentNameSnapshot,
+    this.stageId,
+    this.stageNameSnapshot,
     required this.doctorId,
     required this.doctorName,
     required this.date,
@@ -109,6 +108,8 @@ class ConsultationModel {
     this.phaseSnapshot,
     this.signatureUrl,
     this.signatureCapturedAt,
+    this.reportPdfFileId,
+    this.reportPdfUrl,
     this.status = ConsultationStatus.draft,
     this.auditTrail = const [],
     this.createdAt,
@@ -119,6 +120,10 @@ class ConsultationModel {
   final String patientId;
   final String patientName;
   final String? appointmentId;
+  final String? treatmentId;
+  final String? treatmentNameSnapshot;
+  final TreatmentStage? stageId;
+  final String? stageNameSnapshot;
   final String doctorId;
   final String doctorName;
   final DateTime date;
@@ -127,6 +132,8 @@ class ConsultationModel {
   final PhaseSnapshot? phaseSnapshot;
   final String? signatureUrl;
   final DateTime? signatureCapturedAt;
+  final String? reportPdfFileId;
+  final String? reportPdfUrl;
   final ConsultationStatus status;
   final List<AuditEntry> auditTrail;
   final DateTime? createdAt;
@@ -142,7 +149,9 @@ class ConsultationModel {
     if (value == null) return fallback ?? DateTime.now();
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value) ?? (fallback ?? DateTime.now());
+    if (value is String) {
+      return DateTime.tryParse(value) ?? (fallback ?? DateTime.now());
+    }
     return fallback ?? DateTime.now();
   }
 
@@ -155,7 +164,8 @@ class ConsultationModel {
   }
 
   factory ConsultationModel.fromJson(Map<String, dynamic> json, {String? id}) {
-    final statusRaw = (json['status'] ?? ConsultationStatus.draft.name).toString();
+    final statusRaw = (json['status'] ?? ConsultationStatus.draft.name)
+        .toString();
     final photosRaw = json['photos'];
     final auditRaw = json['auditTrail'];
 
@@ -169,8 +179,8 @@ class ConsultationModel {
       if (raw == null) return [];
       if (raw is List) {
         return raw
-            .where((e) => e is Map<String, dynamic>)
-            .map((e) => AuditEntry.fromJson(e as Map<String, dynamic>))
+            .whereType<Map<String, dynamic>>()
+            .map(AuditEntry.fromJson)
             .toList();
       }
       return [];
@@ -181,6 +191,10 @@ class ConsultationModel {
       patientId: (json['patientId'] ?? '').toString(),
       patientName: (json['patientName'] ?? '').toString(),
       appointmentId: json['appointmentId']?.toString(),
+      treatmentId: json['treatmentId']?.toString(),
+      treatmentNameSnapshot: json['treatmentNameSnapshot']?.toString(),
+      stageId: _parseNullableStage(json['stageId']),
+      stageNameSnapshot: json['stageNameSnapshot']?.toString(),
       doctorId: (json['doctorId'] ?? '').toString(),
       doctorName: (json['doctorName'] ?? '').toString(),
       date: _parseDate(json['date']),
@@ -188,10 +202,13 @@ class ConsultationModel {
       photos: parsePhotos(photosRaw),
       phaseSnapshot: json['phaseSnapshot'] != null
           ? PhaseSnapshot.fromJson(
-              (json['phaseSnapshot'] as Map<String, dynamic>))
+              (json['phaseSnapshot'] as Map<String, dynamic>),
+            )
           : null,
       signatureUrl: json['signatureUrl']?.toString(),
       signatureCapturedAt: _parseNullableDate(json['signatureCapturedAt']),
+      reportPdfFileId: json['reportPdfFileId']?.toString(),
+      reportPdfUrl: json['reportPdfUrl']?.toString(),
       status: ConsultationStatus.values.firstWhere(
         (e) => e.name == statusRaw,
         orElse: () => ConsultationStatus.draft,
@@ -208,6 +225,10 @@ class ConsultationModel {
       'patientId': patientId,
       'patientName': patientName,
       'appointmentId': appointmentId,
+      'treatmentId': treatmentId,
+      'treatmentNameSnapshot': treatmentNameSnapshot,
+      'stageId': stageId?.name,
+      'stageNameSnapshot': stageNameSnapshot,
       'doctorId': doctorId,
       'doctorName': doctorName,
       'date': Timestamp.fromDate(date),
@@ -215,12 +236,16 @@ class ConsultationModel {
       'photos': photos,
       'phaseSnapshot': phaseSnapshot?.toJson(),
       'signatureUrl': signatureUrl,
-      'signatureCapturedAt':
-          signatureCapturedAt == null ? null : Timestamp.fromDate(signatureCapturedAt!),
+      'signatureCapturedAt': signatureCapturedAt == null
+          ? null
+          : Timestamp.fromDate(signatureCapturedAt!),
+      'reportPdfFileId': reportPdfFileId,
+      'reportPdfUrl': reportPdfUrl,
       'status': status.name,
       'auditTrail': auditTrail.map((e) => e.toJson()).toList(),
-      'createdAt':
-          createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
+      'createdAt': createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(createdAt!),
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -230,6 +255,10 @@ class ConsultationModel {
     String? patientId,
     String? patientName,
     String? appointmentId,
+    String? treatmentId,
+    String? treatmentNameSnapshot,
+    TreatmentStage? stageId,
+    String? stageNameSnapshot,
     String? doctorId,
     String? doctorName,
     DateTime? date,
@@ -238,6 +267,8 @@ class ConsultationModel {
     PhaseSnapshot? phaseSnapshot,
     String? signatureUrl,
     DateTime? signatureCapturedAt,
+    String? reportPdfFileId,
+    String? reportPdfUrl,
     ConsultationStatus? status,
     List<AuditEntry>? auditTrail,
     DateTime? createdAt,
@@ -248,6 +279,11 @@ class ConsultationModel {
       patientId: patientId ?? this.patientId,
       patientName: patientName ?? this.patientName,
       appointmentId: appointmentId ?? this.appointmentId,
+      treatmentId: treatmentId ?? this.treatmentId,
+      treatmentNameSnapshot:
+          treatmentNameSnapshot ?? this.treatmentNameSnapshot,
+      stageId: stageId ?? this.stageId,
+      stageNameSnapshot: stageNameSnapshot ?? this.stageNameSnapshot,
       doctorId: doctorId ?? this.doctorId,
       doctorName: doctorName ?? this.doctorName,
       date: date ?? this.date,
@@ -256,10 +292,22 @@ class ConsultationModel {
       phaseSnapshot: phaseSnapshot ?? this.phaseSnapshot,
       signatureUrl: signatureUrl ?? this.signatureUrl,
       signatureCapturedAt: signatureCapturedAt ?? this.signatureCapturedAt,
+      reportPdfFileId: reportPdfFileId ?? this.reportPdfFileId,
+      reportPdfUrl: reportPdfUrl ?? this.reportPdfUrl,
       status: status ?? this.status,
       auditTrail: auditTrail ?? this.auditTrail,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  static TreatmentStage? _parseNullableStage(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    return TreatmentStage.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => TreatmentStage.valoracionInicial,
     );
   }
 }

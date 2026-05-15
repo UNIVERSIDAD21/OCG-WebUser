@@ -19,6 +19,7 @@ import '../../patients/providers/patients_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 import '../data/models/consultation_model.dart';
+import '../domain/consultation_treatment_resolver.dart';
 import '../providers/consultation_provider.dart';
 
 // ─── Pantalla de Consultación Clínica ────────────────────────────────────────
@@ -74,7 +75,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   TreatmentStage? _selectedNextStage;
 
   PatientModel? _patient;
-  PatientTreatment? _primaryTreatment;
+  PatientTreatment? _selectedTreatment;
+  ConsultationTreatmentResolution? _treatmentResolution;
   bool _loadingPatient = true;
 
   @override
@@ -102,15 +104,17 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
       final treatments = await treatRepo.getPatientTreatments(patientId);
       debugPrint('[_loadPatientData] Tratamientos: ${treatments.length}');
+      final treatmentResolution = const ConsultationTreatmentResolver().resolve(
+        appointment: widget.appointment,
+        treatments: treatments,
+      );
 
       if (!mounted) return;
 
       setState(() {
         _patient = patient;
-        _primaryTreatment = treatments.isNotEmpty
-            ? (treatments.where((x) => x.isPrimary).firstOrNull ??
-                  treatments.first)
-            : null;
+        _selectedTreatment = treatmentResolution.treatment;
+        _treatmentResolution = treatmentResolution;
         _loadingPatient = false;
       });
     } catch (e, st) {
@@ -161,7 +165,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   }
 
   TreatmentStage get _currentStage =>
-      _primaryTreatment?.etapaActual ??
+      _selectedTreatment?.etapaActual ??
       _patient?.etapaActual ??
       TreatmentStage.valoracionInicial;
 
@@ -170,6 +174,28 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
     final idx = TreatmentStage.values.indexOf(current);
     if (idx < 0 || idx >= TreatmentStage.values.length - 1) return [];
     return TreatmentStage.values.sublist(idx + 1);
+  }
+
+  bool get _treatmentLockedByAppointment =>
+      _treatmentResolution?.cameFromAppointment ?? false;
+
+  String? get _treatmentResolutionMessage {
+    final resolution = _treatmentResolution;
+    if (resolution == null || _selectedTreatment == null) return null;
+    if (resolution.cameFromAppointment) {
+      return 'Ligado a la cita';
+    }
+    if (resolution.appointmentTreatmentWasMissing) {
+      return 'La cita apunta a un tratamiento que no existe; se usara el tratamiento disponible como fallback.';
+    }
+    if (resolution.source == ConsultationTreatmentResolutionSource.primary) {
+      return 'Fallback al tratamiento principal';
+    }
+    if (resolution.source ==
+        ConsultationTreatmentResolutionSource.firstAvailable) {
+      return 'Fallback al primer tratamiento disponible';
+    }
+    return null;
   }
 
   String get _tipoLabel => switch (widget.appointment.tipo) {
@@ -232,14 +258,13 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       // ── Auto-crear tratamiento si el paciente no tiene ninguno ──────
       // La primera valoración *es* donde nace el tratamiento. Si no existe,
       // se crea uno provisional que el admin puede editar después.
-      var treatment = _primaryTreatment;
+      var treatment = _selectedTreatment;
       if (treatment == null) {
         debugPrint(
           '[Consultation] Paciente sin tratamiento — auto-creando uno',
         );
         final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
-        final newTreatmentId =
-            '${patientId}-auto-${now.millisecondsSinceEpoch}';
+        final newTreatmentId = '$patientId-auto-${now.millisecondsSinceEpoch}';
         treatment = PatientTreatment(
           id: newTreatmentId,
           patientId: patientId,
@@ -265,7 +290,12 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         );
         // Actualizar estado local para que la consulta use este tratamiento
         setState(() {
-          _primaryTreatment = treatment;
+          _selectedTreatment = treatment;
+          _treatmentResolution = ConsultationTreatmentResolution(
+            treatment: treatment,
+            source: ConsultationTreatmentResolutionSource.none,
+            appointmentTreatmentId: widget.appointment.treatmentId?.trim(),
+          );
         });
         debugPrint('[Consultation] Tratamiento auto-creado: ${treatment.id}');
       }
@@ -320,7 +350,10 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
             id: fileId,
             patientId: patientId,
             treatmentId: treatmentId,
-            treatmentNameSnapshot: treatment?.displayName,
+            consultationId: consultationId,
+            sourceType: 'consultation_attachment',
+            sourceId: consultationId,
+            treatmentNameSnapshot: treatment.displayName,
             stageId: currentStage.name,
             stageNameSnapshot: stageNames[currentStage] ?? currentStage.name,
             originalName: attachment.fileName,
@@ -363,6 +396,10 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         patientId: patientId,
         patientName: widget.appointment.patientName,
         appointmentId: widget.appointment.id,
+        treatmentId: treatmentId,
+        treatmentNameSnapshot: treatment.displayName,
+        stageId: currentStage,
+        stageNameSnapshot: stageNames[currentStage] ?? currentStage.name,
         doctorId: actorId,
         doctorName: 'Doctora',
         date: now,
@@ -393,7 +430,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         actorId: actorId,
         advancePhase: _wantsAdvancePhase,
         treatmentId: treatmentId,
-        treatmentIsPrimary: treatment?.isPrimary ?? true,
+        treatmentIsPrimary: treatment.isPrimary,
         stageReason: null,
         nextStagePlan: _wantsAdvancePhase
             ? 'Paciente avanza a ${stageNames[resultingStage] ?? resultingStage.name}.'
@@ -511,37 +548,37 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         await _onBackPressed();
       },
       child: Scaffold(
-      backgroundColor: OcgColors.ivory,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_errorMsg != null) _buildErrorBanner(),
-                    _buildPatientInfoCard(),
-                    const SizedBox(height: 16),
-                    _buildPhaseControlCard(),
-                    const SizedBox(height: 16),
-                    _buildClinicalNotesCard(),
-                    const SizedBox(height: 16),
-                    _buildSignatureCard(),
-                    const SizedBox(height: 16),
-                    _buildDocumentsCard(),
-                    const SizedBox(height: 24),
-                    _buildSaveButton(),
-                    const SizedBox(height: 32),
-                  ],
+        backgroundColor: OcgColors.ivory,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_errorMsg != null) _buildErrorBanner(),
+                      _buildPatientInfoCard(),
+                      const SizedBox(height: 16),
+                      _buildPhaseControlCard(),
+                      const SizedBox(height: 16),
+                      _buildClinicalNotesCard(),
+                      const SizedBox(height: 16),
+                      _buildSignatureCard(),
+                      const SizedBox(height: 16),
+                      _buildDocumentsCard(),
+                      const SizedBox(height: 24),
+                      _buildSaveButton(),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -737,22 +774,65 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
               ),
             ],
           ),
-          if (_primaryTreatment != null) ...[
+          if (_selectedTreatment != null) ...[
             const Divider(height: 24, color: Color(0xFFECD9C6)),
             _infoRow(
               Icons.medical_services_outlined,
               'Tratamiento',
-              _primaryTreatment!.displayName,
+              _selectedTreatment!.displayName,
             ),
             const SizedBox(height: 10),
             _infoRow(
               Icons.flag_outlined,
               'Fase actual',
-              stageNames[_primaryTreatment!.etapaActual] ??
-                  _primaryTreatment!.etapaActual.name,
+              stageNames[_selectedTreatment!.etapaActual] ??
+                  _selectedTreatment!.etapaActual.name,
               valueColor: OcgColors.bronze,
             ),
+            if (_treatmentResolutionMessage != null) ...[
+              const SizedBox(height: 10),
+              _treatmentTraceabilityBadge(_treatmentResolutionMessage!),
+            ],
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _treatmentTraceabilityBadge(String message) {
+    final isLocked = _treatmentLockedByAppointment;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: isLocked
+            ? const Color(0xFF166534).withOpacity(0.08)
+            : OcgColors.sand.withOpacity(0.28),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isLocked
+              ? const Color(0xFF166534).withOpacity(0.18)
+              : OcgColors.bronze.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isLocked ? Icons.lock_outline : Icons.info_outline,
+            size: 16,
+            color: isLocked ? const Color(0xFF166534) : OcgColors.bronze,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: isLocked ? const Color(0xFF166534) : OcgColors.espresso,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1003,8 +1083,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   }
 
   Widget _buildPhaseTimeline() {
-    final currentStage =
-        _patient?.etapaActual ?? TreatmentStage.valoracionInicial;
+    final currentStage = _currentStage;
     final allStages = TreatmentStage.values;
 
     return Row(
@@ -1271,9 +1350,18 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   gradient: LinearGradient(
                     colors: _signatureRequired
                         ? (_hasSignature
-                              ? [const Color(0xFF166534), const Color(0xFF22C55E)]
-                              : [OcgColors.bronze.withOpacity(0.15), OcgColors.espresso.withOpacity(0.15)])
-                        : [Colors.grey.withOpacity(0.1), Colors.grey.withOpacity(0.05)],
+                              ? [
+                                  const Color(0xFF166534),
+                                  const Color(0xFF22C55E),
+                                ]
+                              : [
+                                  OcgColors.bronze.withOpacity(0.15),
+                                  OcgColors.espresso.withOpacity(0.15),
+                                ])
+                        : [
+                            Colors.grey.withOpacity(0.1),
+                            Colors.grey.withOpacity(0.05),
+                          ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
@@ -1431,7 +1519,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                         Row(
                           children: [
                             InkWell(
-                              onTap: () => _signaturePadKey.currentState?.clear(),
+                              onTap: () =>
+                                  _signaturePadKey.currentState?.clear(),
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1458,7 +1547,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                                     Text(
                                       'Limpiar',
                                       style: TextStyle(
-                                        color: OcgColors.bronze.withOpacity(0.7),
+                                        color: OcgColors.bronze.withOpacity(
+                                          0.7,
+                                        ),
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1470,9 +1561,13 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                             const Spacer(),
                             FilledButton.icon(
                               onPressed: () {
-                                _signaturePadKey.currentState?.confirmSignature();
+                                _signaturePadKey.currentState
+                                    ?.confirmSignature();
                               },
-                              icon: const Icon(Icons.check_circle_outline, size: 18),
+                              icon: const Icon(
+                                Icons.check_circle_outline,
+                                size: 18,
+                              ),
                               label: const Text('Confirmar firma'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: OcgColors.espresso,
@@ -1661,8 +1756,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
             AnimatedAlign(
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeInOut,
-              alignment:
-                  _signatureRequired ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: _signatureRequired
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: Container(
@@ -1670,7 +1766,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   height: 22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _signatureRequired ? OcgColors.ivory : Colors.grey.shade300,
+                    color: _signatureRequired
+                        ? OcgColors.ivory
+                        : Colors.grey.shade300,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -1680,7 +1778,9 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                     ],
                   ),
                   child: Icon(
-                    _signatureRequired ? Icons.check_rounded : Icons.close_rounded,
+                    _signatureRequired
+                        ? Icons.check_rounded
+                        : Icons.close_rounded,
                     size: 14,
                     color: _signatureRequired
                         ? OcgColors.espresso

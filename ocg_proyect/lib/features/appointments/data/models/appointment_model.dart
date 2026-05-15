@@ -20,6 +20,7 @@ class AppointmentModel {
     required this.patientName,
     required this.patientPhone,
     this.treatmentId,
+    this.treatmentNameSnapshot,
     required this.tipo,
     required this.estado,
     required this.fechaHora,
@@ -27,6 +28,7 @@ class AppointmentModel {
     required this.creadoPor,
     this.notas,
     this.stageId,
+    this.stageNameSnapshot,
     this.recordatorio24hEnviado = false,
     this.recordatorio2hEnviado = false,
     this.createdAt,
@@ -40,10 +42,12 @@ class AppointmentModel {
   /// telefono del paciente — para contacto rápido del admin
   final String patientPhone;
   final String? treatmentId;
+  final String? treatmentNameSnapshot;
 
   /// Fase del tratamiento al momento de crear la cita (snapshot congelado).
   /// No se actualiza si el paciente cambia de etapa después de programar.
   final TreatmentStage? stageId;
+  final String? stageNameSnapshot;
 
   final AppointmentType tipo;
   final AppointmentStatus estado;
@@ -96,8 +100,10 @@ class AppointmentModel {
       // patientPhone — tolera documentos viejos sin el campo
       patientPhone: (json['patientPhone'] ?? '').toString(),
       treatmentId: json['treatmentId']?.toString(),
+      treatmentNameSnapshot: json['treatmentNameSnapshot']?.toString(),
       // stageId — snapshot de la fase del tratamiento al crear la cita
       stageId: _parseNullableStage(json['stageId']),
+      stageNameSnapshot: json['stageNameSnapshot']?.toString(),
       tipo: AppointmentType.values.firstWhere(
         (e) => e.name == tipoRaw,
         orElse: () => AppointmentType.control,
@@ -127,7 +133,9 @@ class AppointmentModel {
       'patientName': patientName,
       'patientPhone': patientPhone,
       'treatmentId': treatmentId,
+      'treatmentNameSnapshot': treatmentNameSnapshot,
       'stageId': stageId?.name,
+      'stageNameSnapshot': stageNameSnapshot,
       'tipo': tipo.name,
       'estado': estado.name,
       'fechaHora': Timestamp.fromDate(fechaHora),
@@ -149,7 +157,9 @@ class AppointmentModel {
     String? patientName,
     String? patientPhone,
     String? treatmentId,
+    String? treatmentNameSnapshot,
     TreatmentStage? stageId,
+    String? stageNameSnapshot,
     AppointmentType? tipo,
     AppointmentStatus? estado,
     DateTime? fechaHora,
@@ -167,7 +177,10 @@ class AppointmentModel {
       patientName: patientName ?? this.patientName,
       patientPhone: patientPhone ?? this.patientPhone,
       treatmentId: treatmentId ?? this.treatmentId,
+      treatmentNameSnapshot:
+          treatmentNameSnapshot ?? this.treatmentNameSnapshot,
       stageId: stageId ?? this.stageId,
+      stageNameSnapshot: stageNameSnapshot ?? this.stageNameSnapshot,
       tipo: tipo ?? this.tipo,
       estado: estado ?? this.estado,
       fechaHora: fechaHora ?? this.fechaHora,
@@ -184,7 +197,9 @@ class AppointmentModel {
   }
 
   /// Nombre legible de la fase (solo si tiene stageId).
-  String? get stageName => stageId != null ? stageNames[stageId!] : null;
+  String? get stageName =>
+      stageNameSnapshot ??
+      (stageId != null ? stageNames[stageId!] ?? stageId!.name : null);
 
   // ─── Parser de stage ────────────────────────────────────────────────────
 
@@ -200,9 +215,7 @@ class AppointmentModel {
     };
     if (legacyMap.containsKey(raw)) return legacyMap[raw]!;
     try {
-      return TreatmentStage.values.firstWhere(
-        (e) => e.name == raw,
-      );
+      return TreatmentStage.values.firstWhere((e) => e.name == raw);
     } catch (_) {
       return null;
     }

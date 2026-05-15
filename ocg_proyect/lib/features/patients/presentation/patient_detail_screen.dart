@@ -9,7 +9,6 @@ import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
-import '../../admin/presentation/web/components/section_panel.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -23,7 +22,6 @@ import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
-import '../../treatment/presentation/widgets/update_stage_dialog.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 import '../data/models/patient_data_resolution.dart';
 import '../data/models/patient_model.dart';
@@ -88,11 +86,7 @@ class _DefaultAvatarIcon extends StatelessWidget {
         ),
         shape: BoxShape.circle,
       ),
-      child: Icon(
-        Icons.person_rounded,
-        color: Colors.white,
-        size: size * 0.5,
-      ),
+      child: Icon(Icons.person_rounded, color: Colors.white, size: size * 0.5),
     );
   }
 }
@@ -123,7 +117,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
       context,
       type: OcgConfirmDialogType.danger,
       title: 'Eliminar paciente',
-      message: '¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.',
+      message:
+          '¿Seguro que deseas eliminar a ${patient.nombre}? Esta acción no se puede deshacer.',
       confirmLabel: 'Eliminar',
       onConfirm: () {},
     );
@@ -208,8 +203,6 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   }
 }
 
-
-
 class _PatientDetailView extends ConsumerWidget {
   const _PatientDetailView({
     required this.patient,
@@ -228,6 +221,10 @@ class _PatientDetailView extends ConsumerWidget {
     final sectionParam = GoRouterState.of(
       context,
     ).uri.queryParameters['section'];
+    final query = GoRouterState.of(context).uri.queryParameters;
+    final treatmentIdParam = query['treatmentId']?.trim();
+    final focusParam = query['focus']?.trim();
+    final focusHistory = focusParam == 'history' || focusParam == 'historial';
     final initialMobileSection = switch (sectionParam) {
       'perfil' || 'resumen' => 0,
       'tratamiento' || 'tratamientos' => 1,
@@ -238,11 +235,14 @@ class _PatientDetailView extends ConsumerWidget {
       _ => 0,
     };
 
-
     final content = _AdminPatientWorkspace(
       patient: patient,
       embeddedInAdminMobileShell: embeddedInAdminMobileShell,
       initialSection: initialMobileSection,
+      initialTreatmentId: treatmentIdParam?.isEmpty == true
+          ? null
+          : treatmentIdParam,
+      focusTreatmentHistory: focusHistory,
       onEdit: () => context.go(
         RouteNames.adminPatientEdit.replaceFirst(':patientId', patient.id),
       ),
@@ -268,18 +268,18 @@ class _PatientDetailView extends ConsumerWidget {
       };
 
       final initialDesktopTab = switch (sectionParam) {
-        'tratamiento' ||
-        'tratamientos' => 1,
+        'tratamiento' || 'tratamientos' => 1,
         'pagos' => 2,
-        'docs' ||
-        'documentos' ||
-        'historial' => 3,
+        'docs' || 'documentos' || 'historial' => 3,
         'citas' => 4,
         'simulador' => 5,
         _ => 0,
       };
 
       final desktopContent = DefaultTabController(
+        key: ValueKey(
+          'patient-tabs-${patient.id}-$initialDesktopTab-$treatmentIdParam-$focusParam',
+        ),
         length: 6,
         initialIndex: initialDesktopTab,
         child: Column(
@@ -316,9 +316,7 @@ class _PatientDetailView extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: OcgColors.ivory,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: OcgColors.bronze.withOpacity(0.18),
-                ),
+                border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,8 +327,7 @@ class _PatientDetailView extends ConsumerWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            context.go(RouteNames.adminPatients),
+                        onPressed: () => context.go(RouteNames.adminPatients),
                         icon: const Icon(Icons.arrow_back, size: 16),
                         label: const Text('Volver'),
                         style: OutlinedButton.styleFrom(
@@ -342,12 +339,8 @@ class _PatientDetailView extends ConsumerWidget {
                       ),
                       ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: tier == AdminDesktopTier.tight
-                              ? 220
-                              : 280,
-                          maxWidth: tier == AdminDesktopTier.wide
-                              ? 540
-                              : 480,
+                          minWidth: tier == AdminDesktopTier.tight ? 220 : 280,
+                          maxWidth: tier == AdminDesktopTier.wide ? 540 : 480,
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,7 +360,9 @@ class _PatientDetailView extends ConsumerWidget {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: OcgColors.espresso.withOpacity(0.08),
+                                      color: OcgColors.espresso.withOpacity(
+                                        0.08,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -419,10 +414,7 @@ class _PatientDetailView extends ConsumerWidget {
                                 patient.id,
                               ),
                             ),
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              size: 16,
-                            ),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
                             label: const Text('Editar'),
                           ),
                           OutlinedButton.icon(
@@ -443,8 +435,7 @@ class _PatientDetailView extends ConsumerWidget {
                                   context,
                                   ref,
                                   preselectedPatient: patient,
-                                  existingAppointments:
-                                      existingAppointments,
+                                  existingAppointments: existingAppointments,
                                 ),
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text('Agendar cita'),
@@ -481,15 +472,19 @@ class _PatientDetailView extends ConsumerWidget {
                     patientId: patient.id,
                     patient: patient,
                     scrollable: false,
+                    initialTreatmentId: treatmentIdParam?.isEmpty == true
+                        ? null
+                        : treatmentIdParam,
+                    focusHistory: focusHistory,
                   ),
-                  PatientPaymentsTab(
-                    patientId: patient.id,
-                    scrollable: false,
-                  ),
+                  PatientPaymentsTab(patientId: patient.id, scrollable: false),
                   PatientClinicalHistoryTab(
                     patientId: patient.id,
                     patient: patient,
                     scrollable: false,
+                    initialTreatmentId: treatmentIdParam?.isEmpty == true
+                        ? null
+                        : treatmentIdParam,
                   ),
                   PatientAppointmentsTab(patient: patient),
                   PatientSimulatorTab(patient: patient),
@@ -518,6 +513,8 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
     required this.onEdit,
     required this.onDelete,
     this.initialSection = 0,
+    this.initialTreatmentId,
+    this.focusTreatmentHistory = false,
   });
 
   final PatientModel patient;
@@ -525,6 +522,8 @@ class _AdminPatientWorkspace extends ConsumerStatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final int initialSection;
+  final String? initialTreatmentId;
+  final bool focusTreatmentHistory;
 
   @override
   ConsumerState<_AdminPatientWorkspace> createState() =>
@@ -539,6 +538,16 @@ class _AdminPatientWorkspaceState
   void initState() {
     super.initState();
     _section = widget.initialSection.clamp(0, 5);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdminPatientWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSection != widget.initialSection ||
+        oldWidget.initialTreatmentId != widget.initialTreatmentId ||
+        oldWidget.focusTreatmentHistory != widget.focusTreatmentHistory) {
+      _section = widget.initialSection.clamp(0, 5);
+    }
   }
 
   @override
@@ -636,14 +645,12 @@ class _AdminPatientWorkspaceState
 
   Widget _buildSection(int index) {
     return switch (index) {
-      2 => PatientPaymentsTab(
-        patientId: widget.patient.id,
-        scrollable: false,
-      ),
+      2 => PatientPaymentsTab(patientId: widget.patient.id, scrollable: false),
       3 => PatientClinicalHistoryTab(
         patientId: widget.patient.id,
         patient: widget.patient,
         scrollable: false,
+        initialTreatmentId: widget.initialTreatmentId,
       ),
       4 => PatientAppointmentsTab(patient: widget.patient, scrollable: false),
       5 => PatientSimulatorTab(patient: widget.patient, scrollable: false),
@@ -840,6 +847,8 @@ class _AdminPatientWorkspaceState
         patientId: widget.patient.id,
         patient: widget.patient,
         scrollable: false,
+        initialTreatmentId: widget.initialTreatmentId,
+        focusHistory: widget.focusTreatmentHistory,
       ),
       2 => Card(
         clipBehavior: Clip.antiAlias,
@@ -881,6 +890,7 @@ class _AdminPatientWorkspaceState
     };
   }
 
+  // ignore: unused_element
   Future<void> _openManageTreatmentDialog([PatientTreatment? treatment]) async {
     await showDialog<void>(
       context: context,
@@ -892,6 +902,7 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  // ignore: unused_element
   Future<void> _openUpdateStageDialog(PatientTreatment treatment) async {
     final patient = widget.patient;
     // En vez del diálogo "Avanzar etapa", abrimos el Dictamen (ConsultationScreen)
@@ -904,6 +915,7 @@ class _AdminPatientWorkspaceState
       treatmentId: treatment.id.startsWith('legacy-primary-')
           ? null
           : treatment.id,
+      treatmentNameSnapshot: treatment.displayName,
       tipo: AppointmentsBusinessRules.appointmentTypeForStage(
         treatment.etapaActual,
       ),
@@ -912,11 +924,12 @@ class _AdminPatientWorkspaceState
       duracionMinutos: 30,
       creadoPor: ref.read(authStateProvider).asData?.value?.uid ?? 'admin',
       stageId: treatment.etapaActual,
+      stageNameSnapshot:
+          stageNames[treatment.etapaActual] ?? treatment.etapaActual.name,
     );
     if (!mounted) return;
     context.push(RouteNames.adminConsultation, extra: syntheticAppt);
   }
-
 
   Widget _patientCard({
     required String title,
@@ -1051,6 +1064,7 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  // ignore: unused_element
   Widget _buildMobilePaymentAccountCard({
     required EffectivePatientPaymentAccount account,
     required PatientTreatment? treatment,
@@ -1213,6 +1227,7 @@ class _AdminPatientWorkspaceState
     return null;
   }
 
+  // ignore: unused_element
   PatientTreatment? _resolveTreatmentForTransaction(
     List<PatientTreatment> treatments,
     List<EffectivePatientPaymentAccount> accounts,
@@ -1296,6 +1311,7 @@ class _AdminPatientWorkspaceState
     );
   }
 
+  // ignore: unused_element
   Future<void> _showTreatmentNotes(PatientTreatment treatment) async {
     await showModalBottomSheet<void>(
       context: context,

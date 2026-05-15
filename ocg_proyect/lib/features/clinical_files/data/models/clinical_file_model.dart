@@ -8,6 +8,7 @@ const List<String> kClinicalFileCategories = <String>[
   'consentimiento',
   'formula',
   'soporte_pago',
+  'dictamen_pdf',
   'otro',
 ];
 
@@ -16,6 +17,9 @@ class ClinicalFileModel {
     required this.id,
     required this.patientId,
     this.treatmentId,
+    this.consultationId,
+    this.sourceType,
+    this.sourceId,
     this.treatmentNameSnapshot,
     this.stageId,
     this.stageNameSnapshot,
@@ -40,6 +44,9 @@ class ClinicalFileModel {
   final String id;
   final String patientId;
   final String? treatmentId;
+  final String? consultationId;
+  final String? sourceType;
+  final String? sourceId;
   final String? treatmentNameSnapshot;
   final String? stageId;
   final String? stageNameSnapshot;
@@ -69,6 +76,9 @@ class ClinicalFileModel {
       id: id ?? (json['id'] ?? '').toString(),
       patientId: (json['patientId'] ?? '').toString(),
       treatmentId: json['treatmentId']?.toString(),
+      consultationId: json['consultationId']?.toString(),
+      sourceType: json['sourceType']?.toString(),
+      sourceId: json['sourceId']?.toString(),
       treatmentNameSnapshot: json['treatmentNameSnapshot']?.toString(),
       stageId: json['stageId']?.toString(),
       stageNameSnapshot: json['stageNameSnapshot']?.toString(),
@@ -92,34 +102,40 @@ class ClinicalFileModel {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'patientId': patientId,
-        'treatmentId': treatmentId,
-        'treatmentNameSnapshot': treatmentNameSnapshot,
-        'stageId': stageId,
-        'stageNameSnapshot': stageNameSnapshot,
-        'originalName': originalName,
-        'displayName': displayName,
-        'storagePath': storagePath,
-        'downloadUrl': downloadUrl,
-        'mimeType': mimeType,
-        'extension': extension,
-        'sizeBytes': sizeBytes,
-        'category': category,
-        'notes': notes,
-        'uploadedBy': uploadedBy,
-        'uploadedAt': Timestamp.fromDate(uploadedAt),
-        'updatedAt': Timestamp.fromDate(updatedAt),
-        'active': active,
-        'visibleToPatient': visibleToPatient,
-        'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-        'deletedBy': deletedBy,
-      };
+    'id': id,
+    'patientId': patientId,
+    'treatmentId': treatmentId,
+    'consultationId': consultationId,
+    'sourceType': sourceType,
+    'sourceId': sourceId,
+    'treatmentNameSnapshot': treatmentNameSnapshot,
+    'stageId': stageId,
+    'stageNameSnapshot': stageNameSnapshot,
+    'originalName': originalName,
+    'displayName': displayName,
+    'storagePath': storagePath,
+    'downloadUrl': downloadUrl,
+    'mimeType': mimeType,
+    'extension': extension,
+    'sizeBytes': sizeBytes,
+    'category': category,
+    'notes': notes,
+    'uploadedBy': uploadedBy,
+    'uploadedAt': Timestamp.fromDate(uploadedAt),
+    'updatedAt': Timestamp.fromDate(updatedAt),
+    'active': active,
+    'visibleToPatient': visibleToPatient,
+    'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
+    'deletedBy': deletedBy,
+  };
 
   ClinicalFileModel copyWith({
     String? id,
     String? patientId,
     String? treatmentId,
+    String? consultationId,
+    String? sourceType,
+    String? sourceId,
     String? treatmentNameSnapshot,
     String? stageId,
     String? stageNameSnapshot,
@@ -140,13 +156,21 @@ class ClinicalFileModel {
     DateTime? deletedAt,
     String? deletedBy,
     bool clearTreatment = false,
+    bool clearSource = false,
     bool clearDeleted = false,
   }) {
     return ClinicalFileModel(
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       treatmentId: clearTreatment ? null : (treatmentId ?? this.treatmentId),
-      treatmentNameSnapshot: clearTreatment ? null : (treatmentNameSnapshot ?? this.treatmentNameSnapshot),
+      consultationId: clearSource
+          ? null
+          : (consultationId ?? this.consultationId),
+      sourceType: clearSource ? null : (sourceType ?? this.sourceType),
+      sourceId: clearSource ? null : (sourceId ?? this.sourceId),
+      treatmentNameSnapshot: clearTreatment
+          ? null
+          : (treatmentNameSnapshot ?? this.treatmentNameSnapshot),
       stageId: stageId ?? this.stageId,
       stageNameSnapshot: stageNameSnapshot ?? this.stageNameSnapshot,
       originalName: originalName ?? this.originalName,

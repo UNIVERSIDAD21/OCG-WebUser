@@ -32,6 +32,94 @@ const APPOINTMENT_TYPE_CONFIG: Record<string, {clinicalMinutes: number; patientC
   alta: {clinicalMinutes: 30, patientCanBook: false},
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  valoracionInicial: 'Valoración inicial',
+  estudioPlaneacion: 'Estudio y planeación',
+  instalacion: 'Instalación',
+  controles: 'Controles',
+  retencion: 'Retención',
+  alta: 'Alta',
+};
+
+function cleanString(value: unknown): string {
+  return (value ?? '').toString().trim();
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ?
+    value as Record<string, unknown> :
+    {};
+}
+
+function stageNameSnapshotFor(stageId: string): string {
+  return STAGE_LABELS[stageId] ?? stageId;
+}
+
+function treatmentNameFrom(data: Record<string, unknown>): string {
+  return cleanString(data.visibleName) ||
+    cleanString(data.clinicalTreatmentName) ||
+    cleanString(data.displayName) ||
+    cleanString(data.name) ||
+    cleanString(data.nombre);
+}
+
+async function resolvePrimaryTreatmentSnapshot(
+  db: admin.firestore.Firestore,
+  patientId: string,
+  patient: admin.firestore.DocumentData,
+): Promise<{
+  treatmentId: string;
+  treatmentNameSnapshot: string;
+  stageId: string;
+  stageNameSnapshot: string;
+}> {
+  const overview = asRecord(patient.treatmentOverview);
+  let treatmentId = cleanString(patient.primaryTreatmentId) || cleanString(overview.treatmentId);
+  let treatmentNameSnapshot = cleanString(overview.treatmentName);
+  let stageId = cleanString(overview.currentStageId) ||
+    cleanString(overview.currentStage) ||
+    cleanString(patient.etapaActual);
+
+  if (treatmentId) {
+    const treatmentDoc = await db
+      .collection(`patients/${patientId}/treatments`)
+      .doc(treatmentId)
+      .get();
+    if (treatmentDoc.exists) {
+      const treatment = asRecord(treatmentDoc.data() ?? {});
+      treatmentNameSnapshot =
+        treatmentNameFrom(treatment) || treatmentNameSnapshot;
+      stageId = cleanString(treatment.currentStageId) ||
+        cleanString(treatment.etapaActual) ||
+        stageId;
+    }
+  }
+
+  if (!treatmentId) {
+    const primarySnapshot = await db
+      .collection(`patients/${patientId}/treatments`)
+      .where('isPrimary', '==', true)
+      .limit(1)
+      .get();
+    if (!primarySnapshot.empty) {
+      const doc = primarySnapshot.docs[0];
+      const treatment = asRecord(doc.data());
+      treatmentId = doc.id;
+      treatmentNameSnapshot = treatmentNameFrom(treatment);
+      stageId = cleanString(treatment.currentStageId) ||
+        cleanString(treatment.etapaActual) ||
+        stageId;
+    }
+  }
+
+  return {
+    treatmentId,
+    treatmentNameSnapshot,
+    stageId,
+    stageNameSnapshot: stageNameSnapshotFor(stageId),
+  };
+}
+
 /**
  * Parsea fecha (YYYY-MM-DD) y hora (HH:mm) como hora local de Bogotá (UTC-5, sin DST)
  * y devuelve el Date equivalente en UTC para almacenar correctamente en Firestore.
@@ -135,6 +223,7 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
 
   const patientDoc = await db.collection('patients').doc(uid).get();
   const patient = patientDoc.data() ?? {};
+  const treatmentSnapshot = await resolvePrimaryTreatmentSnapshot(db, uid, patient);
 
   const ref = db.collection('appointments').doc();
   await ref.set({
@@ -142,6 +231,10 @@ export const reserveAppointment = onCall<ReserveAppointmentData>(async (request:
     patientId: uid,
     patientName: (patient.nombre ?? '').toString(),
     patientPhone: (patient.telefono ?? '').toString(),
+    treatmentId: treatmentSnapshot.treatmentId || null,
+    treatmentNameSnapshot: treatmentSnapshot.treatmentNameSnapshot || null,
+    stageId: treatmentSnapshot.stageId || null,
+    stageNameSnapshot: treatmentSnapshot.stageNameSnapshot || null,
     tipo: type,
     estado: 'programada',
     fechaHora: admin.firestore.Timestamp.fromDate(startAt),
