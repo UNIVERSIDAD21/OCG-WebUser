@@ -2036,138 +2036,135 @@ class _AdminAppointmentsScreenState
     }).toList();
   }
 
-  Widget _buildAppointmentActionsInline(AppointmentModel a) {
-    final actions = <Widget>[
-      OutlinedButton.icon(
-        onPressed: () => _openPatientProfile(a.patientId),
-        icon: const Icon(Icons.person_outline, size: 14),
-        label: const Text('Perfil'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: OcgColors.espresso,
-          side: BorderSide(color: OcgColors.espresso.withOpacity(0.5)),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  List<PopupMenuEntry<_AppointmentAction>> _buildMenuItemsForAppointment(AppointmentModel a) {
+    final items = <PopupMenuEntry<_AppointmentAction>>[];
+
+    // Always-available actions
+    items.addAll([
+      PopupMenuItem<_AppointmentAction>(
+        value: _AppointmentAction(
+          label: 'Perfil del paciente',
+          icon: Icons.person_outline,
+          onTap: () => _openPatientProfile(a.patientId),
         ),
+        height: 42,
+        child: _actionRow(Icons.person_outline, 'Perfil del paciente', OcgColors.espresso),
       ),
-      OutlinedButton.icon(
-        onPressed: () => _handleStatusAction(a, 'dictamen'),
-        icon: const Icon(Icons.description_outlined, size: 14),
-        label: const Text('Dictamen'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: OcgColors.bronze,
-          side: BorderSide(color: OcgColors.bronze.withOpacity(0.6)),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      PopupMenuItem<_AppointmentAction>(
+        value: _AppointmentAction(
+          label: 'Generar dictamen',
+          icon: Icons.description_outlined,
+          onTap: () => _handleStatusAction(a, 'dictamen'),
         ),
+        height: 42,
+        child: _actionRow(Icons.description_outlined, 'Generar dictamen', OcgColors.bronze),
       ),
-    ];
+    ]);
+
+    void addDivider() => items.add(const PopupMenuDivider(height: 1));
+    void addAction({required IconData icon, required String label, Color? color, required VoidCallback onTap}) {
+      items.add(
+        PopupMenuItem<_AppointmentAction>(
+          value: _AppointmentAction(label: label, icon: icon, color: color, onTap: onTap),
+          height: 42,
+          child: _actionRow(icon, label, color ?? OcgColors.espresso),
+        ),
+      );
+    }
 
     if (a.estado == AppointmentStatus.programada) {
-      actions.addAll([
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'confirmar'),
-          icon: const Icon(Icons.check_circle_outline, size: 14),
-          label: const Text('Confirmar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF1565C0),
-            side: const BorderSide(color: Color(0xFF1565C0)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'reprogramar'),
-          icon: const Icon(Icons.edit_calendar_outlined, size: 14),
-          label: const Text('Reprogramar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: OcgColors.bronze,
-            side: const BorderSide(color: OcgColors.bronze),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ]);
+      addDivider();
+      addAction(
+        icon: Icons.check_circle_outline,
+        label: 'Confirmar cita',
+        color: const Color(0xFF1565C0),
+        onTap: () => _handleStatusAction(a, 'confirmar'),
+      );
+      addAction(
+        icon: Icons.edit_calendar_outlined,
+        label: 'Reprogramar',
+        color: OcgColors.bronze,
+        onTap: () => _handleStatusAction(a, 'reprogramar'),
+      );
     } else if (a.estado == AppointmentStatus.confirmada) {
-      actions.addAll([
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'completar'),
-          icon: const Icon(Icons.done_all, size: 14),
-          label: const Text('Completar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF2E7D32),
-            side: const BorderSide(color: Color(0xFF2E7D32)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'reprogramar'),
-          icon: const Icon(Icons.edit_calendar_outlined, size: 14),
-          label: const Text('Reprogramar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: OcgColors.bronze,
-            side: const BorderSide(color: OcgColors.bronze),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ]);
+      addDivider();
+      addAction(
+        icon: Icons.done_all,
+        label: 'Completar',
+        color: const Color(0xFF2E7D32),
+        onTap: () => _handleStatusAction(a, 'completar'),
+      );
+      addAction(
+        icon: Icons.edit_calendar_outlined,
+        label: 'Reprogramar',
+        color: OcgColors.bronze,
+        onTap: () => _handleStatusAction(a, 'reprogramar'),
+      );
     }
 
     if (a.estado == AppointmentStatus.completada) {
-      actions.add(
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'reabrir'),
-          icon: const Icon(Icons.lock_open_outlined, size: 14),
-          label: const Text('Reabrir'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF1565C0),
-            side: const BorderSide(color: Color(0xFF1565C0)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
+      addDivider();
+      addAction(
+        icon: Icons.lock_open_outlined,
+        label: 'Reabrir cita',
+        color: const Color(0xFF1565C0),
+        onTap: () => _handleStatusAction(a, 'reabrir'),
       );
     }
 
     if (a.estado == AppointmentStatus.programada ||
         a.estado == AppointmentStatus.confirmada) {
-      actions.addAll([
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'no_asistio'),
-          icon: const Icon(Icons.person_off_outlined, size: 14),
-          label: const Text('No asistió'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFC56B16),
-            side: const BorderSide(color: Color(0xFFC56B16)),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _handleStatusAction(a, 'cancelar'),
-          icon: const Icon(Icons.cancel_outlined, size: 14),
-          label: const Text('Cancelar'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: OcgColors.error,
-            side: const BorderSide(color: OcgColors.error),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ]);
+      addDivider();
+      addAction(
+        icon: Icons.person_off_outlined,
+        label: 'No asistió',
+        color: const Color(0xFFC56B16),
+        onTap: () => _handleStatusAction(a, 'no_asistio'),
+      );
+      addAction(
+        icon: Icons.cancel_outlined,
+        label: 'Cancelar cita',
+        color: OcgColors.error,
+        onTap: () => _handleStatusAction(a, 'cancelar'),
+      );
     }
 
-    return Wrap(spacing: 6, runSpacing: 6, children: actions);
+    return items;
+  }
+
+  Widget _actionRow(IconData icon, String label, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppointmentActionsInline(AppointmentModel a) {
+    final items = _buildMenuItemsForAppointment(a);
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: PopupMenuButton<_AppointmentAction>(
+        icon: const Icon(Icons.more_vert, size: 20),
+        tooltip: 'Acciones',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        elevation: 8,
+        itemBuilder: (context) => items,
+        onSelected: (action) => action.onTap(),
+      ),
+    );
   }
 
   Widget _agendaPill({
@@ -4102,4 +4099,19 @@ class AppointmentCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Action item for the appointment popup menu
+class _AppointmentAction {
+  final String label;
+  final IconData icon;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _AppointmentAction({
+    required this.label,
+    required this.icon,
+    this.color,
+    required this.onTap,
+  });
 }
