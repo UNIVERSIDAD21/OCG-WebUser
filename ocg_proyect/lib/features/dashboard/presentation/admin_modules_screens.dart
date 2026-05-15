@@ -9,6 +9,7 @@ import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
+import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../auth/providers/auth_providers.dart';
 import 'admin_mobile_shell_controller.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
@@ -43,6 +44,74 @@ OutlinedButton _buildRailSignOutButton(BuildContext context, WidgetRef ref) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
   );
+}
+
+/// Círculo de avatar para paciente: muestra foto si existe, sino iniciales.
+Widget _patientAvatarCircle({
+  required PatientModel patient,
+  required double radius,
+  required Color fallbackColor,
+}) {
+  final url = (patient.fotoUrl ?? '').trim();
+  final initials = _initialsForPatient(patient.nombre);
+  if (url.isNotEmpty) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundImage: NetworkImage(url),
+      backgroundColor: fallbackColor.withOpacity(0.3),
+      onBackgroundImageError: (_, __) {},
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: radius * 2,
+        height: radius * 2,
+        errorBuilder: (_, __, ___) => Text(
+          initials,
+          style: TextStyle(
+            color: fallbackColor == OcgColors.espresso.withOpacity(0.14)
+                ? OcgColors.espresso
+                : OcgColors.ivory,
+            fontWeight: FontWeight.w700,
+            fontSize: radius < 20 ? 11 : 13,
+          ),
+        ),
+        loadingBuilder: (ctx, child, progress) {
+          if (progress == null) return child;
+          return Center(
+            child: SizedBox(
+              width: radius * 0.6,
+              height: radius * 0.6,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: OcgColors.bronze,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+  return CircleAvatar(
+    radius: radius,
+    backgroundColor: fallbackColor,
+    child: Text(
+      initials,
+      style: TextStyle(
+        color: fallbackColor == OcgColors.espresso.withOpacity(0.14)
+            ? OcgColors.espresso
+            : OcgColors.ivory,
+        fontWeight: FontWeight.w700,
+        fontSize: radius < 20 ? 11 : 13,
+      ),
+    ),
+  );
+}
+
+String _initialsForPatient(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty) return '?';
+  if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+  return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
 }
 
 class AdminTreatmentsScreen extends ConsumerWidget {
@@ -2132,16 +2201,13 @@ class _TreatmentPatientCard extends StatelessWidget {
               flex: 3,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: const Color(0xFF2E7D4C),
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        color: OcgColors.ivory,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
+                  OcgPhotoTapWrapper(
+                    photoUrl: patient.fotoUrl,
+                    patientName: patient.nombre,
+                    child: _patientAvatarCircle(
+                      patient: patient,
+                      radius: 16,
+                      fallbackColor: const Color(0xFF2E7D4C),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -2439,16 +2505,13 @@ class _PaymentsCompactRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFF2E7D4C),
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: OcgColors.ivory,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                ),
+            OcgPhotoTapWrapper(
+              photoUrl: patient.fotoUrl,
+              patientName: patient.nombre,
+              child: _patientAvatarCircle(
+                patient: patient,
+                radius: 16,
+                fallbackColor: const Color(0xFF2E7D4C),
               ),
             ),
             const SizedBox(width: 10),
@@ -3068,15 +3131,13 @@ class _DebtPatientCard extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: const Color(0xFFF2EDE8),
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      color: OcgColors.espresso,
-                      fontWeight: FontWeight.w700,
-                    ),
+                OcgPhotoTapWrapper(
+                  photoUrl: patient.fotoUrl,
+                  patientName: patient.nombre,
+                  child: _patientAvatarCircle(
+                    patient: patient,
+                    radius: 22,
+                    fallbackColor: const Color(0xFFF2EDE8),
                   ),
                 ),
                 if (overdue)
@@ -3222,15 +3283,13 @@ class _AdminSimulatorPatientCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: OcgColors.espresso.withOpacity(0.14),
-              child: Text(
-                _initials(patient.nombre),
-                style: const TextStyle(
-                  color: OcgColors.espresso,
-                  fontWeight: FontWeight.w700,
-                ),
+            OcgPhotoTapWrapper(
+              photoUrl: patient.fotoUrl,
+              patientName: patient.nombre,
+              child: _patientAvatarCircle(
+                patient: patient,
+                radius: 20,
+                fallbackColor: OcgColors.espresso.withOpacity(0.14),
               ),
             ),
             const SizedBox(width: 12),
