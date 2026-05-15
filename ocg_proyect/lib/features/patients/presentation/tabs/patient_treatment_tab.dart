@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/router/route_names.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../../shared/widgets/ocg_loading_state.dart';
@@ -18,6 +20,8 @@ import '../../../treatment/presentation/widgets/treatment_timeline.dart';
 import '../../../treatment/presentation/widgets/update_stage_dialog.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../../treatment/providers/treatment_provider.dart';
+import '../../../appointments/data/models/appointment_model.dart';
+import '../../../appointments/domain/appointments_business_rules.dart';
 import '../../data/models/patient_data_resolution.dart';
 import '../../data/models/patient_model.dart';
 
@@ -1328,19 +1332,27 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   }
 
   void _openUpdateStageDialog(PatientTreatment treatment) {
-    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
-    if (adminId.isEmpty) return;
-    showDialog<void>(
-      context: context,
-      builder: (_) => UpdateStageDialog(
-        patientId: widget.patientId,
-        treatmentId: treatment.id.startsWith('legacy-primary-')
-            ? null
-            : treatment.id,
-        etapaActual: treatment.etapaActual,
-        adminId: adminId,
+    final patient = widget.patient;
+    // En vez del diálogo "Avanzar etapa", abrimos el Dictamen (ConsultationScreen)
+    // Creamos una cita sintética con los datos del paciente para la navegación.
+    final syntheticAppt = AppointmentModel(
+      id: 'dictamen-${patient.id}-${DateTime.now().millisecondsSinceEpoch}',
+      patientId: patient.id,
+      patientName: patient.nombre,
+      patientPhone: patient.telefono,
+      treatmentId: treatment.id.startsWith('legacy-primary-')
+          ? null
+          : treatment.id,
+      tipo: AppointmentsBusinessRules.appointmentTypeForStage(
+        treatment.etapaActual,
       ),
+      estado: AppointmentStatus.programada,
+      fechaHora: DateTime.now(),
+      duracionMinutos: 30,
+      creadoPor: ref.read(authStateProvider).asData?.value?.uid ?? 'admin',
+      stageId: treatment.etapaActual,
     );
+    context.push(RouteNames.adminConsultation, extra: syntheticAppt);
   }
 
   PatientTreatment _resolveSelectedTreatment(

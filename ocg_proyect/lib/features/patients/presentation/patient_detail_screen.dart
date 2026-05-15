@@ -13,6 +13,7 @@ import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/domain/appointments_business_rules.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/widgets/register_payment_dialog.dart';
@@ -757,18 +758,28 @@ class _AdminPatientWorkspaceState
   }
 
   Future<void> _openUpdateStageDialog(PatientTreatment treatment) async {
-    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
-    await showDialog<void>(
-      context: context,
-      builder: (_) => UpdateStageDialog(
-        patientId: widget.patient.id,
-        treatmentId: treatment.id.startsWith('legacy-primary-')
-            ? null
-            : treatment.id,
-        etapaActual: treatment.etapaActual,
-        adminId: adminId,
+    final patient = widget.patient;
+    // En vez del diálogo "Avanzar etapa", abrimos el Dictamen (ConsultationScreen)
+    // Creamos una cita sintética con los datos del paciente para la navegación.
+    final syntheticAppt = AppointmentModel(
+      id: 'dictamen-${patient.id}-${DateTime.now().millisecondsSinceEpoch}',
+      patientId: patient.id,
+      patientName: patient.nombre,
+      patientPhone: patient.telefono,
+      treatmentId: treatment.id.startsWith('legacy-primary-')
+          ? null
+          : treatment.id,
+      tipo: AppointmentsBusinessRules.appointmentTypeForStage(
+        treatment.etapaActual,
       ),
+      estado: AppointmentStatus.programada,
+      fechaHora: DateTime.now(),
+      duracionMinutos: 30,
+      creadoPor: ref.read(authStateProvider).asData?.value?.uid ?? 'admin',
+      stageId: treatment.etapaActual,
     );
+    if (!mounted) return;
+    context.push(RouteNames.adminConsultation, extra: syntheticAppt);
   }
 
 
