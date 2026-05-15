@@ -2158,8 +2158,6 @@ class _TreatmentPatientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final patient = entry.patient;
     final treatment = entry.treatment;
-    final initials = _initials(patient.nombre);
-    final treatmentLabel = _tipoLabel(entry.legacyType).toLowerCase();
 
     final stageIdx = TreatmentStage.values
         .indexOf(treatment.etapaActual)
@@ -2185,220 +2183,124 @@ class _TreatmentPatientCard extends StatelessWidget {
       NextSessionStatus.sinAgendar => const Color(0xFF8A6F59),
     };
 
-    return InkWell(
+        return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onOpen,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFEFE2D6)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFEDE2D6), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 3,
-              child: Row(
-                children: [
-                  OcgPhotoTapWrapper(
-                    photoUrl: patient.fotoUrl,
-                    patientName: patient.nombre,
-                    child: _patientAvatarCircle(
-                      patient: patient,
-                      radius: 16,
-                      fallbackColor: const Color(0xFF2E7D4C),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patient.nombre,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: OcgColors.ink,
-                          ),
-                        ),
-                        Text(
-                          'Tratamiento: ${treatment.displayName}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF8A6F59),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'Inicio: ${_fmtShortDate(treatment.fechaInicio)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF8A6F59),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
+            // Photo
+            OcgPhotoTapWrapper(
+              photoUrl: patient.fotoUrl,
+              patientName: patient.nombre,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6EFE7),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFE6D8CB)),
-                ),
-                child: Text(
-                  treatmentLabel,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF7E6A5B),
-                    fontWeight: FontWeight.w600,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: OcgColors.bronze.withOpacity(0.2),
+                    width: 2,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: OcgColors.espresso.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _patientAvatarCircle(
+                  patient: patient,
+                  radius: 26,
+                  fallbackColor: const Color(0xFF2E7D4C),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 14),
+            // Info
             Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFE6D8CB)),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: statusColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
+              flex: 5,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    patient.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                      fontFamily: 'Cormorant Garamond',
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          '${(progress / 5).round()} sesiones',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF8A6F59),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$progress%',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: OcgColors.espresso,
-                        ),
-                      ),
+                      Icon(Icons.medical_services_outlined, size: 13, color: OcgColors.bronze.withOpacity(0.6)),
+                      const SizedBox(width: 5),
+                      Expanded(child: Text(treatment.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: OcgColors.bronze.withOpacity(0.7), fontWeight: FontWeight.w500))),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress / 100,
-                      minHeight: 4,
-                      backgroundColor: const Color(0xFFF2EDE8),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        OcgColors.bronze,
-                      ),
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 12, color: OcgColors.bronze.withOpacity(0.45)),
+                      const SizedBox(width: 5),
+                      Text('Desde ${_fmtShortDate(treatment.fechaInicio)}', style: TextStyle(fontSize: 11, color: OcgColors.bronze.withOpacity(0.5))),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    patient.nextSessionLabel,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: nextSessionColor,
-                      fontWeight:
-                          patient.nextSessionStatus == NextSessionStatus.vencida
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6, runSpacing: 6,
+                    children: [
+                      _pill(statusLabel, statusBg, statusColor),
+                      _pill('$progress% avance', OcgColors.bronze.withOpacity(0.08), OcgColors.bronze.withOpacity(0.7)),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 2,
+            const SizedBox(width: 12),
+            // Financial
+            SizedBox(
+              width: 110,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'Valor total: \$${formatCop(treatment.totalTratamiento ?? 0)}',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.espresso,
-                    ),
+                  Text(r'$' '${formatCop(treatment.totalTratamiento ?? 0)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: OcgColors.espresso)),
+                  Text('saldo ${r'$' '${formatCop(treatment.saldoPendiente ?? 0)}'}', style: TextStyle(fontSize: 10, color: const Color(0xFFB06A5A).withOpacity(0.8))),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(value: progress / 100, minHeight: 5, backgroundColor: const Color(0xFFF2EDE8), valueColor: AlwaysStoppedAnimation<Color>(statusColor.withOpacity(0.7))),
                   ),
-                  Text(
-                    'Pagado: \$${formatCop(((treatment.totalTratamiento ?? 0) - (treatment.saldoPendiente ?? 0)).clamp(0, double.infinity).toDouble())}',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF8A6F59),
-                    ),
-                  ),
-                  Text(
-                    'Saldo pendiente: \$${formatCop(treatment.saldoPendiente ?? 0)}',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      color: Color(0xFFB06A5A),
-                    ),
-                  ),
+                  const SizedBox(height: 6),
+                  Text(patient.nextSessionLabel, textAlign: TextAlign.right, style: TextStyle(fontSize: 10, color: nextSessionColor, fontWeight: patient.nextSessionStatus == NextSessionStatus.vencida ? FontWeight.w700 : FontWeight.w500)),
                 ],
               ),
             ),
             const SizedBox(width: 6),
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F5F0),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0xFFE8DDD2)),
-              ),
-              child: const Icon(
-                Icons.chevron_right,
-                color: OcgColors.bronze,
-                size: 14,
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(color: const Color(0xFFF8F5F0), shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE8DDD2))),
+                child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
               ),
             ),
           ],
@@ -2407,11 +2309,15 @@ class _TreatmentPatientCard extends StatelessWidget {
     );
   }
 
-  String _initials(String name) {
-    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  Widget _pill(String label, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg, borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fg.withOpacity(0.2), width: 0.5),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+    );
   }
 }
 
@@ -3112,43 +3018,68 @@ class _DebtPatientCard extends StatelessWidget {
               .map((e) => e[0].toUpperCase())
               .join();
 
-    return InkWell(
+        return InkWell(
       onTap: () => context.go(
         RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
       ),
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: overdue ? const Color(0xFFF3C6C6) : const Color(0xFFE7D6C6),
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Photo with overdue badge
             Stack(
               clipBehavior: Clip.none,
               children: [
                 OcgPhotoTapWrapper(
                   photoUrl: patient.fotoUrl,
                   patientName: patient.nombre,
-                  child: _patientAvatarCircle(
-                    patient: patient,
-                    radius: 22,
-                    fallbackColor: const Color(0xFFF2EDE8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: overdue ? OcgColors.error.withOpacity(0.3) : OcgColors.bronze.withOpacity(0.2),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: OcgColors.espresso.withOpacity(0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _patientAvatarCircle(
+                      patient: patient,
+                      radius: 26,
+                      fallbackColor: overdue ? OcgColors.error.withOpacity(0.15) : const Color(0xFFF2EDE8),
+                    ),
                   ),
                 ),
                 if (overdue)
                   const Positioned(
-                    right: -1,
-                    top: -1,
-                    child: Icon(Icons.error, size: 14, color: OcgColors.error),
+                    right: -1, top: -1,
+                    child: Icon(Icons.error, size: 16, color: OcgColors.error),
                   ),
               ],
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3158,64 +3089,74 @@ class _DebtPatientCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.ink,
-                      fontSize: 14,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                      fontFamily: 'Cormorant Garamond',
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _tipoLabel(
-                      patient.tipoTratamiento ?? TreatmentType.convencional,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 11.8,
-                      color: Color(0xFF8A6F59),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.medical_services_outlined, size: 13, color: OcgColors.bronze.withOpacity(0.6)),
+                      const SizedBox(width: 5),
+                      Text(
+                        _tipoLabel(patient.tipoTratamiento ?? TreatmentType.convencional),
+                        style: TextStyle(fontSize: 12, color: OcgColors.bronze.withOpacity(0.7), fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 12, color: OcgColors.bronze.withOpacity(0.45)),
+                      const SizedBox(width: 5),
+                      Text(
+                        overdue
+                            ? 'Vencido hace $overdueDays días'
+                            : dueText.replaceFirst('Próximo pago: ', ''),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: overdue ? OcgColors.error.withOpacity(0.7) : OcgColors.bronze.withOpacity(0.5),
+                          fontWeight: overdue ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                     decoration: BoxDecoration(
-                      color: overdue
-                          ? const Color(0xFFFFECEC)
-                          : const Color(0xFFEFF8F0),
+                      color: overdue ? OcgColors.error.withOpacity(0.08) : OcgColors.bronze.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      dueText,
+                      overdue ? '$overdueDays días vencido' : dueText,
                       style: TextStyle(
-                        fontSize: 10.8,
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: overdue ? OcgColors.error : OcgColors.success,
+                        color: overdue ? OcgColors.error : OcgColors.bronze.withOpacity(0.7),
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '\$${formatCop(patient.saldoPendiente)}',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: overdue ? OcgColors.error : OcgColors.espresso,
-                  ),
+            const SizedBox(width: 12),
+            Align(
+              alignment: Alignment.center,
+              child: Container(
+                width: 28, height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F5F0),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE8DDD2)),
                 ),
-                const Text(
-                  'pendiente',
-                  style: TextStyle(fontSize: 10.5, color: Color(0xFF8A6F59)),
-                ),
-              ],
+                child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
+              ),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: Color(0xFFB59D87), size: 20),
           ],
         ),
       ),
@@ -3263,36 +3204,53 @@ class _AdminSimulatorPatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+        return InkWell(
       onTap: onOpen,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE8D8C8)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE8D8C8), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
+              color: OcgColors.espresso.withOpacity(0.04),
+              blurRadius: 12,
               offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             OcgPhotoTapWrapper(
               photoUrl: patient.fotoUrl,
               patientName: patient.nombre,
-              child: _patientAvatarCircle(
-                patient: patient,
-                radius: 20,
-                fallbackColor: OcgColors.espresso.withOpacity(0.14),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: OcgColors.bronze.withOpacity(0.2),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: OcgColors.espresso.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: _patientAvatarCircle(
+                  patient: patient,
+                  radius: 26,
+                  fallbackColor: OcgColors.espresso.withOpacity(0.14),
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3300,19 +3258,43 @@ class _AdminSimulatorPatientCard extends StatelessWidget {
                   Text(
                     patient.nombre,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: OcgColors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                      fontFamily: 'Cormorant Garamond',
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     'Abrir simulaciones del paciente',
-                    style: TextStyle(color: OcgColors.ink.withOpacity(0.64)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: OcgColors.bronze.withOpacity(0.6),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.auto_awesome, color: OcgColors.bronze),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: OcgColors.bronze.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.auto_awesome, color: OcgColors.bronze, size: 20),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F5F0),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE8DDD2)),
+              ),
+              child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
+            ),
           ],
         ),
       ),
