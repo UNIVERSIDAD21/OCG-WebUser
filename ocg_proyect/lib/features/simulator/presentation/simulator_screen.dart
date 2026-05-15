@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/before_after_slider.dart';
+import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
 import '../data/repositories/simulation_repository.dart';
@@ -56,9 +57,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         widget.initialSimulation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(
-              widget.initialSimulation!,
-            );
+        ref
+            .read(simulatorFlowProvider.notifier)
+            .loadExistingSimulation(widget.initialSimulation!);
       });
     }
   }
@@ -69,7 +70,8 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     final repo = ref.watch(simulationRepositoryProvider);
 
     return flowAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () =>
+          const OcgSkeletonList(items: 2, cardHeight: 160, showAvatar: false),
       error: (error, _) => _ErrorState(
         message: error.toString(),
         onRetry: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
@@ -77,242 +79,247 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       data: (flow) {
         final showErrorCard = (flow.errorMessage ?? '').trim().isNotEmpty;
         final inPreview = flow.hasOriginal;
-        final canGenerate = flow.canGenerate && flow.status != SimulationStatus.archived;
+        final canGenerate =
+            flow.canGenerate && flow.status != SimulationStatus.archived;
         final isGenerating = flow.status == SimulationStatus.generating;
-        final canShare = flow.status == SimulationStatus.ready && flow.hasResult;
+        final canShare =
+            flow.status == SimulationStatus.ready && flow.hasResult;
         final canArchive =
-            flow.status == SimulationStatus.ready || flow.status == SimulationStatus.shared;
+            flow.status == SimulationStatus.ready ||
+            flow.status == SimulationStatus.shared;
         final treatmentLabel = _treatmentLabel(widget.treatmentType);
 
         final content = Column(
           key: const ValueKey('simulator-active-flow'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              _disclaimer(),
-              const SizedBox(height: 12),
-              _statusBanner(flow),
-              const SizedBox(height: 12),
-              if (!inPreview) ...[
-                const Text(
-                  'Paso 1: subir foto original',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: OcgColors.espresso,
-                  ),
+            _disclaimer(),
+            const SizedBox(height: 12),
+            _statusBanner(flow),
+            const SizedBox(height: 12),
+            if (!inPreview) ...[
+              const Text(
+                'Paso 1: subir foto original',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: OcgColors.espresso,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tipo de simulación/tratamiento: $treatmentLabel',
-                  style: const TextStyle(color: OcgColors.ink),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => ref
-                          .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromGallery(
-                            patientId: widget.patientId,
-                            adminId: widget.adminId,
-                            treatmentType: widget.treatmentType,
-                          ),
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Subir foto original'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => ref
-                          .read(simulatorFlowProvider.notifier)
-                          .pickOriginalFromCamera(
-                            patientId: widget.patientId,
-                            adminId: widget.adminId,
-                            treatmentType: widget.treatmentType,
-                          ),
-                      icon: const Icon(Icons.photo_camera_outlined),
-                      label: const Text('Usar cámara'),
-                    ),
-                  ],
-                ),
-              ],
-              if (flow.uiState == SimulatorUiState.pickingImage) ...[
-                const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(child: Text('Preparando foto original...')),
-                  ],
-                ),
-              ],
-              if (isGenerating) ...[
-                const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text('Generando simulación con IA...'),
-                    ),
-                  ],
-                ),
-              ],
-              if (showErrorCard) ...[
-                const SizedBox(height: 12),
-                _inlineError(flow.errorMessage!),
-              ],
-              if (inPreview) ...[
-                const SizedBox(height: 12),
-                if (flow.hasOriginal && flow.hasResult)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Comparación visual',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: OcgColors.espresso,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tipo de simulación/tratamiento: $treatmentLabel',
+                style: const TextStyle(color: OcgColors.ink),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => ref
+                        .read(simulatorFlowProvider.notifier)
+                        .pickOriginalFromGallery(
+                          patientId: widget.patientId,
+                          adminId: widget.adminId,
+                          treatmentType: widget.treatmentType,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      _BeforeAfterFromStorage(
-                        originalPath: flow.originalPath!,
-                        resultPath: flow.resultPath!,
-                        repository: repo,
-                      ),
-                    ],
-                  )
-                else
-                  _StoragePreviewCard(
-                    title: 'Imagen original',
-                    path: flow.originalPath,
-                    emptyLabel: 'Aún no cargada',
-                    repository: repo,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Subir foto original'),
                   ),
-                const SizedBox(height: 12),
-                _flowStateHint(flow),
-                const SizedBox(height: 12),
-                _autoAnalysisHint(flow),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: ValueKey('sim-notes-${flow.simulationId ?? 'new'}'),
-                  initialValue: flow.notes,
-                  enabled: !isGenerating,
-                  onChanged: (value) =>
-                      ref.read(simulatorFlowProvider.notifier).setNotes(value),
-                  minLines: 2,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas clínicas (opcional)',
-                    hintText: 'Observaciones de la simulación orientativa',
+                  OutlinedButton.icon(
+                    onPressed: () => ref
+                        .read(simulatorFlowProvider.notifier)
+                        .pickOriginalFromCamera(
+                          patientId: widget.patientId,
+                          adminId: widget.adminId,
+                          treatmentType: widget.treatmentType,
+                        ),
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: const Text('Usar cámara'),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                ],
+              ),
+            ],
+            if (flow.uiState == SimulatorUiState.pickingImage) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Preparando foto original...')),
+                ],
+              ),
+            ],
+            if (isGenerating) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Generando simulación con IA...')),
+                ],
+              ),
+            ],
+            if (showErrorCard) ...[
+              const SizedBox(height: 12),
+              _inlineError(flow.errorMessage!),
+            ],
+            if (inPreview) ...[
+              const SizedBox(height: 12),
+              if (flow.hasOriginal && flow.hasResult)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (flow.status == SimulationStatus.draft)
-                      ElevatedButton.icon(
-                        onPressed: !canGenerate || isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .generateWithAi(
-                                    patientId: widget.patientId,
-                                    treatmentType: treatmentLabel,
-                                  ),
-                        icon: const Icon(Icons.auto_awesome_outlined),
-                        label: const Text('Generar con IA'),
+                    const Text(
+                      'Comparación visual',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.espresso,
                       ),
-                    if (flow.status == SimulationStatus.failed)
-                      OutlinedButton.icon(
-                        onPressed: isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .resetFlow(),
-                        icon: const Icon(Icons.photo_camera_back_outlined),
-                        label: const Text('Cambiar foto'),
-                      ),
-                    if (flow.status == SimulationStatus.failed)
-                      ElevatedButton.icon(
-                        onPressed: !canGenerate || isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .generateWithAi(
-                                    patientId: widget.patientId,
-                                    treatmentType: treatmentLabel,
-                                  ),
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Reintentar generación'),
-                      ),
-                    if (flow.status == SimulationStatus.ready)
-                      ElevatedButton.icon(
-                        onPressed: !canGenerate || isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .generateWithAi(
-                                    patientId: widget.patientId,
-                                    treatmentType: treatmentLabel,
-                                  ),
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Regenerar'),
-                      ),
-                    if (canShare)
-                      OutlinedButton.icon(
-                        onPressed: isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .shareCurrentSimulation(patientId: widget.patientId),
-                        icon: const Icon(Icons.share_outlined),
-                        label: const Text('Compartir con paciente'),
-                      ),
-                    if (canArchive)
-                      OutlinedButton.icon(
-                        onPressed: isGenerating
-                            ? null
-                            : () => ref
-                                  .read(simulatorFlowProvider.notifier)
-                                  .archiveCurrentSimulation(patientId: widget.patientId),
-                        icon: const Icon(Icons.archive_outlined),
-                        label: const Text('Archivar'),
-                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _BeforeAfterFromStorage(
+                      originalPath: flow.originalPath!,
+                      resultPath: flow.resultPath!,
+                      repository: repo,
+                    ),
                   ],
+                )
+              else
+                _StoragePreviewCard(
+                  title: 'Imagen original',
+                  path: flow.originalPath,
+                  emptyLabel: 'Aún no cargada',
+                  repository: repo,
                 ),
-                if (flow.status == SimulationStatus.shared) ...[
-                  const SizedBox(height: 10),
-                  const Text(
-                    'La simulación ya fue compartida con el paciente.',
-                    style: TextStyle(
-                      color: OcgColors.success,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(height: 12),
+              _flowStateHint(flow),
+              const SizedBox(height: 12),
+              _autoAnalysisHint(flow),
+              const SizedBox(height: 12),
+              TextFormField(
+                key: ValueKey('sim-notes-${flow.simulationId ?? 'new'}'),
+                initialValue: flow.notes,
+                enabled: !isGenerating,
+                onChanged: (value) =>
+                    ref.read(simulatorFlowProvider.notifier).setNotes(value),
+                minLines: 2,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Notas clínicas (opcional)',
+                  hintText: 'Observaciones de la simulación orientativa',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (flow.status == SimulationStatus.draft)
+                    ElevatedButton.icon(
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      label: const Text('Generar con IA'),
                     ),
-                  ),
-                ],
-                if (flow.status == SimulationStatus.archived) ...[
-                  const SizedBox(height: 10),
-                  const Text(
-                    'La simulación está archivada y ya no permite nuevas acciones.',
-                    style: TextStyle(
-                      color: OcgColors.ink,
-                      fontWeight: FontWeight.w700,
+                  if (flow.status == SimulationStatus.failed)
+                    OutlinedButton.icon(
+                      onPressed: isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .resetFlow(),
+                      icon: const Icon(Icons.photo_camera_back_outlined),
+                      label: const Text('Cambiar foto'),
                     ),
-                  ),
+                  if (flow.status == SimulationStatus.failed)
+                    ElevatedButton.icon(
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Reintentar generación'),
+                    ),
+                  if (flow.status == SimulationStatus.ready)
+                    ElevatedButton.icon(
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Regenerar'),
+                    ),
+                  if (canShare)
+                    OutlinedButton.icon(
+                      onPressed: isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .shareCurrentSimulation(
+                                  patientId: widget.patientId,
+                                ),
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Compartir con paciente'),
+                    ),
+                  if (canArchive)
+                    OutlinedButton.icon(
+                      onPressed: isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .archiveCurrentSimulation(
+                                  patientId: widget.patientId,
+                                ),
+                      icon: const Icon(Icons.archive_outlined),
+                      label: const Text('Archivar'),
+                    ),
                 ],
+              ),
+              if (flow.status == SimulationStatus.shared) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'La simulación ya fue compartida con el paciente.',
+                  style: TextStyle(
+                    color: OcgColors.success,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+              if (flow.status == SimulationStatus.archived) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'La simulación está archivada y ya no permite nuevas acciones.',
+                  style: TextStyle(
+                    color: OcgColors.ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ],
-          );
+          ],
+        );
 
         if (widget.embedded) {
           return content;
@@ -392,9 +399,12 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       SimulationStatus.draft => 'Foto lista para generar simulación.',
       SimulationStatus.generating => 'Generando simulación con IA...',
       SimulationStatus.ready => 'Simulación lista para revisión.',
-      SimulationStatus.failed => 'La simulación falló. Revisa el mensaje y vuelve a intentarlo.',
-      SimulationStatus.shared => 'Esta simulación ya fue compartida con el paciente.',
-      SimulationStatus.archived => 'La simulación está archivada y no permite nuevas acciones.',
+      SimulationStatus.failed =>
+        'La simulación falló. Revisa el mensaje y vuelve a intentarlo.',
+      SimulationStatus.shared =>
+        'Esta simulación ya fue compartida con el paciente.',
+      SimulationStatus.archived =>
+        'La simulación está archivada y no permite nuevas acciones.',
     };
 
     return Container(
@@ -406,7 +416,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       ),
       child: Text(
         text,
-        style: const TextStyle(color: OcgColors.bronze, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: OcgColors.bronze,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -426,7 +439,10 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       ),
       child: Text(
         message,
-        style: const TextStyle(color: OcgColors.ink, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: OcgColors.ink,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -553,14 +569,14 @@ class _StoragePreviewCard extends StatelessWidget {
                     ? 300.0
                     : 220.0;
                 if (!snapshot.hasData) {
-                  return SizedBox(
-                    height: previewHeight,
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
+                  return OcgSkeletonBox(height: previewHeight, radius: 16);
                 }
                 final url = snapshot.data;
                 if ((url ?? '').isEmpty) {
-                  return Text(emptyLabel, style: const TextStyle(color: OcgColors.ink));
+                  return Text(
+                    emptyLabel,
+                    style: const TextStyle(color: OcgColors.ink),
+                  );
                 }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,10 +638,7 @@ class _BeforeAfterFromStorage extends StatelessWidget {
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const SizedBox(
-            height: 220,
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return const OcgSkeletonBox(height: 220, radius: 16);
         }
         final originalUrl = snapshot.data![0];
         final resultUrl = snapshot.data![1];

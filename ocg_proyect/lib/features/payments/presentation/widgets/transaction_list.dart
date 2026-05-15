@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
-import '../../../../shared/widgets/ocg_loading_screen.dart';
+import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../data/models/payment_model.dart';
 import '../../providers/payments_provider.dart';
 
@@ -31,9 +31,10 @@ class TransactionList extends ConsumerWidget {
     final dateFmt = _safeDateFormat();
 
     return asyncTx.when(
-      loading: () => const SizedBox(
-        height: 120,
-        child: ClipRect(child: OcgLoadingScreen()),
+      loading: () => const OcgSkeletonList(
+        items: 2,
+        cardHeight: 128,
+        padding: EdgeInsets.zero,
       ),
       error: (error, _) => Text(
         'Error cargando transacciones: $error',

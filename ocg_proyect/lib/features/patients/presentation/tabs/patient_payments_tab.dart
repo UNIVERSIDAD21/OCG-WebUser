@@ -11,9 +11,10 @@ import '../../../../features/payments/presentation/widgets/register_payment_dial
 import '../../../../features/payments/presentation/widgets/transaction_list.dart';
 import '../../../../features/payments/providers/treatment_financial_provider.dart';
 import '../../../../features/treatment/data/models/patient_treatment.dart';
+import '../../../../features/treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
-import '../../../../shared/widgets/ocg_loading_state.dart';
+import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../providers/patients_provider.dart';
 
 class PatientPaymentsTab extends ConsumerStatefulWidget {
@@ -39,7 +40,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
     final patientAsync = ref.watch(patientByIdProvider(widget.patientId));
 
     return patientAsync.when(
-      loading: () => OcgLoadingState(),
+      loading: () => const OcgSkeletonList(items: 4, cardHeight: 126),
       error: (error, _) => Text('No se pudo cargar paciente: $error'),
       data: (patient) {
         if (patient == null) {
@@ -154,11 +155,20 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   ),
                   const SizedBox(height: 10),
                   if (resolution.paymentAccounts.isEmpty)
-                    const OcgEmptyState(
+                    OcgEmptyState(
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'No hay cuentas de pago todavía.',
                       subtitle:
-                          'Cuando se inicialicen cuentas legacy o por tratamiento aparecerán aquí.',
+                          'Revisa el tratamiento para activar su estructura financiera y empezar a registrar pagos.',
+                      ctaLabel: 'Revisar tratamiento',
+                      onCta: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => ManagePatientTreatmentDialog(
+                          patientId: widget.patientId,
+                          patientName: patient.nombre,
+                          initialTreatment: selectedTreatment,
+                        ),
+                      ),
                     )
                   else
                     Wrap(
@@ -206,7 +216,7 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                   const SizedBox(height: 16),
                   financialItemsAsync.when(
                     loading: () =>
-                        OcgLoadingState(),
+                        const OcgSkeletonList(items: 2, cardHeight: 126),
                     error: (error, _) =>
                         Text('No se pudieron cargar conceptos: $error'),
                     data: (items) => Column(
@@ -320,11 +330,19 @@ Widget _buildNoTreatmentPaymentsView(
           mode: resolution.mode,
         ),
         const SizedBox(height: 16),
-        const OcgEmptyState(
+        OcgEmptyState(
           icon: Icons.monitor_heart_outlined,
           title: 'Aún no hay tratamiento activo',
           subtitle:
-              'Cuando el paciente tenga un tratamiento creado, aquí podrás gestionar sus pagos por tratamiento.',
+              'Crea el tratamiento primero y esta pestaña abrirá sus cuentas, saldo y pagos por separado.',
+          ctaLabel: 'Crear tratamiento',
+          onCta: () => showDialog<void>(
+            context: context,
+            builder: (_) => ManagePatientTreatmentDialog(
+              patientId: resolution.patient.id,
+              patientName: resolution.patient.nombre,
+            ),
+          ),
         ),
       ],
     ),
@@ -472,6 +490,11 @@ Widget _buildMobilePaymentsView(
       : pending <= 0
       ? 'Al día'
       : 'Pendiente';
+  final statusColor = pending <= 0
+      ? OcgColors.success
+      : paid <= 0
+      ? OcgColors.warning
+      : OcgColors.error;
 
   return SingleChildScrollView(
     padding: const EdgeInsets.all(16),
@@ -481,6 +504,7 @@ Widget _buildMobilePaymentsView(
         _mobilePaymentsCard(
           title: 'Resumen financiero',
           icon: Icons.account_balance_wallet_outlined,
+          accentColor: statusColor,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -499,6 +523,7 @@ Widget _buildMobilePaymentsView(
         _mobilePaymentsCard(
           title: 'Último pago',
           icon: Icons.payments_outlined,
+          accentColor: latestTx == null ? OcgColors.bronze : OcgColors.success,
           child: latestTx == null
               ? const Text(
                   'No hay pagos registrados para este paciente.',
@@ -524,6 +549,7 @@ Widget _buildMobilePaymentsView(
         _mobilePaymentsCard(
           title: 'Historial de pagos',
           icon: Icons.receipt_long_outlined,
+          accentColor: visibleTx.isEmpty ? OcgColors.bronze : OcgColors.success,
           child: visibleTx.isEmpty
               ? const Text(
                   'No hay pagos registrados para este paciente.',
@@ -655,20 +681,24 @@ Widget _mobilePaymentsCard({
   required String title,
   required IconData icon,
   required Widget child,
+  Color? accentColor,
 }) {
+  final effectiveAccent = accentColor ?? OcgColors.espresso;
   return Container(
     width: double.infinity,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: OcgColors.ivory,
       borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFE8DED2)),
+      border: Border.all(color: effectiveAccent.withValues(alpha: 0.22)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
+            _StatusDot(color: effectiveAccent),
+            const SizedBox(width: 8),
             Icon(icon, color: OcgColors.espresso),
             const SizedBox(width: 10),
             Expanded(
@@ -742,6 +772,49 @@ String _transactionStateLabel(PaymentTransaction tx) {
 String _formatDate(DateTime value) =>
     '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}';
 
+Color _paymentAccountStatusColor(EffectivePatientPaymentAccount account) {
+  return switch (account.payment.estado) {
+    PaymentStatus.pagadoTotal => OcgColors.success,
+    PaymentStatus.alDia => const Color(0xFF1B45A0),
+    PaymentStatus.pendiente => OcgColors.warning,
+    PaymentStatus.vencido => OcgColors.error,
+  };
+}
+
+String _paymentStatusLabel(PaymentStatus status) {
+  return switch (status) {
+    PaymentStatus.pagadoTotal => 'Pagado total',
+    PaymentStatus.alDia => 'Al día',
+    PaymentStatus.pendiente => 'Pendiente',
+    PaymentStatus.vencido => 'Vencido',
+  };
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 9,
+      height: 9,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.24),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PaymentAccountCard extends StatelessWidget {
   const _PaymentAccountCard({
     required this.account,
@@ -773,6 +846,7 @@ class _PaymentAccountCard extends StatelessWidget {
     final treatmentType = treatment == null
         ? 'Legacy / transición'
         : PatientTreatment.labelForBaseTreatment(treatment!.tipoBase);
+    final statusColor = _paymentAccountStatusColor(account);
 
     return SizedBox(
       width: 340,
@@ -785,7 +859,9 @@ class _PaymentAccountCard extends StatelessWidget {
             color: selected ? const Color(0xFFF8F0E7) : OcgColors.ivory,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? OcgColors.espresso : const Color(0xFFE8DDD2),
+              color: selected
+                  ? statusColor
+                  : statusColor.withValues(alpha: 0.24),
               width: selected ? 1.6 : 1,
             ),
             boxShadow: selected
@@ -808,17 +884,29 @@ class _PaymentAccountCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          treatmentTitle,
-                          style: const TextStyle(
-                            color: OcgColors.espresso,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: _StatusDot(color: statusColor),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                treatmentTitle,
+                                style: const TextStyle(
+                                  color: OcgColors.espresso,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          treatmentType,
+                          '${_paymentStatusLabel(account.payment.estado)} · $treatmentType',
                           style: const TextStyle(color: OcgColors.bronze),
                         ),
                       ],
@@ -831,9 +919,7 @@ class _PaymentAccountCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? OcgColors.espresso
-                          : const Color(0xFFF3ECE4),
+                      color: selected ? statusColor : const Color(0xFFF3ECE4),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(

@@ -662,7 +662,7 @@ class _AdminSimulationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: OcgColors.bronze.withOpacity(0.14)),
+        border: Border.all(color: statusColor.withOpacity(0.24)),
         boxShadow: [
           BoxShadow(
             color: OcgColors.espresso.withOpacity(0.04),
@@ -683,13 +683,25 @@ class _AdminSimulationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _fmtDate(simulation.createdAt),
-                      style: const TextStyle(
-                        color: OcgColors.espresso,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 7),
+                          child: _SimulationStatusDot(color: statusColor),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _fmtDate(simulation.createdAt),
+                            style: const TextStyle(
+                              color: OcgColors.espresso,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Wrap(
@@ -824,6 +836,31 @@ class _SimulationPreview extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _SimulationStatusDot extends StatelessWidget {
+  const _SimulationStatusDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 9,
+      height: 9,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.24),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
     );
   }
 }

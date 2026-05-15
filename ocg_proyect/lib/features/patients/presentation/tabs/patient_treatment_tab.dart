@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
-import '../../../../shared/widgets/ocg_loading_state.dart';
+import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../payments/data/models/financial_item_model.dart';
 import '../../../payments/data/models/treatment_financial_summary_model.dart';
@@ -17,7 +17,6 @@ import '../../../treatment/data/models/stage_history_entry.dart';
 import '../../../treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
 import '../../../treatment/presentation/widgets/stage_history_list.dart';
 import '../../../treatment/presentation/widgets/treatment_timeline.dart';
-import '../../../treatment/presentation/widgets/update_stage_dialog.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../../treatment/providers/treatment_provider.dart';
 import '../../../appointments/data/models/appointment_model.dart';
@@ -146,7 +145,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
 
     return financialItemsAsync.when(
-      loading: () => OcgLoadingState(),
+      loading: () => const OcgSkeletonList(items: 3, cardHeight: 138),
       error: (error, _) => Center(
         child: OcgEmptyState(
           icon: Icons.error_outline,
@@ -163,7 +162,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           ..sort((a, b) => a.order.compareTo(b.order));
 
         return historyAsync.when(
-          loading: () => OcgLoadingState(),
+          loading: () => const OcgSkeletonList(items: 3, cardHeight: 138),
           error: (error, _) => Center(
             child: OcgEmptyState(
               icon: Icons.error_outline,
@@ -291,6 +290,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     final visibleItems = activeItems.take(3).toList();
     final hasMoreItems = activeItems.length > visibleItems.length;
     final latestNote = (selectedTreatment.notas ?? '').trim();
+    final statusColor = _treatmentStatusColor(selectedTreatment);
 
     final content = Padding(
       padding: const EdgeInsets.all(16),
@@ -303,13 +303,25 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  selectedTreatment.displayName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: OcgColors.espresso,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _StatusDot(color: statusColor, size: 10),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        selectedTreatment.displayName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: OcgColors.espresso,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 _mobileInfoRow('Estado', selectedTreatment.statusLabel),
@@ -1741,6 +1753,42 @@ class _HeroActionButton extends StatelessWidget {
   }
 }
 
+Color _treatmentStatusColor(PatientTreatment treatment) {
+  return switch (treatment.estado.trim().toLowerCase()) {
+    'activo' => OcgColors.success,
+    'pausado' => OcgColors.warning,
+    'finalizado' => const Color(0xFF1B45A0),
+    'cancelado' => OcgColors.error,
+    _ => OcgColors.bronze,
+  };
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.color, this.size = 9});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.24),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TreatmentStreamCard extends StatelessWidget {
   const _TreatmentStreamCard({
     super.key,
@@ -1757,6 +1805,7 @@ class _TreatmentStreamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = _treatmentStatusColor(treatment);
     final paid =
         ((treatment.totalTratamiento ?? 0) - (treatment.saldoPendiente ?? 0))
             .clamp(0, double.infinity)
@@ -1772,7 +1821,7 @@ class _TreatmentStreamCard extends StatelessWidget {
           color: selected ? const Color(0xFFF5F1EA) : Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: selected ? const Color(0xFFB07D3C) : const Color(0xFFE8DED2),
+            color: selected ? statusColor : statusColor.withValues(alpha: 0.24),
             width: selected ? 1.5 : 1,
           ),
           boxShadow: selected
@@ -1790,6 +1839,8 @@ class _TreatmentStreamCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                _StatusDot(color: statusColor),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     treatment.displayName,
