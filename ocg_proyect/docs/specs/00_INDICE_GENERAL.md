@@ -23,7 +23,7 @@ Esto no es un proyecto de práctica. Es un sistema de gestión clínica real. Ha
 | 04 | 04_GESTION_PACIENTES.md | CRUD pacientes, pantallas, providers, repositorios |
 | 05 | 05_AGENDA_CITAS.md | Citas desde app y web, calendario, estados |
 | 06 | 06_TRATAMIENTO_Y_ETAPAS.md | Timeline de etapas, progreso visual |
-| 07 | 07_PAGOS.md | PayU Colombia, recibos PDF, historial |
+| 07 | 07_PAGOS.md | Epayco Colombia, recibos PDF, historial |
 | 08 | 08_SIMULADOR_SONRISA.md | OpenAI inpainting + ML Kit — feature estrella |
 | 09 | 09_NOTIFICACIONES_FCM.md | Push notifications — todos los triggers |
 

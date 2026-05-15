@@ -15,6 +15,10 @@ import {reconcileNoShowAppointments} from './appointments/reconcile_no_show_appo
 import {processScheduledNotifications} from './appointments/reminder_scheduler';
 import {createEpaycoCheckout} from './payments/create_epayco_checkout';
 import {epaycoWebhook} from './payments/epayco_webhook';
+
+// Compatibilidad: nombres viejos apuntando al código nuevo de Epayco
+const createPayuSession = createEpaycoCheckout;
+const payuWebhook = epaycoWebhook;
 import {reconcilePatientBalances} from './payments/reconcile_balances';
 import {initializeAllPaymentDocuments} from './payments/initialize_all_payment_documents';
 import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_item_write';
@@ -45,7 +49,9 @@ export {
   reconcileNoShowAppointments,
   processScheduledNotifications,
   createEpaycoCheckout,
+  createPayuSession, // alias compat
   epaycoWebhook,
+  payuWebhook, // alias compat
   reconcilePatientBalances,
   initializeAllPaymentDocuments,
   onTreatmentFinancialItemWrite,

@@ -10,8 +10,8 @@
 ## Reglas de negocio de pagos
 
 1. Solo el admin puede registrar pagos en efectivo o transferencia.
-2. El paciente puede pagar en línea mediante PayU (tarjeta, PSE, Efecty).
-3. Cuando PayU confirma un pago exitoso, una Cloud Function actualiza montoPagado y saldoPendiente.
+2. El paciente puede pagar en línea mediante Epayco (tarjeta, PSE, Efecty).
+3. Cuando Epayco confirma un pago exitoso, una Cloud Function actualiza montoPagado y saldoPendiente.
 4. El saldo nunca puede quedar negativo. Si el monto supera el total, mostrar advertencia al admin.
 5. Generar automáticamente un recibo en PDF al confirmar cualquier pago.
 

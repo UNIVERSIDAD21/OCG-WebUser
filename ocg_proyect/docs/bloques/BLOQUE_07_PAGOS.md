@@ -1,9 +1,9 @@
 # BLOQUE_07 — Módulo de Pagos Completo
 
-> **Stack:** Flutter + Riverpod + Firestore + Cloud Functions (TypeScript) + PayU Colombia
+> **Stack:** Flutter + Riverpod + Firestore + Cloud Functions (TypeScript) + Epayco Colombia
 > **Prioridad:** ALTA — Manejo de dinero real
 > **Depende de:** Bloque 04 (pacientes) ✅ · Bloque 05 (citas) ✅
-> **Versión:** 2.0 — Incluye integración PayU Colombia completa con sandbox
+> **Versión:** 2.0 — Incluye integración Epayco Colombia completa con sandbox
 
 ---
 
@@ -13,7 +13,7 @@ Este módulo maneja el dinero real de la clínica. Cada peso debe quedar registr
 El sistema soporta dos orígenes de pago:
 
 1. **Pagos manuales** — el admin registra lo que el paciente pagó en efectivo o transferencia.
-2. **Pagos en línea vía PayU** — el paciente paga con tarjeta, PSE o Efecty desde la app.
+2. **Pagos en línea vía Epayco** — el paciente paga con tarjeta, PSE o Efecty desde la app.
 
 Ambos flujos terminan en el mismo lugar: una transacción en Firestore y el saldo actualizado.
 La diferencia es quién inicia el pago y cómo llega la confirmación al servidor.
@@ -37,7 +37,7 @@ en un **batch atómico**. Si el batch falla, ninguno se actualiza. Nunca por sep
 ## Lo que se entrega al cerrar este bloque
 
 - [ ] `PaymentModel` + `PaymentTransaction` con serialización completa y tests unitarios
-- [ ] `PaymentsRepository` con todos los métodos (manual + PayU + inicialización)
+- [ ] `PaymentsRepository` con todos los métodos (manual + Epayco + inicialización)
 - [ ] `payments_provider` Riverpod reactivo
 - [ ] `PaymentSummaryCard` widget con formato COP
 - [ ] `TransactionList` widget con historial ordenado
@@ -45,8 +45,8 @@ en un **batch atómico**. Si el batch falla, ninguno se actualiza. Nunca por sep
 - [ ] `patient_payments_tab.dart` completo (vista admin dentro del detalle de paciente)
 - [ ] `PatientPaymentsScreen` completo (vista del paciente en su app)
 - [ ] `PdfReceiptService` — genera recibo PDF y lo sube a Firebase Storage
-- [ ] Cloud Function `createPayuSession` — genera sesión de pago PayU
-- [ ] Cloud Function `payuWebhook` — recibe confirmación de PayU, verifica firma MD5
+- [ ] Cloud Function `createPayuSession` — genera sesión de pago Epayco
+- [ ] Cloud Function `epaycoWebhook` — recibe confirmación de Epayco, verifica firma MD5
 - [ ] `PayuService` en Flutter — llama a `createPayuSession` y abre WebView
 - [ ] Reglas Firestore actualizadas para la colección `payments/`
 - [ ] `flutter analyze` ✅
@@ -75,13 +75,13 @@ lib/
         │       └── register_payment_dialog.dart ← dialog para registrar pago manual
         └── services/
             ├── pdf_receipt_service.dart        ← generación de recibos PDF
-            └── payu_service.dart               ← integración con PayU
+            └── epayco_service.dart               ← integración con Epayco
 
 functions/
 └── src/
     └── payments/
-        ├── create_payu_session.ts              ← Cloud Function: genera sesión de pago
-        ├── payu_webhook.ts                     ← Cloud Function: recibe confirmación PayU
+        ├── create_epayco_session.ts              ← Cloud Function: genera sesión de pago
+        ├── epayco_webhook.ts                     ← Cloud Function: recibe confirmación Epayco
         └── reconcile_balances.ts               ← Cloud Function: corrección de inconsistencias
 
 test/
@@ -89,7 +89,7 @@ test/
     └── payments/
         ├── payment_model_test.dart
         ├── payments_repository_test.dart
-        └── payu_signature_test.dart
+        └── epayco_signature_test.dart
 ```
 
 ---
@@ -113,7 +113,7 @@ enum PaymentStatus {
 enum PaymentMethod {
   efectivo,       // Pago presencial en efectivo
   transferencia,  // Transferencia bancaria (Nequi, Daviplata, banco)
-  payu,           // Pago en línea procesado por PayU Colombia
+  epayco,           // Pago en línea procesado por Epayco Colombia
 }
 
 // ─── PaymentModel ─────────────────────────────────────────────────────────────
@@ -215,12 +215,12 @@ class PaymentTransaction {
   final double monto;                // Valor pagado en esta transacción (COP)
   final DateTime fecha;
   final PaymentMethod metodo;
-  final String? referencia;          // Referencia bancaria, comprobante o ID de PayU
-  final String registradoPor;        // adminId si es manual, 'payu_webhook' si es PayU
+  final String? referencia;          // Referencia bancaria, comprobante o ID de Epayco
+  final String registradoPor;        // adminId si es manual, 'epayco_webhook' si es Epayco
   final String? notas;               // Observación libre del admin
   final String? reciboUrl;           // URL de Firebase Storage del PDF generado
-  final String? payuOrderId;         // ID de la orden en PayU (solo pagos PayU)
-  final String? payuTransactionId;   // ID de transacción de PayU (solo pagos PayU)
+  final String? epaycoOrderId;         // ID de la orden en Epayco (solo pagos Epayco)
+  final String? epaycoTransactionId;   // ID de transacción de Epayco (solo pagos Epayco)
 
   const PaymentTransaction({
     required this.id,
@@ -231,8 +231,8 @@ class PaymentTransaction {
     required this.registradoPor,
     this.notas,
     this.reciboUrl,
-    this.payuOrderId,
-    this.payuTransactionId,
+    this.epaycoOrderId,
+    this.epaycoTransactionId,
   });
 
   factory PaymentTransaction.fromJson(Map<String, dynamic> json) {
@@ -245,8 +245,8 @@ class PaymentTransaction {
       registradoPor: json['registradoPor'] as String,
       notas: json['notas'] as String?,
       reciboUrl: json['reciboUrl'] as String?,
-      payuOrderId: json['payuOrderId'] as String?,
-      payuTransactionId: json['payuTransactionId'] as String?,
+      epaycoOrderId: json['epaycoOrderId'] as String?,
+      epaycoTransactionId: json['epaycoTransactionId'] as String?,
     );
   }
 
@@ -259,8 +259,8 @@ class PaymentTransaction {
         'registradoPor': registradoPor,
         'notas': notas,
         'reciboUrl': reciboUrl,
-        'payuOrderId': payuOrderId,
-        'payuTransactionId': payuTransactionId,
+        'epaycoOrderId': epaycoOrderId,
+        'epaycoTransactionId': epaycoTransactionId,
       };
 }
 ```
@@ -395,8 +395,8 @@ class PaymentsRepository {
       'registradoPor': adminId,
       'notas': notas,
       'reciboUrl': null,  // Se actualiza después de generar el PDF
-      'payuOrderId': null,
-      'payuTransactionId': null,
+      'epaycoOrderId': null,
+      'epaycoTransactionId': null,
     });
 
     // 4b. Actualizar payments/ (FUENTE DE VERDAD)
@@ -432,14 +432,14 @@ class PaymentsRepository {
     }
   }
 
-  /// Registrar un pago confirmado por PayU vía webhook.
-  /// Solo debe ser llamado por la Cloud Function payuWebhook — nunca desde el cliente.
+  /// Registrar un pago confirmado por Epayco vía webhook.
+  /// Solo debe ser llamado por la Cloud Function epaycoWebhook — nunca desde el cliente.
   /// La firma MD5 ya fue verificada antes de llegar aquí.
   Future<void> registerGatewayPayment({
     required String patientId,
     required double monto,
-    required String payuOrderId,
-    required String payuTransactionId,
+    required String epaycoOrderId,
+    required String epaycoTransactionId,
     required String referencia,
   }) async {
     final paymentDoc = await _db
@@ -469,13 +469,13 @@ class PaymentsRepository {
       'id': txRef.id,
       'monto': monto,
       'fecha': FieldValue.serverTimestamp(),
-      'metodo': PaymentMethod.payu.name,
+      'metodo': PaymentMethod.epayco.name,
       'referencia': referencia,
-      'registradoPor': 'payu_webhook',
-      'notas': 'Pago procesado por PayU Colombia',
+      'registradoPor': 'epayco_webhook',
+      'notas': 'Pago procesado por Epayco Colombia',
       'reciboUrl': null,
-      'payuOrderId': payuOrderId,
-      'payuTransactionId': payuTransactionId,
+      'epaycoOrderId': epaycoOrderId,
+      'epaycoTransactionId': epaycoTransactionId,
     });
 
     batch.update(
@@ -611,7 +611,7 @@ final registerPaymentProvider =
     AutoDisposeAsyncNotifierProvider<RegisterPaymentNotifier, void>(
         RegisterPaymentNotifier.new);
 
-// ── Notifier: iniciar pago PayU ───────────────────────────────────────────────
+// ── Notifier: iniciar pago Epayco ───────────────────────────────────────────────
 
 class InitiatePayuPaymentNotifier
     extends AutoDisposeAsyncNotifier<String?> {
@@ -627,8 +627,8 @@ class InitiatePayuPaymentNotifier
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final payuService = ref.read(payuServiceProvider);
-      final url = await payuService.createPaymentSession(
+      final epaycoService = ref.read(epaycoServiceProvider);
+      final url = await epaycoService.createPaymentSession(
         patientId: patientId,
         monto: monto,
         patientEmail: patientEmail,
@@ -694,7 +694,7 @@ final initiatePayuPaymentProvider =
 /// Íconos por método:
 /// efectivo      → Icons.payments_outlined    (verde claro)
 /// transferencia → Icons.account_balance      (azul)
-/// payu          → Icons.credit_card          (espresso)
+/// epayco          → Icons.credit_card          (espresso)
 ///
 /// Si la lista está vacía: OcgEmptyState con ícono Icons.receipt_long_outlined
 /// y texto "Sin pagos registrados todavía."
@@ -767,10 +767,10 @@ final initiatePayuPaymentProvider =
 ///
 /// _PayuPaymentButton:
 /// - Visible solo si saldoPendiente > 0
-/// - Texto: "Pagar en línea con PayU"
+/// - Texto: "Pagar en línea con Epayco"
 /// - Ícono: Icons.credit_card
 /// - Color: OcgColors.espresso
-/// - Al tocar: muestra campo de monto → confirma → inicia flujo PayU
+/// - Al tocar: muestra campo de monto → confirma → inicia flujo Epayco
 /// - Si saldo == 0: mostrar chip "Tratamiento pagado en su totalidad ✓"
 ///
 /// El paciente NO ve el botón "Registrar pago" — ese es exclusivo del admin.
@@ -854,11 +854,11 @@ final initiatePayuPaymentProvider =
 
 ---
 
-## PARTE 6 — Integración PayU Colombia
+## PARTE 6 — Integración Epayco Colombia
 
 ### Credenciales de Sandbox (desarrollo y pruebas)
 
-Estas credenciales son públicas y oficiales de PayU para desarrollo.
+Estas credenciales son públicas y oficiales de Epayco para desarrollo.
 **Nunca usar en producción.**
 
 ```
@@ -867,11 +867,11 @@ Merchant ID:  508029
 Account ID:   512321
 API Login:    pRRXKOl8ikMmt9u
 
-URL Sandbox:  https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/
-URL API:      https://sandbox.api.payulatam.com/payments-api/4.0/service.cgi
+URL Sandbox:  https://sandbox.checkout.epaycolatam.com/ppp-web-gateway-epayco/
+URL API:      https://sandbox.api.epaycolatam.com/payments-api/4.0/service.cgi
 ```
 
-Tarjetas de prueba oficiales de PayU Colombia:
+Tarjetas de prueba oficiales de Epayco Colombia:
 
 | Resultado | Número de tarjeta | CVV | Vencimiento |
 |-----------|-------------------|-----|-------------|
@@ -883,21 +883,21 @@ Para PSE en sandbox: usar cualquier banco y cédula ficticia.
 
 ### Credenciales de Producción (cuando la doctora tenga cuenta activa)
 
-Obtener desde el panel de PayU Colombia tras aprobación:
-- `PAYU_API_KEY` → guardar en Firebase Functions config (nunca en el código)
-- `PAYU_MERCHANT_ID`
-- `PAYU_ACCOUNT_ID`
+Obtener desde el panel de Epayco Colombia tras aprobación:
+- `EPAYCO_API_KEY` → guardar en Firebase Functions config (nunca en el código)
+- `EPAYCO_MERCHANT_ID`
+- `EPAYCO_ACCOUNT_ID`
 
 ```bash
 # Configurar en Firebase Functions (no hardcodear)
-firebase functions:config:set payu.api_key="VALOR_REAL" payu.merchant_id="VALOR_REAL"
+firebase functions:config:set epayco.api_key="VALOR_REAL" epayco.merchant_id="VALOR_REAL"
 ```
 
-### Flujo completo de un pago PayU
+### Flujo completo de un pago Epayco
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   FLUJO DE PAGO PAYU                                │
+│                   FLUJO DE PAGO EPAYCO                                │
 │                                                                     │
 │  1. Paciente toca "Pagar $300.000"                                  │
 │              ↓                                                      │
@@ -910,16 +910,16 @@ firebase functions:config:set payu.api_key="VALOR_REAL" payu.merchant_id="VALOR_
 │     Retorna: { checkoutUrl, referencia }                            │
 │              ↓                                                      │
 │  4. Flutter abre checkoutUrl en WebView (webview_flutter)           │
-│     El paciente ve el formulario SEGURO de PayU                     │
+│     El paciente ve el formulario SEGURO de Epayco                     │
 │     El paciente ingresa su tarjeta / elige PSE                      │
 │              ↓                                                      │
-│  5. PayU procesa el pago con el banco                               │
+│  5. Epayco procesa el pago con el banco                               │
 │              ↓                                                      │
-│  6. PayU hace POST al webhook:                                      │
-│     https://{region}-{project}.cloudfunctions.net/payuWebhook       │
+│  6. Epayco hace POST al webhook:                                      │
+│     https://{region}-{project}.cloudfunctions.net/epaycoWebhook       │
 │     Body: { state_pol, reference_sale, value, sign, ... }           │
 │              ↓                                                      │
-│  7. Cloud Function payuWebhook:                                     │
+│  7. Cloud Function epaycoWebhook:                                     │
 │     a. Recibe el POST                                               │
 │     b. Verifica firma MD5 (seguridad crítica)                       │
 │     c. Si estado == APPROVED → llama registerGatewayPayment()       │
@@ -932,11 +932,11 @@ firebase functions:config:set payu.api_key="VALOR_REAL" payu.merchant_id="VALOR_
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### `lib/features/payments/services/payu_service.dart`
+### `lib/features/payments/services/epayco_service.dart`
 
 ```dart
-/// Servicio Flutter para interactuar con PayU a través de Cloud Functions.
-/// No llama a PayU directamente — siempre pasa por Cloud Functions
+/// Servicio Flutter para interactuar con Epayco a través de Cloud Functions.
+/// No llama a Epayco directamente — siempre pasa por Cloud Functions
 /// para no exponer las API Keys en el cliente.
 ///
 /// Dependencias:
@@ -949,13 +949,13 @@ firebase functions:config:set payu.api_key="VALOR_REAL" payu.merchant_id="VALOR_
 ///   required double monto,
 ///   required String patientEmail,
 ///   required String patientName,
-/// }) → retorna la URL del checkout de PayU
+/// }) → retorna la URL del checkout de Epayco
 ///
 /// El flujo en Flutter:
 /// 1. Llamar createPaymentSession()
 /// 2. Abrir la URL en WebView (PayuCheckoutScreen)
 /// 3. Escuchar el navigationDelegate del WebView:
-///    - Si navega a la URL de respuesta de PayU (responseUrl) → cerrar WebView
+///    - Si navega a la URL de respuesta de Epayco (responseUrl) → cerrar WebView
 ///    - Mostrar al usuario: "Procesando tu pago, espera un momento..."
 ///    - El resultado llega por el stream de Firestore (webhook actualiza Firestore)
 
@@ -980,19 +980,19 @@ class PayuService {
   }
 }
 
-final payuServiceProvider = Provider<PayuService>((ref) {
+final epaycoServiceProvider = Provider<PayuService>((ref) {
   return PayuService(FirebaseFunctions.instance);
 });
 ```
 
-### `lib/features/payments/presentation/payu_checkout_screen.dart`
+### `lib/features/payments/presentation/epayco_checkout_screen.dart`
 
 ```dart
-/// Pantalla que envuelve el WebView de PayU.
+/// Pantalla que envuelve el WebView de Epayco.
 ///
 /// Estructura:
 /// Scaffold
-/// ├── AppBar: "Pagar con PayU" + botón cerrar (X)
+/// ├── AppBar: "Pagar con Epayco" + botón cerrar (X)
 /// └── WebViewWidget
 ///     ├── url: checkoutUrl (viene de createPaymentSession)
 ///     └── navigationDelegate:
@@ -1011,7 +1011,7 @@ final payuServiceProvider = Provider<PayuService>((ref) {
 
 ## PARTE 7 — Cloud Functions (TypeScript)
 
-### `functions/src/payments/create_payu_session.ts`
+### `functions/src/payments/create_epayco_session.ts`
 
 ```typescript
 import * as functions from 'firebase-functions/v2';
@@ -1020,7 +1020,7 @@ import * as crypto from 'crypto';
 
 /**
  * createPayuSession
- * Callable desde Flutter — genera una sesión de pago en PayU.
+ * Callable desde Flutter — genera una sesión de pago en Epayco.
  * 
  * Recibe: { patientId, monto, email, nombre }
  * Retorna: { checkoutUrl, referencia }
@@ -1028,22 +1028,22 @@ import * as crypto from 'crypto';
  * El monto se recibe en COP (pesos colombianos) como número entero.
  * La referencia generada es única: OCG-{timestamp}-{patientId.slice(0,8)}
  * 
- * La firma MD5 se calcula así (formato oficial PayU Colombia):
+ * La firma MD5 se calcula así (formato oficial Epayco Colombia):
  * firma = MD5("apiKey~merchantId~referencia~monto~COP")
  * Ejemplo: MD5("4Vj8eK4rloUd272L48hsrarnUA~508029~OCG-1234567890-abc12345~300000~COP")
  * 
- * La URL del checkout de PayU se construye con parámetros GET:
+ * La URL del checkout de Epayco se construye con parámetros GET:
  * merchantId, accountId, description, referenceCode, amount,
  * currency, signature, responseUrl, confirmationUrl, buyerEmail,
  * buyerFullName
  * 
- * confirmationUrl → URL del webhook payuWebhook (para recibir resultado)
+ * confirmationUrl → URL del webhook epaycoWebhook (para recibir resultado)
  * responseUrl     → URL de retorno al paciente (puede ser una página en blanco
  *                   que el WebView detecta para cerrar automáticamente)
  * 
  * Ambiente:
- * - Sandbox: usa credenciales de prueba y URL sandbox.checkout.payulatam.com
- * - Producción: usa Firebase Functions config y checkout.payulatam.com
+ * - Sandbox: usa credenciales de prueba y URL sandbox.checkout.epaycolatam.com
+ * - Producción: usa Firebase Functions config y checkout.epaycolatam.com
  */
 export const createPayuSession = functions.https.onCall(
   { cors: true },
@@ -1064,30 +1064,30 @@ export const createPayuSession = functions.https.onCall(
     }
 
     // Credenciales (sandbox o producción según config)
-    const isSandbox = process.env.PAYU_SANDBOX === 'true';
+    const isSandbox = process.env.EPAYCO_SANDBOX === 'true';
     const apiKey = isSandbox
       ? '4Vj8eK4rloUd272L48hsrarnUA'
-      : functions.params.defineString('PAYU_API_KEY').value();
-    const merchantId = isSandbox ? '508029' : functions.params.defineString('PAYU_MERCHANT_ID').value();
-    const accountId  = isSandbox ? '512321' : functions.params.defineString('PAYU_ACCOUNT_ID').value();
+      : functions.params.defineString('EPAYCO_API_KEY').value();
+    const merchantId = isSandbox ? '508029' : functions.params.defineString('EPAYCO_MERCHANT_ID').value();
+    const accountId  = isSandbox ? '512321' : functions.params.defineString('EPAYCO_ACCOUNT_ID').value();
 
     // Referencia única
     const referencia = `OCG-${Date.now()}-${patientId.slice(0, 8)}`;
     const montoStr = monto.toFixed(2);
 
-    // Firma MD5 — formato oficial PayU
+    // Firma MD5 — formato oficial Epayco
     const firmaStr = `${apiKey}~${merchantId}~${referencia}~${montoStr}~COP`;
     const firma = crypto.createHash('md5').update(firmaStr).digest('hex');
 
-    // URL base de PayU
+    // URL base de Epayco
     const baseUrl = isSandbox
-      ? 'https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/'
-      : 'https://checkout.payulatam.com/ppp-web-gateway-payu/';
+      ? 'https://sandbox.checkout.epaycolatam.com/ppp-web-gateway-epayco/'
+      : 'https://checkout.epaycolatam.com/ppp-web-gateway-epayco/';
 
-    // URL del webhook (confirmación de PayU → tu Cloud Function)
+    // URL del webhook (confirmación de Epayco → tu Cloud Function)
     const webhookUrl = isSandbox
-      ? 'https://us-central1-TU_PROYECTO.cloudfunctions.net/payuWebhook'
-      : `https://us-central1-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/payuWebhook`;
+      ? 'https://us-central1-TU_PROYECTO.cloudfunctions.net/epaycoWebhook'
+      : `https://us-central1-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/epaycoWebhook`;
 
     // Construir URL de checkout
     const params = new URLSearchParams({
@@ -1109,7 +1109,7 @@ export const createPayuSession = functions.https.onCall(
 
     // Guardar la referencia en Firestore para auditoría
     await admin.firestore()
-      .collection('payu_sessions')
+      .collection('epayco_sessions')
       .doc(referencia)
       .set({
         patientId,
@@ -1124,7 +1124,7 @@ export const createPayuSession = functions.https.onCall(
 );
 ```
 
-### `functions/src/payments/payu_webhook.ts`
+### `functions/src/payments/epayco_webhook.ts`
 
 ```typescript
 import * as functions from 'firebase-functions/v2';
@@ -1132,56 +1132,56 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 
 /**
- * payuWebhook
- * HTTP endpoint que recibe la confirmación de PayU tras procesar un pago.
+ * epaycoWebhook
+ * HTTP endpoint que recibe la confirmación de Epayco tras procesar un pago.
  * 
  * ⚠️ SEGURIDAD CRÍTICA: Antes de hacer cualquier cosa, verificar la firma MD5.
  * Si la firma no coincide, rechazar el request con 401. Esto evita que
- * alguien externo finja ser PayU y marque pagos como aprobados.
+ * alguien externo finja ser Epayco y marque pagos como aprobados.
  * 
- * Verificación de firma PayU:
+ * Verificación de firma Epayco:
  * firmaEsperada = MD5("apiKey~merchantId~referencia~monto~moneda~state_pol")
  * Comparar con el campo 'sign' del body del POST.
  * 
- * state_pol de PayU:
+ * state_pol de Epayco:
  * 4 = APROBADO  → registrar pago, generar recibo
  * 6 = RECHAZADO → solo registrar log
  * 7 = PENDIENTE → registrar log, esperar confirmación final
  * 
- * Campos del POST de PayU (los más importantes):
+ * Campos del POST de Epayco (los más importantes):
  * - merchant_id
  * - reference_sale   → referencia que generamos en createPayuSession
  * - value            → monto cobrado
  * - currency         → COP
  * - state_pol        → 4=aprobado, 6=rechazado, 7=pendiente
  * - sign             → firma MD5 para verificar
- * - transaction_id   → ID único de PayU
- * - order_id         → ID de la orden en PayU
+ * - transaction_id   → ID único de Epayco
+ * - order_id         → ID de la orden en Epayco
  * 
  * Flujo de ejecución:
  * 1. Recibir POST
  * 2. Verificar firma MD5 → si falla, retornar 401
  * 3. Si state_pol == 4 (aprobado):
- *    a. Buscar patientId desde la referencia en payu_sessions
+ *    a. Buscar patientId desde la referencia en epayco_sessions
  *    b. Llamar PaymentsRepository.registerGatewayPayment()
- *    c. Actualizar payu_sessions con estado 'aprobado'
+ *    c. Actualizar epayco_sessions con estado 'aprobado'
  *    d. Disparar notificación push (opcional en este bloque, obligatorio en Bloque 09)
  * 4. Si state_pol == 6 (rechazado):
- *    a. Actualizar payu_sessions con estado 'rechazado'
+ *    a. Actualizar epayco_sessions con estado 'rechazado'
  *    b. Disparar notificación push informando al paciente
- * 5. Retornar 200 (PayU reintenta si no recibe 200)
+ * 5. Retornar 200 (Epayco reintenta si no recibe 200)
  */
-export const payuWebhook = functions.https.onRequest(
+export const epaycoWebhook = functions.https.onRequest(
   { cors: false },
   async (req, res) => {
     try {
       const body = req.body;
 
       // 1. Verificar firma MD5
-      const isSandbox = process.env.PAYU_SANDBOX === 'true';
+      const isSandbox = process.env.EPAYCO_SANDBOX === 'true';
       const apiKey = isSandbox
         ? '4Vj8eK4rloUd272L48hsrarnUA'
-        : process.env.PAYU_API_KEY!;
+        : process.env.EPAYCO_API_KEY!;
 
       const firmaStr = [
         apiKey,
@@ -1205,13 +1205,13 @@ export const payuWebhook = functions.https.onRequest(
 
       // 2. Buscar la sesión de pago
       const sessionSnap = await admin.firestore()
-        .collection('payu_sessions')
+        .collection('epayco_sessions')
         .doc(body.reference_sale)
         .get();
 
       if (!sessionSnap.exists) {
         console.error(`Referencia no encontrada: ${body.reference_sale}`);
-        res.status(200).send('OK'); // Retornar 200 para que PayU no reintente
+        res.status(200).send('OK'); // Retornar 200 para que Epayco no reintente
         return;
       }
 
@@ -1234,13 +1234,13 @@ export const payuWebhook = functions.https.onRequest(
           id: txRef.id,
           monto: parseFloat(body.value),
           fecha: admin.firestore.FieldValue.serverTimestamp(),
-          metodo: 'payu',
+          metodo: 'epayco',
           referencia: body.reference_sale,
-          registradoPor: 'payu_webhook',
-          notas: 'Pago procesado por PayU Colombia',
+          registradoPor: 'epayco_webhook',
+          notas: 'Pago procesado por Epayco Colombia',
           reciboUrl: null,
-          payuOrderId: body.order_id,
-          payuTransactionId: body.transaction_id,
+          epaycoOrderId: body.order_id,
+          epaycoTransactionId: body.transaction_id,
         });
 
         // Leer saldo actual para calcular nuevo estado
@@ -1285,7 +1285,7 @@ export const payuWebhook = functions.https.onRequest(
       res.status(200).send('OK');
 
     } catch (error) {
-      console.error('Error en payuWebhook:', error);
+      console.error('Error en epaycoWebhook:', error);
       res.status(500).send('Error interno');
     }
   }
@@ -1367,8 +1367,8 @@ match /payments/{patientId} {
   }
 }
 
-// Colección payu_sessions — solo Cloud Functions
-match /payu_sessions/{sessionId} {
+// Colección epayco_sessions — solo Cloud Functions
+match /epayco_sessions/{sessionId} {
   allow read, write: if false; // Solo acceso desde admin SDK (Cloud Functions)
 }
 ```
@@ -1420,26 +1420,26 @@ Agregar a `firestore.indexes.json`:
 ///
 /// Tests de PaymentTransaction:
 /// ✓ fromJson con reciboUrl null
-/// ✓ fromJson con payuOrderId y payuTransactionId
+/// ✓ fromJson con epaycoOrderId y epaycoTransactionId
 /// ✓ roundtrip toJson → fromJson
 ```
 
-### `test/features/payments/payu_signature_test.dart`
+### `test/features/payments/epayco_signature_test.dart`
 
 ```dart
-/// Tests de verificación de firma MD5 de PayU:
-/// ✓ Firma calculada coincide con ejemplo oficial de PayU
+/// Tests de verificación de firma MD5 de Epayco:
+/// ✓ Firma calculada coincide con ejemplo oficial de Epayco
 /// ✓ Firma falla si apiKey es incorrecto
 /// ✓ Firma falla si monto tiene formato incorrecto
 /// 
-/// Ejemplo oficial de PayU para Colombia:
+/// Ejemplo oficial de Epayco para Colombia:
 /// apiKey:    4Vj8eK4rloUd272L48hsrarnUA
 /// merchantId: 508029
-/// referencia: TestPayU
+/// referencia: TestEpayco
 /// monto:      150000.00 → (formato con 1 decimal para el hash)
 /// moneda:     COP
 /// state_pol:  4
-/// firma esperada: d2f8c4b2c6c0f2b8f1...  (verificar en docs PayU)
+/// firma esperada: d2f8c4b2c6c0f2b8f1...  (verificar en docs Epayco)
 ```
 
 ### `test/features/payments/payments_repository_test.dart`
@@ -1471,7 +1471,7 @@ firebase emulators:start
 ngrok http 5001  # El puerto de Firebase Functions en emulador
 ```
 
-### Paso a paso para probar PayU en sandbox
+### Paso a paso para probar Epayco en sandbox
 
 ```
 1. Correr emuladores:
@@ -1481,10 +1481,10 @@ ngrok http 5001  # El puerto de Firebase Functions en emulador
    ngrok http 5001
    → Obtendrás una URL como: https://abc123.ngrok-free.app
 
-3. En create_payu_session.ts, reemplazar webhookUrl con la URL de ngrok:
-   const webhookUrl = 'https://abc123.ngrok-free.app/TU_PROYECTO/us-central1/payuWebhook';
+3. En create_epayco_session.ts, reemplazar webhookUrl con la URL de ngrok:
+   const webhookUrl = 'https://abc123.ngrok-free.app/TU_PROYECTO/us-central1/epaycoWebhook';
 
-4. Abrir la app → ir a pantalla de pagos del paciente → "Pagar con PayU"
+4. Abrir la app → ir a pantalla de pagos del paciente → "Pagar con Epayco"
 
 5. En el WebView, usar la tarjeta aprobada:
    Número: 4097440000000004
@@ -1492,7 +1492,7 @@ ngrok http 5001  # El puerto de Firebase Functions en emulador
    Vencimiento: 12/2030
    Nombre: APPROVED
 
-6. PayU sandbox procesará el pago y enviará el webhook a tu ngrok
+6. Epayco sandbox procesará el pago y enviará el webhook a tu ngrok
 
 7. En la terminal del emulador verás el log: "Pago aprobado: OCG-xxx"
 
@@ -1511,8 +1511,8 @@ PAGOS MANUALES (admin):
 □ Admin paga el saldo exacto → estado cambia a "Pagado total" (chip verde)
 □ Dos pantallas abiertas: admin y paciente → al registrar pago, ambas se actualizan
 
-PAGOS PAYU:
-□ Paciente toca "Pagar con PayU" → se abre WebView con formulario
+PAGOS EPAYCO:
+□ Paciente toca "Pagar con Epayco" → se abre WebView con formulario
 □ Pago aprobado con tarjeta 4097440000000004 → saldo baja, notificación aparece
 □ Pago rechazado con tarjeta 4111111111111111 → mensaje de error, saldo no cambia
 □ X en WebView → confirma cancelación, saldo no cambia
@@ -1525,7 +1525,7 @@ FIREBASE CONSOLE (verificación de datos):
 □ payments/{uid} → saldoPendiente correcto
 □ patients/{uid} → saldoPendiente igual al de payments/
 □ payments/{uid}/transactions/ → transacción con todos los campos
-□ payu_sessions/{ref} → estado "aprobado" tras pago exitoso
+□ epayco_sessions/{ref} → estado "aprobado" tras pago exitoso
 
 CONSISTENCIA:
 □ Correr reconcilePatientBalances desde app admin → retorna 0 correcciones
@@ -1538,7 +1538,7 @@ CONSISTENCIA:
 
 ```yaml
 dependencies:
-  webview_flutter: ^4.4.0     # WebView para checkout PayU
+  webview_flutter: ^4.4.0     # WebView para checkout Epayco
   pdf: ^3.10.0                 # Generación de PDFs
   printing: ^5.11.0            # Previsualización/impresión del PDF
   url_launcher: ^6.2.0         # Abrir recibos PDF en navegador
@@ -1562,7 +1562,7 @@ Paso 9:  PdfReceiptService + tests
 Paso 10: PayuService en Flutter
 Paso 11: PayuCheckoutScreen (WebView)
 Paso 12: Cloud Function createPayuSession
-Paso 13: Cloud Function payuWebhook + tests de firma MD5
+Paso 13: Cloud Function epaycoWebhook + tests de firma MD5
 Paso 14: Cloud Function reconcileBalances
 Paso 15: Reglas Firestore + índices
 Paso 16: Pruebas manuales con sandbox (checklist completo)
@@ -1577,7 +1577,7 @@ Paso 17: flutter analyze ✅ + flutter test ✅
 - [ ] El saldo se actualiza en tiempo real en ambas pantallas (admin + paciente)
 - [ ] El historial de transacciones es visible, ordenado y completo
 - [ ] El estado del pago cambia automáticamente al llegar a saldo cero
-- [ ] El paciente puede iniciar un pago con PayU desde su pantalla
+- [ ] El paciente puede iniciar un pago con Epayco desde su pantalla
 - [ ] Pago aprobado en sandbox actualiza Firestore correctamente (webhook verificado)
 - [ ] Pago rechazado en sandbox no modifica el saldo
 - [ ] Recibo PDF se genera y queda disponible para descarga tras cada pago

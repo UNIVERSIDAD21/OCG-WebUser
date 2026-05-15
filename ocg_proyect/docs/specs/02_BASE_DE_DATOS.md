@@ -296,8 +296,8 @@ class PaymentTransaction {
   final double monto;           // Valor de este pago (COP)
   final DateTime fecha;         // Cuándo se registró
   final PaymentMethod metodo;   // Enum
-  final String? referencia;     // Referencia bancaria o de PayU
-  final String registradoPor;   // adminId o 'payu_webhook'
+  final String? referencia;     // Referencia bancaria o de Epayco
+  final String registradoPor;   // adminId o 'epayco_webhook'
   final String? notas;          // Notas adicionales del pago
 }
 

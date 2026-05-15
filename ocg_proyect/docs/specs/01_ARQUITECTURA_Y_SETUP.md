@@ -69,7 +69,7 @@ lib/
 │   ├── api/
 │   │   ├── api_client.dart
 │   │   ├── openai_service.dart
-│   │   └── payu_service.dart
+│   │   └── epayco_service.dart
 │   └── notifications/
 │       └── fcm_service.dart
 └── shared/

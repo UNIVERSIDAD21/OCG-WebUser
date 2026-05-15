@@ -49,7 +49,7 @@ Ya existe una base solida para notificaciones en Functions:
 - `functions/src/appointments/reminder_scheduler.ts`
 - `functions/src/appointments/appointment_patient_notifications.ts`
 - `functions/src/payments/payment_due_scheduler.ts`
-- `functions/src/payments/payu_webhook_core.ts`
+- `functions/src/payments/epayco_webhook_core.ts`
 - `functions/src/treatments/on_stage_history_create.ts`
 
 Aunque algunos nombres conservan `Android`, el servicio ya entrega FCM a Android e iOS mediante `sendFcmNotification()`.
@@ -218,7 +218,7 @@ Confirmar exactamente que notificaciones moviles existen hoy y que correos deben
 
 - Inventariar todos los `type` enviados desde `domain_notifications.ts`.
 - Confirmar eventos emitidos desde:
-  - `payu_webhook_core.ts`
+  - `epayco_webhook_core.ts`
   - `payment_due_scheduler.ts`
   - `on_stage_history_create.ts`
   - `reminder_scheduler.ts`
@@ -256,23 +256,23 @@ Estado del Bloque 00:
 
 | Rol | Coleccion | Campo principal | Fallbacks aceptados | Evidencia |
 |---|---|---|---|---|
-| Paciente | `patients/{patientId}` | `email` | `correo`, `patientEmail` | `create_patient_account.ts`, `register_patient_self.ts`, `payu_shared.ts` |
+| Paciente | `patients/{patientId}` | `email` | `correo`, `patientEmail` | `create_patient_account.ts`, `register_patient_self.ts`, `epayco_shared.ts` |
 | Admin | `admins/{adminId}` | `email` | ninguno por ahora | `set_admin_role.ts`, `admin_role_management.ts` |
 
 Notas:
 
 - `PatientModel` lee `email` como campo principal.
-- `payu_shared.ts` ya contempla `email`, `correo` y `patientEmail`; conviene reutilizar esa tolerancia en el resolver de email.
+- `epayco_shared.ts` ya contempla `email`, `correo` y `patientEmail`; conviene reutilizar esa tolerancia en el resolver de email.
 - No hay preferencia `emailEnabled` ni verificacion local de email en Firestore todavia. Eso queda para Bloque 07.
 
 ## Matriz de notificaciones actuales
 
 | Type | Trigger actual | Destinatario | Push/historial actual | Email requerido | Template | Link destino | Prioridad | Observaciones |
 |---|---|---|---|---|---|---|---|---|
-| `payment_received` | `payu_webhook_core.ts` cuando PayU aprueba | Paciente | Push FCM + historial | Si | `payment_received` | `/patient/payments` | Alta | Debe ser idempotente por `payment_received_{reference}`. |
-| `payment_reported` | `payu_webhook_core.ts` despues de pago aprobado | Admin | Push FCM + historial | Si | `payment_reported` | `/admin/patients/{patientId}?section=pagos` | Alta | Se envia a todos los docs de `admins`. |
-| `payment_failed` | `payu_webhook_core.ts` con `statePol=6` | Admin | Push FCM + historial | Si | `payment_failed` | `/admin/patients/{patientId}?section=pagos` | Alta | Actualmente no se envia al paciente. No agregar paciente sin decision de producto. |
-| `payment_pending_validation` | `payu_webhook_core.ts` con `statePol=7` | Admin | Push FCM + historial | Si | `payment_pending_validation` | `/admin/patients/{patientId}?section=pagos` | Alta | Operativo para seguimiento manual. |
+| `payment_received` | `epayco_webhook_core.ts` cuando Epayco aprueba | Paciente | Push FCM + historial | Si | `payment_received` | `/patient/payments` | Alta | Debe ser idempotente por `payment_received_{reference}`. |
+| `payment_reported` | `epayco_webhook_core.ts` despues de pago aprobado | Admin | Push FCM + historial | Si | `payment_reported` | `/admin/patients/{patientId}?section=pagos` | Alta | Se envia a todos los docs de `admins`. |
+| `payment_failed` | `epayco_webhook_core.ts` con `statePol=6` | Admin | Push FCM + historial | Si | `payment_failed` | `/admin/patients/{patientId}?section=pagos` | Alta | Actualmente no se envia al paciente. No agregar paciente sin decision de producto. |
+| `payment_pending_validation` | `epayco_webhook_core.ts` con `statePol=7` | Admin | Push FCM + historial | Si | `payment_pending_validation` | `/admin/patients/{patientId}?section=pagos` | Alta | Operativo para seguimiento manual. |
 | `payment_due` | `payment_due_scheduler.ts`, 3 dias antes | Paciente | Push FCM + historial | Si | `payment_due` | `/patient/payments` | Alta | Usa `payment_due_{paymentId}_{yyyy-mm-dd}`. |
 | `payment_due_soon` | `payment_due_scheduler.ts`, 3 dias antes | Admin | Historial solamente (`sendPush=false`) | Si | `payment_due_soon` | `/admin/patients/{patientId}?section=pagos` | Alta | Aunque hoy no manda push, entra por foco de pagos y soporte admin. |
 | `payment_overdue` | `payment_due_scheduler.ts`, pago vencido | Admin | Push FCM + historial | Si | `payment_overdue` | `/admin/patients/{patientId}?section=pagos` | Alta | Usa key diaria para evitar duplicados por fecha. |
@@ -719,9 +719,9 @@ Enviar email para cada notificacion de pagos que ya se envia o registra en movil
 
 ```text
 functions/src/notifications/domain_notifications.ts
-functions/src/payments/payu_webhook_core.ts
+functions/src/payments/epayco_webhook_core.ts
 functions/src/payments/payment_due_scheduler.ts
-functions/test/payu_webhook_core.test.mjs
+functions/test/epayco_webhook_core.test.mjs
 ```
 
 ## Eventos cubiertos
@@ -750,7 +750,7 @@ payment_pending_validation
 - Cambiar `notifyPatientPaymentEvent()` para usar el orquestador multicanal.
 - Cambiar `notifyAdminPaymentEvent()` para poder enviar email incluso cuando `sendPush=false`.
 - Asegurar que `amount`, `dueDate`, `reference`, `paymentId`, `treatmentId` lleguen al template.
-- Revisar que no se envie dos veces el mismo email cuando PayU reintenta webhooks.
+- Revisar que no se envie dos veces el mismo email cuando Epayco reintenta webhooks.
 - Usar `notificationId` estable para deduplicar:
   - `payment_received_{reference}`
   - `payment_due_{paymentId}_{yyyy-mm-dd}`
@@ -758,11 +758,11 @@ payment_pending_validation
 
 ## Criterio de cierre
 
-- Pago recibido por PayU genera notificacion app y email al paciente.
+- Pago recibido por Epayco genera notificacion app y email al paciente.
 - Pago proximo a vencer genera email al paciente.
 - Pago vencido genera email/admin segun decision de alcance.
 - Webhook repetido no duplica emails para el mismo `notificationId`.
-- Tests de PayU siguen pasando.
+- Tests de Epayco siguen pasando.
 
 ## Avance de implementacion - 2026-05-14
 
@@ -824,7 +824,7 @@ Comandos ejecutados:
 cd ocg_proyect/functions
 npm run build
 node --test test/domain_notifications_payment.test.mjs
-node --test test/payu_webhook_core.test.mjs
+node --test test/epayco_webhook_core.test.mjs
 node --test test/notification_delivery_service.test.mjs
 node --test test/email_delivery.test.mjs
 node --test test/email_templates.test.mjs
@@ -835,7 +835,7 @@ Resultado:
 
 - `npm run build`: OK.
 - `domain_notifications_payment.test.mjs`: 2 tests OK.
-- `payu_webhook_core.test.mjs`: 14 tests OK.
+- `epayco_webhook_core.test.mjs`: 14 tests OK.
 - `notification_delivery_service.test.mjs`: 5 tests OK.
 - `email_delivery.test.mjs`: 14 tests OK.
 - `email_templates.test.mjs`: 4 tests OK.
@@ -940,7 +940,7 @@ npm run build
 node --test test/domain_notifications_treatment.test.mjs
 node --test test/domain_notifications_payment.test.mjs
 node --test test/notification_delivery_service.test.mjs
-node --test test/payu_webhook_core.test.mjs
+node --test test/epayco_webhook_core.test.mjs
 node --test test/email_delivery.test.mjs
 node --test test/email_templates.test.mjs
 node --test test/fcm_delivery.test.mjs
@@ -952,7 +952,7 @@ Resultado:
 - `domain_notifications_treatment.test.mjs`: 1 test OK.
 - `domain_notifications_payment.test.mjs`: 2 tests OK.
 - `notification_delivery_service.test.mjs`: 5 tests OK.
-- `payu_webhook_core.test.mjs`: 14 tests OK.
+- `epayco_webhook_core.test.mjs`: 14 tests OK.
 - `email_delivery.test.mjs`: 14 tests OK.
 - `email_templates.test.mjs`: 4 tests OK.
 - `fcm_delivery.test.mjs`: 9 tests OK.
@@ -1074,7 +1074,7 @@ node --test test/domain_notifications_appointment.test.mjs
 node --test test/domain_notifications_payment.test.mjs
 node --test test/domain_notifications_treatment.test.mjs
 node --test test/notification_delivery_service.test.mjs
-node --test test/payu_webhook_core.test.mjs
+node --test test/epayco_webhook_core.test.mjs
 node --test test/email_delivery.test.mjs
 node --test test/email_templates.test.mjs
 node --test test/fcm_delivery.test.mjs
@@ -1087,7 +1087,7 @@ Resultado:
 - `domain_notifications_payment.test.mjs`: 2 tests OK.
 - `domain_notifications_treatment.test.mjs`: 1 test OK.
 - `notification_delivery_service.test.mjs`: 5 tests OK.
-- `payu_webhook_core.test.mjs`: 14 tests OK.
+- `epayco_webhook_core.test.mjs`: 14 tests OK.
 - `email_delivery.test.mjs`: 14 tests OK.
 - `email_templates.test.mjs`: 4 tests OK.
 - `fcm_delivery.test.mjs`: 9 tests OK.
@@ -1191,7 +1191,7 @@ Agregar o extender:
 functions/test/email_delivery.test.mjs
 functions/test/email_templates.test.mjs
 functions/test/fcm_delivery.test.mjs
-functions/test/payu_webhook_core.test.mjs
+functions/test/epayco_webhook_core.test.mjs
 ```
 
 Casos minimos:
@@ -1207,7 +1207,7 @@ Casos minimos:
 - delivery multicanal con push ok y email ok;
 - delivery multicanal con push sin token y email ok;
 - delivery multicanal con email fallido y push ok;
-- webhook PayU repetido no duplica email.
+- webhook Epayco repetido no duplica email.
 
 ## Pruebas manuales
 
@@ -1243,7 +1243,7 @@ npm run build
 node --test test/email_delivery.test.mjs
 node --test test/email_templates.test.mjs
 node --test test/fcm_delivery.test.mjs
-node --test test/payu_webhook_core.test.mjs
+node --test test/epayco_webhook_core.test.mjs
 ```
 
 Si se toca Flutter:
@@ -1305,7 +1305,7 @@ functions/package.json
 functions/src/notifications/domain_notifications.ts
 functions/src/notifications/notification_history.ts
 functions/src/notifications/android_notification_service.ts
-functions/src/payments/payu_webhook_core.ts
+functions/src/payments/epayco_webhook_core.ts
 functions/src/payments/payment_due_scheduler.ts
 functions/src/treatments/on_stage_history_create.ts
 functions/src/appointments/reminder_scheduler.ts

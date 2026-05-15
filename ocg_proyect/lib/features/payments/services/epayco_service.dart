@@ -59,7 +59,7 @@ class EpaycoService {
       rawResult = await _createEpaycoCheckoutInvoker(payload);
     } else {
       final functions = _functions ?? FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('createEpaycoCheckout');
+      final callable = functions.httpsCallable('createPayuSession');
       rawResult = await callable.call(payload);
     }
 
