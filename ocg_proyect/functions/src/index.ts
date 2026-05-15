@@ -13,8 +13,8 @@ import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
 import {reconcileNoShowAppointments} from './appointments/reconcile_no_show_appointments';
 import {processScheduledNotifications} from './appointments/reminder_scheduler';
-import {createPayuSession} from './payments/create_payu_session';
-import {payuWebhook} from './payments/payu_webhook';
+import {createEpaycoCheckout} from './payments/create_epayco_checkout';
+import {epaycoWebhook} from './payments/epayco_webhook';
 import {reconcilePatientBalances} from './payments/reconcile_balances';
 import {initializeAllPaymentDocuments} from './payments/initialize_all_payment_documents';
 import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_item_write';
@@ -44,8 +44,8 @@ export {
   seedAvailability,
   reconcileNoShowAppointments,
   processScheduledNotifications,
-  createPayuSession,
-  payuWebhook,
+  createEpaycoCheckout,
+  epaycoWebhook,
   reconcilePatientBalances,
   initializeAllPaymentDocuments,
   onTreatmentFinancialItemWrite,

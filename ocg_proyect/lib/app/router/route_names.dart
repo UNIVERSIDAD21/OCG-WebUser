@@ -28,7 +28,11 @@ class RouteNames {
   static const String patientClinicalFiles = '/patient/clinical-files';
   static const String patientPayments = '/patient/payments';
   static const String patientSimulations = '/patient/simulations';
-  static const String patientPayuCheckout = '/patient/payments/checkout';
+  static const String patientEpaycoCheckout = '/patient/payments/checkout';
+
+  // Deprecated alias
+  @Deprecated('Use patientEpaycoCheckout')
+  static const String patientPayuCheckout = patientEpaycoCheckout;
 
   // Consultación clínica (desde cita)
   static const String adminConsultation = '/admin/consultation';

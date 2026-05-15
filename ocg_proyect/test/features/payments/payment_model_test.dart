@@ -128,31 +128,31 @@ void main() {
   });
 
   group('PaymentTransaction serialization', () {
-    test('serialización completa incluyendo campos de PayU', () {
+    test('serialización completa incluyendo campos de Epayco', () {
       final tx = PaymentTransaction(
         id: 'tx-1',
         monto: 350000,
         fecha: DateTime(2026, 3, 17, 14, 30),
-        metodo: PaymentMethod.payu,
+        metodo: PaymentMethod.epayco,
         referencia: 'REF-001',
-        registradoPor: 'payu_webhook',
+        registradoPor: 'epayco_webhook',
         notas: 'Pago aprobado',
         reciboUrl: 'https://example.com/recibo.pdf',
-        payuOrderId: 'ORDER-123',
-        payuTransactionId: 'TX-PAYU-999',
+        epaycoOrderId: 'ORDER-123',
+        epaycoTransactionId: 'TX-PAYU-999',
       );
 
       final json = tx.toJson();
       expect(json['id'], 'tx-1');
       expect(json['monto'], 350000);
       expect(json['fecha'], isA<Timestamp>());
-      expect(json['metodo'], PaymentMethod.payu.name);
+      expect(json['metodo'], PaymentMethod.epayco.name);
       expect(json['referencia'], 'REF-001');
-      expect(json['registradoPor'], 'payu_webhook');
+      expect(json['registradoPor'], 'epayco_webhook');
       expect(json['notas'], 'Pago aprobado');
       expect(json['reciboUrl'], 'https://example.com/recibo.pdf');
-      expect(json['payuOrderId'], 'ORDER-123');
-      expect(json['payuTransactionId'], 'TX-PAYU-999');
+      expect(json['epaycoOrderId'], 'ORDER-123');
+      expect(json['epaycoTransactionId'], 'TX-PAYU-999');
 
       final restored = PaymentTransaction.fromJson(json);
       expect(restored.id, tx.id);
@@ -163,8 +163,8 @@ void main() {
       expect(restored.registradoPor, tx.registradoPor);
       expect(restored.notas, tx.notas);
       expect(restored.reciboUrl, tx.reciboUrl);
-      expect(restored.payuOrderId, tx.payuOrderId);
-      expect(restored.payuTransactionId, tx.payuTransactionId);
+      expect(restored.epaycoOrderId, tx.epaycoOrderId);
+      expect(restored.epaycoTransactionId, tx.epaycoTransactionId);
     });
   });
 }

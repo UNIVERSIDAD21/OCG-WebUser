@@ -74,9 +74,13 @@ export async function loadTreatmentPaymentAccount(
   };
 }
 
-export function normalizePayuState(statePol: number): string {
-  if (statePol === 4) return 'aprobado';
-  if (statePol === 6) return 'rechazado';
-  if (statePol === 7) return 'pendiente_confirmacion';
+/**
+ * Normaliza el estado numérico de Epayco a estado interno.
+ * Epayco estados: 1=Pendiente, 2=Fallido, 3=Exitoso, 4=Rechazado
+ */
+export function normalizePaymentGatewayState(statePol: number): string {
+  if (statePol === 3) return 'aprobado';
+  if (statePol === 4) return 'rechazado';
+  if (statePol === 1) return 'pendiente_confirmacion';
   return `state_${statePol}`;
 }

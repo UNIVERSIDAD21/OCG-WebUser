@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 
-export type PayuSessionRecord = {
+export type EpaycoSessionRecord = {
   patientId?: string;
   treatmentId?: string;
   monto?: number;
@@ -15,23 +15,24 @@ export type PayuSessionRecord = {
   appliedAt?: admin.firestore.Timestamp | admin.firestore.FieldValue | null;
   errorCode?: string;
   errorDetail?: string;
-  payuOrderId?: string;
-  payuTransactionId?: string;
+  epaycoOrderId?: string;
+  epaycoTransactionId?: string;
 };
 
-export type PayuWebhookPayload = {
+export type EpaycoWebhookPayload = {
   reference: string;
-  merchantId: string;
+  customerId: string;
   value: number;
   currency: string;
-  statePol: number;
+  estado: string;
+  statePol?: number;
   stateLabel: string;
   sign: string;
-  payuOrderId: string;
-  payuTransactionId: string;
+  epaycoOrderId: string;
+  epaycoTransactionId: string;
 };
 
-export type PayuWebhookResult = {
+export type EpaycoWebhookResult = {
   ok: true;
   action:
     | 'ignored_invalid_signature'

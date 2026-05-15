@@ -60,8 +60,8 @@ class AdminPaymentEntry {
         return 'Efectivo';
       case PaymentMethod.transferencia:
         return 'Transferencia';
-      case PaymentMethod.payu:
-        return 'PayU';
+      case PaymentMethod.epayco:
+        return 'Epayco';
       case null:
         return 'Sin pagos';
     }
@@ -96,8 +96,8 @@ class AdminPaymentHistoryItem {
         return 'Efectivo';
       case PaymentMethod.transferencia:
         return 'Transferencia';
-      case PaymentMethod.payu:
-        return 'PayU';
+      case PaymentMethod.epayco:
+        return 'Epayco';
     }
   }
 }

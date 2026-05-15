@@ -147,7 +147,7 @@ void main() {
           id: 't2',
           monto: 750000,
           fecha: DateTime(2026, 4, 12),
-          metodo: PaymentMethod.payu,
+          metodo: PaymentMethod.epayco,
         ),
       );
       final noPayments = AdminPaymentEntry(
@@ -176,7 +176,7 @@ void main() {
             id: 't2',
             monto: 750000,
             fecha: DateTime(2026, 4, 12),
-            metodo: PaymentMethod.payu,
+            metodo: PaymentMethod.epayco,
           ),
         ),
         AdminPaymentHistoryItem(

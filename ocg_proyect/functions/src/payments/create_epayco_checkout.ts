@@ -2,11 +2,11 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import {CallableRequest, HttpsError, onCall} from 'firebase-functions/v2/https';
 
-import {resolvePayuConfig} from './payu_config';
-import {loadTreatmentPaymentAccount} from './payu_shared';
-import {isAuthorizedPayuCaller} from './payu_webhook_core';
+import {resolveEpaycoConfig} from './epayco_config';
+import {loadTreatmentPaymentAccount} from './epayco_shared';
+import {isAuthorizedEpaycoCaller} from './epayco_webhook_core';
 
-type CreatePayuSessionData = {
+type CreateEpaycoCheckoutData = {
   patientId?: string;
   treatmentId?: string;
   monto?: number;
@@ -18,9 +18,9 @@ function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
 }
 
-export const createPayuSession = onCall<CreatePayuSessionData>(
+export const createEpaycoCheckout = onCall<CreateEpaycoCheckoutData>(
   {region: 'us-central1', cors: true},
-  async (request: CallableRequest<CreatePayuSessionData>) => {
+  async (request: CallableRequest<CreateEpaycoCheckoutData>) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Debes iniciar sesión.');
     }
@@ -37,7 +37,7 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     }
 
     const db = admin.firestore();
-    const authorization = await isAuthorizedPayuCaller({
+    const authorization = await isAuthorizedEpaycoCaller({
       db,
       auth: request.auth
         ? {
@@ -51,7 +51,7 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     if (!authorization.allowed) {
       throw new HttpsError(
         'permission-denied',
-        'No tienes permisos para iniciar pagos PayU para este paciente.',
+        'No tienes permisos para iniciar pagos para este paciente.',
       );
     }
 
@@ -78,15 +78,16 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       );
     }
 
-    const payu = resolvePayuConfig();
+    const epayco = resolveEpaycoConfig();
     const referencia = `OCG-${Date.now()}-${patientId.substring(0, 8)}-${treatmentId.substring(0, 8)}`;
     const montoStr = monto.toFixed(2);
 
-    const signStr = `${payu.apiKey}~${payu.merchantId}~${referencia}~${montoStr}~COP`;
-    const signature = crypto.createHash('md5').update(signStr).digest('hex');
+    // Epayco signature: SHA256(privateKey + customerId + referenceCode + amount)
+    const signStr = `${epayco.privateKey}${epayco.customerId}${referencia}${montoStr}`;
+    const signature = crypto.createHash('sha256').update(signStr).digest('hex');
 
     const projectId = process.env.GCLOUD_PROJECT ?? 'TU_PROYECTO';
-    const confirmationUrl = `https://us-central1-${projectId}.cloudfunctions.net/payuWebhook`;
+    const confirmationUrl = `https://us-central1-${projectId}.cloudfunctions.net/epaycoWebhook`;
     const responseUrl = `${confirmationUrl}?type=response`;
 
     const buyerEmail = account.patientEmail || normalizeString(request.data?.patientEmail);
@@ -95,32 +96,31 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
     if (!buyerEmail || !buyerName) {
       throw new HttpsError(
         'failed-precondition',
-        'No hay datos suficientes del paciente para iniciar PayU.',
+        'No hay datos suficientes del paciente para iniciar el pago.',
       );
     }
 
+    // Build Epayco checkout URL with form parameters
     const params = new URLSearchParams({
-      merchantId: payu.merchantId,
-      accountId: payu.accountId,
-      description: `Pago OCG - ${account.treatmentName}`,
-      referenceCode: referencia,
-      amount: montoStr,
-      tax: '0',
-      taxReturnBase: '0',
-      currency: 'COP',
-      signature,
-      responseUrl,
-      confirmationUrl,
-      buyerEmail,
-      buyerFullName: buyerName,
-      lng: 'es',
-      test: payu.test,
-      extra1: patientId,
-      extra2: treatmentId,
+      epayco_public_key: epayco.publicKey,
+      epayco_customer_id: epayco.customerId,
+      epayco_reference: referencia,
+      epayco_description: `Pago OCG - ${account.treatmentName}`,
+      epayco_amount: montoStr,
+      epayco_currency: 'COP',
+      epayco_email_buyer: buyerEmail,
+      epayco_name_buyer: buyerName,
+      epayco_confirmation_url: confirmationUrl,
+      epayco_response_url: responseUrl,
+      epayco_signature: signature,
+      epayco_test: epayco.test ? 'TRUE' : 'FALSE',
+      epayco_lang: 'es',
+      epayco_country: 'CO',
     });
 
-    const checkoutUrl = `${payu.checkoutUrl}?${params.toString()}`;
+    const checkoutUrl = `${epayco.checkoutUrl}?${params.toString()}`;
 
+    // Store session (using 'payu_sessions' collection for backwards compatibility)
     await db.collection('payu_sessions').doc(referencia).set({
       patientId,
       treatmentId,
@@ -128,7 +128,8 @@ export const createPayuSession = onCall<CreatePayuSessionData>(
       referencia,
       estado: 'pendiente',
       checkoutUrl,
-      entorno: payu.environment,
+      entorno: epayco.environment,
+      gateway: 'epayco',
       patientEmail: buyerEmail,
       patientName: buyerName,
       initiatedBy: {

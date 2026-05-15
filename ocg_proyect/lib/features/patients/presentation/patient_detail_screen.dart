@@ -1121,13 +1121,13 @@ class _AdminPatientWorkspaceState
     return switch (method) {
       PaymentMethod.efectivo => 'Efectivo',
       PaymentMethod.transferencia => 'Transferencia',
-      PaymentMethod.payu => 'PayU',
+      PaymentMethod.epayco => 'Epayco',
     };
   }
 
   String _paymentStateLabel(PaymentTransaction tx) {
-    if (tx.payuTransactionId?.trim().isNotEmpty == true) return 'Confirmado';
-    if (tx.payuOrderId?.trim().isNotEmpty == true) return 'Procesado';
+    if (tx.epaycoTransactionId?.trim().isNotEmpty == true) return 'Confirmado';
+    if (tx.epaycoOrderId?.trim().isNotEmpty == true) return 'Procesado';
     return 'Registrado';
   }
 

@@ -1,15 +1,15 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ocg_proyect/features/payments/services/payu_service.dart';
+import 'package:ocg_proyect/features/payments/services/epayco_service.dart';
 
 void main() {
-  group('PayuService.createPaymentSession', () {
-    test('envía treatmentId al callable createPayuSession', () async {
+  group('EpaycoService.createPaymentSession', () {
+    test('envía treatmentId al callable createEpaycoCheckout', () async {
       Map<String, dynamic>? captured;
-      final service = PayuService(
-        createPayuSessionInvoker: (payload) async {
+      final service = EpaycoService(
+        createEpaycoCheckoutInvoker: (payload) async {
           captured = Map<String, dynamic>.from(payload);
-          return {'checkoutUrl': 'https://payu.test/checkout'};
+          return {'checkoutUrl': 'https://epayco.test/checkout'};
         },
       );
 
@@ -22,7 +22,7 @@ void main() {
         patientName: 'Paciente',
       );
 
-      expect(url, 'https://payu.test/checkout');
+      expect(url, 'https://epayco.test/checkout');
       expect(captured, isNotNull);
       expect(captured!['patientId'], 'p1');
       expect(captured!['treatmentId'], 'tx-1');
@@ -30,7 +30,7 @@ void main() {
     });
 
     test('rechaza treatmentId vacío antes de llamar backend', () async {
-      final service = PayuService();
+      final service = EpaycoService();
 
       await expectLater(
         () => service.createPaymentSession(
@@ -52,7 +52,7 @@ void main() {
     });
 
     test('rechaza monto mayor al saldo pendiente antes de backend', () async {
-      final service = PayuService();
+      final service = EpaycoService();
 
       await expectLater(
         () => service.createPaymentSession(
@@ -74,7 +74,7 @@ void main() {
     });
 
     test('rechaza cuenta sin saldo pendiente válido', () async {
-      final service = PayuService();
+      final service = EpaycoService();
 
       await expectLater(
         () => service.createPaymentSession(
@@ -96,8 +96,8 @@ void main() {
     });
 
     test('falla con error claro si backend no devuelve checkoutUrl', () async {
-      final service = PayuService(
-        createPayuSessionInvoker: (_) async => {'referencia': 'REF-1'},
+      final service = EpaycoService(
+        createEpaycoCheckoutInvoker: (_) async => {'referencia': 'REF-1'},
       );
 
       await expectLater(

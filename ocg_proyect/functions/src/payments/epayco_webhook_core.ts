@@ -1,9 +1,9 @@
 import * as admin from 'firebase-admin';
 
 import {formatCop, notifyAdminPaymentEvent, notifyPatientPaymentEvent} from '../notifications/domain_notifications';
-import {PaymentAccountSnapshot, loadTreatmentPaymentAccount, normalizePayuState} from './payu_shared';
-import {PayuResolvedConfig} from './payu_config';
-import {PayuSessionRecord, PayuWebhookPayload, PayuWebhookResult} from './payu_types';
+import {PaymentAccountSnapshot, loadTreatmentPaymentAccount, normalizePaymentGatewayState} from './epayco_shared';
+import {EpaycoResolvedConfig} from './epayco_config';
+import {EpaycoSessionRecord, EpaycoWebhookPayload, EpaycoWebhookResult} from './epayco_types';
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
@@ -21,7 +21,7 @@ function isAdminToken(token: Record<string, unknown> | undefined): boolean {
   return token?.role === 'admin' || token?.admin === true;
 }
 
-export async function isAuthorizedPayuCaller(params: {
+export async function isAuthorizedEpaycoCaller(params: {
   db: admin.firestore.Firestore;
   auth: {uid: string; token?: Record<string, unknown>} | null | undefined;
   patientId: string;
@@ -35,8 +35,8 @@ export async function isAuthorizedPayuCaller(params: {
   return {allowed: false};
 }
 
-export function buildPayuDeterministicTxId(reference: string): string {
-  return `payu_${reference}`;
+export function buildEpaycoDeterministicTxId(reference: string): string {
+  return `epayco_${reference}`;
 }
 
 function isApprovedState(state: string): boolean {
@@ -47,7 +47,7 @@ async function markSessionError(
   sessionRef: admin.firestore.DocumentReference,
   errorCode: string,
   errorDetail: string,
-): Promise<PayuWebhookResult> {
+): Promise<EpaycoWebhookResult> {
   await sessionRef.set(
     {
       estado: 'error_controlado',
@@ -86,39 +86,41 @@ function buildUpdatedPaymentState(params: {
 async function processNonApprovedState(params: {
   db: admin.firestore.Firestore;
   sessionRef: admin.firestore.DocumentReference;
-  session: PayuSessionRecord;
-  payload: PayuWebhookPayload;
+  session: EpaycoSessionRecord;
+  payload: EpaycoWebhookPayload;
   account: PaymentAccountSnapshot;
   notifyAdminPayment: typeof notifyAdminPaymentEvent;
-}): Promise<PayuWebhookResult> {
+}): Promise<EpaycoWebhookResult> {
   const currentState = normalizeString(params.session.estado);
   if (currentState === 'aprobado') {
     return {ok: true, action: 'ignored_terminal_approved', sessionState: 'aprobado'};
   }
 
-  const nextState = normalizePayuState(params.payload.statePol);
+  const nextState = normalizePaymentGatewayState(params.payload.statePol ?? 0);
   await params.sessionRef.set(
     {
       estado: nextState,
-      payuOrderId: params.payload.payuOrderId,
-      payuTransactionId: params.payload.payuTransactionId,
+      epaycoOrderId: params.payload.epaycoOrderId,
+      epaycoTransactionId: params.payload.epaycoTransactionId,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     {merge: true},
   );
 
-  if (params.payload.statePol === 6 || params.payload.statePol === 7) {
+  const statePol = params.payload.statePol ?? 0;
+  // Epayco: 4=Rejected
+  if (statePol === 4 || statePol === 1) {
     await params.notifyAdminPayment(params.db, {
       notificationId: `admin_${nextState}_${params.payload.reference}`,
       patientId: params.account.patientId,
       patientName: params.account.patientName,
       paymentId: params.account.treatmentId,
       treatmentId: params.account.treatmentId,
-      transactionId: params.payload.payuTransactionId,
-      type: params.payload.statePol === 6 ? 'payment_failed' : 'payment_pending_validation',
-      title: params.payload.statePol === 6 ? 'Pago rechazado' : 'Pago pendiente de validación',
+      transactionId: params.payload.epaycoTransactionId,
+      type: statePol === 4 ? 'payment_failed' : 'payment_pending_validation',
+      title: statePol === 4 ? 'Pago rechazado' : 'Pago pendiente de validación',
       body:
-        params.payload.statePol === 6
+        statePol === 4
           ? `El pago de ${params.account.patientName} para ${params.account.treatmentName} por ${formatCop(params.session.monto)} fue rechazado o falló.`
           : `Hay un pago de ${params.account.patientName} para ${params.account.treatmentName} pendiente por validar.`,
       amount: params.session.monto,
@@ -131,14 +133,14 @@ async function processNonApprovedState(params: {
   return {ok: true, action: 'non_approved_recorded', sessionState: nextState};
 }
 
-export async function processPayuWebhook(params: {
+export async function processEpaycoWebhook(params: {
   db: admin.firestore.Firestore;
-  payu: PayuResolvedConfig;
-  payload: PayuWebhookPayload;
+  epayco: EpaycoResolvedConfig;
+  payload: EpaycoWebhookPayload;
   notifyPatientPayment?: typeof notifyPatientPaymentEvent;
   notifyAdminPayment?: typeof notifyAdminPaymentEvent;
-}): Promise<PayuWebhookResult> {
-  const {db, payu, payload} = params;
+}): Promise<EpaycoWebhookResult> {
+  const {db, epayco, payload} = params;
   const notifyPatientPayment = params.notifyPatientPayment ?? notifyPatientPaymentEvent;
   const notifyAdminPayment = params.notifyAdminPayment ?? notifyAdminPaymentEvent;
   const sessionRef = db.collection('payu_sessions').doc(payload.reference);
@@ -148,7 +150,7 @@ export async function processPayuWebhook(params: {
     return {ok: true, action: 'ignored_missing_session'};
   }
 
-  const session = (sessionSnap.data() ?? {}) as PayuSessionRecord;
+  const session = (sessionSnap.data() ?? {}) as EpaycoSessionRecord;
   const patientId = normalizeString(session.patientId);
   const treatmentId = normalizeString(session.treatmentId);
   const montoSesion = normalizeNumber(session.monto);
@@ -157,8 +159,8 @@ export async function processPayuWebhook(params: {
     return markSessionError(sessionRef, 'invalid_session', 'La sesión no contiene patientId, treatmentId o monto válidos.');
   }
 
-  if (payload.merchantId !== payu.merchantId) {
-    return markSessionError(sessionRef, 'merchant_mismatch', 'merchant_id diferente al configurado.');
+  if (payload.customerId !== epayco.customerId) {
+    return markSessionError(sessionRef, 'customer_mismatch', 'customer_id diferente al configurado.');
   }
 
   if (payload.currency !== 'COP') {
@@ -166,7 +168,7 @@ export async function processPayuWebhook(params: {
   }
 
   if (!sameAmount(payload.value, montoSesion)) {
-    return markSessionError(sessionRef, 'amount_mismatch', 'El valor recibido por PayU no coincide con el monto de la sesión.');
+    return markSessionError(sessionRef, 'amount_mismatch', 'El valor recibido no coincide con el monto de la sesión.');
   }
 
   const account = await loadTreatmentPaymentAccount(db, patientId, treatmentId);
@@ -174,11 +176,12 @@ export async function processPayuWebhook(params: {
     return markSessionError(sessionRef, 'missing_account', 'No existe la cuenta de pago del tratamiento.');
   }
 
-  if (payload.statePol !== 4) {
+  // Epayco: estado "3" = Aprobado (success)
+  if (payload.estado !== '3' && payload.estado !== 'aprobado' && payload.statePol !== 3) {
     return processNonApprovedState({db, sessionRef, session, payload, account, notifyAdminPayment});
   }
 
-  const txId = buildPayuDeterministicTxId(payload.reference);
+  const txId = buildEpaycoDeterministicTxId(payload.reference);
   const treatmentPaymentRef = db.collection('payments').doc(patientId).collection('treatments').doc(treatmentId);
   const treatmentTransactionRef = treatmentPaymentRef.collection('transactions').doc(txId);
   const treatmentRef = db.collection('patients').doc(patientId).collection('treatments').doc(treatmentId);
@@ -194,7 +197,7 @@ export async function processPayuWebhook(params: {
       transaction.get(legacyPaymentRef),
     ]);
 
-    const freshSession = (freshSessionSnap.data() ?? {}) as PayuSessionRecord;
+    const freshSession = (freshSessionSnap.data() ?? {}) as EpaycoSessionRecord;
     const freshState = normalizeString(freshSession.estado);
     if (freshState === 'aprobado') {
       return {kind: 'already-approved' as const};
@@ -213,8 +216,8 @@ export async function processPayuWebhook(params: {
     if (existingTxSnap.exists) {
       transaction.set(sessionRef, {
         estado: 'aprobado',
-        payuOrderId: payload.payuOrderId,
-        payuTransactionId: payload.payuTransactionId,
+        epaycoOrderId: payload.epaycoOrderId,
+        epaycoTransactionId: payload.epaycoTransactionId,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
       return {kind: 'already-applied' as const};
@@ -252,13 +255,13 @@ export async function processPayuWebhook(params: {
       treatmentId,
       monto: montoSesion,
       fecha: admin.firestore.FieldValue.serverTimestamp(),
-      metodo: 'payu',
+      metodo: 'epayco',
       referencia: payload.reference,
-      registradoPor: 'payu_webhook',
-      notas: 'Pago procesado por PayU Colombia',
+      registradoPor: 'epayco_webhook',
+      notas: 'Pago procesado por Epayco Colombia',
       reciboUrl: null,
-      payuOrderId: payload.payuOrderId,
-      payuTransactionId: payload.payuTransactionId,
+      epaycoOrderId: payload.epaycoOrderId,
+      epaycoTransactionId: payload.epaycoTransactionId,
     });
 
     transaction.set(treatmentPaymentRef, {
@@ -312,8 +315,8 @@ export async function processPayuWebhook(params: {
 
     transaction.set(sessionRef, {
       estado: 'aprobado',
-      payuOrderId: payload.payuOrderId,
-      payuTransactionId: payload.payuTransactionId,
+      epaycoOrderId: payload.epaycoOrderId,
+      epaycoTransactionId: payload.epaycoTransactionId,
       appliedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, {merge: true});

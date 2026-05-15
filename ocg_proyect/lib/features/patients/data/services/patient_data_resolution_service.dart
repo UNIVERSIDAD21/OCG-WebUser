@@ -262,7 +262,7 @@ class PatientDataResolutionService {
       tx.monto.toStringAsFixed(2),
       tx.fecha.toUtc().millisecondsSinceEpoch,
       tx.referencia ?? '',
-      tx.payuTransactionId ?? '',
+      tx.epaycoTransactionId ?? '',
     ].join('|');
   }
 }

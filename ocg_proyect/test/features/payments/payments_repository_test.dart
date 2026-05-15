@@ -266,7 +266,7 @@ void main() {
   });
 
   group('registerGatewayPayment', () {
-    test('registra tx con metadata payu y payu_webhook', () async {
+    test('registra tx con metadata epayco y epayco_webhook', () async {
       await seedTreatmentAccount(
         patientId: 'p3',
         treatmentId: 'tx-main',
@@ -279,8 +279,8 @@ void main() {
         patientId: 'p3',
         treatmentId: 'tx-main',
         monto: 400,
-        payuOrderId: 'ORDER1',
-        payuTransactionId: 'TX1',
+        epaycoOrderId: 'ORDER1',
+        epaycoTransactionId: 'TX1',
       );
 
       final txSnap = await db
@@ -288,14 +288,14 @@ void main() {
           .get();
       expect(txSnap.docs.length, 1);
       final tx = txSnap.docs.first.data();
-      expect(tx['registradoPor'], 'payu_webhook');
-      expect(tx['metodo'], PaymentMethod.payu.name);
-      expect(tx['payuOrderId'], 'ORDER1');
-      expect(tx['payuTransactionId'], 'TX1');
+      expect(tx['registradoPor'], 'epayco_webhook');
+      expect(tx['metodo'], PaymentMethod.epayco.name);
+      expect(tx['epaycoOrderId'], 'ORDER1');
+      expect(tx['epaycoTransactionId'], 'TX1');
       expect(tx['treatmentId'], 'tx-main');
     });
 
-    test('aplica pago PayU a tratamiento A sin afectar tratamiento B', () async {
+    test('aplica pago Epayco a tratamiento A sin afectar tratamiento B', () async {
       await seedTreatmentAccount(
         patientId: 'p-multi',
         treatmentId: 'tx-a',
@@ -319,8 +319,8 @@ void main() {
         patientId: 'p-multi',
         treatmentId: 'tx-a',
         monto: 300,
-        payuOrderId: 'ORDER-A',
-        payuTransactionId: 'TX-A',
+        epaycoOrderId: 'ORDER-A',
+        epaycoTransactionId: 'TX-A',
       );
 
       final paymentA = await db.doc(FirestorePaths.treatmentPaymentDoc('p-multi', 'tx-a')).get();

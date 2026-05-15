@@ -13,7 +13,7 @@ import '../../patients/data/models/patient_data_resolution.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/data/services/patient_data_resolution_service.dart';
 import '../../patients/providers/patients_provider.dart';
-import '../services/payu_service.dart';
+import '../services/epayco_service.dart';
 import '../data/models/admin_payment_overview.dart';
 import '../data/models/payment_model.dart';
 import '../data/repositories/payments_repository.dart';
@@ -391,7 +391,7 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
           final metodoLabel = switch (metodo) {
             PaymentMethod.efectivo => 'efectivo',
             PaymentMethod.transferencia => 'transferencia',
-            PaymentMethod.payu => 'PayU',
+            PaymentMethod.epayco => 'Epayco',
           };
           await FirebaseFunctions.instance
               .httpsCallable('sendAndroidNotification')
@@ -458,13 +458,13 @@ final registerPaymentProvider =
       RegisterPaymentNotifier.new,
     );
 
-final payuServiceProvider = Provider<PayuService>((ref) => PayuService());
+final epaycoServiceProvider = Provider<EpaycoService>((ref) => EpaycoService());
 
 final pdfReceiptServiceProvider = Provider<PdfReceiptService>((ref) {
   return PdfReceiptService(ref.watch(paymentsRepositoryProvider));
 });
 
-class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
+class InitiateEpaycoPaymentNotifier extends AsyncNotifier<String?> {
   @override
   String? build() => null;
 
@@ -480,7 +480,7 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
     if (cleanTreatmentId.isEmpty) {
       final error = FirebaseFunctionsException(
         code: 'invalid-argument',
-        message: 'Debes seleccionar un tratamiento antes de pagar con PayU.',
+        message: 'Debes seleccionar un tratamiento antes de pagar.',
       );
       state = AsyncError(error, StackTrace.current);
       throw error;
@@ -514,7 +514,7 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
 
     final guarded = await AsyncValue.guard(
       () => ref
-          .read(payuServiceProvider)
+          .read(epaycoServiceProvider)
           .createPaymentSession(
             patientId: patientId,
             treatmentId: cleanTreatmentId,
@@ -535,7 +535,7 @@ class InitiatePayuPaymentNotifier extends AsyncNotifier<String?> {
   }
 }
 
-final initiatePayuPaymentProvider =
-    AsyncNotifierProvider.autoDispose<InitiatePayuPaymentNotifier, String?>(
-      InitiatePayuPaymentNotifier.new,
+final initiateEpaycoPaymentProvider =
+    AsyncNotifierProvider.autoDispose<InitiateEpaycoPaymentNotifier, String?>(
+      InitiateEpaycoPaymentNotifier.new,
     );

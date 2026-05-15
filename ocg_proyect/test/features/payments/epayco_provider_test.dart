@@ -2,9 +2,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ocg_proyect/features/payments/providers/payments_provider.dart';
-import 'package:ocg_proyect/features/payments/services/payu_service.dart';
+import 'package:ocg_proyect/features/payments/services/epayco_service.dart';
 
-class _RecordingPayuService extends PayuService {
+class _RecordingEpaycoService extends EpaycoService {
   Map<String, dynamic>? lastCall;
   int callCount = 0;
 
@@ -26,23 +26,23 @@ class _RecordingPayuService extends PayuService {
       'patientName': patientName,
       'saldoPendiente': saldoPendiente,
     };
-    return 'https://payu.test/checkout';
+    return 'https://epayco.test/checkout';
   }
 }
 
 void main() {
   group('InitiatePayuPaymentNotifier', () {
     test('falla si monto supera saldoPendiente', () async {
-      final service = _RecordingPayuService();
+      final service = _RecordingEpaycoService();
       final container = ProviderContainer(
         overrides: [
-          payuServiceProvider.overrideWith((ref) => service),
+          epaycoServiceProvider.overrideWith((ref) => service),
         ],
       );
       addTearDown(container.dispose);
 
       await expectLater(
-        () => container.read(initiatePayuPaymentProvider.notifier).initiate(
+        () => container.read(initiateEpaycoPaymentProvider.notifier).initiate(
           patientId: 'p1',
           treatmentId: 'tx-1',
           monto: 500,
@@ -60,22 +60,22 @@ void main() {
       );
       expect(service.callCount, 0);
       expect(
-        container.read(initiatePayuPaymentProvider),
+        container.read(initiateEpaycoPaymentProvider),
         isA<AsyncError<String?>>(),
       );
     });
 
     test('falla si treatmentId está vacío', () async {
-      final service = _RecordingPayuService();
+      final service = _RecordingEpaycoService();
       final container = ProviderContainer(
         overrides: [
-          payuServiceProvider.overrideWith((ref) => service),
+          epaycoServiceProvider.overrideWith((ref) => service),
         ],
       );
       addTearDown(container.dispose);
 
       await expectLater(
-        () => container.read(initiatePayuPaymentProvider.notifier).initiate(
+        () => container.read(initiateEpaycoPaymentProvider.notifier).initiate(
           patientId: 'p1',
           treatmentId: '   ',
           monto: 100,
@@ -93,20 +93,20 @@ void main() {
       );
       expect(service.callCount, 0);
       expect(
-        container.read(initiatePayuPaymentProvider),
+        container.read(initiateEpaycoPaymentProvider),
         isA<AsyncError<String?>>(),
       );
     });
 
     test('falla si saldoPendiente es cero o negativo sin llamar backend', () async {
-      final service = _RecordingPayuService();
+      final service = _RecordingEpaycoService();
       final container = ProviderContainer(
-        overrides: [payuServiceProvider.overrideWith((ref) => service)],
+        overrides: [epaycoServiceProvider.overrideWith((ref) => service)],
       );
       addTearDown(container.dispose);
 
       await expectLater(
-        () => container.read(initiatePayuPaymentProvider.notifier).initiate(
+        () => container.read(initiateEpaycoPaymentProvider.notifier).initiate(
           patientId: 'p1',
           treatmentId: 'tx-1',
           monto: 100,
@@ -118,19 +118,19 @@ void main() {
       );
       expect(service.callCount, 0);
       expect(
-        container.read(initiatePayuPaymentProvider),
+        container.read(initiateEpaycoPaymentProvider),
         isA<AsyncError<String?>>(),
       );
     });
 
     test('llama backend solo con treatmentId válido', () async {
-      final service = _RecordingPayuService();
+      final service = _RecordingEpaycoService();
       final container = ProviderContainer(
-        overrides: [payuServiceProvider.overrideWith((ref) => service)],
+        overrides: [epaycoServiceProvider.overrideWith((ref) => service)],
       );
       addTearDown(container.dispose);
 
-      final url = await container.read(initiatePayuPaymentProvider.notifier).initiate(
+      final url = await container.read(initiateEpaycoPaymentProvider.notifier).initiate(
         patientId: 'p1',
         treatmentId: 'tx-1',
         monto: 100,
@@ -139,7 +139,7 @@ void main() {
         patientName: 'Paciente',
       );
 
-      expect(url, 'https://payu.test/checkout');
+      expect(url, 'https://epayco.test/checkout');
       expect(service.lastCall?['treatmentId'], 'tx-1');
       expect(service.lastCall?['saldoPendiente'], 100.0);
     });

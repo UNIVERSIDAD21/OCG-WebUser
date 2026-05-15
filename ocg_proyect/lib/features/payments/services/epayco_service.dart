@@ -1,16 +1,16 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
-typedef PayuCallableInvoker = Future<dynamic> Function(Map<String, dynamic> data);
+typedef EpaycoCallableInvoker = Future<dynamic> Function(Map<String, dynamic> data);
 
-class PayuService {
-  PayuService({
+class EpaycoService {
+  EpaycoService({
     FirebaseFunctions? functions,
-    PayuCallableInvoker? createPayuSessionInvoker,
+    EpaycoCallableInvoker? createEpaycoCheckoutInvoker,
   }) : _functions = functions,
-       _createPayuSessionInvoker = createPayuSessionInvoker;
+       _createEpaycoCheckoutInvoker = createEpaycoCheckoutInvoker;
 
   final FirebaseFunctions? _functions;
-  final PayuCallableInvoker? _createPayuSessionInvoker;
+  final EpaycoCallableInvoker? _createEpaycoCheckoutInvoker;
 
   Future<String> createPaymentSession({
     required String patientId,
@@ -24,7 +24,7 @@ class PayuService {
     if (cleanTreatmentId.isEmpty) {
       throw FirebaseFunctionsException(
         code: 'invalid-argument',
-        message: 'No se puede iniciar PayU sin un treatmentId válido.',
+        message: 'No se puede iniciar el pago sin un treatmentId válido.',
       );
     }
     if (monto <= 0) {
@@ -55,11 +55,11 @@ class PayuService {
     };
 
     final dynamic rawResult;
-    if (_createPayuSessionInvoker != null) {
-      rawResult = await _createPayuSessionInvoker(payload);
+    if (_createEpaycoCheckoutInvoker != null) {
+      rawResult = await _createEpaycoCheckoutInvoker(payload);
     } else {
       final functions = _functions ?? FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('createPayuSession');
+      final callable = functions.httpsCallable('createEpaycoCheckout');
       rawResult = await callable.call(payload);
     }
 
@@ -71,7 +71,7 @@ class PayuService {
     if (url.isEmpty) {
       throw FirebaseFunctionsException(
         code: 'internal',
-        message: 'No se recibió checkoutUrl desde createPayuSession.',
+        message: 'No se recibió checkoutUrl desde createEpaycoCheckout.',
       );
     }
     return url;

@@ -197,19 +197,19 @@ class TransactionList extends ConsumerWidget {
   String _methodLabel(PaymentMethod method) => switch (method) {
     PaymentMethod.efectivo => 'Efectivo',
     PaymentMethod.transferencia => 'Transferencia',
-    PaymentMethod.payu => 'PayU',
+    PaymentMethod.epayco => 'Epayco',
   };
 
   IconData _methodIcon(PaymentMethod method) => switch (method) {
     PaymentMethod.efectivo => Icons.payments_outlined,
     PaymentMethod.transferencia => Icons.account_balance_outlined,
-    PaymentMethod.payu => Icons.credit_card_outlined,
+    PaymentMethod.epayco => Icons.credit_card_outlined,
   };
 
   String _registeredByInlineLabel(String registradoPor) {
     final value = registradoPor.trim();
     if (value.isEmpty) return 'Registrado por: Administrador';
-    if (value == 'payu_webhook') return 'Registrado por: PayU';
+    if (value == 'epayco_webhook') return 'Registrado por: Epayco';
     if (value == 'admin') return 'Registrado por: Administrador';
     if (value.length >= 20) return 'Registrado por: Administrador';
     return 'Registrado por: $value';

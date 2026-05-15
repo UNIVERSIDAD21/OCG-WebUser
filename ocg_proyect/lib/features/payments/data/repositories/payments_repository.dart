@@ -41,7 +41,7 @@ String paymentTransactionDedupKey(
     transaction.monto.toStringAsFixed(2),
     transaction.fecha.toUtc().millisecondsSinceEpoch,
     transaction.referencia ?? '',
-    transaction.payuTransactionId ?? '',
+    transaction.epaycoTransactionId ?? '',
   ].join('|');
 }
 
@@ -464,8 +464,8 @@ class PaymentsRepository {
   Future<void> registerGatewayPayment({
     required String patientId,
     required double monto,
-    required String payuOrderId,
-    required String payuTransactionId,
+    required String epaycoOrderId,
+    required String epaycoTransactionId,
     String? treatmentId,
     String? referencia,
     String? notas,
@@ -473,13 +473,13 @@ class PaymentsRepository {
     await _registerPayment(
       patientId: patientId,
       monto: monto,
-      metodo: PaymentMethod.payu,
-      registradoPor: 'payu_webhook',
+      metodo: PaymentMethod.epayco,
+      registradoPor: 'epayco_webhook',
       treatmentId: treatmentId,
       referencia: referencia,
       notas: notas,
-      payuOrderId: payuOrderId,
-      payuTransactionId: payuTransactionId,
+      epaycoOrderId: epaycoOrderId,
+      epaycoTransactionId: epaycoTransactionId,
     );
   }
 
@@ -491,8 +491,8 @@ class PaymentsRepository {
     String? treatmentId,
     String? referencia,
     String? notas,
-    String? payuOrderId,
-    String? payuTransactionId,
+    String? epaycoOrderId,
+    String? epaycoTransactionId,
   }) async {
     _trace('registerPayment.start', {
       'patientId': patientId,
@@ -581,8 +581,8 @@ class PaymentsRepository {
       'registradoPor': registradoPor,
       'notas': notas,
       'reciboUrl': null,
-      'payuOrderId': payuOrderId,
-      'payuTransactionId': payuTransactionId,
+      'epaycoOrderId': epaycoOrderId,
+      'epaycoTransactionId': epaycoTransactionId,
     });
 
     batch.set(paymentRef, {

@@ -113,7 +113,7 @@ class PdfReceiptService {
   String _paymentMethodLabel(PaymentMethod method) => switch (method) {
     PaymentMethod.efectivo => 'Efectivo',
     PaymentMethod.transferencia => 'Transferencia bancaria',
-    PaymentMethod.payu => 'PayU',
+    PaymentMethod.epayco => 'Epayco',
   };
 
   String _ascii(String value) {

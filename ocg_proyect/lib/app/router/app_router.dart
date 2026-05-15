@@ -20,7 +20,7 @@ import '../../features/dashboard/presentation/patient_home_screen.dart';
 import '../../features/notifications/presentation/patient_notifications_screen.dart';
 import '../../features/patients/presentation/patient_detail_screen.dart';
 import '../../features/patients/presentation/patient_form_screen.dart';
-import '../../features/payments/presentation/payu_checkout_screen.dart';
+import '../../features/payments/presentation/epayco_checkout_screen.dart';
 import '../../features/consultation/presentation/consultation_screen.dart';
 import 'route_names.dart';
 
@@ -282,10 +282,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PatientHomeScreen(initialSection: 3),
       ),
       GoRoute(
-        path: RouteNames.patientPayuCheckout,
+        path: RouteNames.patientEpaycoCheckout,
         builder: (context, state) {
           final url = state.uri.queryParameters['checkoutUrl'] ?? '';
-          return PayuCheckoutScreen(checkoutUrl: url);
+          return EpaycoCheckoutScreen(checkoutUrl: url);
         },
       ),
     ],

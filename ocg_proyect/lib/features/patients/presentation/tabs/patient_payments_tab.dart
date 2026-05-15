@@ -724,16 +724,16 @@ String _methodLabel(PaymentMethod? method) {
   return switch (method) {
     PaymentMethod.efectivo => 'Efectivo',
     PaymentMethod.transferencia => 'Transferencia',
-    PaymentMethod.payu => 'PayU',
+    PaymentMethod.epayco => 'Epayco',
     null => 'Sin método',
   };
 }
 
 String _transactionStateLabel(PaymentTransaction tx) {
-  if (tx.payuTransactionId?.trim().isNotEmpty == true) {
+  if (tx.epaycoTransactionId?.trim().isNotEmpty == true) {
     return 'Confirmado';
   }
-  if (tx.payuOrderId?.trim().isNotEmpty == true) {
+  if (tx.epaycoOrderId?.trim().isNotEmpty == true) {
     return 'Procesado';
   }
   return 'Registrado';

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum PaymentStatus { alDia, pendiente, vencido, pagadoTotal }
 
-enum PaymentMethod { efectivo, transferencia, payu }
+enum PaymentMethod { efectivo, transferencia, epayco }
 
 class PaymentModel {
   const PaymentModel({
@@ -134,8 +134,8 @@ class PaymentTransaction {
     this.referencia,
     this.notas,
     this.reciboUrl,
-    this.payuOrderId,
-    this.payuTransactionId,
+    this.epaycoOrderId,
+    this.epaycoTransactionId,
     this.treatmentId,
   });
 
@@ -147,8 +147,8 @@ class PaymentTransaction {
   final String registradoPor;
   final String? notas;
   final String? reciboUrl;
-  final String? payuOrderId;
-  final String? payuTransactionId;
+  final String? epaycoOrderId;
+  final String? epaycoTransactionId;
   final String? treatmentId;
 
   factory PaymentTransaction.fromJson(Map<String, dynamic> json) {
@@ -164,8 +164,8 @@ class PaymentTransaction {
       registradoPor: (json['registradoPor'] ?? '').toString(),
       notas: json['notas']?.toString(),
       reciboUrl: json['reciboUrl']?.toString(),
-      payuOrderId: json['payuOrderId']?.toString(),
-      payuTransactionId: json['payuTransactionId']?.toString(),
+      epaycoOrderId: json['epaycoOrderId']?.toString() ?? json['payuOrderId']?.toString(),
+      epaycoTransactionId: json['epaycoTransactionId']?.toString() ?? json['payuTransactionId']?.toString(),
       treatmentId: json['treatmentId']?.toString(),
     );
   }
@@ -179,8 +179,10 @@ class PaymentTransaction {
     'registradoPor': registradoPor,
     'notas': notas,
     'reciboUrl': reciboUrl,
-    'payuOrderId': payuOrderId,
-    'payuTransactionId': payuTransactionId,
+    'epaycoOrderId': epaycoOrderId,
+    'epaycoTransactionId': epaycoTransactionId,
+    'payuOrderId': epaycoOrderId,
+    'payuTransactionId': epaycoTransactionId,
     'treatmentId': treatmentId,
   };
 }

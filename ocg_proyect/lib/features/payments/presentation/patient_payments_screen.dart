@@ -46,7 +46,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<String?>>(initiatePayuPaymentProvider, (
+    ref.listen<AsyncValue<String?>>(initiateEpaycoPaymentProvider, (
       previous,
       next,
     ) {
@@ -55,7 +55,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
         data: (url) {
           if (url == null || url.isEmpty) return;
           context.push(
-            '${RouteNames.patientPayuCheckout}?checkoutUrl=${Uri.encodeComponent(url)}',
+            '${RouteNames.patientEpaycoCheckout}?checkoutUrl=${Uri.encodeComponent(url)}',
           );
         },
         error: (error, _) {
@@ -205,7 +205,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                               saldo > 0
                                   ? isAdminViewer
                                         ? 'Registrar pago'
-                                        : 'Pagar con PayU'
+                                        : 'Pagar con Epayco'
                                   : 'Tratamiento pagado',
                             ),
                           ),
@@ -560,7 +560,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                         onPressed:
                             selectedAccount != null &&
                                 selectedAccount.payment.saldoPendiente > 0
-                            ? () => _confirmAndPayu(
+                            ? () => _confirmAndEpayco(
                                 context,
                                 patientId,
                                 selectedTreatment.id,
@@ -573,9 +573,9 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
                         icon: const Icon(Icons.lock_outline, size: 18),
                         label: Text(
                           selectedAccount == null
-                              ? 'PayU no disponible para ${selectedTreatment.displayName}'
+                              ? 'Epayco no disponible para ${selectedTreatment.displayName}'
                               : selectedAccount.payment.saldoPendiente > 0
-                              ? 'Pagar ${selectedTreatment.displayName} con PayU'
+                              ? 'Pagar ${selectedTreatment.displayName} con Epayco'
                               : '${selectedTreatment.displayName} al día',
                         ),
                       ),
@@ -707,7 +707,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
         );
   }
 
-  Future<void> _confirmAndPayu(
+  Future<void> _confirmAndEpayco(
     BuildContext context,
     String patientId,
     String treatmentId,
@@ -739,7 +739,7 @@ class _PatientPaymentsScreenState extends ConsumerState<PatientPaymentsScreen> {
     }
 
     await ref
-        .read(initiatePayuPaymentProvider.notifier)
+        .read(initiateEpaycoPaymentProvider.notifier)
         .initiate(
           patientId: patientId,
           treatmentId: treatmentId,
@@ -1640,6 +1640,6 @@ class _TransactionCard extends StatelessWidget {
   String _methodLabel(PaymentMethod method) => switch (method) {
     PaymentMethod.efectivo => 'Efectivo',
     PaymentMethod.transferencia => 'Transferencia',
-    PaymentMethod.payu => 'PayU',
+    PaymentMethod.epayco => 'Epayco',
   };
 }

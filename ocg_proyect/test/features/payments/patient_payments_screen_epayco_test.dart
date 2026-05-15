@@ -12,10 +12,10 @@ import 'package:ocg_proyect/features/payments/data/models/payment_model.dart';
 import 'package:ocg_proyect/features/payments/presentation/patient_payments_screen.dart';
 import 'package:ocg_proyect/features/payments/providers/payments_provider.dart';
 import 'package:ocg_proyect/features/payments/providers/treatment_financial_provider.dart';
-import 'package:ocg_proyect/features/payments/services/payu_service.dart';
+import 'package:ocg_proyect/features/payments/services/epayco_service.dart';
 import 'package:ocg_proyect/features/treatment/data/models/patient_treatment.dart';
 
-class _RecordingPayuService extends PayuService {
+class _RecordingEpaycoService extends EpaycoService {
   Map<String, dynamic>? lastCall;
 
   @override
@@ -35,15 +35,15 @@ class _RecordingPayuService extends PayuService {
       'patientName': patientName,
       'saldoPendiente': saldoPendiente,
     };
-    return 'https://payu.test/checkout';
+    return 'https://epayco.test/checkout';
   }
 }
 
 void main() {
-  testWidgets('pantalla inicia PayU usando el tratamiento seleccionado', (
+  testWidgets('pantalla inicia Epayco usando el tratamiento seleccionado', (
     WidgetTester tester,
   ) async {
-    final service = _RecordingPayuService();
+    final service = _RecordingEpaycoService();
     await _pumpScreen(
       tester,
       service: service,
@@ -59,8 +59,8 @@ void main() {
 
     await tester.tap(find.text('Tratamiento T2'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Pagar Tratamiento T2 con PayU'));
-    await tester.tap(find.text('Pagar Tratamiento T2 con PayU'), warnIfMissed: false);
+    await tester.ensureVisible(find.text('Pagar Tratamiento T2 con Epayco'));
+    await tester.tap(find.text('Pagar Tratamiento T2 con Epayco'), warnIfMissed: false);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continuar'));
     await tester.pumpAndSettle();
@@ -75,7 +75,7 @@ void main() {
   ) async {
     await _pumpScreen(
       tester,
-      service: _RecordingPayuService(),
+      service: _RecordingEpaycoService(),
       resolution: _resolution(
         patient: _patient(),
         treatments: [_treatment('t1', isPrimary: true), _treatment('t2')],
@@ -86,18 +86,18 @@ void main() {
       ),
     );
 
-    expect(find.text('Pagar Tratamiento T1 con PayU'), findsOneWidget);
+    expect(find.text('Pagar Tratamiento T1 con Epayco'), findsOneWidget);
     await tester.tap(find.text('Tratamiento T2'));
     await tester.pumpAndSettle();
-    expect(find.text('Pagar Tratamiento T2 con PayU'), findsOneWidget);
+    expect(find.text('Pagar Tratamiento T2 con Epayco'), findsOneWidget);
   });
 
-  testWidgets('no existe botón PayU global sin cuenta asociada a tratamiento', (
+  testWidgets('no existe botón Epayco global sin cuenta asociada a tratamiento', (
     WidgetTester tester,
   ) async {
     await _pumpScreen(
       tester,
-      service: _RecordingPayuService(),
+      service: _RecordingEpaycoService(),
       resolution: _resolution(
         patient: _patient(),
         treatments: [_treatment('t1', isPrimary: true), _treatment('t2')],
@@ -111,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final button = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'PayU no disponible para Tratamiento T2'),
+      find.widgetWithText(ElevatedButton, 'Epayco no disponible para Tratamiento T2'),
     );
     expect(button.onPressed, isNull);
     expect(find.textContaining('cuenta de cobro del tratamiento'), findsOneWidget);
@@ -121,7 +121,7 @@ void main() {
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
-  required _RecordingPayuService service,
+  required _RecordingEpaycoService service,
   required EffectivePatientDataResolution resolution,
 }) async {
   final patient = resolution.patient;
@@ -129,7 +129,7 @@ Future<void> _pumpScreen(
     ProviderScope(
       overrides: [
         authStateProvider.overrideWith((ref) => const Stream<User?>.empty()),
-        payuServiceProvider.overrideWith((ref) => service),
+        epaycoServiceProvider.overrideWith((ref) => service),
         patientByIdProvider(patient.id).overrideWith((ref) => Stream.value(patient)),
         effectivePatientPaymentsProvider((patientId: patient.id, patient: patient))
             .overrideWith((ref) => resolution),
