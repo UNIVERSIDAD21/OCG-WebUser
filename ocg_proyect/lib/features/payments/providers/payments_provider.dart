@@ -380,42 +380,8 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
 
     unawaited(() async {
       try {
-        // ── Notificar al paciente sobre el nuevo pago ──
-        try {
-          final patientDoc = await FirebaseFirestore.instance
-              .collection(FirestorePaths.patients)
-              .doc(patientId)
-              .get();
-          final patientData = patientDoc.data() ?? <String, dynamic>{};
-          final patientName = (patientData['nombre'] ?? '').toString();
-          final metodoLabel = switch (metodo) {
-            PaymentMethod.efectivo => 'efectivo',
-            PaymentMethod.transferencia => 'transferencia',
-            PaymentMethod.epayco => 'Epayco',
-          };
-          await FirebaseFunctions.instance
-              .httpsCallable('sendAndroidNotification')
-              .call(<String, dynamic>{
-            'recipientId': patientId,
-            'recipientRole': 'patient',
-            'title': 'Pago registrado',
-            'body':
-                'Se registró un pago de \$${monto.toStringAsFixed(0)} COP por $metodoLabel.',
-            'type': 'payment',
-            'entityType': 'pago',
-            'entityId': patientId,
-            'data': {
-              'patientId': patientId,
-              'monto': monto.toString(),
-              'metodo': metodo.name,
-              'patientName': patientName,
-            },
-          });
-        } catch (_) {
-          // La notificación es best-effort; el pago ya fue registrado.
-        }
-
-        // ── Generar recibo PDF ──
+        // La notificacion de pago registrado se emite desde Cloud Functions
+        // al crear la transaccion. Aqui solo queda el recibo PDF best-effort.
         final tx = await repository.getLatestTransaction(
           patientId,
           treatmentId: treatmentId,

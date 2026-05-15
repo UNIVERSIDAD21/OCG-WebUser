@@ -25,6 +25,7 @@ function normalize(value: unknown): string {
 
 function subjectForType(payload: EmailNotificationPayload): string {
   switch (payload.type) {
+    case 'payment':
     case 'payment_received':
       return 'OCG Clinica - Pago recibido';
     case 'payment_due':
@@ -59,7 +60,7 @@ function subjectForType(payload: EmailNotificationPayload): string {
 }
 
 function preheaderForType(type: string): string {
-  if (type.startsWith('payment_')) {
+  if (type === 'payment' || type.startsWith('payment_') || type.includes('pago')) {
     return 'Actualizacion importante sobre pagos en OCG Clinica.';
   }
   if (type === 'treatment_stage_updated') {
@@ -72,7 +73,7 @@ function preheaderForType(type: string): string {
 }
 
 function actionLabelForType(type: string): string {
-  if (type.startsWith('payment_')) return 'Ver pagos';
+  if (type === 'payment' || type.startsWith('payment_') || type.includes('pago')) return 'Ver pagos';
   if (type === 'treatment_stage_updated') return 'Ver tratamiento';
   if (type.startsWith('appointment_')) return 'Ver citas';
   return 'Abrir portal';
@@ -152,4 +153,3 @@ export function renderEmailTemplate(
 
   return {subject, html, text};
 }
-

@@ -22,9 +22,12 @@ const payuWebhook = epaycoWebhook;
 import {reconcilePatientBalances} from './payments/reconcile_balances';
 import {initializeAllPaymentDocuments} from './payments/initialize_all_payment_documents';
 import {onTreatmentFinancialItemWrite} from './payments/on_treatment_financial_item_write';
+import {onPaymentTransactionCreate} from './payments/on_payment_transaction_create';
 import {processPaymentDueNotifications} from './payments/payment_due_scheduler';
 import {onPatientStageHistoryCreate} from './treatments/on_stage_history_create';
 import {onPatientStageChangeWrite} from './treatments/on_patient_stage_change_write';
+import {onTreatmentStageHistoryCreate} from './treatments/on_treatment_stage_history_create';
+import {onTreatmentStageChangeWrite} from './treatments/on_treatment_stage_change_write';
 import {generateSmileSimulation} from './simulator/generate_smile_simulation';
 import {resendEmailNotification} from './notifications/resend_email_notification';
 
@@ -55,9 +58,12 @@ export {
   reconcilePatientBalances,
   initializeAllPaymentDocuments,
   onTreatmentFinancialItemWrite,
+  onPaymentTransactionCreate,
   processPaymentDueNotifications,
   onPatientStageHistoryCreate,
   onPatientStageChangeWrite,
+  onTreatmentStageHistoryCreate,
+  onTreatmentStageChangeWrite,
   generateSmileSimulation,
   resendEmailNotification,
 };

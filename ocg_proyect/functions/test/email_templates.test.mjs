@@ -26,6 +26,15 @@ test('renderiza template de pago recibido', () => {
   assert.match(rendered.text, /https:\/\/app\.example\.com\/patient\/payments/);
 });
 
+test('renderiza template de pago legacy desde callable manual', () => {
+  const rendered = renderEmailTemplate(payload('payment'), {
+    appLink: 'https://app.example.com/patient/payments',
+  });
+
+  assert.equal(rendered.subject, 'OCG Clinica - Pago recibido');
+  assert.match(rendered.html, /Ver pagos/);
+});
+
 test('renderiza template de pago proximo a vencer', () => {
   const rendered = renderEmailTemplate(payload('payment_due_soon'), {
     appLink: 'https://app.example.com/patient/payments',

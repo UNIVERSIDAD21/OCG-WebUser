@@ -5,7 +5,7 @@ import {
   type AndroidNotificationPayload,
   type NotificationRecipientRole,
 } from './fcm_delivery';
-import {deliverAndroidNotification} from './android_notification_service';
+import {deliverNotification} from './notification_delivery_service';
 
 type SendAndroidNotificationRequest = {
   recipientId?: unknown;
@@ -17,6 +17,7 @@ type SendAndroidNotificationRequest = {
   entityId?: unknown;
   entityType?: unknown;
   data?: unknown;
+  sendEmail?: unknown;
 };
 
 function requireAdmin(request: CallableRequest<SendAndroidNotificationRequest>): void {
@@ -48,7 +49,65 @@ function normalizeStringRecord(value: unknown): Record<string, string> {
   );
 }
 
-function buildPayload(data: SendAndroidNotificationRequest): AndroidNotificationPayload {
+function normalizeBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  return null;
+}
+
+function isPaymentNotification(payload: AndroidNotificationPayload): boolean {
+  const type = payload.type.toLowerCase();
+  const entityType = (payload.entityType ?? '').toLowerCase();
+  return (
+    type === 'payment' ||
+    type.startsWith('payment_') ||
+    type.includes('pago') ||
+    entityType === 'payment' ||
+    entityType === 'pago'
+  );
+}
+
+function isTreatmentNotification(payload: AndroidNotificationPayload): boolean {
+  const type = payload.type.toLowerCase();
+  const entityType = (payload.entityType ?? '').toLowerCase();
+  return (
+    type === 'treatment_stage_updated' ||
+    type.startsWith('treatment_') ||
+    type.includes('tratamiento') ||
+    entityType === 'treatment' ||
+    entityType === 'tratamiento'
+  );
+}
+
+function isAppointmentNotification(payload: AndroidNotificationPayload): boolean {
+  const type = payload.type.toLowerCase();
+  const entityType = (payload.entityType ?? '').toLowerCase();
+  return type.startsWith('appointment_') || entityType === 'appointment' || entityType === 'cita';
+}
+
+function defaultTargetRoute(payload: AndroidNotificationPayload): string | undefined {
+  if (payload.targetRoute) return payload.targetRoute;
+  if (payload.recipientRole !== 'patient') return undefined;
+  if (isPaymentNotification(payload)) return '/patient/payments';
+  if (isAppointmentNotification(payload)) return '/patient/appointments';
+  if (isTreatmentNotification(payload)) return '/patient';
+  return undefined;
+}
+
+export function shouldSendEmailForCallable(
+  payload: AndroidNotificationPayload,
+  request: SendAndroidNotificationRequest,
+): boolean {
+  if (isPaymentNotification(payload)) return false;
+  const explicit = normalizeBoolean(request.sendEmail);
+  if (explicit !== null) return explicit;
+  return isTreatmentNotification(payload);
+}
+
+export function buildPayload(data: SendAndroidNotificationRequest): AndroidNotificationPayload {
   const recipientId = String(data.recipientId ?? '').trim();
   const title = String(data.title ?? '').trim();
   const body = String(data.body ?? '').trim();
@@ -58,7 +117,7 @@ function buildPayload(data: SendAndroidNotificationRequest): AndroidNotification
     throw new HttpsError('invalid-argument', 'Faltan campos obligatorios de la notificación.');
   }
 
-  return {
+  const payload = {
     recipientId,
     recipientRole: normalizeRecipientRole(data.recipientRole),
     title,
@@ -69,6 +128,11 @@ function buildPayload(data: SendAndroidNotificationRequest): AndroidNotification
     entityType: String(data.entityType ?? '').trim() || undefined,
     data: normalizeStringRecord(data.data),
   };
+
+  return {
+    ...payload,
+    targetRoute: defaultTargetRoute(payload),
+  };
 }
 
 export const sendAndroidNotification = onCall<SendAndroidNotificationRequest>(async (request) => {
@@ -76,14 +140,20 @@ export const sendAndroidNotification = onCall<SendAndroidNotificationRequest>(as
 
   const db = admin.firestore();
   const payload = buildPayload(request.data ?? {});
-  const {notificationId, delivery} = await deliverAndroidNotification(db, {
+  const sendEmail = shouldSendEmailForCallable(payload, request.data ?? {});
+  const {notificationId, delivery, emailDelivery} = await deliverNotification(db, {
     ...payload,
     source: 'callable:sendAndroidNotification',
+    channels: {
+      app: true,
+      email: sendEmail,
+    },
   });
 
   return {
     ok: true,
     notificationId,
     delivery,
+    emailDelivery,
   };
 });
