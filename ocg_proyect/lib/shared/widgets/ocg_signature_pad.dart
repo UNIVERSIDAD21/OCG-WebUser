@@ -67,41 +67,6 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
     super.dispose();
   }
 
-  void _onPointerDown(PointerDownEvent details) {
-    final box = _painterKey.currentContext?.findRenderObject();
-    if (box == null || box is! RenderBox) return;
-    final local = box.globalToLocal(details.position);
-    setState(() {
-      _currentStroke = [local];
-      _isDrawing = true;
-    });
-  }
-
-  void _onPointerMove(PointerMoveEvent details) {
-    if (!_isDrawing) return;
-    final box = _painterKey.currentContext?.findRenderObject();
-    if (box == null || box is! RenderBox) return;
-    final local = box.globalToLocal(details.position);
-    setState(() {
-      _currentStroke = [..._currentStroke, local];
-    });
-  }
-
-  void _onPointerUp(PointerUpEvent details) {
-    if (_currentStroke.length > 1) {
-      setState(() {
-        _strokes.add(List.from(_currentStroke));
-        _currentStroke = [];
-        _isDrawing = false;
-      });
-    } else {
-      setState(() {
-        _currentStroke = [];
-        _isDrawing = false;
-      });
-    }
-  }
-
   void clear() {
     setState(() {
       _strokes.clear();
@@ -158,15 +123,49 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
             ),
             // Área de firma
             Positioned.fill(
-              // Usamos Listener + Pointer en lugar de GestureDetector para evitar
-              // conflictos con el scroll del padre en móvil/tablet. Los eventos de
-              // pointer no compiten en el gesture arena, así que el dibujo siempre
-              // gana y no se scrollea la página al firmar.
-              child: Listener(
+              // Usamos GestureDetector (no Listener) para ganar el gesture arena
+              // de Flutter y evitar que el Scrollable padre capture los drags.
+              // onPanDown con return true consume el touch inmediatamente.
+              child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onPointerDown: _onPointerDown,
-                onPointerMove: _onPointerMove,
-                onPointerUp: _onPointerUp,
+                onPanDown: (details) {
+                  final box = _painterKey.currentContext?.findRenderObject();
+                  if (box == null || box is! RenderBox) return;
+                  final local = box.globalToLocal(details.globalPosition);
+                  setState(() {
+                    _currentStroke = [local];
+                    _isDrawing = true;
+                  });
+                },
+                onPanUpdate: (details) {
+                  if (!_isDrawing) return;
+                  final box = _painterKey.currentContext?.findRenderObject();
+                  if (box == null || box is! RenderBox) return;
+                  final local = box.globalToLocal(details.globalPosition);
+                  setState(() {
+                    _currentStroke = [..._currentStroke, local];
+                  });
+                },
+                onPanEnd: (_) {
+                  if (_currentStroke.length > 1) {
+                    setState(() {
+                      _strokes.add(List.from(_currentStroke));
+                      _currentStroke = [];
+                      _isDrawing = false;
+                    });
+                  } else {
+                    setState(() {
+                      _currentStroke = [];
+                      _isDrawing = false;
+                    });
+                  }
+                },
+                onPanCancel: () {
+                  setState(() {
+                    _currentStroke = [];
+                    _isDrawing = false;
+                  });
+                },
                 child: RepaintBoundary(
                   key: _painterKey,
                   child: CustomPaint(
