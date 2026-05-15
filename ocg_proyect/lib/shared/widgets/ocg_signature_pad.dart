@@ -67,26 +67,27 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
     super.dispose();
   }
 
-  void _onPanStart(DragStartDetails details) {
+  void _onPointerDown(PointerDownEvent details) {
     final box = _painterKey.currentContext?.findRenderObject();
     if (box == null || box is! RenderBox) return;
-    final local = box.globalToLocal(details.globalPosition);
+    final local = box.globalToLocal(details.position);
     setState(() {
       _currentStroke = [local];
       _isDrawing = true;
     });
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _onPointerMove(PointerMoveEvent details) {
+    if (!_isDrawing) return;
     final box = _painterKey.currentContext?.findRenderObject();
     if (box == null || box is! RenderBox) return;
-    final local = box.globalToLocal(details.globalPosition);
+    final local = box.globalToLocal(details.position);
     setState(() {
       _currentStroke = [..._currentStroke, local];
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
+  void _onPointerUp(PointerUpEvent details) {
     if (_currentStroke.length > 1) {
       setState(() {
         _strokes.add(List.from(_currentStroke));
@@ -157,11 +158,15 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
             ),
             // Área de firma
             Positioned.fill(
-              child: GestureDetector(
+              // Usamos Listener + Pointer en lugar de GestureDetector para evitar
+              // conflictos con el scroll del padre en móvil/tablet. Los eventos de
+              // pointer no compiten en el gesture arena, así que el dibujo siempre
+              // gana y no se scrollea la página al firmar.
+              child: Listener(
                 behavior: HitTestBehavior.translucent,
-                onPanStart: _onPanStart,
-                onPanUpdate: _onPanUpdate,
-                onPanEnd: _onPanEnd,
+                onPointerDown: _onPointerDown,
+                onPointerMove: _onPointerMove,
+                onPointerUp: _onPointerUp,
                 child: RepaintBoundary(
                   key: _painterKey,
                   child: CustomPaint(
