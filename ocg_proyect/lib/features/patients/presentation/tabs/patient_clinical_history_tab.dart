@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/router/route_names.dart';
+import '../../../../shared/constants/firestore_paths.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
@@ -14,6 +18,7 @@ import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
+import '../../../clinical_files/data/repositories/clinical_files_repository.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
 import '../../../consultation/data/models/consultation_model.dart';
 import '../../../consultation/providers/consultation_provider.dart';
@@ -504,6 +509,9 @@ class _PatientClinicalHistoryTabState
                         _patientTreatmentHistoryLocation(file.treatmentId!),
                       ),
               onDelete: () => _deleteFile(file),
+              onToggleVisibility: file.category == 'dictamen_pdf'
+                  ? () => _toggleFileVisibility(file)
+                  : null,
             ),
           ),
         if (dictamenes.isEmpty && files.isEmpty) ...[
@@ -635,6 +643,9 @@ class _PatientClinicalHistoryTabState
                       _patientTreatmentHistoryLocation(entry.file!.treatmentId!),
                     ),
             onDelete: () => _deleteFile(entry.file!),
+            onToggleVisibility: entry.file!.category == 'dictamen_pdf'
+                ? () => _toggleFileVisibility(entry.file!)
+                : null,
           );
         }
         return const SizedBox.shrink();
@@ -958,6 +969,27 @@ class _PatientClinicalHistoryTabState
         );
   }
 
+  /// Alterna la visibilidad de un archivo clinico para el paciente.
+  Future<void> _toggleFileVisibility(ClinicalFileModel file) async {
+    final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
+    if (adminId.isEmpty) return;
+    final repository = ref.read(clinicalFilesRepositoryProvider);
+    final updated = file.copyWith(visibleToPatient: !file.visibleToPatient);
+    await repository.saveMetadata(updated);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            file.visibleToPatient
+                ? 'PDF ocultado al paciente.'
+                : 'PDF visible para el paciente.',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   String _categoryLabel(String category) => category
       .replaceAll('_', ' ')
       .split(' ')
@@ -1071,11 +1103,13 @@ class _ClinicalFileTile extends StatelessWidget {
     required this.file,
     required this.onDelete,
     this.onOpenTreatmentHistory,
+    this.onToggleVisibility,
   });
 
   final ClinicalFileModel file;
   final VoidCallback onDelete;
   final VoidCallback? onOpenTreatmentHistory;
+  final VoidCallback? onToggleVisibility;
 
   @override
   Widget build(BuildContext context) {
@@ -1141,6 +1175,23 @@ class _ClinicalFileTile extends StatelessWidget {
                     ? const Color(0xFF2E7D4C)
                     : OcgColors.bronze,
               ),
+              if (file.category == 'dictamen_pdf' && onToggleVisibility != null)
+                InkWell(
+                  onTap: onToggleVisibility,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      file.visibleToPatient
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: file.visibleToPatient
+                          ? const Color(0xFF2E7D4C)
+                          : OcgColors.bronze,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1360,7 +1411,7 @@ class _SourceSectionHeader extends StatelessWidget {
 
 // ─── Dictamen tile ────────────────────────────────────────────────────
 
-class _DictamenTile extends StatefulWidget {
+class _DictamenTile extends ConsumerStatefulWidget {
   const _DictamenTile({
     required this.consultation,
     required this.patient,
@@ -1376,11 +1427,13 @@ class _DictamenTile extends StatefulWidget {
   final VoidCallback? onOpenTreatmentHistory;
 
   @override
-  State<_DictamenTile> createState() => _DictamenTileState();
+  ConsumerState<_DictamenTile> createState() => _DictamenTileState();
 }
 
-class _DictamenTileState extends State<_DictamenTile> {
+class _DictamenTileState extends ConsumerState<_DictamenTile> {
   bool _isGeneratingPdf = false;
+  bool _isSavingPdf = false;
+  Uint8List? _lastGeneratedPdf;
 
   @override
   Widget build(BuildContext context) {
@@ -1551,7 +1604,7 @@ class _DictamenTileState extends State<_DictamenTile> {
                     ),
                   ),
                 ),
-              if (!hasExistingPdf)
+              if (!hasExistingPdf) ...[
                 OutlinedButton.icon(
                   onPressed: _isGeneratingPdf ? null : _generateAndShowPdf,
                   icon: _isGeneratingPdf
@@ -1574,6 +1627,42 @@ class _DictamenTileState extends State<_DictamenTile> {
                     ),
                   ),
                 ),
+                if (_lastGeneratedPdf != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: _isSavingPdf ? null : _savePdfToStorage,
+                    icon: _isSavingPdf
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF2E7D4C),
+                              ),
+                            ),
+                          )
+                        : const Icon(Icons.save_outlined, size: 16),
+                    label: Text(_isSavingPdf ? 'Guardando...' : 'Guardar PDF'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2E7D4C),
+                      side: const BorderSide(
+                        color: Color(0xFF2E7D4C),
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _shareGeneratedPdf,
+                    icon: const Icon(Icons.share_outlined, size: 16),
+                    label: const Text('Compartir'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OcgColors.espresso,
+                      side: BorderSide(
+                        color: OcgColors.espresso.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
               if (widget.onOpenTreatmentHistory != null)
                 OutlinedButton.icon(
                   onPressed: widget.onOpenTreatmentHistory,
@@ -1605,6 +1694,8 @@ class _DictamenTileState extends State<_DictamenTile> {
         clinicalFiles: widget.clinicalFiles,
       );
       if (!mounted) return;
+      // Store bytes for save/share
+      setState(() => _lastGeneratedPdf = pdfBytes);
       await Printing.layoutPdf(
         onLayout: (format) async => pdfBytes,
         name: 'dictamen_${widget.consultation.id.substring(0, 8)}.pdf',
@@ -1618,6 +1709,108 @@ class _DictamenTileState extends State<_DictamenTile> {
       if (mounted) {
         setState(() => _isGeneratingPdf = false);
       }
+    }
+  }
+
+  /// Guarda el PDF generado a Firebase Storage y crea ClinicalFileModel.
+  Future<void> _savePdfToStorage() async {
+    if (_lastGeneratedPdf == null || !mounted) return;
+    setState(() => _isSavingPdf = true);
+    try {
+      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
+      if (adminId.isEmpty) {
+        throw Exception('No se pudo identificar al admin.');
+      }
+
+      final consultation = widget.consultation;
+      final patientId = widget.patient.id;
+      final treatmentId = widget.treatment?.id ?? consultation.treatmentId;
+      final fileId = 'dictamen_pdf_${consultation.id.substring(0, 8)}';
+      final fileName = 'dictamen_${consultation.id.substring(0, 8)}.pdf';
+
+      // Build storage path
+      String storagePath;
+      if (treatmentId != null && treatmentId.isNotEmpty) {
+        storagePath = 'patients/$patientId/treatments/$treatmentId/clinical-files/${fileId}_$fileName';
+      } else {
+        storagePath = 'patients/$patientId/clinical-files/${fileId}_$fileName';
+      }
+
+      // Upload to Firebase Storage
+      final storageRef = FirebaseStorage.instance.ref(storagePath);
+      final uploadTask = await storageRef.putData(
+        _lastGeneratedPdf!,
+        SettableMetadata(contentType: 'application/pdf'),
+      );
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      // Create ClinicalFileModel
+      final now = DateTime.now();
+      final clinicalFile = ClinicalFileModel(
+        id: fileId,
+        patientId: patientId,
+        treatmentId: treatmentId,
+        consultationId: consultation.id,
+        sourceType: 'consultation_pdf',
+        sourceId: consultation.id,
+        treatmentNameSnapshot: consultation.treatmentNameSnapshot ??
+            widget.treatment?.displayName,
+        stageId: consultation.stageId?.name,
+        stageNameSnapshot: consultation.stageNameSnapshot,
+        originalName: fileName,
+        displayName: 'Dictamen - ${consultation.doctorName} - ${DateFormat('dd/MM/yyyy').format(consultation.date)}',
+        storagePath: storagePath,
+        downloadUrl: downloadUrl,
+        mimeType: 'application/pdf',
+        extension: 'pdf',
+        sizeBytes: _lastGeneratedPdf!.length,
+        category: 'dictamen_pdf',
+        notes: 'PDF generado automaticamente desde el dictamen.',
+        uploadedBy: adminId,
+        uploadedAt: now,
+        updatedAt: now,
+        active: true,
+        visibleToPatient: false, // Default: no visible al paciente
+      );
+
+      // Save metadata to Firestore
+      await ref.read(clinicalFilesRepositoryProvider).saveMetadata(clinicalFile);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF guardado correctamente en documentos clinicos.'),
+          backgroundColor: Color(0xFF2E7D4C),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error guardando PDF: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingPdf = false);
+      }
+    }
+  }
+
+  /// Comparte el PDF generado usando Printing.sharePdf.
+  Future<void> _shareGeneratedPdf() async {
+    if (_lastGeneratedPdf == null || !mounted) return;
+    try {
+      await Printing.sharePdf(
+        bytes: _lastGeneratedPdf!,
+        filename: 'dictamen_${widget.consultation.id.substring(0, 8)}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error compartiendo PDF: $e')),
+      );
     }
   }
 
