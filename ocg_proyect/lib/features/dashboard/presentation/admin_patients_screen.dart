@@ -25,6 +25,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../../notifications/providers/notifications_provider.dart';
 import '../../profile_photo/providers/profile_photo_provider.dart';
 import 'admin_mobile_shell_controller.dart';
+import '../../migration/presentation/legacy_migration_dialog.dart';
 
 class AdminPatientsScreen extends ConsumerStatefulWidget {
   const AdminPatientsScreen({super.key, this.embeddedInMobileShell = false});
@@ -804,6 +805,16 @@ class _AdminPatientsScreenState extends ConsumerState<AdminPatientsScreen> {
       title: 'Pacientes',
       showMobileAppBar: false,
       appBarActions: [
+        IconButton(
+          tooltip: 'Migracion Legacy',
+          onPressed: loading
+              ? null
+              : () => showDialog(
+                    context: context,
+                    builder: (_) => const LegacyMigrationDialog(),
+                  ),
+          icon: const Icon(Icons.sync_problem, color: OcgColors.bronze),
+        ),
         IconButton(
           tooltip: 'Cerrar sesión',
           onPressed: loading ? null : () => _handleSignOut(context, ref),

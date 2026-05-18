@@ -21,6 +21,8 @@ class FirestorePaths {
       'patients/$patientId/treatments';
   static String patientTreatmentDoc(String patientId, String treatmentId) =>
       'patients/$patientId/treatments/$treatmentId';
+  static String patientConsultations(String patientId) =>
+      'patients/$patientId/consultations';
   static String treatmentStageHistory(String patientId, String treatmentId) =>
       'patients/$patientId/treatments/$treatmentId/stageHistory';
   static String treatmentFinancialItems(String patientId, String treatmentId) =>
