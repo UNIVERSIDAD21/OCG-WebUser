@@ -116,17 +116,31 @@ service cloud.firestore {
       }
 
       match /clinicalFiles/{fileId} {
+        // Admin: acceso total
+        allow read, create, update: if isAdmin() &&
+                                incomingPatientMatches(patientId) &&
+                                (!('id' in request.resource.data) || request.resource.data.id == fileId);
+        // Paciente: solo archivos visibles y activos
+        allow read: if isOwnPatient(patientId) &&
+                     resource.data.visibleToPatient == true &&
+                     resource.data.active == true;
+        allow delete: if false;
+      }
+
+      // Archivos clinicos por tratamiento
+      match /treatments/{treatmentId}/clinicalFiles/{fileId} {
         allow read: if isAdmin() ||
                     (isOwnPatient(patientId) &&
                      resource.data.visibleToPatient == true &&
                      resource.data.active == true);
         allow create, update: if isAdmin() &&
                                 incomingPatientMatches(patientId) &&
-                                (!('id' in request.resource.data) || request.resource.data.id == fileId);
+                                incomingTreatmentMatches(treatmentId);
         allow delete: if false;
       }
 
       match /consultations/{consultationId} {
+        // Solo admin puede leer consultas completas (contienen datos clinicos sensibles)
         allow read: if isAdmin();
         allow create, update: if isAdmin() &&
                                 incomingPatientMatches(patientId) &&
