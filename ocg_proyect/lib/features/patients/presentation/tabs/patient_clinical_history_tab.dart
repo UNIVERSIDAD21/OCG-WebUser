@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/router/route_names.dart';
@@ -16,6 +17,7 @@ import '../../../clinical_files/data/models/clinical_file_model.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
 import '../../../consultation/data/models/consultation_model.dart';
 import '../../../consultation/providers/consultation_provider.dart';
+import '../../../consultation/services/consultation_pdf_service.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../data/models/patient_model.dart';
@@ -425,6 +427,18 @@ class _PatientClinicalHistoryTabState
         .toList();
   }
 
+  PatientTreatment? _resolveTreatmentForConsultation(
+    ConsultationModel consultation,
+    List<PatientTreatment> treatments,
+  ) {
+    final tid = (consultation.treatmentId ?? '').trim();
+    if (tid.isEmpty) return null;
+    for (final t in treatments) {
+      if (t.id == tid) return t;
+    }
+    return null;
+  }
+
   // ─── Grouped by source view ─────────────────────────────────────────
 
   Widget _buildGroupedBySourceView(
@@ -450,6 +464,11 @@ class _PatientClinicalHistoryTabState
           const SizedBox(height: 10),
           ...dictamenes.map((c) => _DictamenTile(
                 consultation: c,
+                patient: widget.patient,
+                treatment: _resolveTreatmentForConsultation(c, treatments),
+                clinicalFiles: files
+                    .where((f) => f.consultationId == c.id)
+                    .toList(),
                 onOpenTreatmentHistory: (c.treatmentId ?? '').trim().isEmpty
                     ? null
                     : () => context.go(
@@ -589,6 +608,14 @@ class _PatientClinicalHistoryTabState
         if (entry.type == 'dictamen' && entry.consultation != null) {
           return _DictamenTile(
             consultation: entry.consultation!,
+            patient: widget.patient,
+            treatment: _resolveTreatmentForConsultation(
+              entry.consultation!,
+              treatments,
+            ),
+            clinicalFiles: files
+                .where((f) => f.consultationId == entry.consultation!.id)
+                .toList(),
             onOpenTreatmentHistory:
                 (entry.consultation!.treatmentId ?? '').trim().isEmpty
                     ? null
@@ -1333,29 +1360,44 @@ class _SourceSectionHeader extends StatelessWidget {
 
 // ─── Dictamen tile ────────────────────────────────────────────────────
 
-class _DictamenTile extends StatelessWidget {
+class _DictamenTile extends StatefulWidget {
   const _DictamenTile({
     required this.consultation,
+    required this.patient,
+    this.treatment,
+    this.clinicalFiles = const [],
     this.onOpenTreatmentHistory,
   });
 
   final ConsultationModel consultation;
+  final PatientModel patient;
+  final PatientTreatment? treatment;
+  final List<ClinicalFileModel> clinicalFiles;
   final VoidCallback? onOpenTreatmentHistory;
 
   @override
+  State<_DictamenTile> createState() => _DictamenTileState();
+}
+
+class _DictamenTileState extends State<_DictamenTile> {
+  bool _isGeneratingPdf = false;
+
+  @override
   Widget build(BuildContext context) {
+    final c = widget.consultation;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
-    final stageLabel = consultation.stageNameSnapshot ??
-        (consultation.stageId != null
-            ? stageNames[consultation.stageId!] ?? consultation.stageId!.name
+    final stageLabel = c.stageNameSnapshot ??
+        (c.stageId != null
+            ? stageNames[c.stageId!] ?? c.stageId!.name
             : null) ??
         'Sin etapa';
     final treatmentLabel =
-        (consultation.treatmentNameSnapshot ?? '').isNotEmpty
-            ? consultation.treatmentNameSnapshot!
+        (c.treatmentNameSnapshot ?? '').isNotEmpty
+            ? c.treatmentNameSnapshot!
             : 'Sin tratamiento / legacy';
-    final hasSignature = consultation.hasSignature;
-    final hasAttachments = (consultation.photos ?? []).isNotEmpty;
+    final hasSignature = c.hasSignature;
+    final hasAttachments = (c.photos ?? []).isNotEmpty;
+    final hasExistingPdf = c.reportPdfFileId != null || c.reportPdfUrl != null;
 
     return OcgPremiumCard(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1398,7 +1440,7 @@ class _DictamenTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${consultation.doctorName} · ${consultation.doctorId}',
+                      '${c.doctorName} · ${c.doctorId}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1411,11 +1453,11 @@ class _DictamenTile extends StatelessWidget {
                 ),
               ),
               OcgStatusPill(
-                label: consultation.isCompleted ? 'Completado' : consultation.status.name,
-                icon: consultation.isCompleted
+                label: c.isCompleted ? 'Completado' : c.status.name,
+                icon: c.isCompleted
                     ? Icons.check_circle_outline
                     : Icons.pending_outlined,
-                color: consultation.isCompleted
+                color: c.isCompleted
                     ? const Color(0xFF2E7D4C)
                     : OcgColors.bronze,
               ),
@@ -1428,7 +1470,7 @@ class _DictamenTile extends StatelessWidget {
             runSpacing: 8,
             children: [
               OcgStatusPill(
-                label: dateFmt.format(consultation.date),
+                label: dateFmt.format(c.date),
                 icon: Icons.schedule_outlined,
               ),
               OcgStatusPill(
@@ -1454,14 +1496,14 @@ class _DictamenTile extends StatelessWidget {
                 ),
               if (hasAttachments)
                 OcgStatusPill(
-                  label: '${consultation.photos!.length} adjunto${consultation.photos!.length > 1 ? 's' : ''}',
+                  label: '${c.photos!.length} adjunto${c.photos!.length > 1 ? 's' : ''}',
                   icon: Icons.attach_file_outlined,
                   color: const Color(0xFF3268A8),
                 ),
             ],
           ),
           // Clinical notes preview
-          if ((consultation.clinicalNotes ?? '').trim().isNotEmpty) ...[
+          if ((c.clinicalNotes ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -1471,7 +1513,7 @@ class _DictamenTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                consultation.clinicalNotes!.trim(),
+                c.clinicalNotes!.trim(),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1489,20 +1531,19 @@ class _DictamenTile extends StatelessWidget {
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: () => _openDictamenDetail(context, consultation),
+                onPressed: () => _showDictamenDetail(),
                 icon: const Icon(Icons.visibility_outlined, size: 16),
-                label: const Text('Ver completo'),
+                label: const Text('Ver dictamen'),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF2E7D4C),
                   foregroundColor: OcgColors.ivory,
                 ),
               ),
-              if (consultation.reportPdfFileId != null ||
-                  consultation.reportPdfUrl != null)
+              if (hasExistingPdf)
                 OutlinedButton.icon(
-                  onPressed: () => _openDictamenPdf(context, consultation),
-                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                  label: const Text('PDF'),
+                  onPressed: _openExistingPdf,
+                  icon: const Icon(Icons.download_outlined, size: 16),
+                  label: const Text('Descargar PDF'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFB3261E),
                     side: const BorderSide(
@@ -1510,9 +1551,32 @@ class _DictamenTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (onOpenTreatmentHistory != null)
+              if (!hasExistingPdf)
                 OutlinedButton.icon(
-                  onPressed: onOpenTreatmentHistory,
+                  onPressed: _isGeneratingPdf ? null : _generateAndShowPdf,
+                  icon: _isGeneratingPdf
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFB3261E),
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                  label: Text(_isGeneratingPdf ? 'Generando...' : 'Generar PDF'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB3261E),
+                    side: const BorderSide(
+                      color: Color(0xFFB3261E),
+                    ),
+                  ),
+                ),
+              if (widget.onOpenTreatmentHistory != null)
+                OutlinedButton.icon(
+                  onPressed: widget.onOpenTreatmentHistory,
                   icon: const Icon(Icons.history_outlined, size: 16),
                   label: const Text('Ver historial clínico'),
                   style: OutlinedButton.styleFrom(
@@ -1529,29 +1593,117 @@ class _DictamenTile extends StatelessWidget {
     );
   }
 
-  void _openDictamenDetail(BuildContext context, ConsultationModel consultation) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Dictamen: ${consultation.clinicalNotes.isEmpty ? "Sin notas" : consultation.clinicalNotes.substring(0, consultation.clinicalNotes.length.clamp(0, 80))}...',
+  Future<void> _generateAndShowPdf() async {
+    if (!mounted) return;
+    setState(() => _isGeneratingPdf = true);
+    try {
+      final service = ConsultationPdfService();
+      final pdfBytes = await service.generate(
+        consultation: widget.consultation,
+        patient: widget.patient,
+        treatment: widget.treatment,
+        clinicalFiles: widget.clinicalFiles,
+      );
+      if (!mounted) return;
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+        name: 'dictamen_${widget.consultation.id.substring(0, 8)}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generando PDF: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingPdf = false);
+      }
+    }
+  }
+
+  void _showDictamenDetail() {
+    final c = widget.consultation;
+    final notes = (c.clinicalNotes ?? '').trim();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dictamen clínico'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow('Paciente', c.patientName),
+              _detailRow('Doctor', c.doctorName),
+              _detailRow('Fecha', DateFormat('dd/MM/yyyy HH:mm').format(c.date)),
+              if ((c.treatmentNameSnapshot ?? '').isNotEmpty)
+                _detailRow('Tratamiento', c.treatmentNameSnapshot!),
+              if (c.stageNameSnapshot != null)
+                _detailRow('Etapa', c.stageNameSnapshot!),
+              _detailRow('Estado', c.status.name),
+              if (c.hasSignature)
+                _detailRow('Firma', 'Capturada el ${DateFormat('dd/MM/yyyy HH:mm').format(c.signatureCapturedAt ?? c.date)}'),
+              const SizedBox(height: 12),
+              if (notes.isNotEmpty) ...[
+                const Text(
+                  'Notas clínicas:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(notes),
+              ],
+            ],
+          ),
         ),
-        duration: const Duration(seconds: 3),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
       ),
     );
   }
 
-  void _openDictamenPdf(BuildContext context, ConsultationModel consultation) {
-    final url = consultation.reportPdfUrl;
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF5C5550),
+                fontSize: 13,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                color: Color(0xFF5C5550),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openExistingPdf() {
+    final url = widget.consultation.reportPdfUrl;
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('PDF no disponible aún.')),
       );
       return;
     }
-    _openFile(context, url);
+    _launchUrl(url);
   }
 
-  Future<void> _openFile(BuildContext context, String url) async {
+  Future<void> _launchUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
