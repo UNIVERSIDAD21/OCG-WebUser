@@ -14,11 +14,17 @@ import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
+import '../../../consultation/data/models/consultation_model.dart';
+import '../../../consultation/providers/consultation_provider.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../data/models/patient_model.dart';
 
 enum _ClinicalVisibilityFilter { all, patient, adminOnly }
+
+/// Special constant used to filter only records without a treatment.
+const String _kNoTreatment = '__none__';
+const String _kAllTreatments = '__all__';
 
 class PatientClinicalHistoryTab extends ConsumerStatefulWidget {
   const PatientClinicalHistoryTab({
@@ -43,12 +49,14 @@ class _PatientClinicalHistoryTabState
     extends ConsumerState<PatientClinicalHistoryTab> {
   String? _selectedTreatmentId;
   String? _selectedCategory;
+  String _groupMode = 'fuente'; // 'fuente' | 'cronologico'
   _ClinicalVisibilityFilter _visibilityFilter = _ClinicalVisibilityFilter.all;
 
   @override
   void initState() {
     super.initState();
-    _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+    _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId) ??
+        _kAllTreatments;
   }
 
   @override
@@ -56,7 +64,8 @@ class _PatientClinicalHistoryTabState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId ||
         oldWidget.initialTreatmentId != widget.initialTreatmentId) {
-      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId) ??
+          _kAllTreatments;
     }
   }
 
@@ -65,6 +74,19 @@ class _PatientClinicalHistoryTabState
     if (clean == null || clean.isEmpty) return null;
     return clean;
   }
+
+  /// Returns the effective treatmentId for provider queries:
+  /// - `__all__` → null (no filter)
+  /// - `__none__` → null, but we apply client-side filter for null treatmentId
+  /// - otherwise → the specific treatmentId
+  String? get _effectiveTreatmentId {
+    final raw = _selectedTreatmentId;
+    if (raw == null || raw == _kAllTreatments) return null;
+    if (raw == _kNoTreatment) return null; // filtered client-side
+    return raw;
+  }
+
+  bool _hasNoTreatmentFilter() => _selectedTreatmentId == _kNoTreatment;
 
   String _patientTreatmentHistoryLocation(String treatmentId) {
     final path = RouteNames.adminPatientDetail.replaceFirst(
@@ -93,14 +115,19 @@ class _PatientClinicalHistoryTabState
     final uploadProgress = ref.watch(clinicalFileUploadProgressProvider);
     final selectedTreatment = _resolveSelectedTreatment(treatments);
     final usePremiumFilters = !WebLayoutContext.useDesktopShell(context);
+
+    // Load clinical files
     final filesAsync = ref.watch(
       patientClinicalFilesProvider((
         patientId: widget.patientId,
-        treatmentId: _selectedTreatmentId == '__all__'
-            ? null
-            : _selectedTreatmentId,
+        treatmentId: _effectiveTreatmentId,
         onlyVisibleToPatient: false,
       )),
+    );
+
+    // Load consultations (dictámenes)
+    final consultationsAsync = ref.watch(
+      patientConsultationsProvider(widget.patientId),
     );
 
     final content = Padding(
@@ -157,13 +184,13 @@ class _PatientClinicalHistoryTabState
             )
           else if (usePremiumFilters)
             OcgSegmentedTabs<String>(
-              selectedValue: _selectedTreatmentId ?? '__all__',
+              selectedValue: _selectedTreatmentId ?? _kAllTreatments,
               onChanged: (value) =>
                   setState(() => _selectedTreatmentId = value),
               compact: true,
               items: [
                 const OcgSegmentedTabItem(
-                  value: '__all__',
+                  value: _kAllTreatments,
                   label: 'Todos',
                   icon: Icons.layers_outlined,
                 ),
@@ -173,6 +200,11 @@ class _PatientClinicalHistoryTabState
                     label: treatment.displayName,
                     icon: Icons.monitor_heart_outlined,
                   ),
+                const OcgSegmentedTabItem(
+                  value: _kNoTreatment,
+                  label: 'Sin tratamiento',
+                  icon: Icons.history_outlined,
+                ),
               ],
             )
           else
@@ -182,11 +214,11 @@ class _PatientClinicalHistoryTabState
               children: [
                 ChoiceChip(
                   selected:
-                      _selectedTreatmentId == '__all__' ||
+                      _selectedTreatmentId == _kAllTreatments ||
                       _selectedTreatmentId == null,
                   label: const Text('Todos los tratamientos'),
                   onSelected: (_) =>
-                      setState(() => _selectedTreatmentId = '__all__'),
+                      setState(() => _selectedTreatmentId = _kAllTreatments),
                 ),
                 for (final treatment in treatments)
                   ChoiceChip(
@@ -195,6 +227,12 @@ class _PatientClinicalHistoryTabState
                     onSelected: (_) =>
                         setState(() => _selectedTreatmentId = treatment.id),
                   ),
+                ChoiceChip(
+                  selected: _selectedTreatmentId == _kNoTreatment,
+                  label: const Text('Sin tratamiento / legacy'),
+                  onSelected: (_) =>
+                      setState(() => _selectedTreatmentId = _kNoTreatment),
+                ),
               ],
             ),
           const SizedBox(height: 12),
@@ -239,60 +277,28 @@ class _PatientClinicalHistoryTabState
               ],
             ),
           const SizedBox(height: 12),
+          _buildGroupModeToggle(),
+          const SizedBox(height: 8),
           _buildVisibilityFilter(),
-          const SizedBox(height: 16),
-          _buildClinicalFilesHero(filesAsync.asData?.value ?? const []),
           const SizedBox(height: 16),
           filesAsync.when(
             loading: () => OcgLoadingState(),
             error: (error, _) => Text('No se pudieron cargar archivos: $error'),
             data: (files) {
-              final filtered = files.where((file) {
-                if (_selectedCategory != null &&
-                    file.category != _selectedCategory) {
-                  return false;
-                }
-                if (_visibilityFilter == _ClinicalVisibilityFilter.patient &&
-                    !file.visibleToPatient) {
-                  return false;
-                }
-                if (_visibilityFilter == _ClinicalVisibilityFilter.adminOnly &&
-                    file.visibleToPatient) {
-                  return false;
-                }
-                return true;
-              }).toList()..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-
-              if (filtered.isEmpty) {
-                return _buildClinicalFilesEmptyState(
-                  canUpload:
-                      selectedTreatment != null && !uploadState.isLoading,
-                  onUpload: selectedTreatment == null
-                      ? null
-                      : () => _showUploadDialog(
-                          initialTreatment: selectedTreatment,
-                          treatments: treatments,
-                        ),
-                );
-              }
-
-              return Column(
-                children: filtered
-                    .map(
-                      (file) => _ClinicalFileTile(
-                        file: file,
-                        onOpenTreatmentHistory:
-                            (file.treatmentId ?? '').trim().isEmpty
-                            ? null
-                            : () => context.go(
-                                _patientTreatmentHistoryLocation(
-                                  file.treatmentId!.trim(),
-                                ),
-                              ),
-                        onDelete: () => _deleteFile(file),
-                      ),
-                    )
-                    .toList(),
+              return consultationsAsync.when(
+                loading: () => OcgLoadingState(),
+                error: (error, _) =>
+                    Text('No se pudieron cargar dictámenes: $error'),
+                data: (consultations) {
+                  return _buildClinicalHistoryView(
+                    context,
+                    files,
+                    consultations,
+                    treatments,
+                    uploadState.isLoading,
+                    selectedTreatment,
+                  );
+                },
               );
             },
           ),
@@ -305,6 +311,308 @@ class _PatientClinicalHistoryTabState
     // contenido puede superar ese límite. El branch móvil ya retornó
     // arriba, así que aquí nunca hay riesgo de scroll anidado.
     return SingleChildScrollView(child: content);
+  }
+
+  // ─── Group mode toggle ──────────────────────────────────────────────
+
+  Widget _buildGroupModeToggle() {
+    return Row(
+      children: [
+        const Text(
+          'Agrupar por:',
+          style: TextStyle(
+            color: OcgColors.bronze,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(width: 8),
+        ChoiceChip(
+          selected: _groupMode == 'fuente',
+          label: const Text('Fuente'),
+          onSelected: (_) => setState(() => _groupMode = 'fuente'),
+        ),
+        const SizedBox(width: 8),
+        ChoiceChip(
+          selected: _groupMode == 'cronologico',
+          label: const Text('Cronológico'),
+          onSelected: (_) => setState(() => _groupMode = 'cronologico'),
+        ),
+      ],
+    );
+  }
+
+  // ─── Unified history view ───────────────────────────────────────────
+
+  Widget _buildClinicalHistoryView(
+    BuildContext context,
+    List<ClinicalFileModel> files,
+    List<ConsultationModel> consultations,
+    List<PatientTreatment> treatments,
+    bool isUploading,
+    PatientTreatment? selectedTreatment,
+  ) {
+    // Apply treatment filter to consultations
+    final filteredConsultations = _filterByTreatment(consultations);
+
+    // Apply treatment filter to files
+    final filteredFiles = _filterFilesByTreatment(files);
+
+    // Apply category filter to files
+    final categoryFiltered = filteredFiles.where((file) {
+      if (_selectedCategory != null && file.category != _selectedCategory) {
+        return false;
+      }
+      if (_visibilityFilter == _ClinicalVisibilityFilter.patient &&
+          !file.visibleToPatient) {
+        return false;
+      }
+      if (_visibilityFilter == _ClinicalVisibilityFilter.adminOnly &&
+          file.visibleToPatient) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    // Only show completed consultations as dictámenes
+    final dictamenes = filteredConsultations
+        .where((c) => c.status == ConsultationStatus.completed)
+        .toList();
+
+    if (dictamenes.isEmpty && categoryFiltered.isEmpty) {
+      return _buildClinicalFilesEmptyState(
+        canUpload: selectedTreatment != null && !isUploading,
+        onUpload: selectedTreatment == null
+            ? null
+            : () => _showUploadDialog(
+                initialTreatment: selectedTreatment,
+                treatments: treatments,
+              ),
+      );
+    }
+
+    if (_groupMode == 'cronologico') {
+      return _buildChronologicalView(
+        context,
+        dictamenes,
+        categoryFiltered,
+        treatments,
+        isUploading,
+        selectedTreatment,
+      );
+    }
+
+    return _buildGroupedBySourceView(
+      context,
+      dictamenes,
+      categoryFiltered,
+      treatments,
+      isUploading,
+      selectedTreatment,
+    );
+  }
+
+  List<ClinicalFileModel> _filterFilesByTreatment(List<ClinicalFileModel> files) {
+    if (!_hasNoTreatmentFilter()) return files;
+    return files.where((f) => (f.treatmentId ?? '').trim().isEmpty).toList();
+  }
+
+  List<ConsultationModel> _filterByTreatment(
+      List<ConsultationModel> consultations) {
+    if (!_hasNoTreatmentFilter()) return consultations;
+    return consultations
+        .where((c) => (c.treatmentId ?? '').trim().isEmpty)
+        .toList();
+  }
+
+  // ─── Grouped by source view ─────────────────────────────────────────
+
+  Widget _buildGroupedBySourceView(
+    BuildContext context,
+    List<ConsultationModel> dictamenes,
+    List<ClinicalFileModel> files,
+    List<PatientTreatment> treatments,
+    bool isUploading,
+    PatientTreatment? selectedTreatment,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeroCard(dictamenes.length, files.length),
+        const SizedBox(height: 18),
+        if (dictamenes.isNotEmpty) ...[
+          _SourceSectionHeader(
+            icon: Icons.medical_services_outlined,
+            title: 'Dictámenes',
+            count: dictamenes.length,
+            accent: const Color(0xFF2E7D4C),
+          ),
+          const SizedBox(height: 10),
+          ...dictamenes.map((c) => _DictamenTile(
+                consultation: c,
+                onOpenTreatmentHistory: (c.treatmentId ?? '').trim().isEmpty
+                    ? null
+                    : () => context.go(
+                          _patientTreatmentHistoryLocation(c.treatmentId!),
+                        ),
+              )),
+          const SizedBox(height: 18),
+        ],
+        _SourceSectionHeader(
+          icon: Icons.folder_open_outlined,
+          title: 'Documentos clínicos',
+          count: files.length,
+          accent: const Color(0xFFB07D3C),
+        ),
+        const SizedBox(height: 10),
+        if (files.isEmpty)
+          _buildClinicalFilesEmptyState(
+            canUpload: selectedTreatment != null && !isUploading,
+            onUpload: selectedTreatment == null
+                ? null
+                : () => _showUploadDialog(
+                    initialTreatment: selectedTreatment!,
+                    treatments: treatments,
+                  ),
+          )
+        else
+          ...files.map(
+            (file) => _ClinicalFileTile(
+              file: file,
+              onOpenTreatmentHistory: (file.treatmentId ?? '').trim().isEmpty
+                  ? null
+                  : () => context.go(
+                        _patientTreatmentHistoryLocation(file.treatmentId!),
+                      ),
+              onDelete: () => _deleteFile(file),
+            ),
+          ),
+        if (dictamenes.isEmpty && files.isEmpty) ...[
+          const SizedBox(height: 10),
+          _buildClinicalFilesEmptyState(
+            canUpload: selectedTreatment != null && !isUploading,
+            onUpload: selectedTreatment == null
+                ? null
+                : () => _showUploadDialog(
+                    initialTreatment: selectedTreatment!,
+                    treatments: treatments,
+                  ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHeroCard(int dictamenesCount, int filesCount) {
+    return OcgPremiumCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: 24,
+      backgroundColor: const Color(0xFFFFFAF2),
+      borderColor: OcgColors.bronze.withValues(alpha: 0.16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const OcgSectionHeader(
+            title: 'Expediente clínico digital',
+            subtitle:
+                'Dictámenes, documentos y registros organizados por tratamiento y fuente.',
+            icon: Icons.folder_shared_outlined,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Dictámenes',
+                  value: '$dictamenesCount',
+                  icon: Icons.medical_services_outlined,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OcgInfoTile(
+                  label: 'Documentos',
+                  value: '$filesCount',
+                  icon: Icons.description_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Chronological view ─────────────────────────────────────────────
+
+  Widget _buildChronologicalView(
+    BuildContext context,
+    List<ConsultationModel> dictamenes,
+    List<ClinicalFileModel> files,
+    List<PatientTreatment> treatments,
+    bool isUploading,
+    PatientTreatment? selectedTreatment,
+  ) {
+    final entries = <_HistoryEntry>[];
+
+    for (final c in dictamenes) {
+      entries.add(_HistoryEntry(
+        date: c.date,
+        type: 'dictamen',
+        consultation: c,
+      ));
+    }
+    for (final f in files) {
+      entries.add(_HistoryEntry(
+        date: f.uploadedAt,
+        type: 'documento',
+        file: f,
+      ));
+    }
+
+    entries.sort((a, b) => b.date.compareTo(a.date));
+
+    if (entries.isEmpty) {
+      return _buildClinicalFilesEmptyState(
+        canUpload: selectedTreatment != null && !isUploading,
+        onUpload: selectedTreatment == null
+            ? null
+            : () => _showUploadDialog(
+                initialTreatment: selectedTreatment!,
+                treatments: treatments,
+              ),
+      );
+    }
+
+    return Column(
+      children: entries.map((entry) {
+        if (entry.type == 'dictamen' && entry.consultation != null) {
+          return _DictamenTile(
+            consultation: entry.consultation!,
+            onOpenTreatmentHistory:
+                (entry.consultation!.treatmentId ?? '').trim().isEmpty
+                    ? null
+                    : () => context.go(
+                          _patientTreatmentHistoryLocation(
+                            entry.consultation!.treatmentId!,
+                          ),
+                        ),
+          );
+        }
+        if (entry.type == 'documento' && entry.file != null) {
+          return _ClinicalFileTile(
+            file: entry.file!,
+            onOpenTreatmentHistory: (entry.file!.treatmentId ?? '').trim().isEmpty
+                ? null
+                : () => context.go(
+                      _patientTreatmentHistoryLocation(entry.file!.treatmentId!),
+                    ),
+            onDelete: () => _deleteFile(entry.file!),
+          );
+        }
+        return const SizedBox.shrink();
+      }).toList(),
+    );
   }
 
   String _visibilityLabel(_ClinicalVisibilityFilter filter) {
@@ -394,52 +702,12 @@ class _PatientClinicalHistoryTabState
     );
   }
 
-  Widget _buildClinicalFilesHero(List<ClinicalFileModel> files) {
-    final visibles = files.where((file) => file.visibleToPatient).length;
-
-    return OcgPremiumCard(
-      padding: const EdgeInsets.all(16),
-      borderRadius: 24,
-      backgroundColor: const Color(0xFFFFFAF2),
-      borderColor: OcgColors.bronze.withValues(alpha: 0.16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const OcgSectionHeader(
-            title: 'Expediente clínico digital',
-            subtitle:
-                'Organiza soportes por tratamiento, categoría y visibilidad para paciente.',
-            icon: Icons.folder_shared_outlined,
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OcgInfoTile(
-                  label: 'Archivos',
-                  value: '${files.length}',
-                  icon: Icons.description_outlined,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OcgInfoTile(
-                  label: 'Paciente',
-                  value: '$visibles',
-                  icon: Icons.visibility_outlined,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   PatientTreatment? _resolveSelectedTreatment(
     List<PatientTreatment> treatments,
   ) {
-    if (_selectedTreatmentId != null && _selectedTreatmentId != '__all__') {
+    if (_selectedTreatmentId != null &&
+        _selectedTreatmentId != _kAllTreatments &&
+        _selectedTreatmentId != _kNoTreatment) {
       for (final treatment in treatments) {
         if (treatment.id == _selectedTreatmentId) return treatment;
       }
@@ -987,6 +1255,309 @@ class _ClinicalFileTile extends StatelessWidget {
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo abrir el archivo.')),
+      );
+    }
+  }
+}
+
+// ─── Helper class for chronological view ─────────────────────────────
+
+class _HistoryEntry {
+  _HistoryEntry({required this.date, required this.type, this.consultation, this.file});
+
+  final DateTime date;
+  final String type; // 'dictamen' | 'documento'
+  final ConsultationModel? consultation;
+  final ClinicalFileModel? file;
+}
+
+// ─── Source section header ────────────────────────────────────────────
+
+class _SourceSectionHeader extends StatelessWidget {
+  const _SourceSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.count,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String title;
+  final int count;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: accent, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Dictamen tile ────────────────────────────────────────────────────
+
+class _DictamenTile extends StatelessWidget {
+  const _DictamenTile({
+    required this.consultation,
+    this.onOpenTreatmentHistory,
+  });
+
+  final ConsultationModel consultation;
+  final VoidCallback? onOpenTreatmentHistory;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+    final stageLabel = consultation.stageNameSnapshot ??
+        (consultation.stageId != null
+            ? stageNames[consultation.stageId!] ?? consultation.stageId!.name
+            : null) ??
+        'Sin etapa';
+    final treatmentLabel =
+        (consultation.treatmentNameSnapshot ?? '').isNotEmpty
+            ? consultation.treatmentNameSnapshot!
+            : 'Sin tratamiento / legacy';
+    final hasSignature = consultation.hasSignature;
+    final hasAttachments = (consultation.photos ?? []).isNotEmpty;
+
+    return OcgPremiumCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      borderColor: const Color(0xFF2E7D4C).withValues(alpha: 0.20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D4C).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: const Icon(
+                  Icons.medical_services_outlined,
+                  color: Color(0xFF2E7D4C),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dictamen clínico',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${consultation.doctorName} · ${consultation.doctorId}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: OcgColors.ink.withValues(alpha: 0.68),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OcgStatusPill(
+                label: consultation.isCompleted ? 'Completado' : consultation.status.name,
+                icon: consultation.isCompleted
+                    ? Icons.check_circle_outline
+                    : Icons.pending_outlined,
+                color: consultation.isCompleted
+                    ? const Color(0xFF2E7D4C)
+                    : OcgColors.bronze,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Pills row
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OcgStatusPill(
+                label: dateFmt.format(consultation.date),
+                icon: Icons.schedule_outlined,
+              ),
+              OcgStatusPill(
+                label: treatmentLabel,
+                icon: Icons.monitor_heart_outlined,
+                color: OcgColors.espresso,
+              ),
+              OcgStatusPill(
+                label: stageLabel,
+                icon: Icons.flag_outlined,
+              ),
+              if (hasSignature)
+                OcgStatusPill(
+                  label: 'Firma ✓',
+                  icon: Icons.draw_outlined,
+                  color: const Color(0xFF2E7D4C),
+                ),
+              if (!hasSignature)
+                OcgStatusPill(
+                  label: 'Sin firma',
+                  icon: Icons.draw_outlined,
+                  color: OcgColors.bronze,
+                ),
+              if (hasAttachments)
+                OcgStatusPill(
+                  label: '${consultation.photos!.length} adjunto${consultation.photos!.length > 1 ? 's' : ''}',
+                  icon: Icons.attach_file_outlined,
+                  color: const Color(0xFF3268A8),
+                ),
+            ],
+          ),
+          // Clinical notes preview
+          if ((consultation.clinicalNotes ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F1EA),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                consultation.clinicalNotes!.trim(),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: OcgColors.ink.withValues(alpha: 0.76),
+                  height: 1.25,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          // Actions row
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => _openDictamenDetail(context, consultation),
+                icon: const Icon(Icons.visibility_outlined, size: 16),
+                label: const Text('Ver completo'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D4C),
+                  foregroundColor: OcgColors.ivory,
+                ),
+              ),
+              if (consultation.reportPdfFileId != null ||
+                  consultation.reportPdfUrl != null)
+                OutlinedButton.icon(
+                  onPressed: () => _openDictamenPdf(context, consultation),
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                  label: const Text('PDF'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB3261E),
+                    side: const BorderSide(
+                      color: Color(0xFFB3261E),
+                    ),
+                  ),
+                ),
+              if (onOpenTreatmentHistory != null)
+                OutlinedButton.icon(
+                  onPressed: onOpenTreatmentHistory,
+                  icon: const Icon(Icons.history_outlined, size: 16),
+                  label: const Text('Ver historial clínico'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OcgColors.espresso,
+                    side: BorderSide(
+                      color: OcgColors.bronze.withValues(alpha: 0.42),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openDictamenDetail(BuildContext context, ConsultationModel consultation) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Dictamen: ${consultation.clinicalNotes.isEmpty ? "Sin notas" : consultation.clinicalNotes.substring(0, consultation.clinicalNotes.length.clamp(0, 80))}...',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _openDictamenPdf(BuildContext context, ConsultationModel consultation) {
+    final url = consultation.reportPdfUrl;
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF no disponible aún.')),
+      );
+      return;
+    }
+    _openFile(context, url);
+  }
+
+  Future<void> _openFile(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el PDF.')),
       );
     }
   }
