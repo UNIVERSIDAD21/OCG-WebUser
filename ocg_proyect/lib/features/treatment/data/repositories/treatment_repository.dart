@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
@@ -52,32 +54,73 @@ class TreatmentRepository {
             .toList()
           ..sort();
 
-    return _db
-        .collectionGroup('stageHistory')
-        .where('patientId', isEqualTo: patientId)
-        .snapshots()
-        .map((snap) {
-          final seen = <String>{};
-          final entries = <StageHistoryEntry>[];
-          for (final doc in snap.docs) {
-            final entry = StageHistoryEntry.fromJson(doc.data());
-            final tid = entry.treatmentId.trim();
-            final isGeneralLegacy = tid.isEmpty || !cleanIds.contains(tid);
-            final isTreatmentScoped = tid.isNotEmpty && cleanIds.contains(tid);
-            if (!isGeneralLegacy && !isTreatmentScoped) continue;
-            final dedupeKey = [
-              tid,
-              entry.etapaAnterior.name,
-              entry.etapaNueva.name,
-              entry.fechaCambio.millisecondsSinceEpoch,
-              entry.notas,
-            ].join('|');
-            if (!seen.add(dedupeKey)) continue;
-            entries.add(entry);
-          }
-          entries.sort((a, b) => b.fechaCambio.compareTo(a.fechaCambio));
-          return entries;
-        });
+    // Importante: NO usar collectionGroup('stageHistory') aquí.
+    // Las reglas actuales permiten leer:
+    // - patients/{patientId}/stageHistory
+    // - patients/{patientId}/treatments/{treatmentId}/stageHistory
+    // pero Firestore no puede probar esas reglas para una collectionGroup
+    // global y devuelve permission-denied. Por eso combinamos streams de rutas
+    // explícitas, que sí están cubiertas por las reglas existentes.
+    final streams = <Stream<List<StageHistoryEntry>>>[
+      watchStageHistory(patientId),
+      for (final treatmentId in cleanIds)
+        watchTreatmentStageHistory(patientId, treatmentId),
+    ];
+
+    late final StreamController<List<StageHistoryEntry>> controller;
+    final latest = List<List<StageHistoryEntry>?>.filled(streams.length, null);
+    final subscriptions = <StreamSubscription<List<StageHistoryEntry>>>[];
+
+    void emitMerged() {
+      if (controller.isClosed) return;
+      final seen = <String>{};
+      final entries = <StageHistoryEntry>[];
+
+      for (var index = 0; index < latest.length; index++) {
+        final chunk = latest[index];
+        if (chunk == null) continue;
+        final isPatientLevelHistory = index == 0;
+        for (final entry in chunk) {
+          final tid = entry.treatmentId.trim();
+          final belongsToKnownTreatment =
+              tid.isNotEmpty && cleanIds.contains(tid);
+          if (!isPatientLevelHistory && !belongsToKnownTreatment) continue;
+
+          final dedupeKey = [
+            tid,
+            entry.etapaAnterior.name,
+            entry.etapaNueva.name,
+            entry.fechaCambio.millisecondsSinceEpoch,
+            entry.notas,
+          ].join('|');
+          if (!seen.add(dedupeKey)) continue;
+          entries.add(entry);
+        }
+      }
+
+      entries.sort((a, b) => b.fechaCambio.compareTo(a.fechaCambio));
+      controller.add(entries);
+    }
+
+    controller = StreamController<List<StageHistoryEntry>>(
+      onListen: () {
+        for (var i = 0; i < streams.length; i++) {
+          subscriptions.add(
+            streams[i].listen((items) {
+              latest[i] = items;
+              emitMerged();
+            }, onError: controller.addError),
+          );
+        }
+      },
+      onCancel: () async {
+        await Future.wait([
+          for (final subscription in subscriptions) subscription.cancel(),
+        ]);
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<void> updateStage({
