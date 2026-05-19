@@ -1279,6 +1279,54 @@ class _AdminAppointmentsScreenState
   AgendaDayQuickFilter _dayQuickFilter = AgendaDayQuickFilter.dia;
   AgendaIncidenceSubFilter _incidenceSubFilter = AgendaIncidenceSubFilter.todas;
   int _historyPage = 1;
+  String? _focusedAppointmentId;
+  String? _handledAgendaTarget;
+
+  void _handleAgendaTargetFromQuery(BuildContext context) {
+    final uri = GoRouterState.of(context).uri;
+    final appointmentId = uri.queryParameters['appointmentId']?.trim();
+    final dateRaw = uri.queryParameters['date']?.trim();
+    final targetToken = '$appointmentId|$dateRaw';
+
+    if ((appointmentId == null || appointmentId.isEmpty) &&
+        (dateRaw == null || dateRaw.isEmpty)) {
+      if (_handledAgendaTarget != null || _focusedAppointmentId != null) {
+        _handledAgendaTarget = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _focusedAppointmentId = null);
+        });
+      }
+      return;
+    }
+    if (_handledAgendaTarget == targetToken) return;
+    _handledAgendaTarget = targetToken;
+
+    final parsedDate = dateRaw == null || dateRaw.isEmpty
+        ? null
+        : DateTime.tryParse(dateRaw);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (parsedDate != null) {
+        ref
+            .read(selectedAppointmentsDateProvider.notifier)
+            .setDate(
+              DateTime(parsedDate.year, parsedDate.month, parsedDate.day),
+            );
+      }
+      setState(() {
+        _innerTab = AgendaInnerTab.hoy;
+        _dayQuickFilter = AgendaDayQuickFilter.dia;
+        _incidenceSubFilter = AgendaIncidenceSubFilter.todas;
+        if (parsedDate != null) {
+          _monthCursor = DateTime(parsedDate.year, parsedDate.month, 1);
+        }
+        _focusedAppointmentId = appointmentId?.isEmpty == true
+            ? null
+            : appointmentId;
+      });
+    });
+  }
 
   Future<void> _handleSignOut() async {
     final confirm = await OcgLogoutDialog.show(
@@ -2370,6 +2418,7 @@ class _AdminAppointmentsScreenState
     AppointmentModel a, {
     bool showDate = true,
     bool dense = false,
+    bool highlighted = false,
   }) {
     final ui = appointmentStatusUi(a);
     final timeLabel = showDate
@@ -2388,12 +2437,17 @@ class _AdminAppointmentsScreenState
       decoration: BoxDecoration(
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(dense ? 18 : 22),
-        border: Border.all(color: ui.line.withOpacity(0.24)),
+        border: Border.all(
+          color: highlighted ? OcgColors.espresso : ui.line.withOpacity(0.24),
+          width: highlighted ? 1.8 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: OcgColors.espresso.withOpacity(0.055),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: highlighted
+                ? OcgColors.espresso.withOpacity(0.16)
+                : OcgColors.espresso.withOpacity(0.055),
+            blurRadius: highlighted ? 24 : 16,
+            offset: Offset(0, highlighted ? 12 : 8),
           ),
         ],
       ),
@@ -2403,6 +2457,40 @@ class _AdminAppointmentsScreenState
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (highlighted) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4A3527), Color(0xFFB07D3C)],
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.center_focus_strong_outlined,
+                        size: 14,
+                        color: OcgColors.ivory,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Cita seleccionada desde el paciente',
+                        style: TextStyle(
+                          color: OcgColors.ivory,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2835,7 +2923,10 @@ class _AdminAppointmentsScreenState
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final a = dayItems[index];
-                    return _buildAgendaAppointmentCard(a);
+                    return _buildAgendaAppointmentCard(
+                      a,
+                      highlighted: a.id == _focusedAppointmentId,
+                    );
                   },
                 ),
               ),
@@ -2913,7 +3004,10 @@ class _AdminAppointmentsScreenState
               : Column(
                   children: [
                     for (final appointment in dayItems)
-                      _buildAgendaAppointmentCard(appointment),
+                      _buildAgendaAppointmentCard(
+                        appointment,
+                        highlighted: appointment.id == _focusedAppointmentId,
+                      ),
                   ],
                 ),
         ),
@@ -3707,6 +3801,7 @@ class _AdminAppointmentsScreenState
 
   @override
   Widget build(BuildContext context) {
+    _handleAgendaTargetFromQuery(context);
     final selectedDate = ref.watch(selectedAppointmentsDateProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
     final loadedAppointments =
@@ -3991,6 +4086,7 @@ class AppointmentCard extends StatelessWidget {
     this.onReabrirCompletada,
     this.onNoCompletada,
     this.onDictamen,
+    this.onOpenInAgenda,
     this.showReminders = true,
   });
 
@@ -4002,6 +4098,7 @@ class AppointmentCard extends StatelessWidget {
   final Future<void> Function()? onReabrirCompletada;
   final Future<void> Function()? onNoCompletada;
   final VoidCallback? onDictamen;
+  final VoidCallback? onOpenInAgenda;
   final bool showReminders;
 
   @override
@@ -4118,6 +4215,11 @@ class AppointmentCard extends StatelessWidget {
             if (showReminders) ...[
               const SizedBox(height: 10),
               _AppointmentReminderSummary(appointmentId: appointment.id),
+            ],
+
+            if (onOpenInAgenda != null) ...[
+              const SizedBox(height: 12),
+              _OpenInAgendaButton(onPressed: onOpenInAgenda!),
             ],
 
             // ── Acciones ─────────────────────────────────────────────────
@@ -4293,6 +4395,71 @@ class AppointmentCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OpenInAgendaButton extends StatelessWidget {
+  const _OpenInAgendaButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFF4A3527), Color(0xFF8C6239)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: OcgColors.espresso.withOpacity(0.16),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onPressed,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.calendar_month_outlined,
+                    color: OcgColors.ivory,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Ver cita en agenda',
+                    style: TextStyle(
+                      color: OcgColors.ivory,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: OcgColors.ivory,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

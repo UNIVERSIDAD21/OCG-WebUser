@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_names.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../../shared/widgets/ocg_loading_state.dart';
+import '../../../appointments/data/models/appointment_model.dart';
 import '../../../appointments/providers/appointments_provider.dart';
 import '../../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../data/models/patient_model.dart';
@@ -17,6 +20,21 @@ class PatientAppointmentsTab extends ConsumerWidget {
 
   final PatientModel patient;
   final bool scrollable;
+
+  String _agendaLocationFor(AppointmentModel appointment) {
+    final d = appointment.fechaHora;
+    final date =
+        '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    return Uri(
+      path: RouteNames.adminAppointments,
+      queryParameters: <String, String>{
+        'date': date,
+        'appointmentId': appointment.id,
+      },
+    ).toString();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,6 +69,8 @@ class PatientAppointmentsTab extends ConsumerWidget {
                   AppointmentCard(
                     appointment: appointments[index],
                     showReminders: false,
+                    onOpenInAgenda: () =>
+                        context.go(_agendaLocationFor(appointments[index])),
                   ),
                   if (index != appointments.length - 1)
                     const SizedBox(height: 10),
@@ -67,6 +87,8 @@ class PatientAppointmentsTab extends ConsumerWidget {
           itemBuilder: (context, index) => AppointmentCard(
             appointment: appointments[index],
             showReminders: false,
+            onOpenInAgenda: () =>
+                context.go(_agendaLocationFor(appointments[index])),
           ),
         );
       },

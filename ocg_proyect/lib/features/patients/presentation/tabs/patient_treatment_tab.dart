@@ -45,8 +45,11 @@ class PatientTreatmentTab extends ConsumerStatefulWidget {
       _PatientTreatmentTabState();
 }
 
+const String _kHistoryAllTreatments = '__all_treatment_history__';
+
 class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   String? _selectedTreatmentId;
+  String? _historyTreatmentFilterId;
   bool _legacyMigrationQueued = false;
   String? _ensuredFinancialItemsForTreatmentId;
   bool _historyFocusPending = false;
@@ -62,6 +65,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   void initState() {
     super.initState();
     _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+    _historyTreatmentFilterId = _selectedTreatmentId;
     _historyFocusPending = widget.focusHistory;
   }
 
@@ -70,11 +74,13 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId) {
       _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+      _historyTreatmentFilterId = _selectedTreatmentId;
       _legacyMigrationQueued = false;
       _ensuredFinancialItemsForTreatmentId = null;
     }
     if (oldWidget.initialTreatmentId != widget.initialTreatmentId) {
       _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId);
+      _historyTreatmentFilterId = _selectedTreatmentId;
     }
     if (oldWidget.focusHistory != widget.focusHistory ||
         oldWidget.initialTreatmentId != widget.initialTreatmentId) {
@@ -105,7 +111,12 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
   }
 
   void _selectTreatment(PatientTreatment treatment) {
-    setState(() => _selectedTreatmentId = treatment.id);
+    setState(() {
+      _selectedTreatmentId = treatment.id;
+      if (_historyTreatmentFilterId != _kHistoryAllTreatments) {
+        _historyTreatmentFilterId = treatment.id;
+      }
+    });
   }
 
   void _openTreatmentHistory(PatientTreatment treatment) {
@@ -206,6 +217,15 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
               treatmentId: selectedTreatment.id,
             )),
           );
+    final treatmentIdsKey = (treatments.map((t) => t.id).toList()..sort()).join(
+      '|',
+    );
+    final allHistoryAsync = ref.watch(
+      allTreatmentStageHistoryProvider((
+        patientId: widget.patientId,
+        treatmentIdsKey: treatmentIdsKey,
+      )),
+    );
 
     final adminId = ref.watch(authStateProvider).asData?.value?.uid ?? '';
 
@@ -236,106 +256,125 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             ),
           ),
           data: (history) {
-            _scheduleHistoryFocusIfNeeded();
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final isMobile = constraints.maxWidth < 700;
-                if (isMobile) {
-                  return _buildMobileTreatmentView(
-                    context,
-                    selectedTreatment,
-                    summary,
-                    activeItems,
-                    history,
-                    saveState.isLoading,
-                    treatments,
-                  );
-                }
-
-                final content = Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHero(
+            return allHistoryAsync.when(
+              loading: () => const OcgSkeletonList(items: 3, cardHeight: 138),
+              error: (error, _) => Center(
+                child: OcgEmptyState(
+                  icon: Icons.error_outline,
+                  title: 'No se pudo cargar el historial consolidado',
+                  subtitle: '$error',
+                ),
+              ),
+              data: (allHistory) {
+                _scheduleHistoryFocusIfNeeded();
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 700;
+                    if (isMobile) {
+                      return _buildMobileTreatmentView(
                         context,
-                        treatments,
                         selectedTreatment,
                         summary,
+                        activeItems,
+                        history,
+                        allHistory,
                         saveState.isLoading,
-                      ),
-                      const SizedBox(height: 18),
-                      _buildTreatmentSelector(
                         treatments,
-                        selectedTreatment,
-                        patientDataMode,
-                      ),
-                      const SizedBox(height: 18),
-                      _buildSummaryGrid(selectedTreatment, treatments, summary),
-                      const SizedBox(height: 18),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final singleColumn = constraints.maxWidth < 1180;
-                          if (singleColumn) {
-                            return Column(
-                              children: [
-                                _buildClinicalColumn(
-                                  context,
-                                  selectedTreatment,
-                                  treatments,
-                                  history,
-                                  adminId,
-                                ),
-                                const SizedBox(height: 18),
-                                _buildFinancialColumn(
-                                  context,
-                                  selectedTreatment,
-                                  summary,
-                                  activeItems,
-                                  financialItems,
-                                  saveState.isLoading,
-                                ),
-                              ],
-                            );
-                          }
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 11,
-                                child: _buildClinicalColumn(
-                                  context,
-                                  selectedTreatment,
-                                  treatments,
-                                  history,
-                                  adminId,
-                                ),
-                              ),
-                              const SizedBox(width: 18),
-                              Expanded(
-                                flex: 9,
-                                child: _buildFinancialColumn(
-                                  context,
-                                  selectedTreatment,
-                                  summary,
-                                  activeItems,
-                                  financialItems,
-                                  saveState.isLoading,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
+                      );
+                    }
 
-                // En el branch de escritorio (dentro de TabBarView) siempre se
-                // necesita scroll propio: el TabBarView da altura ACOTADA y el
-                // contenido puede superar ese límite. El branch móvil ya retornó
-                // arriba, así que aquí nunca hay riesgo de scroll anidado.
-                return SingleChildScrollView(child: content);
+                    final content = Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHero(
+                            context,
+                            treatments,
+                            selectedTreatment,
+                            summary,
+                            saveState.isLoading,
+                          ),
+                          const SizedBox(height: 18),
+                          _buildTreatmentSelector(
+                            treatments,
+                            selectedTreatment,
+                            patientDataMode,
+                          ),
+                          const SizedBox(height: 18),
+                          _buildSummaryGrid(
+                            selectedTreatment,
+                            treatments,
+                            summary,
+                          ),
+                          const SizedBox(height: 18),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final singleColumn = constraints.maxWidth < 1180;
+                              if (singleColumn) {
+                                return Column(
+                                  children: [
+                                    _buildClinicalColumn(
+                                      context,
+                                      selectedTreatment,
+                                      treatments,
+                                      history,
+                                      allHistory,
+                                      adminId,
+                                    ),
+                                    const SizedBox(height: 18),
+                                    _buildFinancialColumn(
+                                      context,
+                                      selectedTreatment,
+                                      summary,
+                                      activeItems,
+                                      financialItems,
+                                      saveState.isLoading,
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 11,
+                                    child: _buildClinicalColumn(
+                                      context,
+                                      selectedTreatment,
+                                      treatments,
+                                      history,
+                                      allHistory,
+                                      adminId,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  Expanded(
+                                    flex: 9,
+                                    child: _buildFinancialColumn(
+                                      context,
+                                      selectedTreatment,
+                                      summary,
+                                      activeItems,
+                                      financialItems,
+                                      saveState.isLoading,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+
+                    // En el branch de escritorio (dentro de TabBarView) siempre se
+                    // necesita scroll propio: el TabBarView da altura ACOTADA y el
+                    // contenido puede superar ese límite. El branch móvil ya retornó
+                    // arriba, así que aquí nunca hay riesgo de scroll anidado.
+                    return SingleChildScrollView(child: content);
+                  },
+                );
               },
             );
           },
@@ -350,6 +389,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     TreatmentFinancialSummaryModel summary,
     List<FinancialItemModel> activeItems,
     List<StageHistoryEntry> history,
+    List<StageHistoryEntry> allHistory,
     bool isSaving,
     List<PatientTreatment> treatments,
   ) {
@@ -357,6 +397,16 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
         stageNames[selectedTreatment.etapaActual] ??
         selectedTreatment.etapaActual.name;
     final latestHistory = history.isEmpty ? null : history.first;
+    final historyFilterId = _resolvedHistoryFilterId(
+      selectedTreatment,
+      treatments,
+    );
+    final displayedHistory = _historyForFilter(
+      filterId: historyFilterId,
+      selectedTreatment: selectedTreatment,
+      selectedHistory: history,
+      allHistory: allHistory,
+    );
     final visibleItems = activeItems.take(3).toList();
     final hasMoreItems = activeItems.length > visibleItems.length;
     final latestNote = (selectedTreatment.notas ?? '').trim();
@@ -395,7 +445,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                     child: DropdownButton<String>(
                       isExpanded: true,
                       value: selectedTreatment.id,
-                      icon: const Icon(Icons.arrow_drop_down, color: OcgColors.bronze),
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: OcgColors.bronze,
+                      ),
                       style: const TextStyle(
                         color: OcgColors.espresso,
                         fontWeight: FontWeight.w600,
@@ -574,7 +627,18 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
             key: _historySectionKey,
             title: 'Historial del tratamiento',
             icon: Icons.history_outlined,
-            child: StageHistoryList(historial: history, isAdmin: true),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTreatmentHistoryFilter(
+                  selectedTreatment: selectedTreatment,
+                  treatments: treatments,
+                  displayedHistory: displayedHistory,
+                ),
+                const SizedBox(height: 12),
+                StageHistoryList(historial: displayedHistory, isAdmin: true),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           _buildMobileTreatmentCard(
@@ -1157,8 +1221,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   treatment: treatment,
                   selected: treatment.id == selectedTreatment.id,
                   currency: _currency,
-                  onTap: () =>
-                      setState(() => _selectedTreatmentId = treatment.id),
+                  onTap: () => _selectTreatment(treatment),
                 ),
             ],
           ),
@@ -1230,13 +1293,176 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     );
   }
 
+  String _resolvedHistoryFilterId(
+    PatientTreatment selectedTreatment,
+    List<PatientTreatment> treatments,
+  ) {
+    final ids = treatments.map((t) => t.id).toSet();
+    final current = _historyTreatmentFilterId;
+    if (current == _kHistoryAllTreatments) return _kHistoryAllTreatments;
+    if (current != null && ids.contains(current)) return current;
+    return selectedTreatment.id;
+  }
+
+  List<StageHistoryEntry> _historyForFilter({
+    required String filterId,
+    required PatientTreatment selectedTreatment,
+    required List<StageHistoryEntry> selectedHistory,
+    required List<StageHistoryEntry> allHistory,
+  }) {
+    if (filterId == _kHistoryAllTreatments) return allHistory;
+    if (filterId == selectedTreatment.id) return selectedHistory;
+    return allHistory.where((entry) => entry.treatmentId == filterId).toList();
+  }
+
+  Widget _buildTreatmentHistoryFilter({
+    required PatientTreatment selectedTreatment,
+    required List<PatientTreatment> treatments,
+    required List<StageHistoryEntry> displayedHistory,
+  }) {
+    final filterId = _resolvedHistoryFilterId(selectedTreatment, treatments);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F1EA),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: OcgColors.espresso.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.filter_alt_outlined,
+                  color: OcgColors.espresso,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filtrar historial',
+                      style: TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      '${displayedHistory.length} movimiento${displayedHistory.length == 1 ? '' : 's'} visible${displayedHistory.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                        color: OcgColors.ink.withOpacity(0.62),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ChoiceChip(
+                  selected: filterId == _kHistoryAllTreatments,
+                  avatar: Icon(
+                    Icons.layers_outlined,
+                    size: 16,
+                    color: filterId == _kHistoryAllTreatments
+                        ? OcgColors.ivory
+                        : OcgColors.espresso,
+                  ),
+                  label: const Text('Todos'),
+                  selectedColor: OcgColors.espresso,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: filterId == _kHistoryAllTreatments
+                        ? OcgColors.ivory
+                        : OcgColors.espresso,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  side: BorderSide(
+                    color: filterId == _kHistoryAllTreatments
+                        ? OcgColors.espresso
+                        : OcgColors.bronze.withOpacity(0.24),
+                  ),
+                  onSelected: (_) => setState(
+                    () => _historyTreatmentFilterId = _kHistoryAllTreatments,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                for (final treatment in treatments) ...[
+                  ChoiceChip(
+                    selected: filterId == treatment.id,
+                    avatar: Icon(
+                      treatment.id == selectedTreatment.id
+                          ? Icons.radio_button_checked
+                          : Icons.monitor_heart_outlined,
+                      size: 16,
+                      color: filterId == treatment.id
+                          ? OcgColors.ivory
+                          : OcgColors.espresso,
+                    ),
+                    label: Text(treatment.displayName),
+                    selectedColor: OcgColors.bronze,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: filterId == treatment.id
+                          ? OcgColors.ivory
+                          : OcgColors.espresso,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    side: BorderSide(
+                      color: filterId == treatment.id
+                          ? OcgColors.bronze
+                          : OcgColors.bronze.withOpacity(0.24),
+                    ),
+                    onSelected: (_) => setState(
+                      () => _historyTreatmentFilterId = treatment.id,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildClinicalColumn(
     BuildContext context,
     PatientTreatment selectedTreatment,
     List<PatientTreatment> treatments,
     List<StageHistoryEntry> history,
+    List<StageHistoryEntry> allHistory,
     String adminId,
   ) {
+    final historyFilterId = _resolvedHistoryFilterId(
+      selectedTreatment,
+      treatments,
+    );
+    final displayedHistory = _historyForFilter(
+      filterId: historyFilterId,
+      selectedTreatment: selectedTreatment,
+      selectedHistory: history,
+      allHistory: allHistory,
+    );
+
     return Column(
       children: [
         _PremiumPanel(
@@ -1324,7 +1550,18 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           title: 'Historial del tratamiento',
           subtitle:
               'Historial cronológico de cambios de etapa y acciones clínicas registradas.',
-          child: StageHistoryList(historial: history, isAdmin: true),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTreatmentHistoryFilter(
+                selectedTreatment: selectedTreatment,
+                treatments: treatments,
+                displayedHistory: displayedHistory,
+              ),
+              const SizedBox(height: 14),
+              StageHistoryList(historial: displayedHistory, isAdmin: true),
+            ],
+          ),
         ),
         if (treatments
             .where((item) => item.id != selectedTreatment.id)
@@ -1343,8 +1580,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                       child: _SecondaryTreatmentRow(
                         treatment: item,
                         currency: _currency,
-                        onTap: () =>
-                            setState(() => _selectedTreatmentId = item.id),
+                        onTap: () => _selectTreatment(item),
                       ),
                     ),
                   )

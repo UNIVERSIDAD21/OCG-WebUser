@@ -16,7 +16,11 @@ class TreatmentRepository {
         .collection(FirestorePaths.stageHistory(patientId))
         .orderBy('fechaCambio', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => StageHistoryEntry.fromJson(d.data())).toList());
+        .map(
+          (snap) => snap.docs
+              .map((d) => StageHistoryEntry.fromJson(d.data()))
+              .toList(),
+        );
   }
 
   Stream<List<StageHistoryEntry>> watchTreatmentStageHistory(
@@ -24,10 +28,56 @@ class TreatmentRepository {
     String treatmentId,
   ) {
     return _db
-        .collection(FirestorePaths.treatmentStageHistory(patientId, treatmentId))
+        .collection(
+          FirestorePaths.treatmentStageHistory(patientId, treatmentId),
+        )
         .orderBy('fechaCambio', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => StageHistoryEntry.fromJson(d.data())).toList());
+        .map(
+          (snap) => snap.docs
+              .map((d) => StageHistoryEntry.fromJson(d.data()))
+              .toList(),
+        );
+  }
+
+  Stream<List<StageHistoryEntry>> watchAllTreatmentStageHistory(
+    String patientId,
+    List<String> treatmentIds,
+  ) {
+    final cleanIds =
+        treatmentIds
+            .map((id) => id.trim())
+            .where((id) => id.isNotEmpty && !id.startsWith('legacy-primary-'))
+            .toSet()
+            .toList()
+          ..sort();
+
+    return _db
+        .collectionGroup('stageHistory')
+        .where('patientId', isEqualTo: patientId)
+        .snapshots()
+        .map((snap) {
+          final seen = <String>{};
+          final entries = <StageHistoryEntry>[];
+          for (final doc in snap.docs) {
+            final entry = StageHistoryEntry.fromJson(doc.data());
+            final tid = entry.treatmentId.trim();
+            final isGeneralLegacy = tid.isEmpty || !cleanIds.contains(tid);
+            final isTreatmentScoped = tid.isNotEmpty && cleanIds.contains(tid);
+            if (!isGeneralLegacy && !isTreatmentScoped) continue;
+            final dedupeKey = [
+              tid,
+              entry.etapaAnterior.name,
+              entry.etapaNueva.name,
+              entry.fechaCambio.millisecondsSinceEpoch,
+              entry.notas,
+            ].join('|');
+            if (!seen.add(dedupeKey)) continue;
+            entries.add(entry);
+          }
+          entries.sort((a, b) => b.fechaCambio.compareTo(a.fechaCambio));
+          return entries;
+        });
   }
 
   Future<void> updateStage({
@@ -61,7 +111,9 @@ class TreatmentRepository {
 
     final batch = _db.batch();
     final patientRef = _db.collection(FirestorePaths.patients).doc(patientId);
-    final historyRef = _db.collection(FirestorePaths.stageHistory(patientId)).doc();
+    final historyRef = _db
+        .collection(FirestorePaths.stageHistory(patientId))
+        .doc();
 
     final now = DateTime.now();
     final entry = StageHistoryEntry(
@@ -94,9 +146,14 @@ class TreatmentRepository {
       return;
     }
 
-    final treatmentRef = _db.doc(FirestorePaths.patientTreatmentDoc(patientId, treatmentId));
-    final treatmentHistoryRef =
-        _db.collection(FirestorePaths.treatmentStageHistory(patientId, treatmentId)).doc();
+    final treatmentRef = _db.doc(
+      FirestorePaths.patientTreatmentDoc(patientId, treatmentId),
+    );
+    final treatmentHistoryRef = _db
+        .collection(
+          FirestorePaths.treatmentStageHistory(patientId, treatmentId),
+        )
+        .doc();
     final treatmentSnapshot = await treatmentRef.get();
     final treatmentData = treatmentSnapshot.data() ?? <String, dynamic>{};
     final isPrimary = (treatmentData['isPrimary'] as bool?) ?? false;
@@ -109,10 +166,9 @@ class TreatmentRepository {
     });
     batch.set(
       treatmentHistoryRef,
-      entry.copyWith(
-        id: treatmentHistoryRef.id,
-        treatmentId: treatmentId,
-      ).toJson(),
+      entry
+          .copyWith(id: treatmentHistoryRef.id, treatmentId: treatmentId)
+          .toJson(),
     );
 
     if (isPrimary) {

@@ -9,18 +9,39 @@ final treatmentRepositoryProvider = Provider<TreatmentRepository>((ref) {
   return TreatmentRepository(FirebaseFirestore.instance);
 });
 
-final stageHistoryProvider = StreamProvider.family<List<StageHistoryEntry>, String>(
-  (ref, patientId) => ref.watch(treatmentRepositoryProvider).watchStageHistory(patientId),
-);
+final stageHistoryProvider =
+    StreamProvider.family<List<StageHistoryEntry>, String>(
+      (ref, patientId) =>
+          ref.watch(treatmentRepositoryProvider).watchStageHistory(patientId),
+    );
 
 typedef TreatmentStageHistoryArgs = ({String patientId, String treatmentId});
+typedef AllTreatmentStageHistoryArgs = ({
+  String patientId,
+  String treatmentIdsKey,
+});
 
 final treatmentStageHistoryProvider =
     StreamProvider.family<List<StageHistoryEntry>, TreatmentStageHistoryArgs>(
-  (ref, args) => ref
-      .watch(treatmentRepositoryProvider)
-      .watchTreatmentStageHistory(args.patientId, args.treatmentId),
-);
+      (ref, args) => ref
+          .watch(treatmentRepositoryProvider)
+          .watchTreatmentStageHistory(args.patientId, args.treatmentId),
+    );
+
+final allTreatmentStageHistoryProvider =
+    StreamProvider.family<
+      List<StageHistoryEntry>,
+      AllTreatmentStageHistoryArgs
+    >((ref, args) {
+      final treatmentIds = args.treatmentIdsKey
+          .split('|')
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty)
+          .toList();
+      return ref
+          .watch(treatmentRepositoryProvider)
+          .watchAllTreatmentStageHistory(args.patientId, treatmentIds);
+    });
 
 class UpdateStageNotifier extends AsyncNotifier<void> {
   @override
@@ -41,7 +62,9 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-      () => ref.read(treatmentRepositoryProvider).updateStage(
+      () => ref
+          .read(treatmentRepositoryProvider)
+          .updateStage(
             patientId: patientId,
             etapaActual: etapaActual,
             nuevaEtapa: nuevaEtapa,
@@ -58,6 +81,7 @@ class UpdateStageNotifier extends AsyncNotifier<void> {
   }
 }
 
-final updateStageProvider = AsyncNotifierProvider.autoDispose<UpdateStageNotifier, void>(
-  UpdateStageNotifier.new,
-);
+final updateStageProvider =
+    AsyncNotifierProvider.autoDispose<UpdateStageNotifier, void>(
+      UpdateStageNotifier.new,
+    );

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +8,6 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/router/route_names.dart';
-import '../../../../shared/constants/firestore_paths.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
@@ -18,7 +16,6 @@ import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../clinical_files/data/models/clinical_file_model.dart';
-import '../../../clinical_files/data/repositories/clinical_files_repository.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
 import '../../../consultation/data/models/consultation_model.dart';
 import '../../../consultation/providers/consultation_provider.dart';
@@ -58,12 +55,14 @@ class _PatientClinicalHistoryTabState
   String? _selectedCategory;
   String _groupMode = 'fuente'; // 'fuente' | 'cronologico'
   _ClinicalVisibilityFilter _visibilityFilter = _ClinicalVisibilityFilter.all;
+  bool _showDictamenes = true;
+  bool _showClinicalDocuments = true;
 
   @override
   void initState() {
     super.initState();
-    _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId) ??
-        _kAllTreatments;
+    _selectedTreatmentId =
+        _cleanTreatmentId(widget.initialTreatmentId) ?? _kAllTreatments;
   }
 
   @override
@@ -71,8 +70,8 @@ class _PatientClinicalHistoryTabState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId ||
         oldWidget.initialTreatmentId != widget.initialTreatmentId) {
-      _selectedTreatmentId = _cleanTreatmentId(widget.initialTreatmentId) ??
-          _kAllTreatments;
+      _selectedTreatmentId =
+          _cleanTreatmentId(widget.initialTreatmentId) ?? _kAllTreatments;
     }
   }
 
@@ -419,13 +418,16 @@ class _PatientClinicalHistoryTabState
     );
   }
 
-  List<ClinicalFileModel> _filterFilesByTreatment(List<ClinicalFileModel> files) {
+  List<ClinicalFileModel> _filterFilesByTreatment(
+    List<ClinicalFileModel> files,
+  ) {
     if (!_hasNoTreatmentFilter()) return files;
     return files.where((f) => (f.treatmentId ?? '').trim().isEmpty).toList();
   }
 
   List<ConsultationModel> _filterByTreatment(
-      List<ConsultationModel> consultations) {
+    List<ConsultationModel> consultations,
+  ) {
     final selected = _selectedTreatmentId;
     // "Todos" → mostrar todos los dictámenes
     if (selected == null || selected == _kAllTreatments) return consultations;
@@ -436,9 +438,7 @@ class _PatientClinicalHistoryTabState
           .toList();
     }
     // Tratamiento específico → filtrar por treatmentId
-    return consultations
-        .where((c) => c.treatmentId == selected)
-        .toList();
+    return consultations.where((c) => c.treatmentId == selected).toList();
   }
 
   PatientTreatment? _resolveTreatmentForConsultation(
@@ -474,9 +474,13 @@ class _PatientClinicalHistoryTabState
             title: 'Dictámenes',
             count: dictamenes.length,
             accent: const Color(0xFF2E7D4C),
+            collapsed: !_showDictamenes,
+            onToggle: () => setState(() => _showDictamenes = !_showDictamenes),
           ),
-          const SizedBox(height: 10),
-          ...dictamenes.map((c) => _DictamenTile(
+          if (_showDictamenes) ...[
+            const SizedBox(height: 10),
+            ...dictamenes.map(
+              (c) => _DictamenTile(
                 consultation: c,
                 patient: widget.patient,
                 treatment: _resolveTreatmentForConsultation(c, treatments),
@@ -486,9 +490,15 @@ class _PatientClinicalHistoryTabState
                 onOpenTreatmentHistory: (c.treatmentId ?? '').trim().isEmpty
                     ? null
                     : () => context.go(
-                          _patientTreatmentHistoryLocation(c.treatmentId!),
-                        ),
-              )),
+                        _patientTreatmentHistoryLocation(c.treatmentId!),
+                      ),
+              ),
+            ),
+          ] else
+            _CollapsedSectionHint(
+              accent: const Color(0xFF2E7D4C),
+              label: 'Dictámenes ocultos. Toca el encabezado para mostrarlos.',
+            ),
           const SizedBox(height: 18),
         ],
         _SourceSectionHeader(
@@ -496,32 +506,42 @@ class _PatientClinicalHistoryTabState
           title: 'Documentos clínicos',
           count: files.length,
           accent: const Color(0xFFB07D3C),
+          collapsed: !_showClinicalDocuments,
+          onToggle: () =>
+              setState(() => _showClinicalDocuments = !_showClinicalDocuments),
         ),
-        const SizedBox(height: 10),
-        if (files.isEmpty)
-          _buildClinicalFilesEmptyState(
-            canUpload: selectedTreatment != null && !isUploading,
-            onUpload: selectedTreatment == null
-                ? null
-                : () => _showUploadDialog(
-                    initialTreatment: selectedTreatment!,
-                    treatments: treatments,
-                  ),
-          )
-        else
-          ...files.map(
-            (file) => _ClinicalFileTile(
-              file: file,
-              onOpenTreatmentHistory: (file.treatmentId ?? '').trim().isEmpty
+        if (_showClinicalDocuments) ...[
+          const SizedBox(height: 10),
+          if (files.isEmpty)
+            _buildClinicalFilesEmptyState(
+              canUpload: selectedTreatment != null && !isUploading,
+              onUpload: selectedTreatment == null
                   ? null
-                  : () => context.go(
+                  : () => _showUploadDialog(
+                      initialTreatment: selectedTreatment,
+                      treatments: treatments,
+                    ),
+            )
+          else
+            ...files.map(
+              (file) => _ClinicalFileTile(
+                file: file,
+                onOpenTreatmentHistory: (file.treatmentId ?? '').trim().isEmpty
+                    ? null
+                    : () => context.go(
                         _patientTreatmentHistoryLocation(file.treatmentId!),
                       ),
-              onDelete: () => _deleteFile(file),
-              onToggleVisibility: file.category == 'dictamen_pdf'
-                  ? () => _toggleFileVisibility(file)
-                  : null,
+                onDelete: () => _deleteFile(file),
+                onToggleVisibility: file.category == 'dictamen_pdf'
+                    ? () => _toggleFileVisibility(file)
+                    : null,
+              ),
             ),
+        ] else
+          _CollapsedSectionHint(
+            accent: const Color(0xFFB07D3C),
+            label:
+                'Documentos clínicos ocultos. Toca el encabezado para mostrarlos.',
           ),
         if (dictamenes.isEmpty && files.isEmpty) ...[
           const SizedBox(height: 10),
@@ -530,7 +550,7 @@ class _PatientClinicalHistoryTabState
             onUpload: selectedTreatment == null
                 ? null
                 : () => _showUploadDialog(
-                    initialTreatment: selectedTreatment!,
+                    initialTreatment: selectedTreatment,
                     treatments: treatments,
                   ),
           ),
@@ -592,18 +612,14 @@ class _PatientClinicalHistoryTabState
     final entries = <_HistoryEntry>[];
 
     for (final c in dictamenes) {
-      entries.add(_HistoryEntry(
-        date: c.date,
-        type: 'dictamen',
-        consultation: c,
-      ));
+      entries.add(
+        _HistoryEntry(date: c.date, type: 'dictamen', consultation: c),
+      );
     }
     for (final f in files) {
-      entries.add(_HistoryEntry(
-        date: f.uploadedAt,
-        type: 'documento',
-        file: f,
-      ));
+      entries.add(
+        _HistoryEntry(date: f.uploadedAt, type: 'documento', file: f),
+      );
     }
 
     entries.sort((a, b) => b.date.compareTo(a.date));
@@ -614,7 +630,7 @@ class _PatientClinicalHistoryTabState
         onUpload: selectedTreatment == null
             ? null
             : () => _showUploadDialog(
-                initialTreatment: selectedTreatment!,
+                initialTreatment: selectedTreatment,
                 treatments: treatments,
               ),
       );
@@ -635,22 +651,23 @@ class _PatientClinicalHistoryTabState
                 .toList(),
             onOpenTreatmentHistory:
                 (entry.consultation!.treatmentId ?? '').trim().isEmpty
-                    ? null
-                    : () => context.go(
-                          _patientTreatmentHistoryLocation(
-                            entry.consultation!.treatmentId!,
-                          ),
-                        ),
+                ? null
+                : () => context.go(
+                    _patientTreatmentHistoryLocation(
+                      entry.consultation!.treatmentId!,
+                    ),
+                  ),
           );
         }
         if (entry.type == 'documento' && entry.file != null) {
           return _ClinicalFileTile(
             file: entry.file!,
-            onOpenTreatmentHistory: (entry.file!.treatmentId ?? '').trim().isEmpty
+            onOpenTreatmentHistory:
+                (entry.file!.treatmentId ?? '').trim().isEmpty
                 ? null
                 : () => context.go(
-                      _patientTreatmentHistoryLocation(entry.file!.treatmentId!),
-                    ),
+                    _patientTreatmentHistoryLocation(entry.file!.treatmentId!),
+                  ),
             onDelete: () => _deleteFile(entry.file!),
             onToggleVisibility: entry.file!.category == 'dictamen_pdf'
                 ? () => _toggleFileVisibility(entry.file!)
@@ -1350,12 +1367,56 @@ class _ClinicalFileTile extends StatelessWidget {
 // ─── Helper class for chronological view ─────────────────────────────
 
 class _HistoryEntry {
-  _HistoryEntry({required this.date, required this.type, this.consultation, this.file});
+  _HistoryEntry({
+    required this.date,
+    required this.type,
+    this.consultation,
+    this.file,
+  });
 
   final DateTime date;
   final String type; // 'dictamen' | 'documento'
   final ConsultationModel? consultation;
   final ClinicalFileModel? file;
+}
+
+// ─── Collapsed hint ───────────────────────────────────────────────────
+
+class _CollapsedSectionHint extends StatelessWidget {
+  const _CollapsedSectionHint({required this.accent, required this.label});
+
+  final Color accent;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.visibility_off_outlined, color: accent, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: accent,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Source section header ────────────────────────────────────────────
@@ -1366,53 +1427,78 @@ class _SourceSectionHeader extends StatelessWidget {
     required this.title,
     required this.count,
     required this.accent,
+    this.collapsed = false,
+    this.onToggle,
   });
 
   final IconData icon;
   final String title;
   final int count;
   final Color accent;
+  final bool collapsed;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: accent, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onToggle,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.16)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: accent, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '$count',
-              style: TextStyle(
-                color: accent,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
-        ],
+            if (onToggle != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(
+                  collapsed
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_up_rounded,
+                  color: accent,
+                  size: 20,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1448,17 +1534,15 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
   Widget build(BuildContext context) {
     final c = widget.consultation;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
-    final stageLabel = c.stageNameSnapshot ??
-        (c.stageId != null
-            ? stageNames[c.stageId!] ?? c.stageId!.name
-            : null) ??
-        'Sin etapa';
-    final treatmentLabel =
-        (c.treatmentNameSnapshot ?? '').isNotEmpty
-            ? c.treatmentNameSnapshot!
-            : 'Sin tratamiento / legacy';
+    final stageId = c.stageId;
+    final stageLabel =
+        c.stageNameSnapshot ??
+        (stageId == null ? 'Sin etapa' : stageNames[stageId] ?? stageId.name);
+    final treatmentLabel = (c.treatmentNameSnapshot ?? '').isNotEmpty
+        ? c.treatmentNameSnapshot!
+        : 'Sin tratamiento / legacy';
     final hasSignature = c.hasSignature;
-    final hasAttachments = (c.photos ?? []).isNotEmpty;
+    final hasAttachments = c.photos.isNotEmpty;
     final hasExistingPdf = c.reportPdfFileId != null || c.reportPdfUrl != null;
 
     return OcgPremiumCard(
@@ -1540,10 +1624,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                 icon: Icons.monitor_heart_outlined,
                 color: OcgColors.espresso,
               ),
-              OcgStatusPill(
-                label: stageLabel,
-                icon: Icons.flag_outlined,
-              ),
+              OcgStatusPill(label: stageLabel, icon: Icons.flag_outlined),
               if (hasSignature)
                 OcgStatusPill(
                   label: 'Firma ✓',
@@ -1558,14 +1639,15 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                 ),
               if (hasAttachments)
                 OcgStatusPill(
-                  label: '${c.photos!.length} adjunto${c.photos!.length > 1 ? 's' : ''}',
+                  label:
+                      '${c.photos.length} adjunto${c.photos.length > 1 ? 's' : ''}',
                   icon: Icons.attach_file_outlined,
                   color: const Color(0xFF3268A8),
                 ),
             ],
           ),
           // Clinical notes preview
-          if ((c.clinicalNotes ?? '').trim().isNotEmpty) ...[
+          if (c.clinicalNotes.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -1575,7 +1657,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                c.clinicalNotes!.trim(),
+                c.clinicalNotes.trim(),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1608,9 +1690,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                   label: const Text('Descargar PDF'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFB3261E),
-                    side: const BorderSide(
-                      color: Color(0xFFB3261E),
-                    ),
+                    side: const BorderSide(color: Color(0xFFB3261E)),
                   ),
                 ),
               if (!hasExistingPdf) ...[
@@ -1628,12 +1708,12 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                           ),
                         )
                       : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                  label: Text(_isGeneratingPdf ? 'Generando...' : 'Generar PDF'),
+                  label: Text(
+                    _isGeneratingPdf ? 'Generando...' : 'Generar PDF',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFB3261E),
-                    side: const BorderSide(
-                      color: Color(0xFFB3261E),
-                    ),
+                    side: const BorderSide(color: Color(0xFFB3261E)),
                   ),
                 ),
                 if (_lastGeneratedPdf != null) ...[
@@ -1654,9 +1734,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                     label: Text(_isSavingPdf ? 'Guardando...' : 'Guardar PDF'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF2E7D4C),
-                      side: const BorderSide(
-                        color: Color(0xFF2E7D4C),
-                      ),
+                      side: const BorderSide(color: Color(0xFF2E7D4C)),
                     ),
                   ),
                   OutlinedButton.icon(
@@ -1711,9 +1789,9 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generando PDF: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error generando PDF: $e')));
     } finally {
       if (mounted) {
         setState(() => _isGeneratingPdf = false);
@@ -1740,7 +1818,8 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
       // Build storage path
       String storagePath;
       if (treatmentId != null && treatmentId.isNotEmpty) {
-        storagePath = 'patients/$patientId/treatments/$treatmentId/clinical-files/${fileId}_$fileName';
+        storagePath =
+            'patients/$patientId/treatments/$treatmentId/clinical-files/${fileId}_$fileName';
       } else {
         storagePath = 'patients/$patientId/clinical-files/${fileId}_$fileName';
       }
@@ -1762,12 +1841,13 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
         consultationId: consultation.id,
         sourceType: 'consultation_pdf',
         sourceId: consultation.id,
-        treatmentNameSnapshot: consultation.treatmentNameSnapshot ??
-            widget.treatment?.displayName,
+        treatmentNameSnapshot:
+            consultation.treatmentNameSnapshot ?? widget.treatment?.displayName,
         stageId: consultation.stageId?.name,
         stageNameSnapshot: consultation.stageNameSnapshot,
         originalName: fileName,
-        displayName: 'Dictamen - ${consultation.doctorName} - ${DateFormat('dd/MM/yyyy').format(consultation.date)}',
+        displayName:
+            'Dictamen - ${consultation.doctorName} - ${DateFormat('dd/MM/yyyy').format(consultation.date)}',
         storagePath: storagePath,
         downloadUrl: downloadUrl,
         mimeType: 'application/pdf',
@@ -1783,7 +1863,9 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
       );
 
       // Save metadata to Firestore
-      await ref.read(clinicalFilesRepositoryProvider).saveMetadata(clinicalFile);
+      await ref
+          .read(clinicalFilesRepositoryProvider)
+          .saveMetadata(clinicalFile);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1817,15 +1899,15 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error compartiendo PDF: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error compartiendo PDF: $e')));
     }
   }
 
   void _showDictamenDetail() {
     final c = widget.consultation;
-    final notes = (c.clinicalNotes ?? '').trim();
+    final notes = c.clinicalNotes.trim();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1837,14 +1919,20 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
             children: [
               _detailRow('Paciente', c.patientName),
               _detailRow('Doctor', c.doctorName),
-              _detailRow('Fecha', DateFormat('dd/MM/yyyy HH:mm').format(c.date)),
+              _detailRow(
+                'Fecha',
+                DateFormat('dd/MM/yyyy HH:mm').format(c.date),
+              ),
               if ((c.treatmentNameSnapshot ?? '').isNotEmpty)
                 _detailRow('Tratamiento', c.treatmentNameSnapshot!),
               if (c.stageNameSnapshot != null)
                 _detailRow('Etapa', c.stageNameSnapshot!),
               _detailRow('Estado', c.status.name),
               if (c.hasSignature) ...[
-                _detailRow('Firma', 'Capturada el ${DateFormat('dd/MM/yyyy HH:mm').format(c.signatureCapturedAt ?? c.date)}'),
+                _detailRow(
+                  'Firma',
+                  'Capturada el ${DateFormat('dd/MM/yyyy HH:mm').format(c.signatureCapturedAt ?? c.date)}',
+                ),
                 const SizedBox(height: 8),
                 const Text(
                   'Imagen de la firma:',
@@ -1855,7 +1943,9 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                   width: double.infinity,
                   constraints: const BoxConstraints(maxHeight: 200),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Color(0xFF5C5550).withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Color(0xFF5C5550).withValues(alpha: 0.2),
+                    ),
                     borderRadius: BorderRadius.circular(8),
                     color: const Color(0xFFF5F5F5),
                   ),
@@ -1914,10 +2004,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
             ),
             TextSpan(
               text: value,
-              style: const TextStyle(
-                color: Color(0xFF5C5550),
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: Color(0xFF5C5550), fontSize: 13),
             ),
           ],
         ),
@@ -1928,9 +2015,9 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
   void _openExistingPdf() {
     final url = widget.consultation.reportPdfUrl;
     if (url == null || url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF no disponible aún.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('PDF no disponible aún.')));
       return;
     }
     _launchUrl(url);
@@ -1941,9 +2028,9 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     if (uri == null) return;
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el PDF.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No se pudo abrir el PDF.')));
     }
   }
 }
