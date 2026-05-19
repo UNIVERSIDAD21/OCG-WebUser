@@ -67,6 +67,19 @@ class AppointmentsRepository {
 
   // ─── Crear cita (admin) ───────────────────────────────────────────────────
 
+  Future<AppointmentModel?> getAppointmentById(String appointmentId) async {
+    final cleanId = appointmentId.trim();
+    if (cleanId.isEmpty) return null;
+
+    final doc = await _appointmentsRef.doc(cleanId).get();
+    if (!doc.exists || doc.data() == null) return null;
+
+    final appointment = AppointmentModel.fromJson(doc.data()!);
+    return appointment.id.trim().isEmpty
+        ? appointment.copyWith(id: doc.id)
+        : appointment;
+  }
+
   Future<String> createAppointment(AppointmentModel appointment) async {
     // Safety-net arquitectónico: si por error de UI/ruteo llega un intento
     // de agenda de paciente por la ruta "admin" (write directo), lo redirigimos

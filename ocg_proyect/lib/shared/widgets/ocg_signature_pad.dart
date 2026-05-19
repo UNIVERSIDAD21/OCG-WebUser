@@ -90,17 +90,17 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
   }
 
   Future<Uint8List?> _toPngInternal() async {
-    final boundary =
-        _painterKey.currentContext?.findRenderObject();
+    final boundary = _painterKey.currentContext?.findRenderObject();
     if (boundary == null || boundary is! RenderRepaintBoundary) return null;
-    final image = await boundary.toImage(pixelRatio: 3.0);
+    final image = await boundary.toImage(pixelRatio: 1.5);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData?.buffer.asUint8List();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgDecoration = widget.backgroundDecoration ??
+    final bgDecoration =
+        widget.backgroundDecoration ??
         BoxDecoration(
           color: const Color(0xFFFFFBF5),
           borderRadius: BorderRadius.circular(16),
@@ -200,8 +200,7 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
                                 Text(
                                   'Use el dedo o un stylus',
                                   style: TextStyle(
-                                    color:
-                                        OcgColors.bronze.withOpacity(0.3),
+                                    color: OcgColors.bronze.withOpacity(0.3),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w400,
                                     letterSpacing: 0.3,
@@ -366,12 +365,7 @@ class _SignaturePainter extends CustomPainter {
         (points[i].dx + points[i + 1].dx) / 2,
         (points[i].dy + points[i + 1].dy) / 2,
       );
-      path.quadraticBezierTo(
-        points[i].dx,
-        points[i].dy,
-        mid.dx,
-        mid.dy,
-      );
+      path.quadraticBezierTo(points[i].dx, points[i].dy, mid.dx, mid.dy);
     }
 
     if (points.length >= 2) {

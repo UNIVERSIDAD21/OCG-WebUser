@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/router/route_names.dart';
 import '../../../../shared/theme/ocg_colors.dart';
+import '../../../../shared/utils/download_file.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../../shared/widgets/ocg_confirm_dialog.dart';
@@ -19,7 +23,6 @@ import '../../../clinical_files/data/models/clinical_file_model.dart';
 import '../../../clinical_files/providers/clinical_files_provider.dart';
 import '../../../consultation/data/models/consultation_model.dart';
 import '../../../consultation/providers/consultation_provider.dart';
-import '../../../consultation/services/consultation_pdf_service.dart';
 import '../../../treatment/data/models/patient_treatment.dart';
 import '../../../treatment/providers/patient_treatments_provider.dart';
 import '../../data/models/patient_model.dart';
@@ -1293,7 +1296,7 @@ class _ClinicalFileTile extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onOpenTreatmentHistory,
                   icon: const Icon(Icons.history_outlined, size: 16),
-                  label: const Text('Ver historial clÃ­nico'),
+                  label: const Text('Ver historial clínico'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: OcgColors.espresso,
                     side: BorderSide(
@@ -1506,6 +1509,21 @@ class _SourceSectionHeader extends StatelessWidget {
 
 // ─── Dictamen tile ────────────────────────────────────────────────────
 
+class _GeneratedDictamenPdf {
+  _GeneratedDictamenPdf({
+    required this.fileName,
+    required this.downloadUrl,
+    required this.storagePath,
+    required this.visibleToPatient,
+  });
+
+  final String fileName;
+  final String downloadUrl;
+  final String storagePath;
+  final bool visibleToPatient;
+  Uint8List? bytes;
+}
+
 class _DictamenTile extends ConsumerStatefulWidget {
   const _DictamenTile({
     required this.consultation,
@@ -1527,8 +1545,20 @@ class _DictamenTile extends ConsumerStatefulWidget {
 
 class _DictamenTileState extends ConsumerState<_DictamenTile> {
   bool _isGeneratingPdf = false;
-  bool _isSavingPdf = false;
-  Uint8List? _lastGeneratedPdf;
+  bool _isSharingPdf = false;
+  bool _isSharingWithPatient = false;
+  _GeneratedDictamenPdf? _lastGeneratedPdf;
+
+  @override
+  void didUpdateWidget(covariant _DictamenTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.consultation.id != widget.consultation.id ||
+        oldWidget.consultation.signatureUrl !=
+            widget.consultation.signatureUrl ||
+        oldWidget.consultation.updatedAt != widget.consultation.updatedAt) {
+      _lastGeneratedPdf = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1543,7 +1573,6 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
         : 'Sin tratamiento / legacy';
     final hasSignature = c.hasSignature;
     final hasAttachments = c.photos.isNotEmpty;
-    final hasExistingPdf = c.reportPdfFileId != null || c.reportPdfUrl != null;
 
     return OcgPremiumCard(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1683,73 +1712,72 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                   foregroundColor: OcgColors.ivory,
                 ),
               ),
-              if (hasExistingPdf)
-                OutlinedButton.icon(
-                  onPressed: _openExistingPdf,
-                  icon: const Icon(Icons.download_outlined, size: 16),
-                  label: const Text('Descargar PDF'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB3261E),
-                    side: const BorderSide(color: Color(0xFFB3261E)),
-                  ),
+              OutlinedButton.icon(
+                onPressed:
+                    _isGeneratingPdf || _isSharingPdf || _isSharingWithPatient
+                    ? null
+                    : _generateAndDownloadPdf,
+                icon: _isGeneratingPdf
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFFB3261E),
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                label: Text(_isGeneratingPdf ? 'Generando...' : 'Generar PDF'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB3261E),
+                  side: const BorderSide(color: Color(0xFFB3261E)),
                 ),
-              if (!hasExistingPdf) ...[
+              ),
+              OutlinedButton.icon(
+                onPressed:
+                    _isGeneratingPdf || _isSharingPdf || _isSharingWithPatient
+                    ? null
+                    : _sharePdfWithPatient,
+                icon: _isSharingWithPatient
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.person_add_alt_1_outlined, size: 16),
+                label: Text(
+                  _isSharingWithPatient
+                      ? 'Compartiendo...'
+                      : 'Compartir con paciente',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2E7D4C),
+                  side: const BorderSide(color: Color(0xFF2E7D4C)),
+                ),
+              ),
+              if (_isMobilePlatform)
                 OutlinedButton.icon(
-                  onPressed: _isGeneratingPdf ? null : _generateAndShowPdf,
-                  icon: _isGeneratingPdf
+                  onPressed:
+                      _isGeneratingPdf || _isSharingPdf || _isSharingWithPatient
+                      ? null
+                      : _shareGeneratedPdf,
+                  icon: _isSharingPdf
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Color(0xFFB3261E),
-                            ),
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                  label: Text(
-                    _isGeneratingPdf ? 'Generando...' : 'Generar PDF',
-                  ),
+                      : const Icon(Icons.share_outlined, size: 16),
+                  label: Text(_isSharingPdf ? 'Compartiendo...' : 'Compartir'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB3261E),
-                    side: const BorderSide(color: Color(0xFFB3261E)),
+                    foregroundColor: OcgColors.espresso,
+                    side: BorderSide(
+                      color: OcgColors.espresso.withValues(alpha: 0.42),
+                    ),
                   ),
                 ),
-                if (_lastGeneratedPdf != null) ...[
-                  OutlinedButton.icon(
-                    onPressed: _isSavingPdf ? null : _savePdfToStorage,
-                    icon: _isSavingPdf
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF2E7D4C),
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.save_outlined, size: 16),
-                    label: Text(_isSavingPdf ? 'Guardando...' : 'Guardar PDF'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF2E7D4C),
-                      side: const BorderSide(color: Color(0xFF2E7D4C)),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _shareGeneratedPdf,
-                    icon: const Icon(Icons.share_outlined, size: 16),
-                    label: const Text('Compartir'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: OcgColors.espresso,
-                      side: BorderSide(
-                        color: OcgColors.espresso.withValues(alpha: 0.42),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
               if (widget.onOpenTreatmentHistory != null)
                 OutlinedButton.icon(
                   onPressed: widget.onOpenTreatmentHistory,
@@ -1769,29 +1797,34 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     );
   }
 
-  Future<void> _generateAndShowPdf() async {
+  bool get _isMobilePlatform {
+    return !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+  }
+
+  Future<void> _generateAndDownloadPdf() async {
     if (!mounted) return;
     setState(() => _isGeneratingPdf = true);
+    await Future<void>.delayed(Duration.zero);
     try {
-      final service = ConsultationPdfService();
-      final pdfBytes = await service.generate(
-        consultation: widget.consultation,
-        patient: widget.patient,
-        treatment: widget.treatment,
-        clinicalFiles: widget.clinicalFiles,
-      );
+      final pdf = await _getOrGeneratePdf();
       if (!mounted) return;
-      // Store bytes for save/share
-      setState(() => _lastGeneratedPdf = pdfBytes);
-      await Printing.layoutPdf(
-        onLayout: (format) async => pdfBytes,
-        name: 'dictamen_${widget.consultation.id.substring(0, 8)}.pdf',
+      await _downloadGeneratedPdf(pdf);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${pdf.fileName} descargado.'),
+          backgroundColor: const Color(0xFF2E7D4C),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error generando PDF: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generando PDF: ${_pdfFailureMessage(e)}'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isGeneratingPdf = false);
@@ -1799,110 +1832,237 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     }
   }
 
-  /// Guarda el PDF generado a Firebase Storage y crea ClinicalFileModel.
-  Future<void> _savePdfToStorage() async {
-    if (_lastGeneratedPdf == null || !mounted) return;
-    setState(() => _isSavingPdf = true);
+  /// Comparte el PDF generado usando Printing.sharePdf.
+  Future<void> _shareGeneratedPdf() async {
+    if (!mounted) return;
+    setState(() => _isSharingPdf = true);
+    await Future<void>.delayed(Duration.zero);
     try {
-      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? '';
-      if (adminId.isEmpty) {
-        throw Exception('No se pudo identificar al admin.');
-      }
-
-      final consultation = widget.consultation;
-      final patientId = widget.patient.id;
-      final treatmentId = widget.treatment?.id ?? consultation.treatmentId;
-      final fileId = 'dictamen_pdf_${consultation.id.substring(0, 8)}';
-      final fileName = 'dictamen_${consultation.id.substring(0, 8)}.pdf';
-
-      // Build storage path
-      String storagePath;
-      if (treatmentId != null && treatmentId.isNotEmpty) {
-        storagePath =
-            'patients/$patientId/treatments/$treatmentId/clinical-files/${fileId}_$fileName';
-      } else {
-        storagePath = 'patients/$patientId/clinical-files/${fileId}_$fileName';
-      }
-
-      // Upload to Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref(storagePath);
-      final uploadTask = await storageRef.putData(
-        _lastGeneratedPdf!,
-        SettableMetadata(contentType: 'application/pdf'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-
-      // Create ClinicalFileModel
-      final now = DateTime.now();
-      final clinicalFile = ClinicalFileModel(
-        id: fileId,
-        patientId: patientId,
-        treatmentId: treatmentId,
-        consultationId: consultation.id,
-        sourceType: 'consultation_pdf',
-        sourceId: consultation.id,
-        treatmentNameSnapshot:
-            consultation.treatmentNameSnapshot ?? widget.treatment?.displayName,
-        stageId: consultation.stageId?.name,
-        stageNameSnapshot: consultation.stageNameSnapshot,
-        originalName: fileName,
-        displayName:
-            'Dictamen - ${consultation.doctorName} - ${DateFormat('dd/MM/yyyy').format(consultation.date)}',
-        storagePath: storagePath,
-        downloadUrl: downloadUrl,
-        mimeType: 'application/pdf',
-        extension: 'pdf',
-        sizeBytes: _lastGeneratedPdf!.length,
-        category: 'dictamen_pdf',
-        notes: 'PDF generado automaticamente desde el dictamen.',
-        uploadedBy: adminId,
-        uploadedAt: now,
-        updatedAt: now,
-        active: true,
-        visibleToPatient: false, // Default: no visible al paciente
-      );
-
-      // Save metadata to Firestore
-      await ref
-          .read(clinicalFilesRepositoryProvider)
-          .saveMetadata(clinicalFile);
-
+      final pdf = await _getOrGeneratePdf();
+      final pdfBytes = await _getGeneratedPdfBytes(pdf);
+      await Printing.sharePdf(bytes: pdfBytes, filename: pdf.fileName);
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF guardado correctamente en documentos clinicos.'),
-          backgroundColor: Color(0xFF2E7D4C),
+        SnackBar(
+          content: Text('Error compartiendo PDF: ${_pdfFailureMessage(e)}'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSharingPdf = false);
+      }
+    }
+  }
+
+  Future<void> _sharePdfWithPatient() async {
+    if (!mounted) return;
+    setState(() => _isSharingWithPatient = true);
+    await Future<void>.delayed(Duration.zero);
+    try {
+      final pdf = await _getOrGeneratePdf(
+        shareWithPatient: true,
+        forceRefresh: true,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${pdf.fileName} compartido con el paciente.'),
+          backgroundColor: const Color(0xFF2E7D4C),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error guardando PDF: $e'),
-          backgroundColor: Colors.red.shade700,
+          content: Text(
+            'Error compartiendo con paciente: ${_pdfFailureMessage(e)}',
+          ),
         ),
       );
     } finally {
       if (mounted) {
-        setState(() => _isSavingPdf = false);
+        setState(() => _isSharingWithPatient = false);
       }
     }
   }
 
-  /// Comparte el PDF generado usando Printing.sharePdf.
-  Future<void> _shareGeneratedPdf() async {
-    if (_lastGeneratedPdf == null || !mounted) return;
-    try {
-      await Printing.sharePdf(
-        bytes: _lastGeneratedPdf!,
-        filename: 'dictamen_${widget.consultation.id.substring(0, 8)}.pdf',
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error compartiendo PDF: $e')));
+  Future<_GeneratedDictamenPdf> _getOrGeneratePdf({
+    bool shareWithPatient = false,
+    bool forceRefresh = false,
+  }) async {
+    final cached = _lastGeneratedPdf;
+    if (!forceRefresh &&
+        !shareWithPatient &&
+        cached != null &&
+        cached.downloadUrl.isNotEmpty) {
+      return cached;
     }
+
+    final patientId = _patientIdForPdf();
+    if (patientId.isEmpty) {
+      throw Exception('No se encontro el paciente del dictamen.');
+    }
+
+    final currentUser = ref.read(authStateProvider).asData?.value;
+    final idToken = await currentUser?.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Debes iniciar sesion para generar el PDF.');
+    }
+
+    final projectId = Firebase.app().options.projectId;
+    if (projectId.isEmpty) {
+      throw Exception('No se encontro el proyecto Firebase.');
+    }
+
+    final endpoint = Uri.https(
+      'us-central1-$projectId.cloudfunctions.net',
+      '/generateConsultationPdf',
+    );
+    final response =
+        await Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 20),
+            sendTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(minutes: 2),
+          ),
+        ).post<Map<String, dynamic>>(
+          endpoint.toString(),
+          data: {
+            'patientId': patientId,
+            'consultationId': widget.consultation.id,
+            if ((widget.treatment?.id.trim().isNotEmpty ?? false))
+              'treatmentId': widget.treatment!.id.trim(),
+            if (shareWithPatient) 'shareWithPatient': true,
+          },
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $idToken',
+              'Content-Type': 'application/json',
+            },
+          ),
+        );
+    final data = _asStringMap(response.data);
+    final pdf = _GeneratedDictamenPdf(
+      fileName: _stringFrom(data['fileName'], fallback: _fallbackPdfFileName()),
+      downloadUrl: _stringFrom(data['downloadUrl']),
+      storagePath: _stringFrom(data['storagePath']),
+      visibleToPatient: data['visibleToPatient'] == true,
+    );
+
+    if (pdf.downloadUrl.isEmpty) {
+      throw Exception('El backend no devolvio una URL de descarga valida.');
+    }
+
+    _lastGeneratedPdf = pdf;
+    return pdf;
+  }
+
+  Future<void> _downloadGeneratedPdf(_GeneratedDictamenPdf pdf) async {
+    final opened = await downloadFileUrl(
+      pdf.downloadUrl,
+      fileName: pdf.fileName,
+    );
+    if (!opened) {
+      throw Exception('No se pudo abrir la descarga del PDF.');
+    }
+  }
+
+  Future<Uint8List> _getGeneratedPdfBytes(_GeneratedDictamenPdf pdf) async {
+    final cachedBytes = pdf.bytes;
+    if (cachedBytes != null && cachedBytes.isNotEmpty) return cachedBytes;
+
+    if (pdf.storagePath.isNotEmpty) {
+      try {
+        final bytes = await FirebaseStorage.instance
+            .ref(pdf.storagePath)
+            .getData(12 * 1024 * 1024);
+        if (bytes != null && bytes.isNotEmpty) {
+          pdf.bytes = bytes;
+          return bytes;
+        }
+      } catch (_) {
+        // Fall back to the download URL below.
+      }
+    }
+
+    final uri = Uri.tryParse(pdf.downloadUrl);
+    if (uri != null) {
+      try {
+        final data = await NetworkAssetBundle(uri).load(pdf.downloadUrl);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+        if (bytes.isNotEmpty) {
+          pdf.bytes = bytes;
+          return bytes;
+        }
+      } catch (_) {
+        // The caller shows the user-facing error.
+      }
+    }
+
+    throw Exception('No se pudo descargar el PDF generado para compartir.');
+  }
+
+  Map<String, Object?> _asStringMap(Object? value) {
+    if (value is Map) {
+      return value.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return const <String, Object?>{};
+  }
+
+  String _stringFrom(Object? value, {String fallback = ''}) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  String _patientIdForPdf() {
+    final patientId = widget.patient.id.trim();
+    if (patientId.isNotEmpty) return patientId;
+    return widget.consultation.patientId.trim();
+  }
+
+  String _fallbackPdfFileName() {
+    final patientName = _sanitizeFileNameToken(_displayPatientName());
+    return 'DIC-$patientName-${_dictamenCode()}.pdf';
+  }
+
+  String _displayPatientName() {
+    final patientName = widget.patient.nombre.trim();
+    if (patientName.isNotEmpty) return patientName;
+    final consultationName = widget.consultation.patientName.trim();
+    return consultationName.isNotEmpty ? consultationName : 'Paciente';
+  }
+
+  String _sanitizeFileNameToken(String value) {
+    final clean = value
+        .trim()
+        .replaceAll(RegExp(r'[\\/:*?"<>|\r\n\t]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return (clean.isEmpty ? 'PACIENTE' : clean).toUpperCase();
+  }
+
+  String _dictamenCode() {
+    final clean = widget.consultation.id.trim();
+    if (clean.isEmpty) return 'SIN-CODIGO';
+    return clean.length > 8 ? clean.substring(0, 8) : clean;
+  }
+
+  String _pdfFailureMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final message = data['message']?.toString().trim();
+        if (message != null && message.isNotEmpty) return message;
+      }
+      final message = error.message?.trim();
+      if (message != null && message.isNotEmpty) return message;
+      return error.type.name;
+    }
+    return error.toString();
   }
 
   void _showDictamenDetail() {
@@ -2012,7 +2172,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     );
   }
 
-  void _openExistingPdf() {
+  void openExistingPdf() {
     final url = widget.consultation.reportPdfUrl;
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(
@@ -2020,10 +2180,10 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
       ).showSnackBar(const SnackBar(content: Text('PDF no disponible aún.')));
       return;
     }
-    _launchUrl(url);
+    launchPdfUrl(url);
   }
 
-  Future<void> _launchUrl(String url) async {
+  Future<void> launchPdfUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);

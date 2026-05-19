@@ -396,6 +396,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         patientId: patientId,
         patientName: widget.appointment.patientName,
         appointmentId: widget.appointment.id,
+        appointmentDate: widget.appointment.fechaHora,
         treatmentId: treatmentId,
         treatmentNameSnapshot: treatment.displayName,
         stageId: currentStage,

@@ -96,6 +96,7 @@ class ConsultationModel {
     required this.patientId,
     required this.patientName,
     this.appointmentId,
+    this.appointmentDate,
     this.treatmentId,
     this.treatmentNameSnapshot,
     this.stageId,
@@ -120,6 +121,7 @@ class ConsultationModel {
   final String patientId;
   final String patientName;
   final String? appointmentId;
+  final DateTime? appointmentDate;
   final String? treatmentId;
   final String? treatmentNameSnapshot;
   final TreatmentStage? stageId;
@@ -191,6 +193,7 @@ class ConsultationModel {
       patientId: (json['patientId'] ?? '').toString(),
       patientName: (json['patientName'] ?? '').toString(),
       appointmentId: json['appointmentId']?.toString(),
+      appointmentDate: _parseNullableDate(json['appointmentDate']),
       treatmentId: json['treatmentId']?.toString(),
       treatmentNameSnapshot: json['treatmentNameSnapshot']?.toString(),
       stageId: _parseNullableStage(json['stageId']),
@@ -225,6 +228,9 @@ class ConsultationModel {
       'patientId': patientId,
       'patientName': patientName,
       'appointmentId': appointmentId,
+      'appointmentDate': appointmentDate == null
+          ? null
+          : Timestamp.fromDate(appointmentDate!),
       'treatmentId': treatmentId,
       'treatmentNameSnapshot': treatmentNameSnapshot,
       'stageId': stageId?.name,
@@ -255,6 +261,7 @@ class ConsultationModel {
     String? patientId,
     String? patientName,
     String? appointmentId,
+    DateTime? appointmentDate,
     String? treatmentId,
     String? treatmentNameSnapshot,
     TreatmentStage? stageId,
@@ -279,6 +286,7 @@ class ConsultationModel {
       patientId: patientId ?? this.patientId,
       patientName: patientName ?? this.patientName,
       appointmentId: appointmentId ?? this.appointmentId,
+      appointmentDate: appointmentDate ?? this.appointmentDate,
       treatmentId: treatmentId ?? this.treatmentId,
       treatmentNameSnapshot:
           treatmentNameSnapshot ?? this.treatmentNameSnapshot,

@@ -30,6 +30,7 @@ import {onTreatmentStageHistoryCreate} from './treatments/on_treatment_stage_his
 import {onTreatmentStageChangeWrite} from './treatments/on_treatment_stage_change_write';
 import {generateSmileSimulation} from './simulator/generate_smile_simulation';
 import {resendEmailNotification} from './notifications/resend_email_notification';
+import {generateConsultationPdf} from './consultation/generate_consultation_pdf';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -66,4 +67,5 @@ export {
   onTreatmentStageChangeWrite,
   generateSmileSimulation,
   resendEmailNotification,
+  generateConsultationPdf,
 };

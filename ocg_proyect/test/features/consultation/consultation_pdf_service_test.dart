@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:ocg_proyect/features/consultation/data/models/consultation_model.dart';
 import 'package:ocg_proyect/features/consultation/services/consultation_pdf_service.dart';
 import 'package:ocg_proyect/features/patients/data/models/patient_model.dart';
@@ -11,7 +14,7 @@ import 'package:ocg_proyect/features/treatment/data/models/patient_treatment.dar
 /// - Tratamiento asociado
 /// - Notas clinicas
 /// - Firma (si existe)
-/// - IDs de trazabilidad
+/// - Nombre de archivo exportable
 void main() {
   group('ConsultationPdfService - generacion de PDF', () {
     late ConsultationPdfService service;
@@ -51,33 +54,38 @@ void main() {
       expect(bytes.isNotEmpty, isTrue);
     });
 
-    test('genera PDF con seccion de firma cuando existe signatureUrl',
-        () async {
-      final consultation = _buildConsultation(
-        signatureUrl: 'https://example.com/signature.png',
-      );
-      final patient = _buildPatient();
+    test(
+      'genera PDF con seccion de firma cuando existe signatureUrl',
+      () async {
+        final consultation = _buildConsultation(
+          signatureUrl: 'https://example.com/signature.png',
+        );
+        final patient = _buildPatient();
 
-      final bytes = await service.generate(
-        consultation: consultation,
-        patient: patient,
-      );
+        final bytes = await service.generate(
+          consultation: consultation,
+          patient: patient,
+          signatureBytes: _transparentPng(),
+        );
 
-      expect(bytes.isNotEmpty, isTrue);
-    });
+        expect(bytes.isNotEmpty, isTrue);
+      },
+    );
 
-    test('genera PDF sin seccion de firma cuando no hay signatureUrl',
-        () async {
-      final consultation = _buildConsultation(signatureUrl: null);
-      final patient = _buildPatient();
+    test(
+      'genera PDF sin seccion de firma cuando no hay signatureUrl',
+      () async {
+        final consultation = _buildConsultation(signatureUrl: null);
+        final patient = _buildPatient();
 
-      final bytes = await service.generate(
-        consultation: consultation,
-        patient: patient,
-      );
+        final bytes = await service.generate(
+          consultation: consultation,
+          patient: patient,
+        );
 
-      expect(bytes.isNotEmpty, isTrue);
-    });
+        expect(bytes.isNotEmpty, isTrue);
+      },
+    );
 
     test('genera PDF con notas clinicas', () async {
       final consultation = _buildConsultation(
@@ -139,6 +147,18 @@ void main() {
 
       expect(bytes.isNotEmpty, isTrue);
     });
+
+    test('nombre de archivo usa DIC paciente y codigo de dictamen', () {
+      final consultation = _buildConsultation(id: 'ABC123456789');
+      final patient = _buildPatient(nombre: 'Maria / Garcia');
+
+      final fileName = ConsultationPdfService.dictamenPdfFileName(
+        consultation: consultation,
+        patient: patient,
+      );
+
+      expect(fileName, 'DIC-MARIA GARCIA-ABC12345.pdf');
+    });
   });
 }
 
@@ -147,6 +167,7 @@ void main() {
 ConsultationPdfService service = ConsultationPdfService();
 
 ConsultationModel _buildConsultation({
+  String id = 'consult-test-1',
   String? signatureUrl,
   String? clinicalNotes,
   String? treatmentId,
@@ -154,7 +175,7 @@ ConsultationModel _buildConsultation({
 }) {
   final now = DateTime.now();
   return ConsultationModel(
-    id: 'consult-test-1',
+    id: id,
     patientId: 'patient-test-1',
     patientName: 'Juan Perez',
     appointmentId: 'appt-test-1',
@@ -174,6 +195,21 @@ ConsultationModel _buildConsultation({
     createdAt: now,
     updatedAt: now,
   );
+}
+
+Uint8List _transparentPng() {
+  final image = img.Image(width: 120, height: 40);
+  img.fill(image, color: img.ColorRgb8(255, 255, 255));
+  img.drawLine(
+    image,
+    x1: 12,
+    y1: 24,
+    x2: 108,
+    y2: 16,
+    color: img.ColorRgb8(20, 20, 20),
+    thickness: 2,
+  );
+  return Uint8List.fromList(img.encodePng(image));
 }
 
 PatientModel _buildPatient({String nombre = 'Juan Perez'}) {

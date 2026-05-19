@@ -23,6 +23,41 @@ class ConsultationPdfService {
   /// Logo de la clinica en bytes (PNG). Opcional.
   final Uint8List? logoBytes;
 
+  static String dictamenCode(ConsultationModel consultation) {
+    final clean = consultation.id.trim();
+    if (clean.isEmpty) return 'SIN-CODIGO';
+    return clean.length > 8 ? clean.substring(0, 8) : clean;
+  }
+
+  static String dictamenPdfFileName({
+    required ConsultationModel consultation,
+    required PatientModel patient,
+  }) {
+    final patientName = _sanitizeFileNameToken(
+      _displayPatientName(patient, consultation),
+    );
+    return 'DIC-$patientName-${dictamenCode(consultation)}.pdf';
+  }
+
+  static String _displayPatientName(
+    PatientModel patient,
+    ConsultationModel consultation,
+  ) {
+    final patientName = patient.nombre.trim();
+    if (patientName.isNotEmpty) return patientName;
+    final consultationName = consultation.patientName.trim();
+    return consultationName.isNotEmpty ? consultationName : 'Paciente';
+  }
+
+  static String _sanitizeFileNameToken(String value) {
+    final clean = value
+        .trim()
+        .replaceAll(RegExp(r'[\\/:*?"<>|\r\n\t]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return (clean.isEmpty ? 'PACIENTE' : clean).toUpperCase();
+  }
+
   // ─── Entrada principal ──────────────────────────────────────────────────
 
   /// Genera el PDF completo del dictamen.
@@ -31,8 +66,14 @@ class ConsultationPdfService {
     required PatientModel patient,
     PatientTreatment? treatment,
     List<ClinicalFileModel> clinicalFiles = const [],
+    Uint8List? signatureBytes,
+    DateTime? appointmentDate,
   }) async {
     final pdf = pw.Document();
+    final resolvedAppointmentDate =
+        appointmentDate ?? consultation.appointmentDate ?? consultation.date;
+    final hasSignatureImage =
+        signatureBytes != null && signatureBytes.isNotEmpty;
 
     pdf.addPage(
       pw.MultiPage(
@@ -46,22 +87,21 @@ class ConsultationPdfService {
         build: (context) => [
           _buildHeader(consultation),
           pw.SizedBox(height: 24),
-          _buildPatientSection(patient, consultation),
+          _buildPatientSection(patient, consultation, resolvedAppointmentDate),
           pw.SizedBox(height: 18),
           _buildTreatmentSection(treatment, consultation),
           pw.SizedBox(height: 18),
           _buildClinicalSummarySection(consultation),
-          if (consultation.signatureUrl != null &&
-              consultation.signatureUrl!.isNotEmpty) ...[
+          if (hasSignatureImage) ...[
             pw.SizedBox(height: 18),
-            _buildSignatureSection(consultation),
+            _buildSignatureSection(consultation, signatureBytes),
           ],
           if (clinicalFiles.isNotEmpty) ...[
             pw.SizedBox(height: 18),
             _buildAttachmentsSection(clinicalFiles),
           ],
           pw.Spacer(),
-          _buildFooter(consultation),
+          _buildFooter(patient, consultation, resolvedAppointmentDate),
         ],
         footer: (context) => _buildPageFooter(context),
       ),
@@ -74,9 +114,7 @@ class ConsultationPdfService {
 
   pw.Widget _buildHeader(ConsultationModel consultation) {
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
-    final code = consultation.id.length > 8
-        ? consultation.id.substring(0, 8)
-        : consultation.id;
+    final code = dictamenCode(consultation);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -90,15 +128,9 @@ class ConsultationPdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'ORAL CARE GLOBAL BIONICS',
-                    style: _titleStyle,
-                  ),
+                  pw.Text('ORAL CARE GLOBAL BIONICS', style: _titleStyle),
                   pw.SizedBox(height: 2),
-                  pw.Text(
-                    'Dictamen Clinico',
-                    style: _subtitleStyle,
-                  ),
+                  pw.Text('Dictamen Clinico', style: _subtitleStyle),
                 ],
               ),
             ),
@@ -106,16 +138,10 @@ class ConsultationPdfService {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 _smallLabel('Fecha de generacion'),
-                pw.Text(
-                  dateFmt.format(DateTime.now()),
-                  style: _smallBoldStyle,
-                ),
+                pw.Text(dateFmt.format(DateTime.now()), style: _smallBoldStyle),
                 pw.SizedBox(height: 4),
                 _smallLabel('Codigo dictamen'),
-                pw.Text(
-                  code,
-                  style: _smallBoldStyle,
-                ),
+                pw.Text(code, style: _smallBoldStyle),
               ],
             ),
           ],
@@ -172,19 +198,18 @@ class ConsultationPdfService {
   pw.Widget _buildPatientSection(
     PatientModel patient,
     ConsultationModel consultation,
+    DateTime appointmentDate,
   ) {
     final dateFmt = DateFormat('dd/MM/yyyy');
 
     return _buildSectionCard(
       title: 'Datos del paciente',
       rows: [
-        _row('Nombre', patient.nombre),
+        _row('Nombre', _displayPatientName(patient, consultation)),
         if (patient.email.isNotEmpty) _row('Email', patient.email),
         if (patient.telefono.isNotEmpty) _row('Telefono', patient.telefono),
-        _row(
-          'Fecha de la cita/dictamen',
-          dateFmt.format(consultation.date),
-        ),
+        _row('Fecha de la cita', dateFmt.format(appointmentDate)),
+        _row('Fecha del dictamen', dateFmt.format(consultation.date)),
       ],
     );
   }
@@ -195,7 +220,8 @@ class ConsultationPdfService {
     PatientTreatment? treatment,
     ConsultationModel consultation,
   ) {
-    final treatmentName = consultation.treatmentNameSnapshot ??
+    final treatmentName =
+        consultation.treatmentNameSnapshot ??
         treatment?.displayName ??
         'Sin tratamiento';
     final treatmentStatus = treatment?.estado ?? 'N/A';
@@ -230,13 +256,10 @@ class ConsultationPdfService {
   // ─── Resumen clinico ────────────────────────────────────────────────────
 
   pw.Widget _buildClinicalSummarySection(ConsultationModel consultation) {
-    final notes = (consultation.clinicalNotes ?? '').trim();
+    final notes = consultation.clinicalNotes.trim();
 
     final children = <pw.Widget>[
-      pw.Text(
-        'Resumen clinico',
-        style: _sectionTitleStyle,
-      ),
+      pw.Text('Resumen clinico', style: _sectionTitleStyle),
       pw.SizedBox(height: 8),
     ];
 
@@ -249,10 +272,7 @@ class ConsultationPdfService {
             color: PdfColors.grey100,
             borderRadius: pw.BorderRadius.circular(6),
           ),
-          child: pw.Text(
-            notes,
-            style: _bodyTextStyle,
-          ),
+          child: pw.Text(notes, style: _bodyTextStyle),
         ),
       );
     }
@@ -262,14 +282,8 @@ class ConsultationPdfService {
       pw.RichText(
         text: pw.TextSpan(
           children: [
-            pw.TextSpan(
-              text: 'Doctor(a): ',
-              style: _labelStyle,
-            ),
-            pw.TextSpan(
-              text: consultation.doctorName,
-              style: _bodyTextStyle,
-            ),
+            pw.TextSpan(text: 'Doctor(a): ', style: _labelStyle),
+            pw.TextSpan(text: consultation.doctorName, style: _bodyTextStyle),
           ],
         ),
       ),
@@ -292,36 +306,36 @@ class ConsultationPdfService {
 
   // ─── Firma ──────────────────────────────────────────────────────────────
 
-  pw.Widget _buildSignatureSection(ConsultationModel consultation) {
+  pw.Widget _buildSignatureSection(
+    ConsultationModel consultation,
+    Uint8List signatureBytes,
+  ) {
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm');
     final sigDate = consultation.signatureCapturedAt ?? consultation.date;
+    final signatureImage = pw.MemoryImage(signatureBytes);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          'Firma del paciente',
-          style: _sectionTitleStyle,
-        ),
+        pw.Text('Firma del paciente', style: _sectionTitleStyle),
         pw.SizedBox(height: 8),
         pw.Container(
           width: double.infinity,
-          height: 100,
+          height: 112,
+          padding: const pw.EdgeInsets.all(10),
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColors.grey400),
             borderRadius: pw.BorderRadius.circular(8),
+            color: PdfColors.white,
           ),
           child: pw.Center(
-            child: pw.Text(
-              'Firma capturada el ${dateFmt.format(sigDate)}',
-              style: pw.TextStyle(
-                fontSize: 10,
-                color: PdfColors.grey600,
-                fontStyle: pw.FontStyle.italic,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
+            child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
           ),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          'Firma capturada el ${dateFmt.format(sigDate)}',
+          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
         ),
         pw.SizedBox(height: 8),
         pw.Text(
@@ -344,30 +358,17 @@ class ConsultationPdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(
-          'Documentos adjuntos al dictamen',
-          style: _sectionTitleStyle,
-        ),
+        pw.Text('Documentos adjuntos al dictamen', style: _sectionTitleStyle),
         pw.SizedBox(height: 8),
         pw.Table(
           border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
           children: [
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey100),
-              children: [
-                _th('Archivo'),
-                _th('Categoria'),
-                _th('Visibilidad'),
-              ],
+              children: [_th('Archivo')],
             ),
             for (final file in files)
-              pw.TableRow(
-                children: [
-                  _td(file.displayName),
-                  _td(file.category.replaceAll('_', ' ')),
-                  _td(file.visibleToPatient ? 'Paciente' : 'Solo admin'),
-                ],
-              ),
+              pw.TableRow(children: [_td(file.displayName)]),
           ],
         ),
       ],
@@ -376,36 +377,24 @@ class ConsultationPdfService {
 
   // ─── Pie de pagina ──────────────────────────────────────────────────────
 
-  pw.Widget _buildFooter(ConsultationModel consultation) {
+  pw.Widget _buildFooter(
+    PatientModel patient,
+    ConsultationModel consultation,
+    DateTime appointmentDate,
+  ) {
+    final dateFmt = DateFormat('dd/MM/yyyy');
+    final patientName = _displayPatientName(patient, consultation);
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Divider(color: _ocgBronzePdf, thickness: 1.5),
         pw.SizedBox(height: 6),
         pw.Text(
-          'Oral Care Global Bionics',
-          style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-            color: _ocgEspressoPdf,
-          ),
-        ),
-        pw.SizedBox(height: 2),
-        pw.Text(
-          'Documento confidencial. Uso exclusivo del personal autorizado.',
-          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          'v1.0 | '
-          'Paciente: ${consultation.patientId} | '
-          'Tratamiento: ${consultation.treatmentId ?? 'N/A'} | '
-          'Cita: ${consultation.appointmentId ?? 'N/A'} | '
-          'Dictamen: ${consultation.id}',
-          style: pw.TextStyle(
-            fontSize: 7,
-            color: PdfColors.grey500,
-          ),
+          'Paciente: $patientName | '
+          'Dia de la cita: ${dateFmt.format(appointmentDate)} | '
+          'Dia del dictamen: ${dateFmt.format(consultation.date)}',
+          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
         ),
       ],
     );
@@ -491,37 +480,31 @@ class ConsultationPdfService {
   // ─── Text styles ────────────────────────────────────────────────────────
 
   static pw.TextStyle get _titleStyle => pw.TextStyle(
-        fontSize: 18,
-        fontWeight: pw.FontWeight.bold,
-        color: _ocgEspressoPdf,
-      );
+    fontSize: 18,
+    fontWeight: pw.FontWeight.bold,
+    color: _ocgEspressoPdf,
+  );
 
-  static pw.TextStyle get _subtitleStyle => pw.TextStyle(
-        fontSize: 14,
-        color: _ocgBronzePdf,
-      );
+  static pw.TextStyle get _subtitleStyle =>
+      pw.TextStyle(fontSize: 14, color: _ocgBronzePdf);
 
   static pw.TextStyle get _sectionTitleStyle => pw.TextStyle(
-        fontSize: 14,
-        fontWeight: pw.FontWeight.bold,
-        color: _ocgEspressoPdf,
-      );
+    fontSize: 14,
+    fontWeight: pw.FontWeight.bold,
+    color: _ocgEspressoPdf,
+  );
 
-  static pw.TextStyle get _labelStyle => pw.TextStyle(
-        fontSize: 10,
-        color: PdfColors.grey700,
-      );
+  static pw.TextStyle get _labelStyle =>
+      pw.TextStyle(fontSize: 10, color: PdfColors.grey700);
 
   static pw.TextStyle get _smallBoldStyle => pw.TextStyle(
-        fontSize: 10,
-        fontWeight: pw.FontWeight.bold,
-        color: _ocgEspressoPdf,
-      );
+    fontSize: 10,
+    fontWeight: pw.FontWeight.bold,
+    color: _ocgEspressoPdf,
+  );
 
-  static pw.TextStyle get _bodyTextStyle => pw.TextStyle(
-        fontSize: 10,
-        color: PdfColors.grey800,
-      );
+  static pw.TextStyle get _bodyTextStyle =>
+      pw.TextStyle(fontSize: 10, color: PdfColors.grey800);
 
   // OCG Colors
   static const PdfColor _ocgBronzePdf = PdfColor.fromInt(0xFF8B5E25);
