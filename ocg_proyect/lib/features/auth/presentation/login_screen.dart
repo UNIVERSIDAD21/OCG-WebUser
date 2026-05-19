@@ -131,11 +131,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildDesktop(BuildContext context, bool isLoading) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeDesktop = screenWidth >= 1440;
+    final maxWidth = isLargeDesktop ? 520.0 : 460.0;
+    final logoFontSize = isLargeDesktop ? 80.0 : 68.0;
+    final subtitleFontSize = isLargeDesktop ? 11.0 : 9.5;
+    final subtitleLetterSpacing = isLargeDesktop ? 5.0 : 4.0;
+    final decoLineWidth = isLargeDesktop ? 36.0 : 28.0;
+    final decoDotSize = isLargeDesktop ? 5.0 : 4.0;
+    final decoLineHeight = isLargeDesktop ? 1.6 : 1.4;
+    final glassCardPadding = isLargeDesktop
+        ? const EdgeInsets.fromLTRB(52, 38, 52, 34)
+        : const EdgeInsets.fromLTRB(40, 32, 40, 28);
+
     return Scaffold(
       backgroundColor: const Color(0xFFEDE8DC),
       body: Stack(
         children: [
-          const _DesktopGridBackground(),
+          // ── Fondo estático elegante (sin animaciones) ──
+          const _DesktopCenterGlow(),
           const _DesktopBlob(
             top: -120,
             right: -80,
@@ -148,12 +162,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             size: 350,
             color: Color(0x40B49B78),
           ),
-          const _DesktopCenterGlow(),
-          const _DesktopRing(delayMs: 0),
-          const _DesktopRing(delayMs: 1650),
-          const _DesktopRing(delayMs: 3300),
-          const _DesktopScanLine(),
+          // Círculos decorativos flotantes (inspirados en el móvil)
+          const Positioned(
+            top: 60,
+            left: 80,
+            child: _DecoCircle(size: 120, color: Color(0x0DC8AF8C)),
+          ),
+          const Positioned(
+            top: 120,
+            left: 160,
+            child: _DecoCircle(size: 60, color: Color(0x0A8C6239)),
+          ),
+          const Positioned(
+            bottom: 100,
+            right: 100,
+            child: _DecoCircle(size: 90, color: Color(0x0B8C6239)),
+          ),
+          const Positioned(
+            bottom: 160,
+            right: 200,
+            child: _DecoCircle(size: 40, color: Color(0x08C8AF8C)),
+          ),
+          // Puntitos decorativos (detalle premium)
+          const Positioned(
+            top: 90,
+            left: 130,
+            child: _DecoDot(),
+          ),
+          const Positioned(
+            top: 150,
+            left: 210,
+            child: _DecoDot(),
+          ),
+          const Positioned(
+            bottom: 130,
+            right: 140,
+            child: _DecoDot(),
+          ),
+          const Positioned(
+            bottom: 180,
+            right: 260,
+            child: _DecoDot(),
+          ),
+          const Positioned(
+            top: 200,
+            right: 180,
+            child: _DecoCircle(size: 8, color: Color(0x108C6239)),
+          ),
+          const Positioned(
+            bottom: 240,
+            left: 220,
+            child: _DecoCircle(size: 6, color: Color(0x0DC8AF8C)),
+          ),
           const _DesktopViewportCorners(),
+
+          // ── Contenido principal ──
           SafeArea(
             child: Column(
               children: [
@@ -166,16 +229,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width >= 1440
-                              ? 520
-                              : 480,
-                        ),
+                        constraints: BoxConstraints(maxWidth: maxWidth),
                         child: Column(
                           children: [
-                            const _DesktopLogoHeader(),
-                            const SizedBox(height: 18),
+                            // ── Branding OCG (inspirado en móvil) ──
+                            _DesktopBranding(
+                              logoFontSize: logoFontSize,
+                              subtitleFontSize: subtitleFontSize,
+                              subtitleLetterSpacing: subtitleLetterSpacing,
+                              decoLineWidth: decoLineWidth,
+                              decoDotSize: decoDotSize,
+                              decoLineHeight: decoLineHeight,
+                            ),
+                            const SizedBox(height: 20),
+                            // ── Glass Card ──
                             _DesktopGlassCard(
+                              padding: glassCardPadding,
                               child: _buildLoginContent(
                                 context,
                                 isLoading,
@@ -892,6 +961,137 @@ class _DesktopStatusBar extends StatelessWidget {
   }
 }
 
+class _DesktopBranding extends StatelessWidget {
+  const _DesktopBranding({
+    required this.logoFontSize,
+    required this.subtitleFontSize,
+    required this.subtitleLetterSpacing,
+    required this.decoLineWidth,
+    required this.decoDotSize,
+    required this.decoLineHeight,
+  });
+
+  final double logoFontSize;
+  final double subtitleFontSize;
+  final double subtitleLetterSpacing;
+  final double decoLineWidth;
+  final double decoDotSize;
+  final double decoLineHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Línea decorativa superior con gradiente
+        Container(
+          height: decoLineHeight,
+          width: decoLineWidth * 2 + decoDotSize + 20,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                const Color(0xFF8C6239).withOpacity(0.7),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        // OCG principal con Cormorant Garamond y gradiente
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF2D1B0E), Color(0xFF5C4033)],
+          ).createShader(bounds),
+          child: Text(
+            'OCG',
+            style: TextStyle(
+              fontFamily: 'Cormorant Garamond',
+              fontSize: logoFontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 12,
+              color: Colors.white,
+              height: 1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        // CLÍNICA DENTAL
+        Text(
+          'CLÍNICA DENTAL',
+          style: TextStyle(
+            fontSize: subtitleFontSize,
+            letterSpacing: subtitleLetterSpacing,
+            color: const Color(0xFF8C6239),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Costura decorativa (inspirada en móvil): línea · punto · línea
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: decoLineWidth,
+              height: decoLineHeight,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFF8C6239).withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: decoDotSize,
+              height: decoDotSize,
+              decoration: const BoxDecoration(
+                color: Color(0xFF8C6239),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              width: decoLineWidth,
+              height: decoLineHeight,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFF8C6239).withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Línea decorativa inferior con gradiente
+        Container(
+          height: decoLineHeight,
+          width: decoLineWidth * 2 + decoDotSize + 20,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                const Color(0xFF8C6239).withOpacity(0.5),
+                Colors.transparent,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _DesktopLogoHeader extends StatelessWidget {
   const _DesktopLogoHeader();
 
@@ -938,14 +1138,18 @@ class _DesktopLogoHeader extends StatelessWidget {
 }
 
 class _DesktopGlassCard extends StatelessWidget {
-  const _DesktopGlassCard({required this.child});
+  const _DesktopGlassCard({
+    required this.child,
+    this.padding = const EdgeInsets.fromLTRB(52, 38, 52, 34),
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(52, 38, 52, 34),
+      padding: padding,
       decoration: BoxDecoration(
         color: const Color(0xE0FAF6EF),
         border: Border.all(color: const Color(0x2E8C6239)),
