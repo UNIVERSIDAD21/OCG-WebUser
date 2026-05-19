@@ -426,9 +426,18 @@ class _PatientClinicalHistoryTabState
 
   List<ConsultationModel> _filterByTreatment(
       List<ConsultationModel> consultations) {
-    if (!_hasNoTreatmentFilter()) return consultations;
+    final selected = _selectedTreatmentId;
+    // "Todos" → mostrar todos los dictámenes
+    if (selected == null || selected == _kAllTreatments) return consultations;
+    // "Sin tratamiento" → solo dictámenes sin treatmentId
+    if (selected == _kNoTreatment) {
+      return consultations
+          .where((c) => (c.treatmentId ?? '').trim().isEmpty)
+          .toList();
+    }
+    // Tratamiento específico → filtrar por treatmentId
     return consultations
-        .where((c) => (c.treatmentId ?? '').trim().isEmpty)
+        .where((c) => c.treatmentId == selected)
         .toList();
   }
 
@@ -1493,7 +1502,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${c.doctorName} · ${c.doctorId}',
+                      c.doctorName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1834,8 +1843,39 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
               if (c.stageNameSnapshot != null)
                 _detailRow('Etapa', c.stageNameSnapshot!),
               _detailRow('Estado', c.status.name),
-              if (c.hasSignature)
+              if (c.hasSignature) ...[
                 _detailRow('Firma', 'Capturada el ${DateFormat('dd/MM/yyyy HH:mm').format(c.signatureCapturedAt ?? c.date)}'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Imagen de la firma:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFF5C5550).withValues(alpha: 0.2)),
+                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFFF5F5F5),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      c.signatureUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No se pudo cargar la imagen de la firma.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF5C5550)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               if (notes.isNotEmpty) ...[
                 const Text(

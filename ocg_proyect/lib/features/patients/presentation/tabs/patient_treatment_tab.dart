@@ -104,6 +104,10 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     });
   }
 
+  void _selectTreatment(PatientTreatment treatment) {
+    setState(() => _selectedTreatmentId = treatment.id);
+  }
+
   void _openTreatmentHistory(PatientTreatment treatment) {
     context.go(_patientTreatmentHistoryLocation(treatment.id));
   }
@@ -244,6 +248,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                     activeItems,
                     history,
                     saveState.isLoading,
+                    treatments,
                   );
                 }
 
@@ -346,6 +351,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
     List<FinancialItemModel> activeItems,
     List<StageHistoryEntry> history,
     bool isSaving,
+    List<PatientTreatment> treatments,
   ) {
     final stageLabel =
         stageNames[selectedTreatment.etapaActual] ??
@@ -361,6 +367,64 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Selector de tratamiento (solo si hay más de 1)
+          if (treatments.length > 1) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: OcgColors.mist,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: OcgColors.espresso.withValues(alpha: 0.10),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tratamiento',
+                    style: TextStyle(
+                      color: OcgColors.espresso,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: selectedTreatment.id,
+                      icon: const Icon(Icons.arrow_drop_down, color: OcgColors.bronze),
+                      style: const TextStyle(
+                        color: OcgColors.espresso,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      items: treatments.map((t) {
+                        return DropdownMenuItem<String>(
+                          value: t.id,
+                          child: Text(
+                            '${t.displayName}${t.isPrimary ? ' (Principal)' : ''}',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          final newTreatment = treatments.firstWhere(
+                            (t) => t.id == value,
+                            orElse: () => selectedTreatment,
+                          );
+                          _selectTreatment(newTreatment);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           _buildMobileTreatmentCard(
             title: 'Estado del tratamiento',
             icon: Icons.monitor_heart_outlined,
@@ -538,7 +602,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                     OutlinedButton.icon(
                       onPressed: () => _openTreatmentHistory(selectedTreatment),
                       icon: const Icon(Icons.history_outlined, size: 18),
-                      label: const Text('Ver historial clÃ­nico'),
+                      label: const Text('Ver historial clínico'),
                     ),
                     OutlinedButton.icon(
                       onPressed: () {
@@ -950,7 +1014,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   ),
                   _HeroActionButton(
                     icon: Icons.history_outlined,
-                    label: 'Ver historial clÃ­nico',
+                    label: 'Ver historial clínico',
                     onPressed: () => _openTreatmentHistory(selectedTreatment),
                   ),
                   if (!selectedTreatment.id.startsWith('legacy-primary-'))
