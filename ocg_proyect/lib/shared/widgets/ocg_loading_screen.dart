@@ -31,7 +31,9 @@ class _OcgLoadingScreenState extends State<OcgLoadingScreen> with SingleTickerPr
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('OCG Clínica', style: TextStyle(fontFamily: 'Cormorant Garamond', fontSize: 36, fontWeight: FontWeight.bold)),
+            const Text('OCG', style: TextStyle(fontFamily: 'Cormorant Garamond', fontSize: 36, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('ORTODONCIA CUÉLLAR GRIMALDI', style: TextStyle(fontSize: 10, letterSpacing: 3, color: Color(0xFF8A6F59))),
             const SizedBox(height: 14),
             AnimatedBuilder(
               animation: _controller,

@@ -1017,9 +1017,9 @@ class _DesktopBranding extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        // CLÍNICA DENTAL
+        // ORTODONCIA
         Text(
-          'CLÍNICA DENTAL',
+          'ORTODONCIA',
           style: TextStyle(
             fontSize: subtitleFontSize,
             letterSpacing: subtitleLetterSpacing,
@@ -1112,7 +1112,7 @@ class _DesktopLogoHeader extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'CLÍNICA DENTAL',
+          'ORTODONCIA',
           style: TextStyle(
             fontSize: 9,
             letterSpacing: 4.0,
@@ -1421,7 +1421,7 @@ class _LoginBrandSeamLocked extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'CLÍNICA DENTAL',
+          'ORTODONCIA',
           style: TextStyle(
             fontSize: 10,
             color: Color(0xFF8C6239),
@@ -1502,7 +1502,7 @@ class _LoginFooter extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '© 2026 OCG Clínica Dental · Todos los derechos reservados',
+          '© 2026 Ortodoncia Cuéllar Grimaldi · Todos los derechos reservados',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 10.5,
