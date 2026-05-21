@@ -3,12 +3,34 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/gestures.dart';
 import '../../../shared/theme/ocg_colors.dart';
+
+/// Gesture recognizer que gana SIEMPRE el gesture arena.
+///
+/// Soluciona el problema de scroll en móvil: cuando el usuario toca el pad
+/// de firma, este recognizer reclama la competencia inmediatamente y el
+/// Scrollable padre NO interfiere.
+class _AlwaysWinPanGestureRecognizer extends PanGestureRecognizer {
+  @override
+  void addPointer(PointerEvent event) {
+    startTrackingPointer(event.pointer);
+    // Rechaza la competencia inmediatamente — el pan gana siempre.
+    resolve(GestureDisposition.accepted);
+  }
+
+  @override
+  String get debugDescription => 'alwaysWinPan';
+}
 
 /// Widget profesional de firma con CustomPainter.
 ///
 /// Soporta múltiples trazos (levantar el dedo y seguir firmando).
 /// Diseño premium alineado con la estética OCG (espresso/bronze/ivory).
+///
+/// FIX SCROLL MÓVIL: usa RawGestureDetector con _AlwaysWinPanGestureRecognizer
+/// en lugar de GestureDetector normal. Esto garantiza que el pad de firma
+/// gane siempre la competencia de gestos contra el Scrollable padre.
 class OcgSignaturePad extends StatefulWidget {
   const OcgSignaturePad({
     super.key,
@@ -97,6 +119,48 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
     return byteData?.buffer.asUint8List();
   }
 
+  void _onPanDown(DragDownDetails details) {
+    final box = _painterKey.currentContext?.findRenderObject();
+    if (box == null || box is! RenderBox) return;
+    final local = box.globalToLocal(details.globalPosition);
+    setState(() {
+      _currentStroke = [local];
+      _isDrawing = true;
+    });
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (!_isDrawing) return;
+    final box = _painterKey.currentContext?.findRenderObject();
+    if (box == null || box is! RenderBox) return;
+    final local = box.globalToLocal(details.globalPosition);
+    setState(() {
+      _currentStroke = [..._currentStroke, local];
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (_currentStroke.length > 1) {
+      setState(() {
+        _strokes.add(List.from(_currentStroke));
+        _currentStroke = [];
+        _isDrawing = false;
+      });
+    } else {
+      setState(() {
+        _currentStroke = [];
+        _isDrawing = false;
+      });
+    }
+  }
+
+  void _onPanCancel() {
+    setState(() {
+      _currentStroke = [];
+      _isDrawing = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgDecoration =
@@ -123,48 +187,24 @@ class OcgSignaturePadState extends State<OcgSignaturePad>
             ),
             // Área de firma
             Positioned.fill(
-              // Usamos GestureDetector (no Listener) para ganar el gesture arena
-              // de Flutter y evitar que el Scrollable padre capture los drags.
-              // onPanDown con return true consume el touch inmediatamente.
-              child: GestureDetector(
+              // FIX MÓVIL: RawGestureDetector con AlwaysWinPanGestureRecognizer
+              // en vez de GestureDetector normal. Esto garantiza que el scroll
+              // del padre NO capture los eventos de dibujo.
+              child: RawGestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onPanDown: (details) {
-                  final box = _painterKey.currentContext?.findRenderObject();
-                  if (box == null || box is! RenderBox) return;
-                  final local = box.globalToLocal(details.globalPosition);
-                  setState(() {
-                    _currentStroke = [local];
-                    _isDrawing = true;
-                  });
-                },
-                onPanUpdate: (details) {
-                  if (!_isDrawing) return;
-                  final box = _painterKey.currentContext?.findRenderObject();
-                  if (box == null || box is! RenderBox) return;
-                  final local = box.globalToLocal(details.globalPosition);
-                  setState(() {
-                    _currentStroke = [..._currentStroke, local];
-                  });
-                },
-                onPanEnd: (_) {
-                  if (_currentStroke.length > 1) {
-                    setState(() {
-                      _strokes.add(List.from(_currentStroke));
-                      _currentStroke = [];
-                      _isDrawing = false;
-                    });
-                  } else {
-                    setState(() {
-                      _currentStroke = [];
-                      _isDrawing = false;
-                    });
-                  }
-                },
-                onPanCancel: () {
-                  setState(() {
-                    _currentStroke = [];
-                    _isDrawing = false;
-                  });
+                gestures: <Type, GestureRecognizerFactory>{
+                  _AlwaysWinPanGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          _AlwaysWinPanGestureRecognizer>(
+                    () => _AlwaysWinPanGestureRecognizer(),
+                    (instance) {
+                      instance
+                        ..onDown = _onPanDown
+                        ..onUpdate = _onPanUpdate
+                        ..onEnd = _onPanEnd
+                        ..onCancel = _onPanCancel;
+                    },
+                  ),
                 },
                 child: RepaintBoundary(
                   key: _painterKey,
