@@ -156,6 +156,12 @@ service cloud.firestore {
                         resource.data.status == 'shared'
                       );
         allow create, update, delete: if isAdmin();
+
+        // Attempts subcollection — admin only
+        match /attempts/{attemptId} {
+          allow read: if isAdmin();
+          allow create, update, delete: if isAdmin();
+        }
       }
     }
 

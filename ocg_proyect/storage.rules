@@ -76,7 +76,8 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    match /simulations/{patientId}/{simulationId}/{fileName} {
+    // Simulations: covers original.jpg, result.jpg, and attempts/{id}/result.jpg
+    match /simulations/{patientId}/{simulationId}/{allPaths=**} {
       allow read: if isAdmin() || canReadSharedSimulation(patientId, simulationId);
       allow write: if isAdmin();
     }
