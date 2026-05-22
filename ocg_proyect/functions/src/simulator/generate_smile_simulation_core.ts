@@ -272,6 +272,32 @@ export async function processGenerateSmileSimulation(
     );
   }
 
+  // ── Backend preflight: reject if photo is not suitable ──
+  const reqPhotoQuality = data.photoQuality as Record<string, unknown> | undefined;
+  const docPhotoQuality = simulation['photoQuality'] as Record<string, unknown> | undefined;
+  const effectivePhotoQuality = reqPhotoQuality ?? docPhotoQuality;
+  const pqStatus = (effectivePhotoQuality?.['status'] ?? '').toString().trim();
+  if (pqStatus === 'rejected') {
+    const reasons = (effectivePhotoQuality?.['blockingReasons'] as string[] | undefined)
+      ?.join('; ') ?? 'La foto no pasó la validación de calidad.';
+    throw new HttpsError(
+      'failed-precondition',
+      `La foto no es apta para generar: ${reasons}`,
+    );
+  }
+
+  // Extra guard: palatal_expander requires intraoral photo
+  if (profile.id === 'palatal_expander') {
+    const photoMeta = (effectivePhotoQuality?.['metadata'] as Record<string, unknown> | undefined);
+    const photoType = photoMeta?.['photoType'] ?? '';
+    if (String(photoType) === 'frontal_smile') {
+      throw new HttpsError(
+        'failed-precondition',
+        'Para simular un expansor de paladar, necesitas una foto intraoral superior donde se vea el paladar.',
+      );
+    }
+  }
+
   // ── Build treatment-specific prompt (v2) ───────────────
   const promptResult = buildDentalTreatmentPrompt({
     treatmentProfileId: profile.id,

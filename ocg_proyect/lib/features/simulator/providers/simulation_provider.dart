@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../services/firebase/face_detection_service.dart';
 import '../../../services/firebase/image_picker_service.dart';
+import '../../../services/simulator/photo_quality_service.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
 import '../data/repositories/simulation_repository.dart';
@@ -104,13 +105,19 @@ class SimulatorFlowState {
 
   bool get hasProfile => (treatmentProfileId ?? '').isNotEmpty;
   bool get isConfigurable => status == SimulationStatus.draft || status == SimulationStatus.ready || status == SimulationStatus.failed;
+  bool get _photoQualityAllowsGeneration {
+    final q = photoQuality;
+    if (q == null) return true; // legacy: no preflight yet
+    return (q['status'] ?? 'valid') != 'rejected';
+  }
   bool get hasOriginal => (originalPath ?? '').isNotEmpty;
   bool get hasResult => (resultPath ?? '').isNotEmpty;
   bool get canGenerate =>
       hasOriginal &&
       (status == SimulationStatus.draft ||
           status == SimulationStatus.ready ||
-          status == SimulationStatus.failed);
+          status == SimulationStatus.failed) &&
+      _photoQualityAllowsGeneration;
   bool get canShare =>
       hasResult &&
       status == SimulationStatus.ready &&
@@ -346,6 +353,24 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       final detection = await _face.detectSmileRegion(
         imagePath: picked.filePath,
       );
+
+      // ── Preflight: evaluate photo quality ────────────────
+      final qualityService = PhotoQualityService();
+      final photoQuality = qualityService.evaluate(
+        bytesLength: picked.bytes.length,
+        detection: detection,
+        treatmentProfileId: current.treatmentProfileId,
+        doctorConfig: current.doctorConfig,
+      );
+
+      // ignore: avoid_print
+      print(
+        '[SimulatorFlow][draft.photoQuality] '
+        'status=${photoQuality.status} score=${photoQuality.score} '
+        'warnings=${photoQuality.warnings.length}'
+        ' blockingReasons=${photoQuality.blockingReasons.length}',
+      );
+
       final simulation = await _repo.createDraftSimulation(
         patientId: patientId,
         createdBy: adminId,
@@ -364,6 +389,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         treatmentProfileId: current.treatmentProfileId,
         visualGoal: current.visualGoal,
         doctorConfig: current.doctorConfig,
+        photoQuality: photoQuality.toJson(),
         doctorReviewStatus: 'pending',
       );
 
@@ -408,6 +434,18 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       return;
     }
     if (!current.canGenerate || current.status == SimulationStatus.generating) {
+      return;
+    }
+
+    // Guard: don't call backend if photo was rejected
+    final pq = current.photoQuality;
+    if (pq != null && (pq['status'] ?? '') == 'rejected') {
+      state = AsyncData(
+        current.copyWith(
+          uiState: SimulatorUiState.error,
+          errorMessage: 'La foto no es apta para generar. Toma una nueva foto.',
+        ),
+      );
       return;
     }
 

@@ -399,3 +399,83 @@ test('prompts son distintos entre sí — no colisionan palabras clave', () => {
   const unique = new Set(prompts);
   assert.equal(unique.size, 8, 'Cada perfil debe producir un prompt único');
 });
+
+// ── Bloque 04: Photo quality / preflight tests ──────────
+
+test('backend rechaza photoQuality.status = rejected', async () => {
+  const d = deps();
+  await assert.rejects(
+    () => processGenerateSmileSimulation(d.value, {
+      patientId: 'p1',
+      simulationId: 's1',
+      photoQuality: {
+        status: 'rejected',
+        score: 0,
+        warnings: [],
+        blockingReasons: ['No se detectó un rostro.'],
+        metadata: {hasFace: false},
+      },
+    }),
+    /no es apta/,
+  );
+  // El status no debe haber cambiado a generating
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.status, 'draft');
+  assert.equal(d.calls.openAi, 0);
+});
+
+test('backend rechaza palatal_expander con photoType frontal_smile', async () => {
+  const d = deps();
+  await assert.rejects(
+    () => processGenerateSmileSimulation(d.value, {
+      patientId: 'p1',
+      simulationId: 's1',
+      treatmentProfileId: 'palatal_expander',
+      photoQuality: {
+        status: 'valid',
+        score: 0.9,
+        warnings: [],
+        blockingReasons: [],
+        metadata: {hasFace: true, photoType: 'frontal_smile'},
+      },
+    }),
+    /intraoral superior/,
+  );
+  assert.equal(d.calls.openAi, 0);
+});
+
+test('photoQuality usable_with_warning permite generar', async () => {
+  const d = deps();
+  const result = await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    photoQuality: {
+      status: 'usable_with_warning',
+      score: 0.72,
+      warnings: ['La imagen tiene baja resolución.'],
+      blockingReasons: [],
+      metadata: {hasFace: true},
+    },
+  });
+
+  assert.equal(result.status, 'ready');
+  assert.equal(d.calls.openAi, 1);
+});
+
+test('photoQuality válida permite generar normalmente', async () => {
+  const d = deps();
+  const result = await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    photoQuality: {
+      status: 'valid',
+      score: 1.0,
+      warnings: [],
+      blockingReasons: [],
+      metadata: {hasFace: true},
+    },
+  });
+
+  assert.equal(result.status, 'ready');
+  assert.equal(d.calls.openAi, 1);
+});

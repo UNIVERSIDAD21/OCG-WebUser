@@ -244,6 +244,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               const SizedBox(height: 12),
               _inlineError(flow.errorMessage!),
             ],
+            // ── Photo quality feedback ────────────────────
+            if (inPreview && flow.photoQuality != null) ...[
+              const SizedBox(height: 12),
+              _PhotoQualityCard(photoQuality: flow.photoQuality!),
+            ],
             if (inPreview) ...[
               const SizedBox(height: 12),
               if (flow.hasOriginal && flow.hasResult)
@@ -936,6 +941,131 @@ class _ErrorState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PhotoQualityCard extends StatelessWidget {
+  const _PhotoQualityCard({required this.photoQuality});
+
+  final Map<String, dynamic> photoQuality;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (photoQuality['status'] ?? '').toString();
+    final warnings = (photoQuality['warnings'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const [];
+    final blockingReasons =
+        (photoQuality['blockingReasons'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [];
+
+    final Color statusColor;
+    final IconData statusIcon;
+    final String statusLabel;
+
+    switch (status) {
+      case 'valid':
+        statusColor = OcgColors.success;
+        statusIcon = Icons.check_circle_outline;
+        statusLabel = 'Foto válida';
+        break;
+      case 'usable_with_warning':
+        statusColor = OcgColors.warning;
+        statusIcon = Icons.warning_amber_rounded;
+        statusLabel = 'Foto aceptable con advertencias';
+        break;
+      case 'rejected':
+        statusColor = OcgColors.error;
+        statusIcon = Icons.cancel_outlined;
+        statusLabel = 'Foto no apta';
+        break;
+      default:
+        statusColor = OcgColors.bronze;
+        statusIcon = Icons.help_outline;
+        statusLabel = 'Calidad de foto';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, size: 20, color: statusColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (warnings.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ...warnings.map(
+              (w) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 28),
+                    Expanded(
+                      child: Text(
+                        '⚠️ $w',
+                        style: const TextStyle(
+                          color: OcgColors.warning,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (blockingReasons.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ...blockingReasons.map(
+              (r) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 28),
+                    Expanded(
+                      child: Text(
+                        '🚫 $r',
+                        style: const TextStyle(
+                          color: OcgColors.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
