@@ -1808,7 +1808,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     setState(() => _isGeneratingPdf = true);
     await Future<void>.delayed(Duration.zero);
     try {
-      final pdf = await _getOrGeneratePdf();
+      final pdf = await _getOrGeneratePdf(forceRefresh: true);
       if (!mounted) return;
       await _downloadGeneratedPdf(pdf);
       if (!mounted) return;
@@ -1838,7 +1838,7 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
     setState(() => _isSharingPdf = true);
     await Future<void>.delayed(Duration.zero);
     try {
-      final pdf = await _getOrGeneratePdf();
+      final pdf = await _getOrGeneratePdf(forceRefresh: true);
       final pdfBytes = await _getGeneratedPdfBytes(pdf);
       await Printing.sharePdf(bytes: pdfBytes, filename: pdf.fileName);
     } catch (e) {

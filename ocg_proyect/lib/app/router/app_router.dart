@@ -31,6 +31,10 @@ bool _isPublicRoute(String location) {
 bool _isAdminRoute(String location) => location.startsWith('/admin');
 bool _isPatientRoute(String location) => location.startsWith('/patient');
 
+final _startupSplashProvider = FutureProvider<void>((ref) async {
+  await Future<void>.delayed(const Duration(milliseconds: 1400));
+});
+
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(this.ref) {
     _authSub = ref.listen<AsyncValue<dynamic>>(
@@ -41,16 +45,22 @@ class _RouterRefreshNotifier extends ChangeNotifier {
       userRoleProvider,
       (_, __) => notifyListeners(),
     );
+    _startupSplashSub = ref.listen<AsyncValue<void>>(
+      _startupSplashProvider,
+      (_, __) => notifyListeners(),
+    );
   }
 
   final Ref ref;
   ProviderSubscription<AsyncValue<dynamic>>? _authSub;
   ProviderSubscription<AsyncValue<dynamic>>? _roleSub;
+  ProviderSubscription<AsyncValue<void>>? _startupSplashSub;
 
   @override
   void dispose() {
     _authSub?.close();
     _roleSub?.close();
+    _startupSplashSub?.close();
     super.dispose();
   }
 }
@@ -66,6 +76,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final location = state.matchedLocation;
       final authState = ref.read(authStateProvider);
       final userRole = ref.read(userRoleProvider);
+      final startupSplash = ref.read(_startupSplashProvider);
       final isLoggedIn = authState.asData?.value != null;
       final authFlowLoading = ref.read(authNotifierProvider).isLoading;
       developer.log(
@@ -75,11 +86,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           'location': location,
           'authLoading': authState.isLoading,
           'authFlowLoading': authFlowLoading,
+          'startupSplashLoading': startupSplash.isLoading,
           'isLoggedIn': isLoggedIn,
           'roleLoading': userRole.isLoading,
           'roleValue': userRole.asData?.value,
         },
       );
+
+      if (startupSplash.isLoading && location == RouteNames.splash) {
+        return null;
+      }
 
       if (authState.isLoading || authFlowLoading) {
         return location == RouteNames.splash ? null : RouteNames.splash;
@@ -406,12 +422,13 @@ class _AuthResolvingScreenState extends State<_AuthResolvingScreen>
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF2C2016), Color(0xFF5B3C26)],
+                          colors: [Color(0xFFFFFCF7), Color(0xFFF0E3D5)],
                         ),
                         borderRadius: BorderRadius.circular(36),
+                        border: Border.all(color: Color(0xFFE1C9AA), width: 1),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2C2016).withOpacity(0.18),
+                            color: const Color(0xFF8A6F59).withOpacity(0.16),
                             blurRadius: 30,
                             offset: const Offset(0, 12),
                           ),
@@ -421,7 +438,7 @@ class _AuthResolvingScreenState extends State<_AuthResolvingScreen>
                         child: Text(
                           'OCG',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF2C2016),
                             fontSize: 40,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 2,
@@ -438,7 +455,7 @@ class _AuthResolvingScreenState extends State<_AuthResolvingScreen>
                 FadeTransition(
                   opacity: _fade,
                   child: const Text(
-                    'Human Bionics',
+                    'Oral Care Global',
                     style: TextStyle(
                       color: Color(0xFF6E5442),
                       fontSize: 16,

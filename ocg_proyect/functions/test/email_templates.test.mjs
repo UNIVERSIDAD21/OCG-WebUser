@@ -20,7 +20,7 @@ test('renderiza template de pago recibido', () => {
     appLink: 'https://app.example.com/patient/payments',
   });
 
-  assert.equal(rendered.subject, 'OCG Clinica - Pago recibido');
+  assert.equal(rendered.subject, 'OCG - Oral Care Global - Pago recibido');
   assert.match(rendered.html, /Mensaje principal/);
   assert.match(rendered.html, /Ver pagos/);
   assert.match(rendered.text, /https:\/\/app\.example\.com\/patient\/payments/);
@@ -31,7 +31,7 @@ test('renderiza template de pago legacy desde callable manual', () => {
     appLink: 'https://app.example.com/patient/payments',
   });
 
-  assert.equal(rendered.subject, 'OCG Clinica - Pago recibido');
+  assert.equal(rendered.subject, 'OCG - Oral Care Global - Pago recibido');
   assert.match(rendered.html, /Ver pagos/);
 });
 
@@ -40,7 +40,7 @@ test('renderiza template de pago proximo a vencer', () => {
     appLink: 'https://app.example.com/patient/payments',
   });
 
-  assert.equal(rendered.subject, 'OCG Clinica - Pago proximo a vencer');
+  assert.equal(rendered.subject, 'OCG - Oral Care Global - Pago proximo a vencer');
   assert.match(rendered.html, /Ver pagos/);
   assert.match(rendered.text, /https:\/\/app\.example\.com\/patient\/payments/);
 });
@@ -50,7 +50,7 @@ test('renderiza template de avance de tratamiento', () => {
     appLink: 'https://app.example.com/patient',
   });
 
-  assert.equal(rendered.subject, 'OCG Clinica - Tu tratamiento avanzo');
+  assert.equal(rendered.subject, 'OCG - Oral Care Global - Tu tratamiento avanzo');
   assert.match(rendered.html, /Ver tratamiento/);
 });
 
@@ -59,7 +59,7 @@ test('renderiza template de recordatorio de cita', () => {
     appLink: 'https://app.example.com/patient/appointments',
   });
 
-  assert.equal(rendered.subject, 'OCG Clinica - Recordatorio de cita');
+  assert.equal(rendered.subject, 'OCG - Oral Care Global - Recordatorio de cita');
   assert.match(rendered.html, /Ver citas/);
 });
 

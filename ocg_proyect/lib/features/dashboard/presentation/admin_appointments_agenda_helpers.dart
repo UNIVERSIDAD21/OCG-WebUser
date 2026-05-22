@@ -22,6 +22,16 @@ enum AgendaDayQuickFilter { dia, manana, pendientes, incidencias, historicas }
 /// Sub-filtros dentro de Incidencias.
 enum AgendaIncidenceSubFilter { todas, perdidas, canceladas, reprogramadas }
 
+/// Filtros clickeables del resumen lateral/móvil.
+enum AgendaSummaryFilter {
+  total,
+  confirmadas,
+  activas,
+  completadas,
+  perdidas,
+  canceladas,
+}
+
 const Duration adminCompletionWindow = Duration(hours: 24);
 
 bool _isOpenAppointment(AppointmentModel appointment) =>
@@ -132,7 +142,7 @@ String agendaOperationalHint(AppointmentModel appointment) {
   final now = DateTime.now();
   if (isLostAppointment(appointment)) return 'Requiere seguimiento del equipo.';
   if (isPastAdminCompletionWindow(appointment, now: now)) {
-    return 'Vencio la ventana de 24 h; sigue pendiente hasta cerrar manualmente.';
+    return 'Vencio la ventana de 24 h; se marcara como perdida automaticamente.';
   }
   if (isPendingAdminCompletion(appointment, now: now)) {
     return 'Ventana de 24 h para completar o cerrar manualmente.';
@@ -221,6 +231,32 @@ List<AppointmentModel> filterHistoryItems(
   };
 }
 
+List<AppointmentModel> filterSummaryItems(
+  List<AppointmentModel> items,
+  AgendaSummaryFilter filter,
+) {
+  return switch (filter) {
+    AgendaSummaryFilter.total => items,
+    AgendaSummaryFilter.confirmadas =>
+      items
+          .where((item) => item.estado == AppointmentStatus.confirmada)
+          .toList(),
+    AgendaSummaryFilter.activas =>
+      items
+          .where((item) => item.estado == AppointmentStatus.programada)
+          .toList(),
+    AgendaSummaryFilter.completadas =>
+      items
+          .where((item) => item.estado == AppointmentStatus.completada)
+          .toList(),
+    AgendaSummaryFilter.perdidas => items.where(isLostAppointment).toList(),
+    AgendaSummaryFilter.canceladas =>
+      items
+          .where((item) => item.estado == AppointmentStatus.cancelada)
+          .toList(),
+  };
+}
+
 List<AppointmentModel> appointmentsForDay(
   List<AppointmentModel> all,
   DateTime day,
@@ -292,6 +328,7 @@ List<AppointmentModel> quickFilteredItems(
       appointments
           .where(
             (appointment) =>
+                appointment.estado == AppointmentStatus.completada ||
                 appointment.estado == AppointmentStatus.cancelada ||
                 appointment.estado == AppointmentStatus.noAsistio ||
                 appointment.estado == AppointmentStatus.reprogramada,

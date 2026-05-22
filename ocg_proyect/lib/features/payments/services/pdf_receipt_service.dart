@@ -35,13 +35,14 @@ class PdfReceiptService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'OCG Clinica Dental',
+                'OCG - Oral Care Global',
                 style: pw.TextStyle(
                   fontSize: 22,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
               pw.SizedBox(height: 4),
+              pw.Text('Clinica Dental'),
               pw.Text('NIT: 901.234.567-8'),
               pw.Text('Telefono: +57 300 000 0000'),
               pw.SizedBox(height: 10),
@@ -65,7 +66,9 @@ class PdfReceiptService {
               pw.SizedBox(height: 8),
               pw.Divider(),
               pw.SizedBox(height: 8),
-              pw.Text('Concepto: Tratamiento de ortodoncia OCG Clinica'),
+              pw.Text(
+                'Concepto: Tratamiento de ortodoncia OCG - Oral Care Global',
+              ),
               pw.Text(
                 'Metodo de pago: ${_paymentMethodLabel(transaction.metodo)}',
               ),

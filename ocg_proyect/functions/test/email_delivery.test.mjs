@@ -128,7 +128,7 @@ test('lee configuracion runtime de email', () => {
     EMAIL_ENABLED: 'true',
     EMAIL_PROVIDER: 'brevo',
     BREVO_API_KEY: 'test-key',
-    EMAIL_FROM: 'OCG Clinica <no-reply@example.com>',
+    EMAIL_FROM: 'OCG - Oral Care Global <no-reply@example.com>',
     EMAIL_REPLY_TO: 'hola@example.com',
     EMAIL_APP_BASE_URL: 'https://app.example.com/',
   });
@@ -136,7 +136,7 @@ test('lee configuracion runtime de email', () => {
   assert.equal(config.enabled, true);
   assert.equal(config.provider, 'brevo');
   assert.equal(config.brevoApiKey, 'test-key');
-  assert.equal(config.from, 'OCG Clinica <no-reply@example.com>');
+  assert.equal(config.from, 'OCG - Oral Care Global <no-reply@example.com>');
   assert.equal(config.replyTo, 'hola@example.com');
   assert.equal(isEmailRuntimeReady(config), true);
 });
@@ -145,7 +145,7 @@ test('configuracion Brevo no esta lista si falta api key', () => {
   const config = resolveEmailRuntimeConfig({
     EMAIL_ENABLED: 'true',
     EMAIL_PROVIDER: 'brevo',
-    EMAIL_FROM: 'OCG Clinica <no-reply@example.com>',
+    EMAIL_FROM: 'OCG - Oral Care Global <no-reply@example.com>',
   });
 
   assert.equal(isEmailRuntimeReady(config), false);
@@ -193,7 +193,7 @@ test('mock envia sin llamar proveedor real', async () => {
     env: {
       EMAIL_ENABLED: 'true',
       EMAIL_PROVIDER: 'mock',
-      EMAIL_FROM: 'OCG Clinica <no-reply@example.com>',
+      EMAIL_FROM: 'OCG - Oral Care Global <no-reply@example.com>',
       EMAIL_APP_BASE_URL: 'https://app.example.com',
     },
   });
@@ -222,7 +222,7 @@ test('Brevo envia usando /v3/smtp/email', async () => {
       EMAIL_ENABLED: 'true',
       EMAIL_PROVIDER: 'brevo',
       BREVO_API_KEY: 'brevo-test-key',
-      EMAIL_FROM: 'OCG Clinica <sender@example.com>',
+      EMAIL_FROM: 'OCG - Oral Care Global <sender@example.com>',
       EMAIL_REPLY_TO: 'reply@example.com',
       EMAIL_APP_BASE_URL: 'https://app.example.com',
     },
@@ -245,9 +245,9 @@ test('Brevo envia usando /v3/smtp/email', async () => {
   const body = JSON.parse(calls[0].init.body);
   assert.deepEqual(body.to, [{email: 'patient@example.com'}]);
   assert.equal(body.sender.email, 'sender@example.com');
-  assert.equal(body.sender.name, 'OCG Clinica');
+  assert.equal(body.sender.name, 'OCG - Oral Care Global');
   assert.equal(body.replyTo.email, 'reply@example.com');
-  assert.equal(body.subject, 'OCG Clinica - Pago recibido');
+  assert.equal(body.subject, 'OCG - Oral Care Global - Pago recibido');
   assert.match(body.htmlContent, /https:\/\/app\.example\.com\/patient\/payments/);
 });
 
@@ -347,7 +347,7 @@ test('omite si paciente desactivo emailEnabled en Firestore', async () => {
     env: {
       EMAIL_ENABLED: 'true',
       EMAIL_PROVIDER: 'mock',
-      EMAIL_FROM: 'OCG Clinica <no-reply@example.com>',
+      EMAIL_FROM: 'OCG - Oral Care Global <no-reply@example.com>',
     },
   });
 

@@ -15,17 +15,14 @@ import '../firebase/auth_service.dart';
 import 'fcm_payload_router.dart';
 
 const _androidChannelId = 'ocg_clinica_push';
-const _androidChannelName = 'OCG Push';
+const _androidChannelName = 'OCG - Oral Care Global';
 const _androidChannelDescription =
-    'Notificaciones push operativas y clínicas de OCG';
+    'Notificaciones push operativas y clinicas de OCG - Oral Care Global';
 const _deviceIdKey = 'fcm_device_installation_id';
 
 typedef FcmPlatformResolver = String? Function();
 
-String? resolveFcmPlatform({
-  bool isWeb = kIsWeb,
-  TargetPlatform? platform,
-}) {
+String? resolveFcmPlatform({bool isWeb = kIsWeb, TargetPlatform? platform}) {
   if (isWeb) return 'web';
   switch (platform ?? defaultTargetPlatform) {
     case TargetPlatform.android:
@@ -61,7 +58,8 @@ class FcmService {
   final FcmPayloadRouter _payloadRouter;
   final FcmPlatformResolver _platformResolver;
 
-  FirebaseMessaging get _messagingInstance => _messaging ?? FirebaseMessaging.instance;
+  FirebaseMessaging get _messagingInstance =>
+      _messaging ?? FirebaseMessaging.instance;
 
   bool _initialized = false;
   StreamSubscription<String>? _tokenRefreshSub;
@@ -157,21 +155,22 @@ class FcmService {
 
     await syncResolvedDeviceToken(
       uid: user.uid,
-      upsertToken: ({
-        required uid,
-        required role,
-        required token,
-        required deviceId,
-        required platform,
-      }) {
-        return authService.upsertFcmDeviceToken(
-          uid: uid,
-          role: role,
-          token: token,
-          deviceId: deviceId,
-          platform: platform,
-        );
-      },
+      upsertToken:
+          ({
+            required uid,
+            required role,
+            required token,
+            required deviceId,
+            required platform,
+          }) {
+            return authService.upsertFcmDeviceToken(
+              uid: uid,
+              role: role,
+              token: token,
+              deviceId: deviceId,
+              platform: platform,
+            );
+          },
       resolveRole: resolveRole,
       overrideToken: overrideToken,
       source: source,
@@ -186,7 +185,8 @@ class FcmService {
       required String token,
       required String deviceId,
       required String platform,
-    }) upsertToken,
+    })
+    upsertToken,
     required Future<String?> Function() resolveRole,
     String? overrideToken,
     String source = 'manual',
@@ -313,7 +313,11 @@ class FcmService {
 
   Future<void> _requestPermissionIfNeeded() async {
     try {
-      await _messagingInstance.requestPermission(alert: true, badge: true, sound: true);
+      await _messagingInstance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       await _messagingInstance.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,

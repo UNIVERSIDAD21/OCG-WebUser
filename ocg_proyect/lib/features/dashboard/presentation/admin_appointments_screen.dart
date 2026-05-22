@@ -1278,6 +1278,7 @@ class _AdminAppointmentsScreenState
   AgendaFilter _historyFilter = AgendaFilter.activas;
   AgendaDayQuickFilter _dayQuickFilter = AgendaDayQuickFilter.dia;
   AgendaIncidenceSubFilter _incidenceSubFilter = AgendaIncidenceSubFilter.todas;
+  AgendaSummaryFilter _daySummaryFilter = AgendaSummaryFilter.total;
   int _historyPage = 1;
   String? _focusedAppointmentId;
   String? _handledAgendaTarget;
@@ -1318,6 +1319,7 @@ class _AdminAppointmentsScreenState
         _innerTab = AgendaInnerTab.hoy;
         _dayQuickFilter = AgendaDayQuickFilter.dia;
         _incidenceSubFilter = AgendaIncidenceSubFilter.todas;
+        _daySummaryFilter = AgendaSummaryFilter.total;
         if (parsedDate != null) {
           _monthCursor = DateTime(parsedDate.year, parsedDate.month, 1);
         }
@@ -2627,6 +2629,32 @@ class _AdminAppointmentsScreenState
     );
   }
 
+  void _selectIncidenceSubFilter(AgendaIncidenceSubFilter filter) {
+    setState(() {
+      _incidenceSubFilter = filter;
+      _daySummaryFilter = switch (filter) {
+        AgendaIncidenceSubFilter.todas => AgendaSummaryFilter.total,
+        AgendaIncidenceSubFilter.perdidas => AgendaSummaryFilter.perdidas,
+        AgendaIncidenceSubFilter.canceladas => AgendaSummaryFilter.canceladas,
+        AgendaIncidenceSubFilter.reprogramadas => AgendaSummaryFilter.total,
+      };
+    });
+  }
+
+  void _selectDaySummaryFilter(AgendaSummaryFilter filter) {
+    setState(() {
+      _daySummaryFilter = filter;
+      if (_dayQuickFilter == AgendaDayQuickFilter.incidencias) {
+        _incidenceSubFilter = switch (filter) {
+          AgendaSummaryFilter.total => AgendaIncidenceSubFilter.todas,
+          AgendaSummaryFilter.perdidas => AgendaIncidenceSubFilter.perdidas,
+          AgendaSummaryFilter.canceladas => AgendaIncidenceSubFilter.canceladas,
+          _ => _incidenceSubFilter,
+        };
+      }
+    });
+  }
+
   Widget _buildQuickFilters(
     List<AppointmentModel> appointments,
     DateTime selectedDate,
@@ -2674,7 +2702,11 @@ class _AdminAppointmentsScreenState
                     .read(selectedAppointmentsDateProvider.notifier)
                     .setDate(DateTime(now.year, now.month, now.day));
               }
-              setState(() => _dayQuickFilter = filter);
+              setState(() {
+                _dayQuickFilter = filter;
+                _daySummaryFilter = AgendaSummaryFilter.total;
+                _incidenceSubFilter = AgendaIncidenceSubFilter.todas;
+              });
             },
           );
         },
@@ -2771,7 +2803,7 @@ class _AdminAppointmentsScreenState
       side: BorderSide(color: active ? chipColor : const Color(0xFFD9CCBE)),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
-      onSelected: (_) => setState(() => _incidenceSubFilter = filter),
+      onSelected: (_) => _selectIncidenceSubFilter(filter),
     );
   }
 
@@ -2841,11 +2873,12 @@ class _AdminAppointmentsScreenState
     List<AppointmentModel> appointments,
     DateTime selectedDate,
   ) {
-    var dayItems = quickFilteredItems(
+    final summaryItems = quickFilteredItems(
       _dayQuickFilter,
       appointments,
       selectedDate,
     );
+    var dayItems = summaryItems;
 
     // Sub-filter for Incidencias
     if (_dayQuickFilter == AgendaDayQuickFilter.incidencias) {
@@ -2860,27 +2893,39 @@ class _AdminAppointmentsScreenState
         };
       }).toList();
     }
+    if (_daySummaryFilter != AgendaSummaryFilter.total) {
+      dayItems = filterSummaryItems(dayItems, _daySummaryFilter);
+    }
 
-    final total = dayItems.length;
-    final confirmadas = dayItems
+    final total = summaryItems.length;
+    final confirmadas = summaryItems
         .where((a) => a.estado == AppointmentStatus.confirmada)
         .length;
-    final activas = dayItems
+    final activas = summaryItems
         .where(
           (a) =>
               a.estado == AppointmentStatus.programada && !isLostAppointment(a),
         )
         .length;
-    final completadas = dayItems
+    final completadas = summaryItems
         .where((a) => a.estado == AppointmentStatus.completada)
         .length;
-    final perdidas = dayItems.where(isLostAppointment).length;
-    final canceladas = dayItems
+    final perdidas = summaryItems.where(isLostAppointment).length;
+    final canceladas = summaryItems
         .where((a) => a.estado == AppointmentStatus.cancelada)
         .length;
-    final reprogramadas = dayItems
+    final reprogramadas = summaryItems
         .where((a) => a.estado == AppointmentStatus.reprogramada)
         .length;
+
+    bool summaryRowActive(AgendaSummaryFilter filter) {
+      if (filter == AgendaSummaryFilter.total &&
+          _dayQuickFilter == AgendaDayQuickFilter.incidencias) {
+        return _daySummaryFilter == AgendaSummaryFilter.total &&
+            _incidenceSubFilter == AgendaIncidenceSubFilter.todas;
+      }
+      return _daySummaryFilter == filter;
+    }
 
     Widget? incidenceSubFilterBar;
     if (_dayQuickFilter == AgendaDayQuickFilter.incidencias) {
@@ -2947,12 +2992,42 @@ class _AdminAppointmentsScreenState
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          _summaryRow('Total', total),
-          _summaryRow('Confirmadas', confirmadas),
-          _summaryRow('Activas', activas),
-          _summaryRow('Completadas', completadas),
-          _summaryRow('Perdidas', perdidas),
-          _summaryRow('Canceladas', canceladas),
+          _summaryRow(
+            'Total',
+            total,
+            AgendaSummaryFilter.total,
+            active: summaryRowActive(AgendaSummaryFilter.total),
+          ),
+          _summaryRow(
+            'Confirmadas',
+            confirmadas,
+            AgendaSummaryFilter.confirmadas,
+            active: summaryRowActive(AgendaSummaryFilter.confirmadas),
+          ),
+          _summaryRow(
+            'Activas',
+            activas,
+            AgendaSummaryFilter.activas,
+            active: summaryRowActive(AgendaSummaryFilter.activas),
+          ),
+          _summaryRow(
+            'Completadas',
+            completadas,
+            AgendaSummaryFilter.completadas,
+            active: summaryRowActive(AgendaSummaryFilter.completadas),
+          ),
+          _summaryRow(
+            'Perdidas',
+            perdidas,
+            AgendaSummaryFilter.perdidas,
+            active: summaryRowActive(AgendaSummaryFilter.perdidas),
+          ),
+          _summaryRow(
+            'Canceladas',
+            canceladas,
+            AgendaSummaryFilter.canceladas,
+            active: summaryRowActive(AgendaSummaryFilter.canceladas),
+          ),
         ],
       ),
     );
@@ -3015,28 +3090,59 @@ class _AdminAppointmentsScreenState
     );
   }
 
-  Widget _summaryRow(String label, int value) {
+  Widget _summaryRow(
+    String label,
+    int value,
+    AgendaSummaryFilter filter, {
+    required bool active,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: OcgColors.ink.withOpacity(0.86),
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          mouseCursor: SystemMouseCursors.click,
+          onTap: () => _selectDaySummaryFilter(filter),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: active
+                  ? OcgColors.espresso.withOpacity(0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: active
+                    ? OcgColors.bronze.withOpacity(0.32)
+                    : Colors.transparent,
               ),
             ),
-          ),
-          Text(
-            '$value',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              color: OcgColors.espresso,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: active
+                          ? OcgColors.espresso
+                          : OcgColors.ink.withOpacity(0.86),
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$value',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: active ? OcgColors.espresso : OcgColors.ink,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

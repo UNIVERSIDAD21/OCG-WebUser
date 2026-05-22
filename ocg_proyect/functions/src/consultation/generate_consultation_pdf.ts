@@ -429,7 +429,7 @@ function buildConsultationPdf(ctx: PdfContext): Promise<Buffer> {
       margin: MARGIN,
       info: {
         Title: 'Dictamen clinico',
-        Author: 'Oral Care Global Bionics',
+        Author: 'Oral Care Global',
       },
     });
 
@@ -479,7 +479,7 @@ function renderHeader(doc: PDFKit.PDFDocument, ctx: PdfContext): void {
     .font('Helvetica-Bold')
     .fontSize(18)
     .fillColor(COLORS.espresso)
-    .text('ORAL CARE GLOBAL BIONICS', MARGIN + 72, startY + 8, {
+    .text('ORAL CARE GLOBAL', MARGIN + 72, startY + 8, {
       width: 290,
     });
   doc
@@ -554,8 +554,16 @@ function renderTreatmentSection(doc: PDFKit.PDFDocument, ctx: PdfContext): void 
     normalizeString(treatment?.['estado']) ||
     'N/A';
   const phaseSnapshot = (ctx.consultation['phaseSnapshot'] ?? {}) as DocData;
-  const previousStage = stageLabel(normalizeString(phaseSnapshot['previousStage']));
+  const previousStage =
+    stageLabel(normalizeString(phaseSnapshot['previousStage'])) ||
+    stageLabel(normalizeString(ctx.consultation['previousStage'])) ||
+    stageLabel(normalizeString(ctx.consultation['etapaAnterior'])) ||
+    normalizeString(ctx.consultation['stageNameSnapshot']) ||
+    stageLabel(normalizeString(ctx.consultation['stageId']));
   const currentStage =
+    stageLabel(normalizeString(phaseSnapshot['currentStage'])) ||
+    stageLabel(normalizeString(ctx.consultation['currentStage'])) ||
+    stageLabel(normalizeString(ctx.consultation['etapaNueva'])) ||
     normalizeString(ctx.consultation['stageNameSnapshot']) ||
     stageLabel(normalizeString(ctx.consultation['stageId'])) ||
     'N/A';

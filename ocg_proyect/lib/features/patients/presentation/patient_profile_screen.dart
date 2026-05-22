@@ -53,10 +53,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _fadeSlide = CurvedAnimation(
-      parent: _animCtrl,
-      curve: Curves.easeOutCubic,
-    );
+    _fadeSlide = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
     _animCtrl.forward();
   }
 
@@ -69,10 +66,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
   Future<void> _handleSignOut() async {
     if (_signingOut) return;
 
-    final confirm = await OcgLogoutDialog.show(
-      context,
-      roleLabel: 'Paciente',
-    );
+    final confirm = await OcgLogoutDialog.show(context, roleLabel: 'Paciente');
 
     if (confirm != true) return;
 
@@ -223,9 +217,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
           .read(patientsRepositoryProvider)
           .updatePatientContactData(patient.id, telefono: newPhone);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Teléfono actualizado.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Teléfono actualizado.')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -262,7 +256,9 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar fecha de nacimiento: $e')),
+        SnackBar(
+          content: Text('No se pudo actualizar fecha de nacimiento: $e'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _savingBirthDate = false);
@@ -645,9 +641,10 @@ class _ProfileHeroState extends State<_ProfileHero>
       vsync: this,
       duration: const Duration(milliseconds: 2800),
     )..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulse = Tween<double>(
+      begin: 1.0,
+      end: 1.06,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -695,8 +692,9 @@ class _ProfileHeroState extends State<_ProfileHero>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFFC8AF8C)
-                                  .withOpacity(0.35 * (1.06 - _pulse.value + 1)),
+                              color: const Color(
+                                0xFFC8AF8C,
+                              ).withOpacity(0.35 * (1.06 - _pulse.value + 1)),
                               width: 2,
                             ),
                           ),
@@ -723,7 +721,9 @@ class _ProfileHeroState extends State<_ProfileHero>
                     runSpacing: 6,
                     children: [
                       OutlinedButton.icon(
-                        onPressed: widget.uploadingPhoto ? null : widget.onChangePhoto,
+                        onPressed: widget.uploadingPhoto
+                            ? null
+                            : widget.onChangePhoto,
                         icon: const Icon(Icons.photo_camera_outlined, size: 16),
                         label: const Text('Cambiar foto'),
                         style: OutlinedButton.styleFrom(
@@ -744,10 +744,14 @@ class _ProfileHeroState extends State<_ProfileHero>
                       ),
                       if ((widget.patient.fotoUrl ?? '').isNotEmpty)
                         TextButton.icon(
-                          onPressed: widget.uploadingPhoto ? null : widget.onDeletePhoto,
+                          onPressed: widget.uploadingPhoto
+                              ? null
+                              : widget.onDeletePhoto,
                           icon: const Icon(Icons.delete_outline, size: 16),
                           label: const Text('Eliminar'),
-                          style: TextButton.styleFrom(foregroundColor: OcgColors.error),
+                          style: TextButton.styleFrom(
+                            foregroundColor: OcgColors.error,
+                          ),
                         ),
                     ],
                   ),
@@ -788,9 +792,7 @@ class _ProfileHeroState extends State<_ProfileHero>
             decoration: BoxDecoration(
               color: OcgColors.ivory.withOpacity(0.1),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: OcgColors.ivory.withOpacity(0.18),
-              ),
+              border: Border.all(color: OcgColors.ivory.withOpacity(0.18)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -804,7 +806,9 @@ class _ProfileHeroState extends State<_ProfileHero>
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  widget.isAdminViewer ? 'Perfil del paciente' : 'Paciente OCG',
+                  widget.isAdminViewer
+                      ? 'Perfil del paciente'
+                      : 'Paciente OCG - Oral Care Global',
                   style: TextStyle(
                     color: OcgColors.ivory.withOpacity(0.8),
                     fontSize: 12,

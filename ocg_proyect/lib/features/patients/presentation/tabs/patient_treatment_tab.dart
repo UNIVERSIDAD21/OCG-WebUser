@@ -987,7 +987,7 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'OCG — Módulo de tratamiento',
+                    'OCG - Oral Care Global - Modulo de tratamiento',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: const Color(0xFF908C88),
                       letterSpacing: 1.3,

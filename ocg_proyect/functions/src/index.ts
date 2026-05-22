@@ -11,7 +11,10 @@ import {deletePatientAccount} from './auth/delete_patient_account';
 import {reserveAppointment} from './appointments/reserve_appointment';
 import {onAppointmentWrite} from './appointments/on_appointment_write';
 import {seedAvailability} from './appointments/seed_availability';
-import {reconcileNoShowAppointments} from './appointments/reconcile_no_show_appointments';
+import {
+  processNoShowAppointments,
+  reconcileNoShowAppointments,
+} from './appointments/reconcile_no_show_appointments';
 import {processScheduledNotifications} from './appointments/reminder_scheduler';
 import {createEpaycoCheckout} from './payments/create_epayco_checkout';
 import {epaycoWebhook} from './payments/epayco_webhook';
@@ -51,6 +54,7 @@ export {
   onAppointmentWrite,
   seedAvailability,
   reconcileNoShowAppointments,
+  processNoShowAppointments,
   processScheduledNotifications,
   createEpaycoCheckout,
   createPayuSession, // alias compat

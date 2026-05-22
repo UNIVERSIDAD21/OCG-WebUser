@@ -89,7 +89,8 @@ class OcgAdaptiveScaffold extends StatelessWidget {
   int _mobileSelectedIndex() {
     if (selectedIndex == 5) return 3; // Simulador
     if (selectedIndex >= 6) return 4; // Perfil / extras móviles
-    if (selectedIndex == 3 || selectedIndex == 4) return 1; // Mantener fuera de móvil
+    if (selectedIndex == 3 || selectedIndex == 4)
+      return 1; // Mantener fuera de móvil
     return selectedIndex.clamp(0, 2);
   }
 
@@ -108,7 +109,8 @@ class OcgAdaptiveScaffold extends StatelessWidget {
                 extended: true,
                 backgroundColor: OcgColors.espresso,
                 selectedIndex: selectedIndex,
-                onDestinationSelected: (i) => _onDestinationSelected(context, i),
+                onDestinationSelected: (i) =>
+                    _onDestinationSelected(context, i),
                 leading: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
                   child: Column(
@@ -125,7 +127,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Clínica',
+                        'Oral Care Global',
                         style: TextStyle(
                           fontFamily: 'CormorantGaramond',
                           fontSize: 16,
@@ -171,11 +173,7 @@ class OcgAdaptiveScaffold extends StatelessWidget {
             )
           : null,
       floatingActionButton: floatingActionButton,
-      body: SafeArea(
-        top: !showMobileAppBar,
-        bottom: false,
-        child: body,
-      ),
+      body: SafeArea(top: !showMobileAppBar, bottom: false, child: body),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _mobileSelectedIndex(),
         height: 72,

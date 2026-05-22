@@ -105,7 +105,7 @@ export const createEpaycoCheckout = onCall<CreateEpaycoCheckoutData>(
       epayco_public_key: epayco.publicKey,
       epayco_customer_id: epayco.customerId,
       epayco_reference: referencia,
-      epayco_description: `Pago OCG - ${account.treatmentName}`,
+      epayco_description: `Pago OCG - Oral Care Global - ${account.treatmentName}`,
       epayco_amount: montoStr,
       epayco_currency: 'COP',
       epayco_email_buyer: buyerEmail,

@@ -1011,7 +1011,7 @@ class _AdminPatientWorkspaceState
           _quickActionButton(
             icon: Icons.auto_awesome_outlined,
             label: 'Abrir simulador',
-            onTap: () => _openSection(3),
+            onTap: () => _openSection(5),
           ),
         ],
       ),
@@ -1410,7 +1410,7 @@ class _AdminPatientWorkspaceState
       return;
     }
 
-    _openSection(3);
+    _openSection(5);
     ref.read(simulatorFlowProvider.notifier).resetFlow();
 
     try {

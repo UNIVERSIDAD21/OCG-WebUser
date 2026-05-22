@@ -121,6 +121,118 @@ void main() {
 
       expect(pending, [appointment]);
     });
+
+    test('resumen del dia filtra por estado operativo', () {
+      final items = [
+        _appt(
+          id: 'a1',
+          at: DateTime(2026, 3, 13, 8, 0),
+          status: AppointmentStatus.programada,
+        ),
+        _appt(
+          id: 'a2',
+          at: DateTime(2026, 3, 13, 9, 0),
+          status: AppointmentStatus.confirmada,
+        ),
+        _appt(
+          id: 'a3',
+          at: DateTime(2026, 3, 13, 10, 0),
+          status: AppointmentStatus.completada,
+        ),
+        _appt(
+          id: 'a4',
+          at: DateTime(2026, 3, 13, 11, 0),
+          status: AppointmentStatus.noAsistio,
+        ),
+        _appt(
+          id: 'a5',
+          at: DateTime(2026, 3, 13, 12, 0),
+          status: AppointmentStatus.cancelada,
+        ),
+      ];
+
+      expect(
+        filterSummaryItems(items, AgendaSummaryFilter.total),
+        hasLength(5),
+      );
+      expect(
+        filterSummaryItems(
+          items,
+          AgendaSummaryFilter.activas,
+        ).map((item) => item.id),
+        ['a1'],
+      );
+      expect(
+        filterSummaryItems(
+          items,
+          AgendaSummaryFilter.confirmadas,
+        ).map((item) => item.id),
+        ['a2'],
+      );
+      expect(
+        filterSummaryItems(
+          items,
+          AgendaSummaryFilter.completadas,
+        ).map((item) => item.id),
+        ['a3'],
+      );
+      expect(
+        filterSummaryItems(
+          items,
+          AgendaSummaryFilter.perdidas,
+        ).map((item) => item.id),
+        ['a4'],
+      );
+      expect(
+        filterSummaryItems(
+          items,
+          AgendaSummaryFilter.canceladas,
+        ).map((item) => item.id),
+        ['a5'],
+      );
+    });
+
+    test('filtro rapido historicas incluye completadas', () {
+      final items = [
+        _appt(
+          id: 'a1',
+          at: DateTime(2026, 3, 13, 8, 0),
+          status: AppointmentStatus.completada,
+        ),
+        _appt(
+          id: 'a2',
+          at: DateTime(2026, 3, 13, 9, 0),
+          status: AppointmentStatus.cancelada,
+        ),
+        _appt(
+          id: 'a3',
+          at: DateTime(2026, 3, 13, 10, 0),
+          status: AppointmentStatus.noAsistio,
+        ),
+        _appt(
+          id: 'a4',
+          at: DateTime(2026, 3, 13, 11, 0),
+          status: AppointmentStatus.reprogramada,
+        ),
+        _appt(
+          id: 'a5',
+          at: DateTime(2026, 3, 13, 12, 0),
+          status: AppointmentStatus.programada,
+        ),
+      ];
+
+      final historicas = quickFilteredItems(
+        AgendaDayQuickFilter.historicas,
+        items,
+        DateTime(2026, 3, 13),
+      );
+
+      expect(historicas.map((item) => item.id), ['a4', 'a3', 'a2', 'a1']);
+      expect(
+        filterSummaryItems(historicas, AgendaSummaryFilter.completadas),
+        hasLength(1),
+      );
+    });
   });
 
   group('AppointmentsBusinessRules conflicts', () {

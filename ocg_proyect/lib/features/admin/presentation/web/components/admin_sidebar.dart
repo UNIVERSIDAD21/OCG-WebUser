@@ -318,7 +318,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                         ),
                         const SizedBox(width: 6),
                         const Text(
-                          'PANEL CLÍNICO',
+                          'ORAL CARE GLOBAL',
                           style: TextStyle(
                             color: Color(0xFF6E5442),
                             fontSize: 10,
@@ -496,19 +496,23 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                       begin: Alignment.centerLeft,
                                       end: Alignment.centerRight,
                                       colors: [
-                                        const Color(0xFFF5EDE0)
-                                            .withOpacity(0.95),
-                                        const Color(0xFFF5EDE0)
-                                            .withOpacity(0.65),
-                                        const Color(0xFFF5EDE0)
-                                            .withOpacity(0.15),
+                                        const Color(
+                                          0xFFF5EDE0,
+                                        ).withOpacity(0.95),
+                                        const Color(
+                                          0xFFF5EDE0,
+                                        ).withOpacity(0.65),
+                                        const Color(
+                                          0xFFF5EDE0,
+                                        ).withOpacity(0.15),
                                       ],
                                       stops: const [0, 0.4, 1],
                                     ),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: const Color(0xFFF5EDE0)
-                                          .withOpacity(0.2),
+                                      color: const Color(
+                                        0xFFF5EDE0,
+                                      ).withOpacity(0.2),
                                     ),
                                   )
                                 : BoxDecoration(
@@ -564,8 +568,7 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                       letterSpacing: 0.12,
                                     ),
                                   ),
-                                  if (active)
-                                    const Spacer(),
+                                  if (active) const Spacer(),
                                   if (active && !collapsed)
                                     Padding(
                                       padding: const EdgeInsets.only(right: 8),
@@ -573,15 +576,15 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
                                         width: 5,
                                         height: 5,
                                         decoration: BoxDecoration(
-                                          color: OcgColors.bronze
-                                              .withOpacity(0.6),
+                                          color: OcgColors.bronze.withOpacity(
+                                            0.6,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
                                       ),
                                     ),
                                 ],
-                                if (collapsed)
-                                  const SizedBox(width: 4),
+                                if (collapsed) const SizedBox(width: 4),
                               ],
                             ),
                           ),

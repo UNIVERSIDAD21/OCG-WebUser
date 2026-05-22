@@ -154,7 +154,7 @@ function emailEnv(provider = 'mock') {
     EMAIL_ENABLED: 'true',
     EMAIL_PROVIDER: provider,
     BREVO_API_KEY: provider === 'brevo' ? 'brevo-key' : '',
-    EMAIL_FROM: 'OCG Clinica <sender@example.com>',
+    EMAIL_FROM: 'OCG - Oral Care Global <sender@example.com>',
     EMAIL_REPLY_TO: 'reply@example.com',
     EMAIL_APP_BASE_URL: 'https://app.example.com',
   };

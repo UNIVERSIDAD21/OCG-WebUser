@@ -14,7 +14,7 @@ class OcgApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'OCG Ortodoncia',
+      title: 'OCG - Oral Care Global',
       theme: OcgTheme.light,
       debugShowCheckedModeBanner: false,
       routerConfig: router,

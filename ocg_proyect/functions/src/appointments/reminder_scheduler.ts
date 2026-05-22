@@ -100,9 +100,9 @@ function buildReminderMessage(
   }).format(appointmentAt);
 
   if (kind === 'day_before') {
-    return `Hola ${patientName}, te recordamos tu cita en OCG Clínica mañana, ${when}. Si necesitas reprogramar, contáctanos a tiempo.`;
+    return `Hola ${patientName}, te recordamos tu cita en OCG - Oral Care Global manana, ${when}. Si necesitas reprogramar, contactanos a tiempo.`;
   }
-  return `Hola ${patientName}, tu cita en OCG Clínica es en aproximadamente 1 hora, ${when}. Te esperamos.`;
+  return `Hola ${patientName}, tu cita en OCG - Oral Care Global es en aproximadamente 1 hora, ${when}. Te esperamos.`;
 }
 
 function whatsappProviderConfig(): {

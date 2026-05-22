@@ -145,7 +145,7 @@ test.afterEach(() => {
 function enableMockEmail() {
   process.env.EMAIL_ENABLED = 'true';
   process.env.EMAIL_PROVIDER = 'mock';
-  process.env.EMAIL_FROM = 'OCG Clinica <sender@example.com>';
+  process.env.EMAIL_FROM = 'OCG - Oral Care Global <sender@example.com>';
   process.env.EMAIL_REPLY_TO = 'reply@example.com';
   process.env.EMAIL_APP_BASE_URL = 'https://app.example.com';
 }

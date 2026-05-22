@@ -184,26 +184,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: _DecoCircle(size: 40, color: Color(0x08C8AF8C)),
           ),
           // Puntitos decorativos (detalle premium)
-          const Positioned(
-            top: 90,
-            left: 130,
-            child: _DecoDot(),
-          ),
-          const Positioned(
-            top: 150,
-            left: 210,
-            child: _DecoDot(),
-          ),
-          const Positioned(
-            bottom: 130,
-            right: 140,
-            child: _DecoDot(),
-          ),
-          const Positioned(
-            bottom: 180,
-            right: 260,
-            child: _DecoDot(),
-          ),
+          const Positioned(top: 90, left: 130, child: _DecoDot()),
+          const Positioned(top: 150, left: 210, child: _DecoDot()),
+          const Positioned(bottom: 130, right: 140, child: _DecoDot()),
+          const Positioned(bottom: 180, right: 260, child: _DecoDot()),
           const Positioned(
             top: 200,
             right: 180,
@@ -1017,9 +1001,9 @@ class _DesktopBranding extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        // ORTODONCIA
+        // Oral Care Global
         Text(
-          'ORTODONCIA',
+          'ORAL CARE GLOBAL',
           style: TextStyle(
             fontSize: subtitleFontSize,
             letterSpacing: subtitleLetterSpacing,
@@ -1112,7 +1096,7 @@ class _DesktopLogoHeader extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'ORTODONCIA',
+          'ORAL CARE GLOBAL',
           style: TextStyle(
             fontSize: 9,
             letterSpacing: 4.0,
@@ -1421,7 +1405,7 @@ class _LoginBrandSeamLocked extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ORTODONCIA',
+          'ORAL CARE GLOBAL',
           style: TextStyle(
             fontSize: 10,
             color: Color(0xFF8C6239),
@@ -1587,7 +1571,6 @@ class _SuccessBanner extends StatelessWidget {
   }
 }
 
-
 class _RegisterPatientDialog extends ConsumerStatefulWidget {
   const _RegisterPatientDialog();
 
@@ -1596,8 +1579,7 @@ class _RegisterPatientDialog extends ConsumerStatefulWidget {
       _RegisterPatientDialogState();
 }
 
-class _RegisterPatientDialogState
-    extends ConsumerState<_RegisterPatientDialog>
+class _RegisterPatientDialogState extends ConsumerState<_RegisterPatientDialog>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
@@ -1621,10 +1603,7 @@ class _RegisterPatientDialogState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _fadeSlide = CurvedAnimation(
-      parent: _animCtrl,
-      curve: Curves.easeOutCubic,
-    );
+    _fadeSlide = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
     _animCtrl.forward();
   }
 
@@ -1874,8 +1853,9 @@ class _RegisterPatientDialogState
                         icon: Icons.shield_outlined,
                         suffixIcon: _EyeToggle(
                           visible: !_obscureConfirm,
-                          onTap: () =>
-                              setState(() => _obscureConfirm = !_obscureConfirm),
+                          onTap: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
                         ),
                       ),
                       onChanged: (v) => _confirm = v,

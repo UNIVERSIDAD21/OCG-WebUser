@@ -128,7 +128,7 @@ class ConsultationPdfService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('ORAL CARE GLOBAL BIONICS', style: _titleStyle),
+                  pw.Text('ORAL CARE GLOBAL', style: _titleStyle),
                   pw.SizedBox(height: 2),
                   pw.Text('Dictamen Clinico', style: _subtitleStyle),
                 ],
@@ -232,9 +232,20 @@ class ConsultationPdfService {
       final prev = consultation.phaseSnapshot!.previousStage;
       etapaAntes = stageNames[prev] ?? prev.name;
     }
+    etapaAntes ??= consultation.stageNameSnapshot;
+    if (etapaAntes == null && consultation.stageId != null) {
+      etapaAntes =
+          stageNames[consultation.stageId!] ?? consultation.stageId!.name;
+    }
+
     String? etapaDespues;
-    if (consultation.stageId != null) {
-      etapaDespues = stageNames[consultation.stageId!];
+    if (consultation.phaseSnapshot != null) {
+      final current = consultation.phaseSnapshot!.currentStage;
+      etapaDespues = stageNames[current] ?? current.name;
+    }
+    if (etapaDespues == null && consultation.stageId != null) {
+      etapaDespues =
+          stageNames[consultation.stageId!] ?? consultation.stageId!.name;
     }
     etapaDespues ??= consultation.stageNameSnapshot ?? 'N/A';
 

@@ -65,6 +65,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   bool _hasSignature = false;
   bool _showingPad = true;
   bool _signatureRequired = true;
+  bool _signatureHasInk = false;
   final List<_ConsultationAttachment> _attachments = [];
   final GlobalKey<OcgSignaturePadState> _signaturePadKey =
       GlobalKey<OcgSignaturePadState>();
@@ -550,11 +551,12 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       },
       child: Scaffold(
         backgroundColor: OcgColors.ivory,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
+        body: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SafeArea(
+                top: false,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -577,8 +579,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1510,10 +1512,21 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                               _signatureBytes = bytes;
                               _hasSignature = true;
                               _showingPad = false;
+                              _signatureHasInk = false;
                               _errorMsg = null;
                             });
                           },
-                          onSignatureCleared: () {},
+                          onSignatureCleared: () {
+                            setState(() {
+                              _signatureBytes = null;
+                              _hasSignature = false;
+                              _signatureHasInk = false;
+                            });
+                          },
+                          onInkChanged: (hasInk) {
+                            if (_signatureHasInk == hasInk) return;
+                            setState(() => _signatureHasInk = hasInk);
+                          },
                         ),
                         const SizedBox(height: 12),
                         // Botones del pad
@@ -1561,10 +1574,10 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                             ),
                             const Spacer(),
                             FilledButton.icon(
-                              onPressed: () {
-                                _signaturePadKey.currentState
-                                    ?.confirmSignature();
-                              },
+                              onPressed: _signatureHasInk
+                                  ? () => _signaturePadKey.currentState
+                                        ?.confirmSignature()
+                                  : null,
                               icon: const Icon(
                                 Icons.check_circle_outline,
                                 size: 18,
@@ -1649,6 +1662,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
                                 _signatureBytes = null;
                                 _hasSignature = false;
                                 _showingPad = true;
+                                _signatureHasInk = false;
                               });
                               _signaturePadKey.currentState?.clear();
                             },
@@ -1718,6 +1732,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
             _signatureBytes = null;
             _hasSignature = false;
             _showingPad = true;
+            _signatureHasInk = false;
             _signaturePadKey.currentState?.clear();
           }
         });
