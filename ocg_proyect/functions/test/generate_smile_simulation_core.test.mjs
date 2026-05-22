@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {processGenerateSmileSimulation} from '../lib/simulator/generate_smile_simulation_core.js';
+import {buildDentalTreatmentPrompt} from '../lib/simulator/build_dental_treatment_prompt.js';
+
+// ── Mock Firestore ──────────────────────────────────────
 
 class MockDocSnapshot {
   constructor(path, data) {
@@ -9,15 +12,10 @@ class MockDocSnapshot {
     this._data = data;
     this.exists = data !== undefined;
   }
-  data() {
-    return this._data;
-  }
+  data() { return this._data; }
 }
 class MockDocRef {
-  constructor(db, path) {
-    this.db = db;
-    this.path = path;
-  }
+  constructor(db, path) { this.db = db; this.path = path; }
   collection(name) { return new MockCollectionRef(this.db, `${this.path}/${name}`); }
   async get() { return new MockDocSnapshot(this.path, this.db.store.get(this.path)); }
   async set(data, options = {}) {
@@ -107,6 +105,8 @@ function deps({seed, config, auth, adminRole = null, downloadBytes, generatedByt
     },
   };
 }
+
+// ── Existing tests ──────────────────────────────────────
 
 test('simulación sin API KEY termina en error controlado', async () => {
   const d = deps({config: baseConfig({openAiApiKey: ''})});
@@ -221,4 +221,181 @@ test('si OpenAI falla, la simulación termina en failed con mensaje seguro', asy
   assert.equal(sim.status, 'failed');
   assert.match(sim.errorMessage, /API KEY/);
   assert.doesNotMatch(sim.errorMessage, /secreta/);
+});
+
+// ── New tests: Bloque 02 — Treatment profiles ───────────
+
+test('flujo con treatmentProfileId guarda el perfil en Firestore', async () => {
+  const d = deps();
+  await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    treatmentProfileId: 'metal_braces',
+    visualGoal: 'show_appliance',
+    doctorConfig: {ligatureColor: 'gris', arcada: 'superior'},
+    photoQuality: {status: 'valid', score: 0.9},
+  });
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.status, 'ready');
+  assert.equal(sim.treatmentProfileId, 'metal_braces');
+  assert.equal(sim.visualGoal, 'show_appliance');
+  assert.equal(sim.doctorConfig.ligatureColor, 'gris');
+  assert.equal(sim.photoQuality.status, 'valid');
+  assert.equal(sim.generationProvider, 'openai');
+  assert.equal(sim.modelUsed, 'gpt-image-2');
+});
+
+test('flujo legacy sin treatmentProfileId infiere perfil desde treatmentType', async () => {
+  const d = deps({seed: baseSeed({treatmentType: 'alineadores'})});
+  await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    treatmentType: 'alineadores',
+  });
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.treatmentProfileId, 'clear_aligners');
+  assert.equal(sim.promptVersion, 'ocg-dental-treatment-v2');
+});
+
+test('treatmentType desconocido usa smile_design como fallback', async () => {
+  const d = deps({seed: baseSeed({treatmentType: 'desconocido'})});
+  await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    treatmentType: 'desconocido',
+  });
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.treatmentProfileId, 'smile_design');
+});
+
+test('prompt de metal_braces contiene palabras clave distintivas', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'metal_braces',
+  });
+  assert.match(result.promptUsed, /metal/);
+  assert.match(result.promptUsed, /brackets/);
+  assert.match(result.promptUsed, /archwire/);
+  assert.equal(result.promptVersion, 'ocg-dental-treatment-v2');
+  assert.equal(result.treatmentProfileId, 'metal_braces');
+});
+
+test('prompt de esthetic_braces contiene ceramic/sapphire', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'esthetic_braces',
+  });
+  assert.match(result.promptUsed, /ceramic|sapphire/);
+  // Positive instructions should NOT describe metal brackets
+  const posEnd = result.promptUsed.indexOf('Do NOT');
+  const positivePart = posEnd > 0 ? result.promptUsed.slice(0, posEnd) : result.promptUsed;
+  assert.doesNotMatch(positivePart, /metal bracket/);
+});
+
+test('prompt de clear_aligners contiene aligner tray', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'clear_aligners',
+  });
+  assert.match(result.promptUsed, /aligner/);
+  assert.match(result.promptUsed, /plastic|transparent/);
+  assert.doesNotMatch(result.promptUsed, /metal brackets/);
+});
+
+test('prompt de whitening contiene tooth shade', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'whitening',
+  });
+  assert.match(result.promptUsed, /shade/i);
+  assert.match(result.promptUsed, /lighten/i);
+  // Positive part should NOT mention brackets
+  const posEnd = result.promptUsed.indexOf('Do NOT');
+  const positivePart = posEnd > 0 ? result.promptUsed.slice(0, posEnd) : result.promptUsed;
+  assert.doesNotMatch(positivePart, /brackets/);
+});
+
+test('prompt de veneers contiene veneers', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'veneers',
+  });
+  assert.match(result.promptUsed, /veneer/i);
+  assert.match(result.promptUsed, /shape/i);
+  // Positive part should NOT mention brackets or aligners
+  const posEnd = result.promptUsed.indexOf('Do NOT');
+  const positivePart = posEnd > 0 ? result.promptUsed.slice(0, posEnd) : result.promptUsed;
+  assert.doesNotMatch(positivePart, /brackets|aligner/);
+});
+
+test('prompt de smile_design contiene no visible appliances', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'smile_design',
+  });
+  assert.match(result.promptUsed, /no.*brackets|no.*appliance|no.*aligner/);
+  assert.doesNotMatch(result.promptUsed, /metal brackets/);
+});
+
+test('prompt de palatal_expander contiene palatal expander', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'palatal_expander',
+  });
+  assert.match(result.promptUsed, /palatal expander/);
+  assert.match(result.promptUsed, /Hyrax|Haas/);
+});
+
+test('prompt de retainer contiene retainer', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'retainer',
+  });
+  assert.match(result.promptUsed, /retainer/);
+  assert.match(result.promptUsed, /Essix|Hawley|fixed/);
+});
+
+test('doctorConfig se convierte en instrucciones en el prompt', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'metal_braces',
+    doctorConfig: {
+      ligatureColor: 'azul',
+      arcada: 'superior',
+    },
+  });
+  assert.match(result.promptUsed, /azul/);
+  assert.match(result.promptUsed, /superior/);
+});
+
+test('notas del doctor se incluyen sin reemplazar el perfil', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'whitening',
+    notes: 'El paciente tiene sensibilidad dental previa',
+  });
+  assert.match(result.promptUsed, /sensibilidad dental/);
+  // Must still contain whitening instructions
+  assert.match(result.promptUsed, /shade/);
+});
+
+test('payload con treatmentProfileId inválido usa smile_design', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'perfil_inventado',
+  });
+  assert.equal(result.treatmentProfileId, 'smile_design');
+});
+
+test('prompts son distintos entre sí — no colisionan palabras clave', () => {
+  const profiles = [
+    'metal_braces',
+    'esthetic_braces',
+    'clear_aligners',
+    'whitening',
+    'veneers',
+    'smile_design',
+    'palatal_expander',
+    'retainer',
+  ];
+
+  const prompts = profiles.map(id =>
+    buildDentalTreatmentPrompt({treatmentProfileId: id}).promptUsed,
+  );
+
+  // All prompts must be different strings
+  const unique = new Set(prompts);
+  assert.equal(unique.size, 8, 'Cada perfil debe producir un prompt único');
 });
