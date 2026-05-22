@@ -216,6 +216,12 @@ class SimulationRepository {
 
   String _mapCallableError(FirebaseFunctionsException error) {
     final message = (error.message ?? '').trim();
+    // App Check token errors
+    if (error.code == 'unauthenticated' &&
+        (message.contains('App Check') ||
+            message.contains('Too many attempts'))) {
+      return 'Error de verificación de la app. Reinicia la aplicación o usa una build de desarrollo.';
+    }
     if (message == 'OPENAI_API_KEY no está configurada en backend.' ||
         message ==
             'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.') {

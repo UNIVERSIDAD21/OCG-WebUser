@@ -25,8 +25,7 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — en modo debug/profile usamos providers de debug
-  // con auto-refresh habilitado para evitar "Too many attempts".
+  // Firebase App Check — en modo debug/profile usamos providers de debug.
   // En release se usan providers de producción (playIntegrity/
   // appAttest) que requieren registro del APK en Google Play.
   //
@@ -46,10 +45,11 @@ Future<void> main() async {
       appleProvider: appleProvider,
     );
 
-    // Forzar auto-refresh para reducir presión sobre el token
-    // de debug (evita ciclos de refresh agresivos que agotan
-    // la cuota y causan "Too many attempts").
-    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+    // Auto-refresh solo en release. En debug el token debug no expira
+    // y forzar refresh agota la cuota causando "Too many attempts".
+    if (!useDebugProvider) {
+      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+    }
   }
 
   runApp(const ProviderScope(child: OcgApp()));
