@@ -25,19 +25,19 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — en modo debug usamos providers de debug
+  // Firebase App Check — en modo debug/profile usamos providers de debug
   // con auto-refresh habilitado para evitar "Too many attempts".
   // En release se usan providers de producción (playIntegrity/
   // appAttest) que requieren registro del APK en Google Play.
   //
-  // ⚠️ No usar AndroidProvider.playIntegrity en modo debug:
-  // retorna 403 "App attestation failed" porque la app debug
-  // no está registrada en Google Play Console.
+  // ⚠️ No usar AndroidProvider.playIntegrity en builds locales:
+  // retorna 403 "App attestation failed" si el APK no es de producción.
   if (!kIsWeb) {
-    final androidProvider = kDebugMode
+    final useDebugProvider = !kReleaseMode;
+    final androidProvider = useDebugProvider
         ? AndroidProvider.debug
         : AndroidProvider.playIntegrity;
-    final appleProvider = kDebugMode
+    final appleProvider = useDebugProvider
         ? AppleProvider.debug
         : AppleProvider.appAttestWithDeviceCheckFallback;
 

@@ -20,6 +20,9 @@ class SimulationRepository {
   final FirebaseFirestore _db;
   final FirebaseStorage? _storage;
   final FirebaseFunctions? _functions;
+  final Map<String, String> _resolvedMediaUrlCache = <String, String>{};
+  final Map<String, Future<String?>> _resolvedMediaUrlInflight =
+      <String, Future<String?>>{};
 
   CollectionReference<Map<String, dynamic>> _simulationsRef(String patientId) {
     return _db.collection(FirestorePaths.patientSimulations(patientId));
@@ -30,9 +33,8 @@ class SimulationRepository {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
-          (snap) => snap.docs
-              .map((d) => SimulationModel.fromJson(d.data()))
-              .toList(),
+          (snap) =>
+              snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList(),
         );
   }
 
@@ -43,9 +45,8 @@ class SimulationRepository {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
-          (snap) => snap.docs
-              .map((d) => SimulationModel.fromJson(d.data()))
-              .toList(),
+          (snap) =>
+              snap.docs.map((d) => SimulationModel.fromJson(d.data())).toList(),
         );
   }
 
@@ -76,7 +77,31 @@ class SimulationRepository {
     final raw = (pathOrUrl ?? '').trim();
     if (raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    return (_storage ?? FirebaseStorage.instance).ref(raw).getDownloadURL();
+
+    final cached = _resolvedMediaUrlCache[raw];
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+
+    final inflight = _resolvedMediaUrlInflight[raw];
+    if (inflight != null) {
+      return inflight;
+    }
+
+    final future = (_storage ?? FirebaseStorage.instance)
+        .ref(raw)
+        .getDownloadURL()
+        .then((url) {
+          final clean = url.trim();
+          if (clean.isNotEmpty) _resolvedMediaUrlCache[raw] = clean;
+          return clean.isEmpty ? null : clean;
+        })
+        .whenComplete(() {
+          _resolvedMediaUrlInflight.remove(raw);
+        });
+
+    _resolvedMediaUrlInflight[raw] = future;
+    return future;
   }
 
   Future<SimulationModel> createDraftSimulation({
@@ -99,7 +124,9 @@ class SimulationRepository {
     String doctorReviewStatus = 'pending',
     String? approvedAttemptId,
   }) async {
-    if (patientId.trim().isEmpty) throw Exception('SIMULATION_PATIENT_REQUIRED');
+    if (patientId.trim().isEmpty) {
+      throw Exception('SIMULATION_PATIENT_REQUIRED');
+    }
     if (originalPath.trim().isEmpty) {
       throw Exception('SIMULATION_ORIGINAL_REQUIRED');
     }
@@ -156,8 +183,9 @@ class SimulationRepository {
     Map<String, dynamic>? doctorConfig,
     Map<String, dynamic>? photoQuality,
   }) async {
-    final callable = (_functions ?? FirebaseFunctions.instance)
-        .httpsCallable('generateSmileSimulation');
+    final callable = (_functions ?? FirebaseFunctions.instance).httpsCallable(
+      'generateSmileSimulation',
+    );
 
     // ignore: avoid_print
     print(
@@ -194,7 +222,8 @@ class SimulationRepository {
       return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
     }
     if (message.contains(
-        'No se encontró la imagen original de esta simulación')) {
+      'No se encontró la imagen original de esta simulación',
+    )) {
       return 'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.';
     }
     if (message == 'La generación con IA no está habilitada.' ||
@@ -350,10 +379,7 @@ class SimulationRepository {
     });
   }
 
-  Future<void> archiveSimulation(
-    String patientId,
-    String simulationId,
-  ) async {
+  Future<void> archiveSimulation(String patientId, String simulationId) async {
     await _simulationsRef(patientId).doc(simulationId).update({
       'status': SimulationStatus.archived.name,
       'compartidaConPaciente': false,
@@ -378,6 +404,8 @@ class SimulationRepository {
     for (final path in paths) {
       try {
         await storage.ref(path).delete();
+        _resolvedMediaUrlCache.remove(path);
+        _resolvedMediaUrlInflight.remove(path);
       } catch (_) {}
     }
   }
