@@ -25,18 +25,53 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — solo en release.
-  // En debug builds locales App Check falla con "App attestation failed"
-  // porque el APK debug no está registrado en Google Play Console.
-  // El debug provider también falla si no hay debug token en Firebase Console.
+  // Firebase App Check — siempre activado porque Firebase Console
+  // tiene enforcement habilitado para Cloud Functions.
   //
-  // ⚠️ En producción (kReleaseMode) se requiere App Check con Play Integrity.
-  if (!kIsWeb && kReleaseMode) {
+  // En debug: AndroidProvider.debug que genera token local.
+  // El token debug aparece en logcat como:
+  //   "Debug App Check token: <token>"
+  // Si Firebase lo rechaza, copia ese token y regístralo en:
+  //   Firebase Console → App Check → Apps → tu app → Debug tokens
+  //
+  // En release: Play Integrity / App Attest (requiere APK firmado en Play).
+  //
+  // ⚠️ NUNCA usar setTokenAutoRefreshEnabled en debug:
+  // causa "Too many attempts" porque el token debug se refresca en loop.
+  if (!kIsWeb) {
+    final androidProvider = kReleaseMode
+        ? AndroidProvider.playIntegrity
+        : AndroidProvider.debug;
+    final appleProvider = kReleaseMode
+        ? AppleProvider.appAttestWithDeviceCheckFallback
+        : AppleProvider.debug;
+
     await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.playIntegrity,
-      appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
+      androidProvider: androidProvider,
+      appleProvider: appleProvider,
     );
-    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+    // Auto-refresh SOLO en release
+    if (kReleaseMode) {
+      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+    }
+
+    // En debug, imprimir el token para registrarlo en Firebase Console.
+    // Busca en logcat: "🔥 APP_CHECK_DEBUG_TOKEN:"
+    if (!kReleaseMode) {
+      try {
+        final result = await FirebaseAppCheck.instance.getToken();
+        // ignore: avoid_print
+        if (result != null) {
+          final tokenStr = (result as dynamic).token?.toString() ?? '';
+          if (tokenStr.isNotEmpty) {
+            print('🔥 APP_CHECK_DEBUG_TOKEN: $tokenStr');
+          }
+        }
+      } catch (_) {
+        // ignore: avoid_print
+        print('⚠️ No se pudo obtener token App Check en debug.');
+      }
+    }
   }
 
   runApp(const ProviderScope(child: OcgApp()));
