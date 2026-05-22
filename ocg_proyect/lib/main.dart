@@ -25,31 +25,18 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — en modo debug/profile usamos providers de debug.
-  // En release se usan providers de producción (playIntegrity/
-  // appAttest) que requieren registro del APK en Google Play.
+  // Firebase App Check — solo en release.
+  // En debug builds locales App Check falla con "App attestation failed"
+  // porque el APK debug no está registrado en Google Play Console.
+  // El debug provider también falla si no hay debug token en Firebase Console.
   //
-  // ⚠️ No usar AndroidProvider.playIntegrity en builds locales:
-  // retorna 403 "App attestation failed" si el APK no es de producción.
-  if (!kIsWeb) {
-    final useDebugProvider = !kReleaseMode;
-    final androidProvider = useDebugProvider
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity;
-    final appleProvider = useDebugProvider
-        ? AppleProvider.debug
-        : AppleProvider.appAttestWithDeviceCheckFallback;
-
+  // ⚠️ En producción (kReleaseMode) se requiere App Check con Play Integrity.
+  if (!kIsWeb && kReleaseMode) {
     await FirebaseAppCheck.instance.activate(
-      androidProvider: androidProvider,
-      appleProvider: appleProvider,
+      androidProvider: AndroidProvider.playIntegrity,
+      appleProvider: AppleProvider.appAttestWithDeviceCheckFallback,
     );
-
-    // Auto-refresh solo en release. En debug el token debug no expira
-    // y forzar refresh agota la cuota causando "Too many attempts".
-    if (!useDebugProvider) {
-      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
-    }
+    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
   }
 
   runApp(const ProviderScope(child: OcgApp()));
