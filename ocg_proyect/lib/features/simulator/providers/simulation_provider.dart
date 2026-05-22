@@ -8,6 +8,7 @@ import '../../../services/firebase/image_picker_service.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
 import '../data/repositories/simulation_repository.dart';
+import '../domain/dental_treatment_profile.dart';
 
 final simulationRepositoryProvider = Provider<SimulationRepository>((ref) {
   return SimulationRepository(FirebaseFirestore.instance);
@@ -101,6 +102,8 @@ class SimulatorFlowState {
   final String doctorReviewStatus; // pending | approved | rejected
   final String? approvedAttemptId;
 
+  bool get hasProfile => (treatmentProfileId ?? '').isNotEmpty;
+  bool get isConfigurable => status == SimulationStatus.draft || status == SimulationStatus.ready || status == SimulationStatus.failed;
   bool get hasOriginal => (originalPath ?? '').isNotEmpty;
   bool get hasResult => (resultPath ?? '').isNotEmpty;
   bool get canGenerate =>
@@ -358,6 +361,10 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           'generationProvider': 'openai',
           'modelUsed': 'gpt-image-2',
         },
+        treatmentProfileId: current.treatmentProfileId,
+        visualGoal: current.visualGoal,
+        doctorConfig: current.doctorConfig,
+        doctorReviewStatus: 'pending',
       );
 
       // ignore: avoid_print
@@ -475,6 +482,25 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     final current = state.asData?.value;
     if (current == null) return;
     state = AsyncData(current.copyWith(notes: value));
+  }
+
+  void setTreatmentProfile(String profileId) {
+    final current = state.asData?.value;
+    if (current == null) return;
+    final profile = treatmentProfiles
+        .where((p) => p.id == profileId)
+        .firstOrNull;
+    state = AsyncData(current.copyWith(
+      treatmentProfileId: profileId,
+      visualGoal: profile?.defaultVisualGoal,
+      doctorConfig: profile?.buildDefaultConfig(),
+    ));
+  }
+
+  void updateDoctorConfig(Map<String, dynamic> config) {
+    final current = state.asData?.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(doctorConfig: config));
   }
 
   Future<void> updateDetectedRegion({

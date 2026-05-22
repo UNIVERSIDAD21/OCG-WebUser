@@ -418,7 +418,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('simulator-active-flow')), findsOneWidget);
-    expect(find.text('Paso 1: subir foto original'), findsOneWidget);
+    expect(find.text('Configurar simulación'), findsOneWidget);
+    expect(find.text('Paso 3: subir foto original'), findsOneWidget);
   });
 
   testWidgets(

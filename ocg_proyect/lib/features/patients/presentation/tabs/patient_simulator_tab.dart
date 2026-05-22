@@ -5,6 +5,7 @@ import '../../../../features/auth/providers/auth_providers.dart';
 import '../../../../features/simulator/data/models/simulation_model.dart';
 import '../../../../features/simulator/presentation/simulator_screen.dart';
 import '../../../../features/simulator/providers/simulation_provider.dart';
+import '../../../../features/simulator/domain/dental_treatment_profile.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
@@ -100,7 +101,18 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
       _creatingNewSimulation = true;
     });
     ref.read(simulatorFlowProvider.notifier).resetFlow();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
+    // Auto-select default profile for this patient
+    final defaultId = defaultProfileIdFromTreatmentType(
+      widget.patient.tipoTratamiento?.name,
+    );
+    if (defaultId != null) {
+      ref
+          .read(simulatorFlowProvider.notifier)
+          .setTreatmentProfile(defaultId);
+    }
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _focusActiveFlow(),
+    );
   }
 
   @override
@@ -154,6 +166,14 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                   _creatingNewSimulation = true;
                 });
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
+                final defaultId = defaultProfileIdFromTreatmentType(
+                  widget.patient.tipoTratamiento?.name,
+                );
+                if (defaultId != null) {
+                  ref
+                      .read(simulatorFlowProvider.notifier)
+                      .setTreatmentProfile(defaultId);
+                }
                 ref
                     .read(simulatorFlowProvider.notifier)
                     .pickOriginalFromCamera(
@@ -168,6 +188,14 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                   _creatingNewSimulation = true;
                 });
                 ref.read(simulatorFlowProvider.notifier).resetFlow();
+                final defaultId = defaultProfileIdFromTreatmentType(
+                  widget.patient.tipoTratamiento?.name,
+                );
+                if (defaultId != null) {
+                  ref
+                      .read(simulatorFlowProvider.notifier)
+                      .setTreatmentProfile(defaultId);
+                }
                 ref
                     .read(simulatorFlowProvider.notifier)
                     .pickOriginalFromGallery(
@@ -194,19 +222,27 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
             if (items.isEmpty && !showActiveFlow)
               _SimulatorEmptyState(
                 onCamera: () {
-                  setState(() {
-                    _openedSimulation = null;
-                    _creatingNewSimulation = true;
-                  });
-                  ref.read(simulatorFlowProvider.notifier).resetFlow();
+                setState(() {
+                  _openedSimulation = null;
+                  _creatingNewSimulation = true;
+                });
+                ref.read(simulatorFlowProvider.notifier).resetFlow();
+                final defaultId = defaultProfileIdFromTreatmentType(
+                  widget.patient.tipoTratamiento?.name,
+                );
+                if (defaultId != null) {
                   ref
                       .read(simulatorFlowProvider.notifier)
-                      .pickOriginalFromCamera(
-                        patientId: widget.patient.id,
-                        adminId: adminId,
-                        treatmentType: widget.patient.tipoTratamiento,
-                      );
-                },
+                      .setTreatmentProfile(defaultId);
+                }
+                ref
+                    .read(simulatorFlowProvider.notifier)
+                    .pickOriginalFromCamera(
+                      patientId: widget.patient.id,
+                      adminId: adminId,
+                      treatmentType: widget.patient.tipoTratamiento,
+                    );
+              },
               )
             else if (items.isNotEmpty) ...[
               const Text(
