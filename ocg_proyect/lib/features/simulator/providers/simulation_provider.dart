@@ -23,14 +23,16 @@ final faceDetectionServiceProvider = Provider<FaceDetectionService>((ref) {
 
 final patientSimulationsProvider =
     StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
-      return ref.watch(simulationRepositoryProvider).watchSimulations(patientId);
+      return ref
+          .watch(simulationRepositoryProvider)
+          .watchSimulations(patientId);
     });
 
 final sharedSimulationsProvider =
     StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
       return ref.watch(simulationRepositoryProvider).watchSharedSimulations(
-        patientId,
-      );
+            patientId,
+          );
     });
 
 enum SimulatorUiState {
@@ -64,6 +66,13 @@ class SimulatorFlowState {
     this.attemptCount = 0,
     this.promptUsed,
     this.promptVersion,
+    // ── Nuevos campos Bloque 01 ──────────────────────────
+    this.treatmentProfileId,
+    this.visualGoal,
+    this.doctorConfig,
+    this.photoQuality,
+    this.doctorReviewStatus = 'pending',
+    this.approvedAttemptId,
   });
 
   final SimulatorUiState uiState;
@@ -83,6 +92,14 @@ class SimulatorFlowState {
   final int attemptCount;
   final String? promptUsed;
   final String? promptVersion;
+
+  // ── Nuevos campos Bloque 01 ────────────────────────────
+  final String? treatmentProfileId;
+  final String? visualGoal;
+  final Map<String, dynamic>? doctorConfig;
+  final Map<String, dynamic>? photoQuality;
+  final String doctorReviewStatus; // pending | approved | rejected
+  final String? approvedAttemptId;
 
   bool get hasOriginal => (originalPath ?? '').isNotEmpty;
   bool get hasResult => (resultPath ?? '').isNotEmpty;
@@ -125,17 +142,33 @@ class SimulatorFlowState {
     bool clearPromptUsed = false,
     String? promptVersion,
     bool clearPromptVersion = false,
+    // ── Nuevos campos Bloque 01 ──────────────────────────
+    String? treatmentProfileId,
+    bool clearTreatmentProfileId = false,
+    String? visualGoal,
+    bool clearVisualGoal = false,
+    Map<String, dynamic>? doctorConfig,
+    bool clearDoctorConfig = false,
+    Map<String, dynamic>? photoQuality,
+    bool clearPhotoQuality = false,
+    String? doctorReviewStatus,
+    String? approvedAttemptId,
+    bool clearApprovedAttemptId = false,
   }) {
     return SimulatorFlowState(
       uiState: uiState ?? this.uiState,
       patientId: clearPatientId ? null : (patientId ?? this.patientId),
-      simulationId: clearSimulationId ? null : (simulationId ?? this.simulationId),
-      originalPath: clearOriginalPath ? null : (originalPath ?? this.originalPath),
+      simulationId:
+          clearSimulationId ? null : (simulationId ?? this.simulationId),
+      originalPath:
+          clearOriginalPath ? null : (originalPath ?? this.originalPath),
       resultPath: clearResultPath ? null : (resultPath ?? this.resultPath),
       shareWithPatient: shareWithPatient ?? this.shareWithPatient,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       notes: clearNotes ? null : (notes ?? this.notes),
-      detectedRegion: clearDetectedRegion ? null : (detectedRegion ?? this.detectedRegion),
+      detectedRegion: clearDetectedRegion
+          ? null
+          : (detectedRegion ?? this.detectedRegion),
       mlKitUsed: mlKitUsed ?? this.mlKitUsed,
       faceDetectionSource: clearFaceDetectionSource
           ? null
@@ -144,10 +177,25 @@ class SimulatorFlowState {
       generationProvider: generationProvider ?? this.generationProvider,
       modelUsed: modelUsed ?? this.modelUsed,
       attemptCount: attemptCount ?? this.attemptCount,
-      promptUsed: clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
+      promptUsed:
+          clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
       promptVersion: clearPromptVersion
           ? null
           : (promptVersion ?? this.promptVersion),
+      // ── Nuevos campos ──────────────────────────────────
+      treatmentProfileId: clearTreatmentProfileId
+          ? null
+          : (treatmentProfileId ?? this.treatmentProfileId),
+      visualGoal:
+          clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
+      doctorConfig:
+          clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
+      photoQuality:
+          clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
+      doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,
+      approvedAttemptId: clearApprovedAttemptId
+          ? null
+          : (approvedAttemptId ?? this.approvedAttemptId),
     );
   }
 }
@@ -212,6 +260,13 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         attemptCount: simulation.attemptCount,
         promptUsed: simulation.promptUsed,
         promptVersion: simulation.promptVersion,
+        // ── Nuevos campos ──────────────────────────────────
+        treatmentProfileId: simulation.treatmentProfileId,
+        visualGoal: simulation.visualGoal,
+        doctorConfig: simulation.doctorConfig,
+        photoQuality: simulation.photoQuality,
+        doctorReviewStatus: simulation.doctorReviewStatus,
+        approvedAttemptId: simulation.approvedAttemptId,
       ),
     );
   }
@@ -252,7 +307,10 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         state.asData?.value ??
         const SimulatorFlowState(uiState: SimulatorUiState.idle);
     state = AsyncData(
-      current.copyWith(uiState: SimulatorUiState.pickingImage, clearError: true),
+      current.copyWith(
+        uiState: SimulatorUiState.pickingImage,
+        clearError: true,
+      ),
     );
 
     try {
@@ -278,10 +336,13 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       // ignore: avoid_print
       print(
         '[SimulatorFlow][draft.uploaded] '
-        'patientId=$patientId localSimulationId=$simulationId originalPath=$originalPath',
+        'patientId=$patientId localSimulationId=$simulationId'
+        ' originalPath=$originalPath',
       );
 
-      final detection = await _face.detectSmileRegion(imagePath: picked.filePath);
+      final detection = await _face.detectSmileRegion(
+        imagePath: picked.filePath,
+      );
       final simulation = await _repo.createDraftSimulation(
         patientId: patientId,
         createdBy: adminId,
@@ -302,7 +363,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       // ignore: avoid_print
       print(
         '[SimulatorFlow][draft.created] '
-        'patientId=$patientId localSimulationId=$simulationId draftId=${simulation.id} originalPath=${simulation.originalPath}',
+        'patientId=$patientId localSimulationId=$simulationId'
+        ' draftId=${simulation.id} originalPath=${simulation.originalPath}',
       );
 
       _applySimulation(
@@ -354,13 +416,18 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       // ignore: avoid_print
       print(
         '[SimulatorFlow][generate.request] '
-        'patientId=$patientId simulationId=${current.simulationId} originalPath=${current.originalPath}',
+        'patientId=$patientId simulationId=${current.simulationId}'
+        ' originalPath=${current.originalPath}',
       );
       await _repo.generateWithAi(
         patientId: patientId,
         simulationId: current.simulationId!,
         treatmentType: treatmentType,
         notes: current.notes,
+        treatmentProfileId: current.treatmentProfileId,
+        visualGoal: current.visualGoal,
+        doctorConfig: current.doctorConfig,
+        photoQuality: current.photoQuality,
       );
     } catch (e) {
       state = AsyncData(
@@ -458,7 +525,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
   void resetFlow() {
     _simulationSubscription?.cancel();
     _simulationSubscription = null;
-    state = const AsyncData(SimulatorFlowState(uiState: SimulatorUiState.idle));
+    state =
+        const AsyncData(SimulatorFlowState(uiState: SimulatorUiState.idle));
   }
 
   SimulatorUiState _uiStateForStatus(SimulationStatus status) {

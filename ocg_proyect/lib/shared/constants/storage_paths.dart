@@ -31,6 +31,18 @@ class StoragePaths {
   ) => 'simulations/$patientId/$simulationId/thumb_original.jpg';
   static String simulationThumbResult(String patientId, String simulationId) =>
       'simulations/$patientId/$simulationId/thumb_result.jpg';
+  static String simulationAttemptResult(
+    String patientId,
+    String simulationId,
+    String attemptId,
+  ) => 'simulations/$patientId/$simulationId/attempts/$attemptId/result.jpg';
+
+  static String simulationArtifact(
+    String patientId,
+    String simulationId,
+    String name,
+  ) => 'simulations/$patientId/$simulationId/artifacts/$name';
+
   static String simulatorTemp(String sessionId, String name) =>
       'simulator_temp/$sessionId/$name';
 }

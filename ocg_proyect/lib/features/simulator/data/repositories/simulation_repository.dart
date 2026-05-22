@@ -91,9 +91,18 @@ class SimulationRepository {
     String? promptUsed,
     String? promptVersion,
     Map<String, dynamic>? promptMetadata,
+    // ── Nuevos campos Bloque 01 ──────────────────────────
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
+    String doctorReviewStatus = 'pending',
+    String? approvedAttemptId,
   }) async {
     if (patientId.trim().isEmpty) throw Exception('SIMULATION_PATIENT_REQUIRED');
-    if (originalPath.trim().isEmpty) throw Exception('SIMULATION_ORIGINAL_REQUIRED');
+    if (originalPath.trim().isEmpty) {
+      throw Exception('SIMULATION_ORIGINAL_REQUIRED');
+    }
 
     final now = DateTime.now();
     final normalizedSimulationId = (simulationId ?? '').trim();
@@ -123,6 +132,13 @@ class SimulationRepository {
       detectedRegion: detectedRegion,
       promptMetadata: promptMetadata,
       fechaCompartida: null,
+      // ── Nuevos campos ──────────────────────────────────
+      treatmentProfileId: treatmentProfileId,
+      visualGoal: visualGoal,
+      doctorConfig: doctorConfig,
+      photoQuality: photoQuality,
+      doctorReviewStatus: doctorReviewStatus,
+      approvedAttemptId: approvedAttemptId,
     );
 
     await ref.set(entity.toJson(), SetOptions(merge: true));
@@ -134,6 +150,11 @@ class SimulationRepository {
     required String simulationId,
     required String treatmentType,
     String? notes,
+    // ── Nuevos campos Bloque 01 ──────────────────────────
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
   }) async {
     final callable = (_functions ?? FirebaseFunctions.instance)
         .httpsCallable('generateSmileSimulation');
@@ -141,7 +162,8 @@ class SimulationRepository {
     // ignore: avoid_print
     print(
       '[SimulatorRepository][generateWithAi] '
-      'patientId=$patientId simulationId=$simulationId treatmentType=$treatmentType',
+      'patientId=$patientId simulationId=$simulationId treatmentType=$treatmentType '
+      'treatmentProfileId=$treatmentProfileId visualGoal=$visualGoal',
     );
 
     try {
@@ -150,6 +172,14 @@ class SimulationRepository {
         'simulationId': simulationId,
         'treatmentType': treatmentType,
         'notes': notes,
+        if (treatmentProfileId != null && treatmentProfileId.isNotEmpty)
+          'treatmentProfileId': treatmentProfileId,
+        if (visualGoal != null && visualGoal.isNotEmpty)
+          'visualGoal': visualGoal,
+        if (doctorConfig != null && doctorConfig.isNotEmpty)
+          'doctorConfig': doctorConfig,
+        if (photoQuality != null && photoQuality.isNotEmpty)
+          'photoQuality': photoQuality,
       });
     } on FirebaseFunctionsException catch (error) {
       throw Exception(_mapCallableError(error));
@@ -163,7 +193,8 @@ class SimulationRepository {
             'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.') {
       return 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
     }
-    if (message.contains('No se encontró la imagen original de esta simulación')) {
+    if (message.contains(
+        'No se encontró la imagen original de esta simulación')) {
       return 'No se encontró la imagen original de esta simulación. Toma la foto nuevamente o crea una nueva simulación.';
     }
     if (message == 'La generación con IA no está habilitada.' ||
@@ -203,6 +234,18 @@ class SimulationRepository {
     bool clearPromptMetadata = false,
     DateTime? fechaCompartida,
     bool clearFechaCompartida = false,
+    // ── Nuevos campos Bloque 01 ──────────────────────────
+    String? treatmentProfileId,
+    bool clearTreatmentProfileId = false,
+    String? visualGoal,
+    bool clearVisualGoal = false,
+    Map<String, dynamic>? doctorConfig,
+    bool clearDoctorConfig = false,
+    Map<String, dynamic>? photoQuality,
+    bool clearPhotoQuality = false,
+    String? doctorReviewStatus,
+    String? approvedAttemptId,
+    bool clearApprovedAttemptId = false,
   }) async {
     final ref = _simulationsRef(patientId).doc(simulationId);
     final snap = await ref.get();
@@ -234,6 +277,18 @@ class SimulationRepository {
       clearPromptMetadata: clearPromptMetadata,
       fechaCompartida: fechaCompartida,
       clearFechaCompartida: clearFechaCompartida,
+      // ── Nuevos campos ──────────────────────────────────
+      treatmentProfileId: treatmentProfileId,
+      clearTreatmentProfileId: clearTreatmentProfileId,
+      visualGoal: visualGoal,
+      clearVisualGoal: clearVisualGoal,
+      doctorConfig: doctorConfig,
+      clearDoctorConfig: clearDoctorConfig,
+      photoQuality: photoQuality,
+      clearPhotoQuality: clearPhotoQuality,
+      doctorReviewStatus: doctorReviewStatus,
+      approvedAttemptId: approvedAttemptId,
+      clearApprovedAttemptId: clearApprovedAttemptId,
       updatedAt: DateTime.now(),
     );
 
@@ -248,7 +303,8 @@ class SimulationRepository {
     String? errorMessage,
     int? attemptCount,
   }) {
-    final shouldClearError = errorMessage == null || errorMessage.trim().isEmpty;
+    final shouldClearError =
+        errorMessage == null || errorMessage.trim().isEmpty;
     return updateSimulation(
       patientId: patientId,
       simulationId: simulationId,

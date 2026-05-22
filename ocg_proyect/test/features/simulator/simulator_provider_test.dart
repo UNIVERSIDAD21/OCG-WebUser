@@ -13,6 +13,11 @@ class _FakeSimulationRepository extends SimulationRepository {
   int generateCalls = 0;
   String? lastPatientId;
   String? lastSimulationId;
+  // ── Nuevos campos Bloque 01 ────────────────────────────
+  String? lastTreatmentProfileId;
+  String? lastVisualGoal;
+  Map<String, dynamic>? lastDoctorConfig;
+  Map<String, dynamic>? lastPhotoQuality;
 
   @override
   Stream<SimulationModel?> watchSimulation({
@@ -26,22 +31,40 @@ class _FakeSimulationRepository extends SimulationRepository {
     required String simulationId,
     required String treatmentType,
     String? notes,
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
   }) async {
     generateCalls += 1;
     lastPatientId = patientId;
     lastSimulationId = simulationId;
+    lastTreatmentProfileId = treatmentProfileId;
+    lastVisualGoal = visualGoal;
+    lastDoctorConfig = doctorConfig;
+    lastPhotoQuality = photoQuality;
     if (generateError != null) throw Exception(generateError!);
   }
 }
 
 void main() {
-  SimulationModel baseSimulation({SimulationStatus status = SimulationStatus.draft}) {
+  SimulationModel baseSimulation({
+    SimulationStatus status = SimulationStatus.draft,
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
+    String doctorReviewStatus = 'pending',
+    String? approvedAttemptId,
+  }) {
     final now = DateTime(2026, 5, 4);
     return SimulationModel(
       id: 's1',
       patientId: 'p1',
       originalPath: 'simulations/p1/s1/original.jpg',
-      resultPath: status == SimulationStatus.ready ? 'simulations/p1/s1/result.jpg' : null,
+      resultPath: status == SimulationStatus.ready
+          ? 'simulations/p1/s1/result.jpg'
+          : null,
       compartidaConPaciente: false,
       createdAt: now,
       updatedAt: now,
@@ -60,11 +83,19 @@ void main() {
       detectedRegion: null,
       promptMetadata: const {'faceDetectionSource': 'manual'},
       fechaCompartida: null,
+      treatmentProfileId: treatmentProfileId,
+      visualGoal: visualGoal,
+      doctorConfig: doctorConfig,
+      photoQuality: photoQuality,
+      doctorReviewStatus: doctorReviewStatus,
+      approvedAttemptId: approvedAttemptId,
     );
   }
 
   test('mapea falta de API KEY a mensaje claro', () async {
-    final repo = _FakeSimulationRepository()..generateError = 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
+    final repo = _FakeSimulationRepository()
+      ..generateError =
+          'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.';
     final container = ProviderContainer(
       overrides: [simulationRepositoryProvider.overrideWith((ref) => repo)],
     );
@@ -72,15 +103,25 @@ void main() {
 
     final notifier = container.read(simulatorFlowProvider.notifier);
     notifier.loadExistingSimulation(baseSimulation());
-    await notifier.generateWithAi(patientId: 'p1', treatmentType: 'Ortodoncia convencional');
+    await notifier.generateWithAi(
+      patientId: 'p1',
+      treatmentType: 'Ortodoncia convencional',
+    );
 
     final state = container.read(simulatorFlowProvider).requireValue;
-    expect(state.errorMessage, 'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.');
+    expect(
+      state.errorMessage,
+      'El simulador IA está instalado, pero falta configurar'
+      ' la API KEY en Firebase Functions.',
+    );
     expect(state.status, SimulationStatus.draft);
   });
 
   test('mapea simulador deshabilitado a mensaje claro', () async {
-    final repo = _FakeSimulationRepository()..generateError = 'El simulador IA está instalado, pero está desactivado en Firebase Functions.';
+    final repo = _FakeSimulationRepository()
+      ..generateError =
+          'El simulador IA está instalado, pero está desactivado'
+          ' en Firebase Functions.';
     final container = ProviderContainer(
       overrides: [simulationRepositoryProvider.overrideWith((ref) => repo)],
     );
@@ -88,10 +129,75 @@ void main() {
 
     final notifier = container.read(simulatorFlowProvider.notifier);
     notifier.loadExistingSimulation(baseSimulation());
-    await notifier.generateWithAi(patientId: 'p1', treatmentType: 'Ortodoncia convencional');
+    await notifier.generateWithAi(
+      patientId: 'p1',
+      treatmentType: 'Ortodoncia convencional',
+    );
 
     final state = container.read(simulatorFlowProvider).requireValue;
-    expect(state.errorMessage, 'El simulador IA está instalado, pero está desactivado en Firebase Functions.');
+    expect(
+      state.errorMessage,
+      'El simulador IA está instalado, pero está desactivado'
+      ' en Firebase Functions.',
+    );
+    expect(repo.generateCalls, 1);
+  });
+
+  test('_applySimulation propaga treatmentProfileId, doctorConfig'
+      ' y photoQuality', () {
+    final repo = _FakeSimulationRepository();
+    final container = ProviderContainer(
+      overrides: [simulationRepositoryProvider.overrideWith((ref) => repo)],
+    );
+    addTearDown(container.dispose);
+
+    final sim = baseSimulation(
+      treatmentProfileId: 'metal_braces',
+      visualGoal: 'show_appliance',
+      doctorConfig: {'ligatureColor': 'gris'},
+      photoQuality: {'status': 'valid', 'score': 0.85},
+      doctorReviewStatus: 'pending',
+      approvedAttemptId: null,
+    );
+
+    final notifier = container.read(simulatorFlowProvider.notifier);
+    notifier.loadExistingSimulation(sim);
+
+    final state = container.read(simulatorFlowProvider).requireValue;
+    expect(state.treatmentProfileId, 'metal_braces');
+    expect(state.visualGoal, 'show_appliance');
+    expect(state.doctorConfig?['ligatureColor'], 'gris');
+    expect(state.photoQuality?['status'], 'valid');
+    expect(state.photoQuality?['score'], 0.85);
+    expect(state.doctorReviewStatus, 'pending');
+    expect(state.approvedAttemptId, null);
+  });
+
+  test('generateWithAi envia campos nuevos al repo', () async {
+    final repo = _FakeSimulationRepository();
+    final container = ProviderContainer(
+      overrides: [simulationRepositoryProvider.overrideWith((ref) => repo)],
+    );
+    addTearDown(container.dispose);
+
+    final sim = baseSimulation(
+      treatmentProfileId: 'esthetic_braces',
+      visualGoal: 'show_appliance',
+      doctorConfig: {'material': 'zafiro'},
+      photoQuality: {'status': 'valid'},
+    );
+
+    final notifier = container.read(simulatorFlowProvider.notifier);
+    notifier.loadExistingSimulation(sim);
+    await notifier.generateWithAi(
+      patientId: 'p1',
+      treatmentType: 'Ortodoncia estética',
+    );
+
+    expect(repo.lastTreatmentProfileId, 'esthetic_braces');
+    expect(repo.lastVisualGoal, 'show_appliance');
+    expect(repo.lastDoctorConfig?['material'], 'zafiro');
+    expect(repo.lastPhotoQuality?['status'], 'valid');
     expect(repo.generateCalls, 1);
   });
 }

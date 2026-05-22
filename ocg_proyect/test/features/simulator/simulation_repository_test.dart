@@ -64,10 +64,12 @@ void main() {
     expect(doc.exists, isTrue);
     expect(doc.data()!['patientId'], 'p-1');
     expect(doc.data()!['status'], SimulationStatus.draft.name);
-    expect(doc.data()!['originalPath'], 'simulations/p-1/sim-1/original.jpg');
+    expect(doc.data()!['originalPath'],
+        'simulations/p-1/sim-1/original.jpg');
   });
 
-  test('createDraftSimulation usa el mismo simulationId para Firestore cuando se entrega explícitamente', () async {
+  test('createDraftSimulation usa el mismo simulationId para Firestore'
+      ' cuando se entrega explícitamente', () async {
     final saved = await repo.createDraftSimulation(
       patientId: 'p-1',
       createdBy: 'admin-1',
@@ -82,7 +84,61 @@ void main() {
         .doc('sim-consistente')
         .get();
     expect(doc.exists, isTrue);
-    expect(doc.data()!['originalPath'], 'simulations/p-1/sim-consistente/original.jpg');
+    expect(doc.data()!['originalPath'],
+        'simulations/p-1/sim-consistente/original.jpg');
+  });
+
+  test('createDraftSimulation guarda campos nuevos cuando se entregan',
+      () async {
+    final saved = await repo.createDraftSimulation(
+      patientId: 'p-1',
+      createdBy: 'admin-1',
+      originalPath: 'simulations/p-1/sim-new/original.jpg',
+      treatmentProfileId: 'metal_braces',
+      visualGoal: 'show_appliance',
+      doctorConfig: {'ligatureColor': 'gris'},
+      photoQuality: {'status': 'valid', 'score': 0.85},
+      doctorReviewStatus: 'pending',
+    );
+
+    expect(saved.treatmentProfileId, 'metal_braces');
+    expect(saved.visualGoal, 'show_appliance');
+    expect(saved.doctorConfig?['ligatureColor'], 'gris');
+    expect(saved.photoQuality?['status'], 'valid');
+    expect(saved.doctorReviewStatus, 'pending');
+
+    final doc = await db
+        .collection(FirestorePaths.patientSimulations('p-1'))
+        .doc(saved.id)
+        .get();
+    expect(doc.data()!['treatmentProfileId'], 'metal_braces');
+    expect(doc.data()!['visualGoal'], 'show_appliance');
+    expect(doc.data()!['doctorConfig']['ligatureColor'], 'gris');
+    expect(doc.data()!['photoQuality']['status'], 'valid');
+    expect(doc.data()!['doctorReviewStatus'], 'pending');
+  });
+
+  test('updateSimulation actualiza doctorReviewStatus', () async {
+    final draft = await repo.createDraftSimulation(
+      patientId: 'p-dr',
+      createdBy: 'admin-1',
+      originalPath: 'simulations/p-dr/sim-dr/original.jpg',
+      doctorReviewStatus: 'pending',
+    );
+
+    await repo.updateSimulation(
+      patientId: 'p-dr',
+      simulationId: draft.id,
+      doctorReviewStatus: 'approved',
+      approvedAttemptId: 'attempt_1',
+    );
+
+    final doc = await db
+        .collection(FirestorePaths.patientSimulations('p-dr'))
+        .doc(draft.id)
+        .get();
+    expect(doc.data()!['doctorReviewStatus'], 'approved');
+    expect(doc.data()!['approvedAttemptId'], 'attempt_1');
   });
 
   test('updateSimulationStatus cambia draft -> generating', () async {
@@ -155,7 +211,8 @@ void main() {
     expect(list.first.id, 'b');
   });
 
-  test('watchSharedSimulations solo retorna compartidas en status shared', () async {
+  test('watchSharedSimulations solo retorna compartidas en status shared',
+      () async {
     await db.collection(FirestorePaths.patientSimulations('p-5')).add({
       ...base(
         id: 'shared-ok',

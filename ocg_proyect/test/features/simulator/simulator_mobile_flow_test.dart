@@ -79,6 +79,12 @@ class _FlowFakeRepository extends SimulationRepository {
     String? promptUsed,
     String? promptVersion,
     Map<String, dynamic>? promptMetadata,
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
+    String doctorReviewStatus = 'pending',
+    String? approvedAttemptId,
   }) async {
     lastCreated = SimulationModel(
       id: simulationId ?? 'sim-draft',
@@ -113,6 +119,10 @@ class _FlowFakeRepository extends SimulationRepository {
     required String simulationId,
     required String treatmentType,
     String? notes,
+    String? treatmentProfileId,
+    String? visualGoal,
+    Map<String, dynamic>? doctorConfig,
+    Map<String, dynamic>? photoQuality,
   }) async {
     if (generateError != null) throw Exception(generateError!);
   }

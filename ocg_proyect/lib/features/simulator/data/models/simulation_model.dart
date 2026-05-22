@@ -35,8 +35,15 @@ class SimulationModel {
     required this.detectedRegion,
     required this.promptMetadata,
     required this.fechaCompartida,
+    this.treatmentProfileId,
+    this.visualGoal,
+    this.doctorConfig,
+    this.photoQuality,
+    this.doctorReviewStatus = 'pending',
+    this.approvedAttemptId,
   });
 
+  // ── Campos base ──────────────────────────────────────
   final String id;
   final String patientId;
   final String originalPath;
@@ -60,12 +67,22 @@ class SimulationModel {
   final Map<String, dynamic>? promptMetadata;
   final DateTime? fechaCompartida;
 
+  // ── Campos nuevos Bloque 01 ──────────────────────────
+  final String? treatmentProfileId;
+  final String? visualGoal;
+  final Map<String, dynamic>? doctorConfig;
+  final Map<String, dynamic>? photoQuality;
+  final String doctorReviewStatus; // pending | approved | rejected
+  final String? approvedAttemptId;
+
+  // ── Convenience ──────────────────────────────────────
   String get originalUrl => originalPath;
   String? get resultUrl => resultPath;
   bool get hasResult =>
       resultPath?.trim().isNotEmpty == true ||
       resultUrl?.trim().isNotEmpty == true;
 
+  // ── fromJson ─────────────────────────────────────────
   factory SimulationModel.fromJson(Map<String, dynamic> json) {
     final now = DateTime.now();
     final statusRaw = (json['status'] ?? '').toString();
@@ -112,39 +129,89 @@ class SimulationModel {
       detectedRegion: _asMap(json['detectedRegion']),
       promptMetadata: _asMap(json['promptMetadata']),
       fechaCompartida: _parseNullableDate(json['fechaCompartida']),
+      // ── Campos nuevos con defaults ────────────────────
+      treatmentProfileId: _nullableString(json['treatmentProfileId']),
+      visualGoal: _nullableString(json['visualGoal']),
+      doctorConfig: _asMap(json['doctorConfig']),
+      photoQuality: _asMap(json['photoQuality']),
+      doctorReviewStatus:
+          _firstNonEmpty(json['doctorReviewStatus'], 'pending'),
+      approvedAttemptId: _nullableString(json['approvedAttemptId']),
     );
   }
 
+  // ── toJson ───────────────────────────────────────────
   Map<String, dynamic> toJson() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'patientId': patientId,
       'originalPath': originalPath,
-      'resultPath': resultPath,
       'compartidaConPaciente': compartidaConPaciente,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
       'createdBy': createdBy,
       'treatmentType': treatmentType?.name,
       'status': status.name,
-      'notes': notes,
       'generationProvider': generationProvider,
       'modelUsed': modelUsed,
       'attemptCount': attemptCount,
-      'errorMessage': errorMessage,
-      'generatedAt':
-          generatedAt == null ? null : Timestamp.fromDate(generatedAt!),
-      'promptUsed': promptUsed,
-      'promptVersion': promptVersion,
       'mlKitUsed': mlKitUsed,
-      'detectedRegion': detectedRegion,
-      'promptMetadata': promptMetadata,
-      'fechaCompartida': fechaCompartida == null
-          ? null
-          : Timestamp.fromDate(fechaCompartida!),
+      'doctorReviewStatus': doctorReviewStatus,
     };
+
+    if (resultPath != null) {
+      map['resultPath'] = resultPath;
+    }
+    if (updatedAt != null) {
+      map['updatedAt'] = Timestamp.fromDate(updatedAt!);
+    }
+    if (notes != null) {
+      map['notes'] = notes;
+    }
+    if (errorMessage != null) {
+      map['errorMessage'] = errorMessage;
+    }
+    if (generatedAt != null) {
+      map['generatedAt'] = Timestamp.fromDate(generatedAt!);
+    }
+    if (promptUsed != null) {
+      map['promptUsed'] = promptUsed;
+    }
+    if (promptVersion != null) {
+      map['promptVersion'] = promptVersion;
+    }
+    if (detectedRegion != null) {
+      map['detectedRegion'] = detectedRegion;
+    }
+    if (promptMetadata != null) {
+      map['promptMetadata'] = promptMetadata;
+    }
+    if (fechaCompartida != null) {
+      map['fechaCompartida'] = Timestamp.fromDate(fechaCompartida!);
+    }
+    // ── Campos nuevos (solo si no son vacíos/nulos) ─────
+    final tpId = (treatmentProfileId ?? '').trim();
+    if (tpId.isNotEmpty) {
+      map['treatmentProfileId'] = tpId;
+    }
+    final vg = (visualGoal ?? '').trim();
+    if (vg.isNotEmpty) {
+      map['visualGoal'] = vg;
+    }
+    if (doctorConfig != null && doctorConfig!.isNotEmpty) {
+      map['doctorConfig'] = doctorConfig;
+    }
+    if (photoQuality != null && photoQuality!.isNotEmpty) {
+      map['photoQuality'] = photoQuality;
+    }
+    final aaId = (approvedAttemptId ?? '').trim();
+    if (aaId.isNotEmpty) {
+      map['approvedAttemptId'] = aaId;
+    }
+
+    return map;
   }
 
+  // ── copyWith ─────────────────────────────────────────
   SimulationModel copyWith({
     String? id,
     String? patientId,
@@ -179,32 +246,70 @@ class SimulationModel {
     bool clearPromptMetadata = false,
     DateTime? fechaCompartida,
     bool clearFechaCompartida = false,
+    // ── Campos nuevos ──────────────────────────────────
+    String? treatmentProfileId,
+    bool clearTreatmentProfileId = false,
+    String? visualGoal,
+    bool clearVisualGoal = false,
+    Map<String, dynamic>? doctorConfig,
+    bool clearDoctorConfig = false,
+    Map<String, dynamic>? photoQuality,
+    bool clearPhotoQuality = false,
+    String? doctorReviewStatus,
+    String? approvedAttemptId,
+    bool clearApprovedAttemptId = false,
   }) {
     return SimulationModel(
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       originalPath: originalPath ?? this.originalPath,
       resultPath: clearResultPath ? null : (resultPath ?? this.resultPath),
-      compartidaConPaciente: compartidaConPaciente ?? this.compartidaConPaciente,
+      compartidaConPaciente:
+          compartidaConPaciente ?? this.compartidaConPaciente,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: clearUpdatedAt ? null : (updatedAt ?? this.updatedAt),
       createdBy: createdBy ?? this.createdBy,
-      treatmentType: clearTreatmentType ? null : (treatmentType ?? this.treatmentType),
+      treatmentType:
+          clearTreatmentType ? null : (treatmentType ?? this.treatmentType),
       status: status ?? this.status,
       notes: clearNotes ? null : (notes ?? this.notes),
       generationProvider: generationProvider ?? this.generationProvider,
       modelUsed: modelUsed ?? this.modelUsed,
       attemptCount: attemptCount ?? this.attemptCount,
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
-      generatedAt: clearGeneratedAt ? null : (generatedAt ?? this.generatedAt),
-      promptUsed: clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
-      promptVersion: clearPromptVersion ? null : (promptVersion ?? this.promptVersion),
+      errorMessage:
+          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      generatedAt:
+          clearGeneratedAt ? null : (generatedAt ?? this.generatedAt),
+      promptUsed:
+          clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
+      promptVersion:
+          clearPromptVersion ? null : (promptVersion ?? this.promptVersion),
       mlKitUsed: mlKitUsed ?? this.mlKitUsed,
-      detectedRegion: clearDetectedRegion ? null : (detectedRegion ?? this.detectedRegion),
-      promptMetadata: clearPromptMetadata ? null : (promptMetadata ?? this.promptMetadata),
-      fechaCompartida: clearFechaCompartida ? null : (fechaCompartida ?? this.fechaCompartida),
+      detectedRegion:
+          clearDetectedRegion ? null : (detectedRegion ?? this.detectedRegion),
+      promptMetadata:
+          clearPromptMetadata ? null : (promptMetadata ?? this.promptMetadata),
+      fechaCompartida: clearFechaCompartida
+          ? null
+          : (fechaCompartida ?? this.fechaCompartida),
+      // ── Campos nuevos ──────────────────────────────────
+      treatmentProfileId: clearTreatmentProfileId
+          ? null
+          : (treatmentProfileId ?? this.treatmentProfileId),
+      visualGoal:
+          clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
+      doctorConfig:
+          clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
+      photoQuality:
+          clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
+      doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,
+      approvedAttemptId: clearApprovedAttemptId
+          ? null
+          : (approvedAttemptId ?? this.approvedAttemptId),
     );
   }
+
+  // ── Parsers internos ─────────────────────────────────
 
   static SimulationStatus _parseStatus({
     required String statusRaw,
@@ -265,6 +370,11 @@ class SimulationModel {
       if (type.name == raw) return type;
     }
     return null;
+  }
+
+  static String? _nullableString(dynamic value) {
+    final s = (value ?? '').toString().trim();
+    return s.isEmpty ? null : s;
   }
 
   static Map<String, dynamic>? _asMap(dynamic value) {
