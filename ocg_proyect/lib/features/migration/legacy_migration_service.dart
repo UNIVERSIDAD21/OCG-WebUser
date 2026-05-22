@@ -1,3 +1,4 @@
+// ignore_for_file: unused_import, unused_local_variable
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 

@@ -1,3 +1,4 @@
+// ignore_for_file: use_null_aware_elements
 import 'package:flutter/material.dart';
 
 import '../../../../../presentation/web/common/web_breakpoints.dart';
