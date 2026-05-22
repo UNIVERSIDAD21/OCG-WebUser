@@ -121,6 +121,7 @@ class SimulatorFlowState {
   bool get canShare =>
       hasResult &&
       status == SimulationStatus.ready &&
+      doctorReviewStatus == 'approved' &&
       !compartidaBloqueada;
   bool get compartidaBloqueada => status == SimulationStatus.archived;
 
@@ -539,6 +540,45 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     final current = state.asData?.value;
     if (current == null) return;
     state = AsyncData(current.copyWith(doctorConfig: config));
+  }
+
+  Future<void> approveCurrentResult({
+    required String patientId,
+  }) async {
+    final current = state.asData?.value;
+    if (current == null) return;
+    final simId = current.simulationId;
+    if (simId == null || simId.isEmpty) return;
+    if (current.doctorReviewStatus == 'approved') return;
+
+    final attemptCount = current.attemptCount;
+    final attemptId = 'attempt_$attemptCount';
+
+    await _repo.approveSimulationAttempt(
+      patientId: patientId,
+      simulationId: simId,
+      attemptId: attemptId,
+    );
+  }
+
+  Future<void> rejectCurrentResult({
+    required String patientId,
+    required String reason,
+  }) async {
+    final current = state.asData?.value;
+    if (current == null) return;
+    final simId = current.simulationId;
+    if (simId == null || simId.isEmpty) return;
+
+    final attemptCount = current.attemptCount;
+    final attemptId = 'attempt_$attemptCount';
+
+    await _repo.rejectSimulationAttempt(
+      patientId: patientId,
+      simulationId: simId,
+      attemptId: attemptId,
+      reason: reason,
+    );
   }
 
   Future<void> updateDetectedRegion({

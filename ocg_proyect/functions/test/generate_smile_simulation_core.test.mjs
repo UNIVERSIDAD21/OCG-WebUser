@@ -479,3 +479,107 @@ test('photoQuality válida permite generar normalmente', async () => {
   assert.equal(result.status, 'ready');
   assert.equal(d.calls.openAi, 1);
 });
+
+// ── Bloque 05: Attempts and doctor review ───────────────
+
+test('generación exitosa crea attempt con status ready', async () => {
+  const d = deps();
+  const result = await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    treatmentProfileId: 'metal_braces',
+  });
+
+  // Main doc updated
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.status, 'ready');
+  assert.equal(sim.doctorReviewStatus, 'pending');
+  assert.equal(sim.approvedAttemptId, null);
+  assert.equal(sim.attemptCount, 1);
+
+  // Attempt doc created
+  const attempt = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_1');
+  assert.ok(attempt, 'attempt debe existir');
+  assert.equal(attempt.status, 'ready');
+  assert.equal(attempt.attemptNumber, 1);
+  assert.equal(attempt.treatmentProfileId, 'metal_braces');
+  assert.equal(attempt.generationProvider, 'openai');
+  assert.equal(attempt.modelUsed, 'gpt-image-2');
+  assert.equal(attempt.reviewStatus, 'pending');
+
+  // Result saved to both paths
+  assert.ok(d.db.store.get('storage:simulations/p1/s1/result.jpg'));
+  assert.ok(d.db.store.get('storage:simulations/p1/s1/attempts/attempt_1/result.jpg'));
+});
+
+test('fallo de OpenAI marca attempt y simulation como failed', async () => {
+  const d = deps();
+  d.value.createOpenAiClient = () => ({
+    generateEditedImage: async () => { throw new Error('timeout'); },
+  });
+
+  await assert.rejects(
+    () => processGenerateSmileSimulation(d.value, {patientId: 'p1', simulationId: 's1'}),
+  );
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.status, 'failed');
+  assert.equal(sim.attemptCount, 1);
+
+  const attempt = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_1');
+  assert.ok(attempt);
+  assert.equal(attempt.status, 'failed');
+  assert.ok(attempt.errorMessage && attempt.errorMessage.length > 0);
+});
+
+test('preflight rejected no crea attempt ni incrementa count', async () => {
+  const d = deps();
+  await assert.rejects(
+    () => processGenerateSmileSimulation(d.value, {
+      patientId: 'p1',
+      simulationId: 's1',
+      photoQuality: {status: 'rejected', score: 0, warnings: [], blockingReasons: ['No apta'], metadata: {}},
+    }),
+    /no es apta/,
+  );
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.attemptCount, 0, 'attemptCount no debe incrementar en preflight');
+
+  const attempt = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_1');
+  assert.ok(!attempt, 'no debe existir attempt cuando el preflight rechaza');
+});
+
+test('segundo intento crea attempt_2 y conserva attempt_1', async () => {
+  const d = deps({seed: baseSeed({attemptCount: 1})});
+
+  // Pre-seed attempt_1
+  d.db.store.set('patients/p1/simulations/s1/attempts/attempt_1', {
+    id: 'attempt_1', attemptNumber: 1, status: 'ready',
+    resultPath: 'simulations/p1/s1/attempts/attempt_1/result.jpg',
+    treatmentProfileId: 'metal_braces', generationProvider: 'openai',
+    modelUsed: 'gpt-image-2', reviewStatus: 'approved',
+  });
+
+  const result = await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1', simulationId: 's1',
+  });
+
+  assert.equal(result.status, 'ready');
+
+  // attempt_1 preserved
+  const a1 = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_1');
+  assert.equal(a1.status, 'ready');
+  assert.equal(a1.reviewStatus, 'approved');
+
+  // attempt_2 created
+  const a2 = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_2');
+  assert.equal(a2.status, 'ready');
+  assert.equal(a2.attemptNumber, 2);
+
+  // Main doc updated
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.attemptCount, 2);
+  assert.equal(sim.doctorReviewStatus, 'pending');
+  assert.equal(sim.approvedAttemptId, null);
+});

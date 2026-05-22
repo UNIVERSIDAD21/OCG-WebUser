@@ -146,22 +146,16 @@ export async function processGenerateSmileSimulation(
   const notes = normalizeText(data.notes);
 
   if (!patientId) {
-    throw new HttpsError(
-      'invalid-argument',
-      'patientId es obligatorio.',
-    );
+    throw new HttpsError('invalid-argument', 'patientId es obligatorio.');
   }
   if (!simulationId) {
-    throw new HttpsError(
-      'invalid-argument',
-      'simulationId es obligatorio.',
-    );
+    throw new HttpsError('invalid-argument', 'simulationId es obligatorio.');
   }
 
   const patientRef = deps.db.collection('patients').doc(patientId);
-  const simulationRef = patientRef
-    .collection('simulations')
-    .doc(simulationId);
+  const simulationRef = patientRef.collection('simulations').doc(simulationId);
+  const attemptsRef = simulationRef.collection('attempts');
+
   const [patientSnap, simulationSnap] = await Promise.all([
     patientRef.get(),
     simulationRef.get(),
@@ -181,27 +175,16 @@ export async function processGenerateSmileSimulation(
   });
 
   if (!patientSnap.exists) {
-    console.warn('[SimulatorCore][patient.not_found]', {
-      patientId,
-      simulationId,
-    });
+    console.warn('[SimulatorCore][patient.not_found]', {patientId, simulationId});
     throw new HttpsError('not-found', 'El paciente no existe.');
   }
   if (!simulationSnap.exists || !simulationSnap.data()) {
-    console.warn('[SimulatorCore][simulation.not_found]', {
-      patientId,
-      simulationId,
-    });
-    throw new HttpsError(
-      'not-found',
-      'La simulación no existe.',
-    );
+    console.warn('[SimulatorCore][simulation.not_found]', {patientId, simulationId});
+    throw new HttpsError('not-found', 'La simulación no existe.');
   }
 
   const simulation = simulationSnap.data()!;
-  const simulationPatientId = (simulation['patientId'] ?? '')
-    .toString()
-    .trim();
+  const simulationPatientId = (simulation['patientId'] ?? '').toString().trim();
   if (simulationPatientId !== patientId) {
     throw new HttpsError(
       'failed-precondition',
@@ -209,70 +192,38 @@ export async function processGenerateSmileSimulation(
     );
   }
 
-  const originalPath = (
-    simulation['originalPath'] ??
-    simulation['originalUrl'] ??
-    ''
-  )
-    .toString()
-    .trim();
+  const originalPath = (simulation['originalPath'] ?? simulation['originalUrl'] ?? '')
+    .toString().trim();
 
   console.info('[SimulatorCore][simulation.loaded]', {
-    patientId,
-    simulationId,
-    originalPath,
-    simulationPatientId,
+    patientId, simulationId, originalPath, simulationPatientId,
     status: (simulation['status'] ?? '').toString().trim(),
   });
 
   if (!originalPath) {
-    console.warn('[SimulatorCore][original_path.empty]', {
-      patientId,
-      simulationId,
-    });
-    throw new HttpsError(
-      'failed-precondition',
-      'La simulación no tiene originalPath válido.',
-    );
+    console.warn('[SimulatorCore][original_path.empty]', {patientId, simulationId});
+    throw new HttpsError('failed-precondition', 'La simulación no tiene originalPath válido.');
   }
 
-  const allowedStatuses = new Set([
-    'draft',
-    'ready',
-    'failed',
-  ]);
-  const status = (simulation['status'] ?? '').toString().trim();
-  if (!allowedStatuses.has(status)) {
-    throw new HttpsError(
-      'failed-precondition',
-      'El estado de la simulación no permite generación.',
-    );
+  const allowedStatuses = new Set(['draft', 'ready', 'failed']);
+  const simStatus = (simulation['status'] ?? '').toString().trim();
+  if (!allowedStatuses.has(simStatus)) {
+    throw new HttpsError('failed-precondition', 'El estado de la simulación no permite generación.');
   }
 
-  const currentAttemptCount = parseAttemptCount(
-    simulation['attemptCount'],
-  );
+  const currentAttemptCount = parseAttemptCount(simulation['attemptCount']);
   if (currentAttemptCount >= deps.config.maxSimulationAttempts) {
-    throw new HttpsError(
-      'failed-precondition',
-      'La simulación superó el máximo de intentos permitidos.',
-    );
+    throw new HttpsError('failed-precondition', 'La simulación superó el máximo de intentos permitidos.');
   }
 
   if (!deps.config.aiSimulatorEnabled) {
-    throw new HttpsError(
-      'failed-precondition',
-      'El simulador IA está instalado, pero está desactivado en Firebase Functions.',
-    );
+    throw new HttpsError('failed-precondition', 'El simulador IA está desactivado en Firebase Functions.');
   }
   if (!deps.config.openAiApiKey?.trim()) {
-    throw new HttpsError(
-      'failed-precondition',
-      'El simulador IA está instalado, pero falta configurar la API KEY en Firebase Functions.',
-    );
+    throw new HttpsError('failed-precondition', 'Falta configurar la API KEY en Firebase Functions.');
   }
 
-  // ── Backend preflight: reject if photo is not suitable ──
+  // ── Backend preflight ──────────────────────────────────
   const reqPhotoQuality = data.photoQuality as Record<string, unknown> | undefined;
   const docPhotoQuality = simulation['photoQuality'] as Record<string, unknown> | undefined;
   const effectivePhotoQuality = reqPhotoQuality ?? docPhotoQuality;
@@ -280,21 +231,15 @@ export async function processGenerateSmileSimulation(
   if (pqStatus === 'rejected') {
     const reasons = (effectivePhotoQuality?.['blockingReasons'] as string[] | undefined)
       ?.join('; ') ?? 'La foto no pasó la validación de calidad.';
-    throw new HttpsError(
-      'failed-precondition',
-      `La foto no es apta para generar: ${reasons}`,
-    );
+    // Preflight rejection → do NOT increment attemptCount
+    throw new HttpsError('failed-precondition', `La foto no es apta para generar: ${reasons}`);
   }
 
-  // Extra guard: palatal_expander requires intraoral photo
   if (profile.id === 'palatal_expander') {
     const photoMeta = (effectivePhotoQuality?.['metadata'] as Record<string, unknown> | undefined);
     const photoType = photoMeta?.['photoType'] ?? '';
     if (String(photoType) === 'frontal_smile') {
-      throw new HttpsError(
-        'failed-precondition',
-        'Para simular un expansor de paladar, necesitas una foto intraoral superior donde se vea el paladar.',
-      );
+      throw new HttpsError('failed-precondition', 'Para simular un expansor de paladar, necesitas una foto intraoral superior donde se vea el paladar.');
     }
   }
 
@@ -309,48 +254,59 @@ export async function processGenerateSmileSimulation(
 
   const modelUsed = deps.config.openAiImageModel ?? 'gpt-image-2';
   const nextAttemptCount = currentAttemptCount + 1;
+  const attemptId = `attempt_${nextAttemptCount}`;
 
-  // ── Mark generating + save profile metadata ────────────
-  await simulationRef.set(
-    {
-      status: 'generating',
-      attemptCount: nextAttemptCount,
-      errorMessage: null,
-      promptUsed: promptResult.promptUsed,
-      promptVersion: promptResult.promptVersion,
-      generationProvider: 'openai',
-      modelUsed,
-      treatmentProfileId: profile.id,
-      visualGoal: visualGoal || null,
-      doctorConfig: doctorConfig ?? null,
-      photoQuality: photoQuality ?? null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastGenerationRequestedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    },
-    {merge: true},
-  );
+  // ── Create attempt document ────────────────────────────
+  await attemptsRef.doc(attemptId).set({
+    id: attemptId,
+    attemptNumber: nextAttemptCount,
+    status: 'generating',
+    resultPath: null,
+    treatmentProfileId: profile.id,
+    visualGoal: visualGoal || null,
+    doctorConfig: doctorConfig ?? null,
+    photoQuality: photoQuality ?? null,
+    promptVersion: promptResult.promptVersion,
+    modelUsed,
+    generationProvider: 'openai',
+    errorMessage: null,
+    reviewStatus: 'pending',
+    rejectionReason: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // ── Mark simulation as generating ──────────────────────
+  await simulationRef.set({
+    status: 'generating',
+    attemptCount: nextAttemptCount,
+    errorMessage: null,
+    promptUsed: promptResult.promptUsed,
+    promptVersion: promptResult.promptVersion,
+    generationProvider: 'openai',
+    modelUsed,
+    treatmentProfileId: profile.id,
+    visualGoal: visualGoal || null,
+    doctorConfig: doctorConfig ?? null,
+    photoQuality: photoQuality ?? null,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastGenerationRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true});
 
   console.info('[SimulatorCore][prompt.built]', {
     promptVersion: promptResult.promptVersion,
     treatmentProfileId: profile.id,
-    // Do NOT log full prompt — may contain sensitive clinical notes
+    attemptId,
   });
 
   // ── Generate with OpenAI ───────────────────────────────
   try {
-    const originalBytes = await deps.storage.download(
-      originalPath,
-    );
+    const originalBytes = await deps.storage.download(originalPath);
     if (originalBytes.length === 0) {
-      throw new Error(
-        'No se pudo leer la imagen original desde Storage.',
-      );
+      throw new Error('No se pudo leer la imagen original desde Storage.');
     }
 
-    const client = deps.createOpenAiClient(
-      deps.config.openAiApiKey,
-    );
+    const client = deps.createOpenAiClient(deps.config.openAiApiKey);
     const resultBytes = await client.generateEditedImage({
       originalBytes,
       prompt: promptResult.promptUsed,
@@ -359,60 +315,76 @@ export async function processGenerateSmileSimulation(
       quality: deps.config.openAiImageQuality,
     });
 
-    const resultPath = `simulations/${patientId}/${simulationId}/result.jpg`;
-    await deps.storage.save(resultPath, resultBytes);
+    // Save to both paths: attempt archive + active
+    const attemptResultPath = `simulations/${patientId}/${simulationId}/attempts/${attemptId}/result.jpg`;
+    const activeResultPath = `simulations/${patientId}/${simulationId}/result.jpg`;
+    await deps.storage.save(attemptResultPath, resultBytes);
+    await deps.storage.save(activeResultPath, resultBytes);
 
-    await simulationRef.set(
-      {
-        resultPath,
-        status: 'ready',
-        generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        promptUsed: promptResult.promptUsed,
-        promptVersion: promptResult.promptVersion,
-        treatmentProfileId: profile.id,
-        visualGoal: visualGoal || null,
-        doctorConfig: doctorConfig ?? null,
-        photoQuality: photoQuality ?? null,
-        modelUsed,
-        generationProvider: 'openai',
-        errorMessage: null,
-        compartidaConPaciente: false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      {merge: true},
-    );
+    // Update attempt → ready
+    await attemptsRef.doc(attemptId).set({
+      status: 'ready',
+      resultPath: attemptResultPath,
+      errorMessage: null,
+      promptVersion: promptResult.promptVersion,
+      modelUsed,
+      generationProvider: 'openai',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
+    // Update simulation → ready, pending review
+    await simulationRef.set({
+      resultPath: activeResultPath,
+      status: 'ready',
+      generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      promptUsed: promptResult.promptUsed,
+      promptVersion: promptResult.promptVersion,
+      treatmentProfileId: profile.id,
+      visualGoal: visualGoal || null,
+      doctorConfig: doctorConfig ?? null,
+      photoQuality: photoQuality ?? null,
+      modelUsed,
+      generationProvider: 'openai',
+      errorMessage: null,
+      doctorReviewStatus: 'pending',
+      approvedAttemptId: null,
+      compartidaConPaciente: false,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
 
     console.info('[SimulatorCore][generated.success]', {
-      patientId,
-      simulationId,
+      patientId, simulationId, attemptId,
       treatmentProfileId: profile.id,
       promptVersion: promptResult.promptVersion,
     });
 
     return {
-      ok: true,
-      patientId,
-      simulationId,
-      resultPath,
+      ok: true, patientId, simulationId, attemptId,
+      resultPath: activeResultPath,
       status: 'ready',
-      generationProvider: 'openai',
-      modelUsed,
+      generationProvider: 'openai', modelUsed,
       promptVersion: promptResult.promptVersion,
       treatmentProfileId: profile.id,
     };
   } catch (error) {
     const safeMessage = sanitizeSimulationErrorMessage(error);
-    await simulationRef.set(
-      {
-        status: 'failed',
-        errorMessage: safeMessage,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      {merge: true},
-    );
+
+    // Update attempt → failed
+    await attemptsRef.doc(attemptId).set({
+      status: 'failed',
+      errorMessage: safeMessage,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
+    // Update simulation → failed
+    await simulationRef.set({
+      status: 'failed',
+      errorMessage: safeMessage,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+
     console.warn('[SimulatorCore][generated.failed]', {
-      patientId,
-      simulationId,
+      patientId, simulationId, attemptId,
       treatmentProfileId: profile.id,
       error: safeMessage,
     });

@@ -118,8 +118,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             flow.status != SimulationStatus.archived;
         final isGenerating =
             flow.status == SimulationStatus.generating;
-        final canShare =
-            flow.status == SimulationStatus.ready && flow.hasResult;
+        final canShare = flow.status == SimulationStatus.ready &&
+            flow.hasResult &&
+            flow.doctorReviewStatus == 'approved';
         final canArchive = flow.status == SimulationStatus.ready ||
             flow.status == SimulationStatus.shared;
         final treatmentLabel =
@@ -304,6 +305,103 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  // ── Approve / Reject (doctor review) ─────
+                  if (flow.status == SimulationStatus.ready &&
+                      flow.doctorReviewStatus == 'pending') ...[
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OcgColors.success,
+                      ),
+                      onPressed: isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .approveCurrentResult(
+                                  patientId: widget.patientId,
+                                ),
+                      icon: const Icon(Icons.verified, size: 18),
+                      label: const Text('Aprobar resultado'),
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: OcgColors.error,
+                        side: const BorderSide(color: OcgColors.error),
+                      ),
+                      onPressed: isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .rejectCurrentResult(
+                                  patientId: widget.patientId,
+                                  reason:
+                                      'Rechazado por el doctor.',
+                                ),
+                      icon: const Icon(Icons.cancel_outlined, size: 18),
+                      label: const Text('Rechazar'),
+                    ),
+                  ],
+                  if (flow.status == SimulationStatus.ready &&
+                      flow.doctorReviewStatus == 'approved') ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: OcgColors.success.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: OcgColors.success.withOpacity(0.30),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified, size: 16, color: OcgColors.success),
+                          SizedBox(width: 6),
+                          Text(
+                            'Resultado aprobado',
+                            style: TextStyle(
+                              color: OcgColors.success,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (flow.status == SimulationStatus.ready &&
+                      flow.doctorReviewStatus == 'rejected') ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: OcgColors.error.withOpacity(0.10),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: OcgColors.error.withOpacity(0.30),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cancel, size: 16, color: OcgColors.error),
+                          SizedBox(width: 6),
+                          Text(
+                            'Resultado rechazado',
+                            style: TextStyle(
+                              color: OcgColors.error,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (flow.status == SimulationStatus.draft)
                     ElevatedButton.icon(
                       onPressed:
@@ -487,8 +585,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       SimulationStatus.archived => 'Estado: Archivada',
     };
 
-    final profileLabel =
-        profile != null ? ' · Perfil: ${profile.label}' : '';
+    final reviewLabel = switch (flow.doctorReviewStatus) {
+      'approved' => ' · Aprobado',
+      'rejected' => ' · Rechazado',
+      _ => flow.status == SimulationStatus.ready ? ' · Pendiente revisión' : '',
+    };
 
     return Container(
       width: double.infinity,
@@ -499,7 +600,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         color: const Color(0xFFF9F5F0),
       ),
       child: Text(
-        '$text$profileLabel · Intentos: ${flow.attemptCount}',
+        '$text · Perfil: ${profile?.label ?? '—'}$reviewLabel · Intentos: ${flow.attemptCount}',
         style: const TextStyle(
           color: OcgColors.espresso,
           fontWeight: FontWeight.w700,
@@ -527,20 +628,19 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
   }
 
   Widget _flowStateHint(SimulatorFlowState flow) {
-    final text = switch (flow.status) {
-      SimulationStatus.draft =>
-        'Foto lista para generar simulación.',
-      SimulationStatus.generating =>
-        'Generando simulación con IA...',
-      SimulationStatus.ready =>
-        'Simulación lista para revisión.',
-      SimulationStatus.failed =>
-        'La simulación falló. Revisa el mensaje y vuelve a intentarlo.',
-      SimulationStatus.shared =>
-        'Esta simulación ya fue compartida con el paciente.',
-      SimulationStatus.archived =>
-        'La simulación está archivada y no permite nuevas acciones.',
-    };
+    final String text;
+    if (flow.status == SimulationStatus.ready) {
+      text = switch (flow.doctorReviewStatus) {
+        'approved' =>
+          'Simulación aprobada. Puedes compartirla con el paciente.',
+        'rejected' =>
+          'Simulación rechazada. Puedes regenerar con ajustes.',
+        _ =>
+          'Simulación lista. Revisa y aprueba el resultado antes de compartir.',
+      };
+    } else {
+      text = _statusText(flow.status);
+    }
 
     return Container(
       width: double.infinity,
@@ -558,6 +658,17 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       ),
     );
   }
+
+  String _statusText(SimulationStatus status) => switch (status) {
+    SimulationStatus.draft => 'Foto lista para generar simulación.',
+    SimulationStatus.generating => 'Generando simulación con IA...',
+    SimulationStatus.ready => '', // handled above
+    SimulationStatus.failed =>
+      'La simulación falló. Revisa el mensaje e intenta de nuevo.',
+    SimulationStatus.shared =>
+      'Esta simulación fue compartida con el paciente.',
+    SimulationStatus.archived => 'La simulación está archivada.',
+  };
 
   Widget _autoAnalysisHint(SimulatorFlowState flow) {
     final message = flow.detectedRegion != null

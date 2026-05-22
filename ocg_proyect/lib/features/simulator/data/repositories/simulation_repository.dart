@@ -321,6 +321,16 @@ class SimulationRepository {
     String patientId,
     String simulationId,
   ) async {
+    // Gate: must be approved by doctor before sharing
+    final doc = await _simulationsRef(patientId).doc(simulationId).get();
+    final data = doc.data();
+    final reviewStatus = (data?['doctorReviewStatus'] ?? '').toString();
+    if (reviewStatus != 'approved') {
+      throw Exception(
+        'El resultado debe ser aprobado por el doctor antes de compartir.',
+      );
+    }
+
     await _simulationsRef(patientId).doc(simulationId).update({
       'compartidaConPaciente': true,
       'status': SimulationStatus.shared.name,
@@ -370,5 +380,32 @@ class SimulationRepository {
         await storage.ref(path).delete();
       } catch (_) {}
     }
+  }
+
+  /// Approve the current result. Required before sharing with patient.
+  Future<void> approveSimulationAttempt({
+    required String patientId,
+    required String simulationId,
+    required String attemptId,
+  }) async {
+    await _simulationsRef(patientId).doc(simulationId).update({
+      'doctorReviewStatus': 'approved',
+      'approvedAttemptId': attemptId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Reject the current result. The doctor must review before sharing.
+  Future<void> rejectSimulationAttempt({
+    required String patientId,
+    required String simulationId,
+    required String attemptId,
+    required String reason,
+  }) async {
+    await _simulationsRef(patientId).doc(simulationId).update({
+      'doctorReviewStatus': 'rejected',
+      'approvedAttemptId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

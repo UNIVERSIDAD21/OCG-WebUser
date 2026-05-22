@@ -163,7 +163,7 @@ void main() {
     expect(doc.data()!['attemptCount'], 1);
   });
 
-  test('share/unshare cambia ready <-> shared', () async {
+  test('share/unshare requiere aprobación previa', () async {
     final saved = await repo.updateSimulation(
       patientId: 'p-3',
       simulationId: (await repo.createDraftSimulation(
@@ -173,6 +173,7 @@ void main() {
       )).id,
       resultPath: 'simulations/p-3/sim-3/result.jpg',
       status: SimulationStatus.ready,
+      doctorReviewStatus: 'approved',
     );
 
     await repo.shareSimulationWithPatient('p-3', saved.id);
@@ -192,6 +193,25 @@ void main() {
         .get();
     expect(doc.data()!['compartidaConPaciente'], false);
     expect(doc.data()!['status'], SimulationStatus.ready.name);
+  });
+
+  test('share rechaza si no está aprobado', () async {
+    final saved = await repo.updateSimulation(
+      patientId: 'p-3',
+      simulationId: (await repo.createDraftSimulation(
+        patientId: 'p-3',
+        createdBy: 'admin-3',
+        originalPath: 'simulations/p-3/sim-3/original.jpg',
+      )).id,
+      resultPath: 'simulations/p-3/sim-3/result.jpg',
+      status: SimulationStatus.ready,
+      doctorReviewStatus: 'pending',
+    );
+
+    expect(
+      () => repo.shareSimulationWithPatient('p-3', saved.id),
+      throwsA(isA<Exception>()),
+    );
   });
 
   test('watchSimulations retorna ordenado por createdAt desc', () async {

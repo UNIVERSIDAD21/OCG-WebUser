@@ -753,6 +753,17 @@ class _AdminSimulationCard extends StatelessWidget {
                             label: 'Compartida',
                             color: Color(0xFF2E7D32),
                           ),
+                        if (simulation.status == SimulationStatus.ready ||
+                            simulation.status == SimulationStatus.shared ||
+                            simulation.status == SimulationStatus.failed)
+                          _SimulationChip(
+                            label: _reviewLabel(
+                              simulation.doctorReviewStatus,
+                            ),
+                            color: _reviewColor(
+                              simulation.doctorReviewStatus,
+                            ),
+                          ),
                       ],
                     ),
                     if ((simulation.notes ?? '').trim().isNotEmpty) ...[
@@ -935,6 +946,18 @@ String? _previewPath(SimulationModel simulation) {
   if (original.isNotEmpty) return original;
   return null;
 }
+
+Color _reviewColor(String status) => switch (status) {
+  'approved' => const Color(0xFF2E7D32),
+  'rejected' => const Color(0xFF991B1B),
+  _ => const Color(0xFF92400E),
+};
+
+String _reviewLabel(String status) => switch (status) {
+  'approved' => 'Aprobado',
+  'rejected' => 'Rechazado',
+  _ => 'Pendiente',
+};
 
 Color _statusColor(SimulationStatus status) => switch (status) {
   SimulationStatus.draft => OcgColors.bronze,
