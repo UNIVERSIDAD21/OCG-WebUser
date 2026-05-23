@@ -26,18 +26,28 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Firebase SDKs como Functions y Storage consultan App Check internamente.
-  // Aunque no tengamos enforcement activo en backend, instalar un provider evita
-  // warnings nativos tipo "No AppCheckProvider installed" al iniciar sesión o
-  // generar simulaciones. No forzamos getToken() ni auto-refresh en debug para
-  // evitar el rate-limit "Too many attempts".
+  // En Firebase Console los servicios están SIN enforcement, así que OCG no
+  // debe depender de attestation para funcionar. Por eso usamos provider debug
+  // por defecto incluso en builds release locales/sideloaded: evita que
+  // Play Integrity/App Attest bloquee con 403 "App attestation failed".
+  //
+  // Solo activar attestation real para una build publicada/configurada con:
+  // --dart-define=OCG_USE_PRODUCTION_APP_CHECK=true
+  //
+  // No llamamos getToken() ni setTokenAutoRefreshEnabled(): Firebase maneja el
+  // token cuando lo necesita y evitamos el loop "Too many attempts".
   if (!kIsWeb) {
+    const useProductionAppCheck = bool.fromEnvironment(
+      'OCG_USE_PRODUCTION_APP_CHECK',
+    );
+
     await FirebaseAppCheck.instance.activate(
-      androidProvider: kReleaseMode
-          ? AndroidProvider.playIntegrity
-          : AndroidProvider.debug,
-      appleProvider: kReleaseMode
-          ? AppleProvider.appAttestWithDeviceCheckFallback
-          : AppleProvider.debug,
+      providerAndroid: useProductionAppCheck
+          ? const AndroidPlayIntegrityProvider()
+          : const AndroidDebugProvider(),
+      providerApple: useProductionAppCheck
+          ? const AppleAppAttestWithDeviceCheckFallbackProvider()
+          : const AppleDebugProvider(),
     );
   }
 
