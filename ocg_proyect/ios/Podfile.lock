@@ -1188,6 +1188,10 @@ PODS:
     - abseil/meta/type_traits
     - abseil/xcprivacy
   - abseil/xcprivacy (1.20240722.0)
+  - AppCheckCore (11.2.0):
+    - GoogleUtilities/Environment (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - PromisesObjC (~> 2.4)
   - BoringSSL-GRPC (0.0.37):
     - BoringSSL-GRPC/Implementation (= 0.0.37)
     - BoringSSL-GRPC/Interface (= 0.0.37)
@@ -1253,6 +1257,11 @@ PODS:
   - Firebase/Storage (12.12.0):
     - Firebase/CoreOnly
     - FirebaseStorage (~> 12.12.0)
+  - firebase_app_check (0.4.3):
+    - Firebase/CoreOnly (~> 12.12.0)
+    - firebase_core
+    - FirebaseAppCheck (~> 12.12.0)
+    - Flutter
   - firebase_auth (6.4.0):
     - Firebase/Auth (= 12.12.0)
     - firebase_core
@@ -1268,6 +1277,12 @@ PODS:
     - Firebase/Storage (= 12.12.0)
     - firebase_core
     - Flutter
+  - FirebaseAppCheck (12.12.0):
+    - AppCheckCore (~> 11.0)
+    - FirebaseAppCheckInterop (~> 12.12.0)
+    - FirebaseCore (~> 12.12.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/UserDefaults (~> 8.1)
   - FirebaseAppCheckInterop (12.12.0)
   - FirebaseAuth (12.12.0):
     - FirebaseAppCheckInterop (~> 12.12.0)
@@ -1524,6 +1539,7 @@ DEPENDENCIES:
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
   - cloud_functions (from `.symlinks/plugins/cloud_functions/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
+  - firebase_app_check (from `.symlinks/plugins/firebase_app_check/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
@@ -1541,10 +1557,12 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - abseil
+    - AppCheckCore
     - BoringSSL-GRPC
     - DKImagePickerController
     - DKPhotoGallery
     - Firebase
+    - FirebaseAppCheck
     - FirebaseAppCheckInterop
     - FirebaseAuth
     - FirebaseAuthInterop
@@ -1584,6 +1602,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/cloud_functions/ios"
   file_picker:
     :path: ".symlinks/plugins/file_picker/ios"
+  firebase_app_check:
+    :path: ".symlinks/plugins/firebase_app_check/ios"
   firebase_auth:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
@@ -1613,6 +1633,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
+  AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: de8bda50bfce3c4ce0037ce5387586c1b5c20695
   cloud_functions: 845bcf3e3081df6aa4c86b778d60956b5b97500f
@@ -1620,10 +1641,12 @@ SPEC CHECKSUMS:
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: b159e0c068aef54932bb15dc9fd1571818edaf49
   Firebase: aa154fee4e9b8eac17aa42344988865b3e857d33
+  firebase_app_check: b195fd577d6f706651be28e781f8873a3e22ff8f
   firebase_auth: 5f9fe078dd3de8c80b82a291d49906a99c0f490c
   firebase_core: 40bc9f4c0ee3a28fbfb1e00e2ddaed744bb86388
   firebase_messaging: 7168ed5c5f52fc396426745be147263cfcc39ecc
   firebase_storage: bd95ab9d5474f797c01e91a09a4cd1914231702e
+  FirebaseAppCheck: 0194af00329809d8ce918b5244edc18edbd5b4e0
   FirebaseAppCheckInterop: c63ae0d003274f145174849c545ab861593beaf9
   FirebaseAuth: bcfebbc0ca055a6335f2252a90e57363d7ea5e65
   FirebaseAuthInterop: 917aa3a17ecf144d5f1823b51ef372da06909a4b

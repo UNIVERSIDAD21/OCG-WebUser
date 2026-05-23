@@ -1,4 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart' show Firebase;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,21 @@ Future<void> main() async {
   await initializeDateFormatting('es_CO');
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Firebase SDKs como Functions y Storage consultan App Check internamente.
+  // Aunque no tengamos enforcement activo en backend, instalar un provider evita
+  // warnings nativos tipo "No AppCheckProvider installed" al iniciar sesión o
+  // generar simulaciones. No forzamos getToken() ni auto-refresh en debug para
+  // evitar el rate-limit "Too many attempts".
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kReleaseMode
+          ? AndroidProvider.playIntegrity
+          : AndroidProvider.debug,
+      appleProvider: kReleaseMode
+          ? AppleProvider.appAttestWithDeviceCheckFallback
+          : AppleProvider.debug,
+    );
+  }
 
   runApp(const ProviderScope(child: OcgApp()));
 }
