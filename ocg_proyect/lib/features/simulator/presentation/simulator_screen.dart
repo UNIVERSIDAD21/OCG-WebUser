@@ -975,93 +975,18 @@ class _BeforeAfterFromStorage extends StatelessWidget {
     String originalUrl,
     String resultUrl,
   ) async {
+    final screenHeight = MediaQuery.of(context).size.height;
+
     await showDialog<void>(
       context: context,
       barrierColor: Colors.black.withOpacity(0.88),
-      builder: (ctx) => Dialog(
-        insetPadding: EdgeInsets.zero,
-        backgroundColor: const Color(0xFF17120E),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Comparacion Antes / Despues',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      tooltip: 'Cerrar',
-                    ),
-                  ],
-                ),
-              ),
-              // Slider a pantalla completa
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final sliderHeight = constraints.maxHeight;
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.14),
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x66000000),
-                              blurRadius: 26,
-                              offset: Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _buildSlider(
-                          context: context,
-                          originalUrl: originalUrl,
-                          resultUrl: resultUrl,
-                          height: sliderHeight,
-                          backgroundColor: const Color(0xFF0E0B08),
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(18),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              // Hint
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Desliza para comparar',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (ctx) {
+        return _FullscreenComparisonDialog(
+          originalUrl: originalUrl,
+          resultUrl: resultUrl,
+          screenHeight: screenHeight,
+        );
+      },
     );
   }
 
@@ -1167,6 +1092,245 @@ class _BeforeAfterFromStorage extends StatelessWidget {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+// ── Diálogo de pantalla completa con slider + bloqueo + zoom independiente ──
+class _FullscreenComparisonDialog extends StatefulWidget {
+  const _FullscreenComparisonDialog({
+    required this.originalUrl,
+    required this.resultUrl,
+    required this.screenHeight,
+  });
+
+  final String originalUrl;
+  final String resultUrl;
+  final double screenHeight;
+
+  @override
+  State<_FullscreenComparisonDialog> createState() =>
+      _FullscreenComparisonDialogState();
+}
+
+class _FullscreenComparisonDialogState
+    extends State<_FullscreenComparisonDialog> {
+  bool _isLocked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogHeight = widget.screenHeight.clamp(400.0, 1000.0);
+
+    return Dialog(
+      insetPadding: EdgeInsets.zero,
+      backgroundColor: const Color(0xFF17120E),
+      child: SafeArea(
+        child: SizedBox(
+          height: dialogHeight,
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              // Header con botones
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Comparación Antes / Después',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    // Botón lock/unlock
+                    IconButton(
+                      onPressed: () => setState(() => _isLocked = !_isLocked),
+                      icon: Icon(
+                        _isLocked ? Icons.lock : Icons.lock_open,
+                        color: _isLocked ? OcgColors.warning : Colors.white70,
+                      ),
+                      tooltip: _isLocked ? 'Desbloquear (slider)' : 'Bloquear (zoom libre)',
+                    ),
+                    const SizedBox(width: 4),
+                    // Botón cerrar
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      tooltip: 'Cerrar',
+                    ),
+                  ],
+                ),
+              ),
+              // Cuerpo: slider o zoom lado a lado
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _isLocked
+                      ? _buildZoomMode()
+                      : _buildSliderMode(),
+                ),
+              ),
+              // Hint
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _isLocked
+                      ? '🔒 Zoom libre independiente en cada imagen'
+                      : 'Desliza para comparar  •  🔒 Bloquea para hacer zoom',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliderMode() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sliderHeight = constraints.maxHeight;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.14),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 26,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              BeforeAfterSlider(
+                height: sliderHeight,
+                borderRadius: const BorderRadius.all(Radius.circular(18)),
+                before: _SimulationCompareImage(
+                  url: widget.originalUrl,
+                  height: sliderHeight,
+                  fit: BoxFit.contain,
+                  backgroundColor: const Color(0xFF0E0B08),
+                ),
+                after: _SimulationCompareImage(
+                  url: widget.resultUrl,
+                  height: sliderHeight,
+                  fit: BoxFit.contain,
+                  backgroundColor: const Color(0xFF0E0B08),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                left: 12,
+                child: _BeforeAfterFromStorage._labelChip('Antes', OcgColors.bronze),
+              ),
+              Positioned(
+                top: 10,
+                right: 12,
+                child: _BeforeAfterFromStorage._labelChip('Después', OcgColors.success),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildZoomMode() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          children: [
+            // Labels arriba
+            Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: _BeforeAfterFromStorage._labelChip('Antes', OcgColors.bronze),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: _BeforeAfterFromStorage._labelChip('Después', OcgColors.success),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Dos InteractiveViewer lado a lado — cada uno con zoom/pan libre
+            Expanded(
+              child: Row(
+                children: [
+                  // Antes (izquierda)
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(18),
+                        bottomLeft: Radius.circular(18),
+                      ),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 8.0,
+                        child: Image.network(
+                          widget.originalUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              'No se pudo cargar',
+                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Línea divisora
+                  Container(
+                    width: 2,
+                    color: Colors.white.withOpacity(0.3),
+                  ),
+                  // Después (derecha)
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(18),
+                        bottomRight: Radius.circular(18),
+                      ),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 8.0,
+                        child: Image.network(
+                          widget.resultUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              'No se pudo cargar',
+                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
