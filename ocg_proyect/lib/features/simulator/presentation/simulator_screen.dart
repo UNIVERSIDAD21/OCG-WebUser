@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
+import '../../../shared/widgets/before_after_slider.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
@@ -255,7 +256,15 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _LargeBeforeAfterComparison(
+                    const Text(
+                      'Comparación visual',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: OcgColors.espresso,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _BeforeAfterFromStorage(
                       originalPath: flow.originalPath!,
                       resultPath: flow.resultPath!,
                       repository: repo,
@@ -963,8 +972,8 @@ class _StoragePreviewCard extends StatelessWidget {
   }
 }
 
-class _LargeBeforeAfterComparison extends StatelessWidget {
-  const _LargeBeforeAfterComparison({
+class _BeforeAfterFromStorage extends StatelessWidget {
+  const _BeforeAfterFromStorage({
     required this.originalPath,
     required this.resultPath,
     required this.repository,
@@ -974,29 +983,96 @@ class _LargeBeforeAfterComparison extends StatelessWidget {
   final String resultPath;
   final SimulationRepository repository;
 
-  Future<void> _openFullPreview(
+  Widget _buildSlider({
+    required BuildContext context,
+    required String originalUrl,
+    required String resultUrl,
+    required double height,
+  }) {
+    return Stack(
+      children: [
+        BeforeAfterSlider(
+          height: height,
+          before: Image.network(
+            originalUrl,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => SizedBox(
+              height: height,
+              child: const Center(child: Text('No se pudo cargar la imagen.')),
+            ),
+          ),
+          after: Image.network(
+            resultUrl,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (_, __, ___) => SizedBox(
+              height: height,
+              child: const Center(child: Text('No se pudo cargar la imagen.')),
+            ),
+          ),
+        ),
+        // Etiquetas "Antes" / "Después" sobre las imágenes
+        Positioned(
+          top: 10,
+          left: 12,
+          child: _labelChip('Antes', OcgColors.bronze),
+        ),
+        Positioned(
+          top: 10,
+          right: 12,
+          child: _labelChip('Después', OcgColors.success),
+        ),
+      ],
+    );
+  }
+
+  static Widget _labelChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFullscreen(
     BuildContext context,
-    String url,
-    String title,
+    String originalUrl,
+    String resultUrl,
   ) async {
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Usar ~85% de la pantalla para el slider
+    final sliderHeight = screenHeight * 0.82;
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.all(8),
-        child: SizedBox(
-          width: double.infinity,
-          height: MediaQuery.of(ctx).size.height * 0.9,
+        insetPadding: EdgeInsets.zero,
+        child: SafeArea(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
+                    const Text(
+                      'Comparación Antes / Después',
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontSize: 16,
                         color: OcgColors.espresso,
                       ),
                     ),
@@ -1004,25 +1080,29 @@ class _LargeBeforeAfterComparison extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.of(ctx).pop(),
                       icon: const Icon(Icons.close),
+                      tooltip: 'Cerrar',
                     ),
                   ],
                 ),
               ),
-              Expanded(
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 5,
-                  child: Container(
-                    width: double.infinity,
-                    color: const Color(0xFFF7F3EE),
-                    child: Image.network(
-                      url,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Text('No se pudo cargar la imagen.'),
-                      ),
-                    ),
+              // Slider a pantalla completa
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _buildSlider(
+                  context: context,
+                  originalUrl: originalUrl,
+                  resultUrl: resultUrl,
+                  height: sliderHeight,
+                ),
+              ),
+              // Hint
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Desliza para comparar',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
                   ),
                 ),
               ),
@@ -1033,75 +1113,11 @@ class _LargeBeforeAfterComparison extends StatelessWidget {
     );
   }
 
-  Widget _imageWithLabel({
-    required BuildContext context,
-    required String url,
-    required String label,
-    required IconData icon,
-    required Color labelColor,
-  }) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isNarrow = screenWidth < 400;
-    // Use ~45% of screen height for each image so both are visible without too much scrolling
-    final imageHeight = MediaQuery.of(context).size.height * 0.42;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 18, color: labelColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                color: labelColor,
-              ),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => _openFullPreview(context, url, label),
-              icon: const Icon(Icons.open_in_full, size: 16),
-              label: const Text('Pantalla completa', style: TextStyle(fontSize: 12)),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: GestureDetector(
-            onTap: () => _openFullPreview(context, url, label),
-            child: Container(
-              height: imageHeight,
-              width: double.infinity,
-              color: const Color(0xFFF7F3EE),
-              child: Image.network(
-                url,
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
-                errorBuilder: (_, __, ___) => SizedBox(
-                  height: isNarrow ? 200 : 250,
-                  child: const Center(
-                    child: Text('No se pudo cargar la imagen.'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Altura base del slider en la vista normal: ~40% de la pantalla
+    final normalHeight = (MediaQuery.of(context).size.height * 0.4).clamp(280.0, 500.0);
+
     return FutureBuilder<List<String?>>(
       future: Future.wait([
         repository.resolveMediaUrl(originalPath),
@@ -1109,7 +1125,7 @@ class _LargeBeforeAfterComparison extends StatelessWidget {
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const OcgSkeletonBox(height: 400, radius: 16);
+          return OcgSkeletonBox(height: normalHeight, radius: 16);
         }
         final originalUrl = snapshot.data![0];
         final resultUrl = snapshot.data![1];
@@ -1125,20 +1141,31 @@ class _LargeBeforeAfterComparison extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _imageWithLabel(
-              context: context,
-              url: originalUrl!,
-              label: 'Antes',
-              icon: Icons.photo_camera_outlined,
-              labelColor: OcgColors.bronze,
+            // Botón pantalla completa arriba
+            Row(
+              children: [
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _openFullscreen(context, originalUrl!, resultUrl!),
+                  icon: const Icon(Icons.open_in_full, size: 18),
+                  label: const Text('Pantalla completa'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            _imageWithLabel(
-              context: context,
-              url: resultUrl!,
-              label: 'Después',
-              icon: Icons.auto_awesome,
-              labelColor: OcgColors.success,
+            // Slider
+            ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(14)),
+              child: _buildSlider(
+                context: context,
+                originalUrl: originalUrl!,
+                resultUrl: resultUrl!,
+                height: normalHeight,
+              ),
             ),
           ],
         );
