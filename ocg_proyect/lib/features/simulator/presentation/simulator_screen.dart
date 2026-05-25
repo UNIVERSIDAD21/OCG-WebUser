@@ -1198,6 +1198,14 @@ class _FullscreenComparisonDialogState
   }
 
   Widget _buildSliderMode() {
+    return _buildComparisonView();
+  }
+
+  Widget _buildZoomMode() {
+    return _buildComparisonView();
+  }
+
+  Widget _buildComparisonView() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final sliderHeight = constraints.maxHeight;
@@ -1220,19 +1228,42 @@ class _FullscreenComparisonDialogState
             children: [
               BeforeAfterSlider(
                 height: sliderHeight,
+                locked: _isLocked,
                 borderRadius: const BorderRadius.all(Radius.circular(18)),
-                before: _SimulationCompareImage(
-                  url: widget.originalUrl,
-                  height: sliderHeight,
-                  fit: BoxFit.contain,
-                  backgroundColor: const Color(0xFF0E0B08),
-                ),
-                after: _SimulationCompareImage(
-                  url: widget.resultUrl,
-                  height: sliderHeight,
-                  fit: BoxFit.contain,
-                  backgroundColor: const Color(0xFF0E0B08),
-                ),
+                before: _isLocked
+                    ? InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 8.0,
+                        child: _SimulationCompareImage(
+                          url: widget.originalUrl,
+                          height: sliderHeight,
+                          fit: BoxFit.contain,
+                          backgroundColor: const Color(0xFF0E0B08),
+                        ),
+                      )
+                    : _SimulationCompareImage(
+                        url: widget.originalUrl,
+                        height: sliderHeight,
+                        fit: BoxFit.contain,
+                        backgroundColor: const Color(0xFF0E0B08),
+                      ),
+                after: _isLocked
+                    ? InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 8.0,
+                        child: _SimulationCompareImage(
+                          url: widget.resultUrl,
+                          height: sliderHeight,
+                          fit: BoxFit.contain,
+                          backgroundColor: const Color(0xFF0E0B08),
+                        ),
+                      )
+                    : _SimulationCompareImage(
+                        url: widget.resultUrl,
+                        height: sliderHeight,
+                        fit: BoxFit.contain,
+                        backgroundColor: const Color(0xFF0E0B08),
+                      ),
               ),
               Positioned(
                 top: 10,
@@ -1246,91 +1277,6 @@ class _FullscreenComparisonDialogState
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildZoomMode() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Column(
-          children: [
-            // Labels arriba
-            Row(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: _BeforeAfterFromStorage._labelChip('Antes', OcgColors.bronze),
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: _BeforeAfterFromStorage._labelChip('Después', OcgColors.success),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Dos InteractiveViewer lado a lado — cada uno con zoom/pan libre
-            Expanded(
-              child: Row(
-                children: [
-                  // Antes (izquierda)
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(18),
-                        bottomLeft: Radius.circular(18),
-                      ),
-                      child: InteractiveViewer(
-                        minScale: 0.5,
-                        maxScale: 8.0,
-                        child: Image.network(
-                          widget.originalUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(
-                              'No se pudo cargar',
-                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Línea divisora
-                  Container(
-                    width: 2,
-                    color: Colors.white.withOpacity(0.3),
-                  ),
-                  // Después (derecha)
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(18),
-                        bottomRight: Radius.circular(18),
-                      ),
-                      child: InteractiveViewer(
-                        minScale: 0.5,
-                        maxScale: 8.0,
-                        child: Image.network(
-                          widget.resultUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(
-                              'No se pudo cargar',
-                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         );
       },
     );

@@ -7,12 +7,14 @@ class BeforeAfterSlider extends StatefulWidget {
     required this.after,
     this.height = 220,
     this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.locked = false,
   });
 
   final Widget before;
   final Widget after;
   final double height;
   final BorderRadius borderRadius;
+  final bool locked;
 
   @override
   State<BeforeAfterSlider> createState() => _BeforeAfterSliderState();
@@ -37,9 +39,15 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
         return ClipRRect(
           borderRadius: widget.borderRadius,
           child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragUpdate: (details) => _setFromDx(details.localPosition.dx, width),
-            onTapDown: (details) => _setFromDx(details.localPosition.dx, width),
+            behavior: widget.locked
+                ? HitTestBehavior.translucent
+                : HitTestBehavior.opaque,
+            onHorizontalDragUpdate: widget.locked
+                ? null
+                : (details) => _setFromDx(details.localPosition.dx, width),
+            onTapDown: widget.locked
+                ? null
+                : (details) => _setFromDx(details.localPosition.dx, width),
             child: SizedBox(
               height: widget.height,
               width: double.infinity,
@@ -58,9 +66,13 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                     left: dividerLeft - 1,
                     top: 0,
                     bottom: 0,
-                    child: Container(width: 2, color: Colors.white.withOpacity(0.95)),
+                    child: Container(
+                      width: 2,
+                      color: Colors.white.withOpacity(widget.locked ? 0.4 : 0.95),
+                    ),
                   ),
-                  Positioned(
+                  if (!widget.locked)
+                    Positioned(
                     left: dividerLeft - 18,
                     top: (widget.height / 2) - 18,
                     child: Container(
