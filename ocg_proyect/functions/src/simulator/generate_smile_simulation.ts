@@ -13,6 +13,7 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
     region: 'us-central1',
     cors: true,
     secrets: [openAiApiKeySecret],
+    timeoutSeconds: 300, // 5 minutos — OpenAI image edit puede tardar 2-3 min
   },
   async (request: CallableRequest<GenerateSmileSimulationData>) => {
     const db = admin.firestore();
