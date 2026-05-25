@@ -210,6 +210,62 @@ class SimulationRepository {
           'photoQuality': photoQuality,
       });
     } on FirebaseFunctionsException catch (error) {
+      // ── Deadline exceeded / timeout: la función sigue corriendo en el servidor ──
+      // La generación con IA tarda ~2-3 min. Si el cliente se agota, hacemos polling
+      // de Firestore para obtener el estado real cuando la función termine.
+      final isTimeout = error.code == 'deadline-exceeded' ||
+          error.code == 'resource-exhausted' ||
+          (error.message ?? '').toLowerCase().contains('deadline');
+
+      if (isTimeout) {
+        // ignore: avoid_print
+        print(
+          '[SimulatorRepository][generateWithAi][timeout] '
+          'polling Firestore para estado final...',
+        );
+        final terminalStatuses = const {'ready', 'failed'};
+        const maxPolls = 30;
+        const pollInterval = Duration(seconds: 10);
+
+        for (int i = 0; i < maxPolls; i++) {
+          await Future<void>.delayed(pollInterval);
+          final doc = await _simulationsRef(patientId)
+              .doc(simulationId)
+              .get();
+          final data = doc.data();
+          final status = (data?['status'] ?? '').toString();
+
+          // ignore: avoid_print
+          print(
+            '[SimulatorRepository][poll] intento=$i/${maxPolls - 1} status=$status',
+          );
+
+          if (terminalStatuses.contains(status)) {
+            // ignore: avoid_print
+            print(
+              '[SimulatorRepository][poll] estado final alcanzado: $status',
+            );
+            if (status == 'failed') {
+              final errorMsg = (data?['errorMessage'] ?? '')
+                  .toString()
+                  .trim();
+              throw Exception(
+                errorMsg.isNotEmpty
+                    ? errorMsg
+                    : 'La generación falló. Intenta de nuevo.',
+              );
+            }
+            // status == 'ready' → éxito, retornar sin error
+            return;
+          }
+        }
+
+        // Si después de todos los polls sigue sin estado terminal
+        throw Exception(
+          'La generación tardó demasiado. Revisa el historial de simulaciones.',
+        );
+      }
+
       throw Exception(_mapCallableError(error));
     }
   }
