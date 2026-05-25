@@ -45,9 +45,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sim = widget.initialSimulation;
       if (sim != null) {
-        ref
-            .read(simulatorFlowProvider.notifier)
-            .loadExistingSimulation(sim);
+        ref.read(simulatorFlowProvider.notifier).loadExistingSimulation(sim);
       } else if (widget.autoSelectProfile && !_profileAutoSelected) {
         _autoSelectDefaultProfile();
       }
@@ -70,8 +68,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       return;
     }
 
-    if (widget.initialSimulation?.id !=
-            oldWidget.initialSimulation?.id &&
+    if (widget.initialSimulation?.id != oldWidget.initialSimulation?.id &&
         widget.initialSimulation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -88,9 +85,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       widget.treatmentType?.name,
     );
     if (defaultId != null) {
-      ref
-          .read(simulatorFlowProvider.notifier)
-          .setTreatmentProfile(defaultId);
+      ref.read(simulatorFlowProvider.notifier).setTreatmentProfile(defaultId);
     }
   }
 
@@ -100,31 +95,26 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
     final repo = ref.watch(simulationRepositoryProvider);
 
     return flowAsync.when(
-      loading: () => const OcgSkeletonList(
-        items: 2,
-        cardHeight: 160,
-        showAvatar: false,
-      ),
+      loading: () =>
+          const OcgSkeletonList(items: 2, cardHeight: 160, showAvatar: false),
       error: (error, _) => _ErrorState(
         message: error.toString(),
-        onRetry: () =>
-            ref.read(simulatorFlowProvider.notifier).resetFlow(),
+        onRetry: () => ref.read(simulatorFlowProvider.notifier).resetFlow(),
       ),
       data: (flow) {
-        final showErrorCard =
-            (flow.errorMessage ?? '').trim().isNotEmpty;
+        final showErrorCard = (flow.errorMessage ?? '').trim().isNotEmpty;
         final inPreview = flow.hasOriginal;
-        final canGenerate = flow.canGenerate &&
-            flow.status != SimulationStatus.archived;
-        final isGenerating =
-            flow.status == SimulationStatus.generating;
-        final canShare = flow.status == SimulationStatus.ready &&
+        final canGenerate =
+            flow.canGenerate && flow.status != SimulationStatus.archived;
+        final isGenerating = flow.status == SimulationStatus.generating;
+        final canShare =
+            flow.status == SimulationStatus.ready &&
             flow.hasResult &&
             flow.doctorReviewStatus == 'approved';
-        final canArchive = flow.status == SimulationStatus.ready ||
+        final canArchive =
+            flow.status == SimulationStatus.ready ||
             flow.status == SimulationStatus.shared;
-        final treatmentLabel =
-            _treatmentLabel(widget.treatmentType);
+        final treatmentLabel = _treatmentLabel(widget.treatmentType);
         final hasProfile = flow.hasProfile;
         final activeProfile = hasProfile
             ? lookupProfile(flow.treatmentProfileId!)
@@ -218,9 +208,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   SizedBox(width: 10),
-                  Expanded(
-                    child: Text('Preparando foto original...'),
-                  ),
+                  Expanded(child: Text('Preparando foto original...')),
                 ],
               ),
             ],
@@ -234,10 +222,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   SizedBox(width: 10),
-                  Expanded(
-                    child:
-                        Text('Generando simulación con IA...'),
-                  ),
+                  Expanded(child: Text('Generando simulación con IA...')),
                 ],
               ),
             ],
@@ -284,20 +269,16 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
               _autoAnalysisHint(flow),
               const SizedBox(height: 12),
               TextFormField(
-                key: ValueKey(
-                  'sim-notes-${flow.simulationId ?? 'new'}',
-                ),
+                key: ValueKey('sim-notes-${flow.simulationId ?? 'new'}'),
                 initialValue: flow.notes,
                 enabled: !isGenerating,
-                onChanged: (value) => ref
-                    .read(simulatorFlowProvider.notifier)
-                    .setNotes(value),
+                onChanged: (value) =>
+                    ref.read(simulatorFlowProvider.notifier).setNotes(value),
                 minLines: 2,
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Notas clínicas (opcional)',
-                  hintText:
-                      'Observaciones de la simulación orientativa',
+                  hintText: 'Observaciones de la simulación orientativa',
                 ),
               ),
               const SizedBox(height: 12),
@@ -333,8 +314,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                                 .read(simulatorFlowProvider.notifier)
                                 .rejectCurrentResult(
                                   patientId: widget.patientId,
-                                  reason:
-                                      'Rechazado por el doctor.',
+                                  reason: 'Rechazado por el doctor.',
                                 ),
                       icon: const Icon(Icons.cancel_outlined, size: 18),
                       label: const Text('Rechazar'),
@@ -357,7 +337,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.verified, size: 16, color: OcgColors.success),
+                          Icon(
+                            Icons.verified,
+                            size: 16,
+                            color: OcgColors.success,
+                          ),
                           SizedBox(width: 6),
                           Text(
                             'Resultado aprobado',
@@ -404,23 +388,15 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                   ],
                   if (flow.status == SimulationStatus.draft)
                     ElevatedButton.icon(
-                      onPressed:
-                          !canGenerate || isGenerating
-                              ? null
-                              : () => ref
-                                    .read(
-                                      simulatorFlowProvider
-                                          .notifier,
-                                    )
-                                    .generateWithAi(
-                                      patientId:
-                                          widget.patientId,
-                                      treatmentType:
-                                          treatmentLabel,
-                                    ),
-                      icon: const Icon(
-                        Icons.auto_awesome_outlined,
-                      ),
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
+                      icon: const Icon(Icons.auto_awesome_outlined),
                       label: const Text('Generar con IA'),
                     ),
                   if (flow.status == SimulationStatus.failed)
@@ -428,51 +404,34 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       onPressed: isGenerating
                           ? null
                           : () => ref
-                                .read(
-                                  simulatorFlowProvider
-                                      .notifier,
-                                )
+                                .read(simulatorFlowProvider.notifier)
                                 .resetFlow(),
-                      icon: const Icon(
-                        Icons.photo_camera_back_outlined,
-                      ),
+                      icon: const Icon(Icons.photo_camera_back_outlined),
                       label: const Text('Cambiar foto'),
                     ),
                   if (flow.status == SimulationStatus.failed)
                     ElevatedButton.icon(
-                      onPressed:
-                          !canGenerate || isGenerating
-                              ? null
-                              : () => ref
-                                    .read(
-                                      simulatorFlowProvider
-                                          .notifier,
-                                    )
-                                    .generateWithAi(
-                                      patientId:
-                                          widget.patientId,
-                                      treatmentType:
-                                          treatmentLabel,
-                                    ),
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Reintentar'),
                     ),
                   if (flow.status == SimulationStatus.ready)
                     ElevatedButton.icon(
-                      onPressed:
-                          !canGenerate || isGenerating
-                              ? null
-                              : () => ref
-                                    .read(
-                                      simulatorFlowProvider
-                                          .notifier,
-                                    )
-                                    .generateWithAi(
-                                      patientId:
-                                          widget.patientId,
-                                      treatmentType:
-                                          treatmentLabel,
-                                    ),
+                      onPressed: !canGenerate || isGenerating
+                          ? null
+                          : () => ref
+                                .read(simulatorFlowProvider.notifier)
+                                .generateWithAi(
+                                  patientId: widget.patientId,
+                                  treatmentType: treatmentLabel,
+                                ),
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Regenerar'),
                     ),
@@ -481,35 +440,23 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       onPressed: isGenerating
                           ? null
                           : () => ref
-                                .read(
-                                  simulatorFlowProvider
-                                      .notifier,
-                                )
+                                .read(simulatorFlowProvider.notifier)
                                 .shareCurrentSimulation(
-                                  patientId:
-                                      widget.patientId,
+                                  patientId: widget.patientId,
                                 ),
                       icon: const Icon(Icons.share_outlined),
-                      label: const Text(
-                        'Compartir con paciente',
-                      ),
+                      label: const Text('Compartir con paciente'),
                     ),
                   if (canArchive)
                     OutlinedButton.icon(
                       onPressed: isGenerating
                           ? null
                           : () => ref
-                                .read(
-                                  simulatorFlowProvider
-                                      .notifier,
-                                )
+                                .read(simulatorFlowProvider.notifier)
                                 .archiveCurrentSimulation(
-                                  patientId:
-                                      widget.patientId,
+                                  patientId: widget.patientId,
                                 ),
-                      icon: const Icon(
-                        Icons.archive_outlined,
-                      ),
+                      icon: const Icon(Icons.archive_outlined),
                       label: const Text('Archivar'),
                     ),
                 ],
@@ -557,9 +504,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       decoration: BoxDecoration(
         color: OcgColors.warning.withOpacity(0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: OcgColors.warning.withOpacity(0.30),
-        ),
+        border: Border.all(color: OcgColors.warning.withOpacity(0.30)),
       ),
       child: const Text(
         'Esta simulación es una referencia visual orientativa para apoyar la explicación del tratamiento. No representa una promesa exacta del resultado final.',
@@ -616,14 +561,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       decoration: BoxDecoration(
         color: OcgColors.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: OcgColors.error.withOpacity(0.25),
-        ),
+        border: Border.all(color: OcgColors.error.withOpacity(0.25)),
       ),
-      child: Text(
-        message,
-        style: const TextStyle(color: OcgColors.error),
-      ),
+      child: Text(message, style: const TextStyle(color: OcgColors.error)),
     );
   }
 
@@ -633,8 +573,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
       text = switch (flow.doctorReviewStatus) {
         'approved' =>
           'Simulación aprobada. Puedes compartirla con el paciente.',
-        'rejected' =>
-          'Simulación rechazada. Puedes regenerar con ajustes.',
+        'rejected' => 'Simulación rechazada. Puedes regenerar con ajustes.',
         _ =>
           'Simulación lista. Revisa y aprueba el resultado antes de compartir.',
       };
@@ -741,9 +680,7 @@ class _SetupSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: OcgColors.ivory,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: OcgColors.bronze.withOpacity(0.12),
-        ),
+        border: Border.all(color: OcgColors.bronze.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,23 +840,16 @@ class _StoragePreviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if ((path ?? '').isEmpty)
-            Text(
-              emptyLabel,
-              style: const TextStyle(color: OcgColors.ink),
-            )
+            Text(emptyLabel, style: const TextStyle(color: OcgColors.ink))
           else
             FutureBuilder<String?>(
               future: repository.resolveMediaUrl(path),
               builder: (context, snapshot) {
-                final previewHeight =
-                    MediaQuery.of(context).size.width < 600
-                        ? 300.0
-                        : 220.0;
+                final previewHeight = MediaQuery.of(context).size.width < 600
+                    ? 300.0
+                    : 220.0;
                 if (!snapshot.hasData) {
-                  return OcgSkeletonBox(
-                    height: previewHeight,
-                    radius: 16,
-                  );
+                  return OcgSkeletonBox(height: previewHeight, radius: 16);
                 }
                 final url = snapshot.data;
                 if ((url ?? '').isEmpty) {
@@ -934,8 +864,7 @@ class _StoragePreviewCard extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: () =>
-                            _openFullPreview(context, url!, title),
+                        onPressed: () => _openFullPreview(context, url!, title),
                         icon: const Icon(Icons.open_in_full),
                         label: const Text('Ver foto completa'),
                       ),
@@ -950,13 +879,10 @@ class _StoragePreviewCard extends StatelessWidget {
                           url!,
                           fit: BoxFit.contain,
                           alignment: Alignment.center,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox(
+                          errorBuilder: (_, __, ___) => const SizedBox(
                             height: 120,
                             child: Center(
-                              child: Text(
-                                'No se pudo cargar la imagen.',
-                              ),
+                              child: Text('No se pudo cargar la imagen.'),
                             ),
                           ),
                         ),
@@ -988,28 +914,26 @@ class _BeforeAfterFromStorage extends StatelessWidget {
     required String originalUrl,
     required String resultUrl,
     required double height,
+    BoxFit imageFit = BoxFit.contain,
+    Color backgroundColor = const Color(0xFFF7F3EE),
+    BorderRadius borderRadius = const BorderRadius.all(Radius.circular(14)),
   }) {
     return Stack(
       children: [
         BeforeAfterSlider(
           height: height,
-          before: Image.network(
-            originalUrl,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (_, __, ___) => SizedBox(
-              height: height,
-              child: const Center(child: Text('No se pudo cargar la imagen.')),
-            ),
+          borderRadius: borderRadius,
+          before: _SimulationCompareImage(
+            url: originalUrl,
+            height: height,
+            fit: imageFit,
+            backgroundColor: backgroundColor,
           ),
-          after: Image.network(
-            resultUrl,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (_, __, ___) => SizedBox(
-              height: height,
-              child: const Center(child: Text('No se pudo cargar la imagen.')),
-            ),
+          after: _SimulationCompareImage(
+            url: resultUrl,
+            height: height,
+            fit: imageFit,
+            backgroundColor: backgroundColor,
           ),
         ),
         // Etiquetas "Antes" / "Después" sobre las imágenes
@@ -1021,7 +945,7 @@ class _BeforeAfterFromStorage extends StatelessWidget {
         Positioned(
           top: 10,
           right: 12,
-          child: _labelChip('Después', OcgColors.success),
+          child: _labelChip('Despues', OcgColors.success),
         ),
       ],
     );
@@ -1051,48 +975,79 @@ class _BeforeAfterFromStorage extends StatelessWidget {
     String originalUrl,
     String resultUrl,
   ) async {
-    final screenHeight = MediaQuery.of(context).size.height;
-    // Usar ~85% de la pantalla para el slider
-    final sliderHeight = screenHeight * 0.82;
-
     await showDialog<void>(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.88),
       builder: (ctx) => Dialog(
         insetPadding: EdgeInsets.zero,
+        backgroundColor: const Color(0xFF17120E),
         child: SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    const Text(
-                      'Comparación Antes / Después',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: OcgColors.espresso,
+                    const Expanded(
+                      child: Text(
+                        'Comparacion Antes / Despues',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.of(ctx).pop(),
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, color: Colors.white),
                       tooltip: 'Cerrar',
                     ),
                   ],
                 ),
               ),
               // Slider a pantalla completa
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: _buildSlider(
-                  context: context,
-                  originalUrl: originalUrl,
-                  resultUrl: resultUrl,
-                  height: sliderHeight,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final sliderHeight = constraints.maxHeight;
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.14),
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 26,
+                              offset: Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _buildSlider(
+                          context: context,
+                          originalUrl: originalUrl,
+                          resultUrl: resultUrl,
+                          height: sliderHeight,
+                          backgroundColor: const Color(0xFF0E0B08),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(18),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
               // Hint
@@ -1100,10 +1055,7 @@ class _BeforeAfterFromStorage extends StatelessWidget {
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Desliza para comparar',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
             ],
@@ -1116,7 +1068,10 @@ class _BeforeAfterFromStorage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Altura base del slider en la vista normal: ~40% de la pantalla
-    final normalHeight = (MediaQuery.of(context).size.height * 0.4).clamp(280.0, 500.0);
+    final normalHeight = (MediaQuery.of(context).size.height * 0.4).clamp(
+      280.0,
+      500.0,
+    );
 
     return FutureBuilder<List<String?>>(
       future: Future.wait([
@@ -1132,44 +1087,139 @@ class _BeforeAfterFromStorage extends StatelessWidget {
         if ((originalUrl ?? '').isEmpty || (resultUrl ?? '').isEmpty) {
           return const SizedBox(
             height: 160,
-            child: Center(
-              child: Text('No se pudieron resolver las imágenes.'),
-            ),
+            child: Center(child: Text('No se pudieron resolver las imágenes.')),
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Botón pantalla completa arriba
-            Row(
-              children: [
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => _openFullscreen(context, originalUrl!, resultUrl!),
-                  icon: const Icon(Icons.open_in_full, size: 18),
-                  label: const Text('Pantalla completa'),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-            ),
-            // Slider
-            ClipRRect(
-              borderRadius: const BorderRadius.all(Radius.circular(14)),
-              child: _buildSlider(
-                context: context,
-                originalUrl: originalUrl!,
-                resultUrl: resultUrl!,
-                height: normalHeight,
+        final isCompact = MediaQuery.of(context).size.width < 420;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBF8),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: OcgColors.bronze.withOpacity(0.16)),
+            boxShadow: [
+              BoxShadow(
+                color: OcgColors.espresso.withOpacity(0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Botón pantalla completa arriba
+              Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_outlined,
+                    color: OcgColors.bronze,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Resultado IA',
+                      style: TextStyle(
+                        color: OcgColors.espresso,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  if (isCompact)
+                    IconButton.filledTonal(
+                      onPressed: () =>
+                          _openFullscreen(context, originalUrl!, resultUrl!),
+                      icon: const Icon(Icons.open_in_full, size: 18),
+                      tooltip: 'Pantalla completa',
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: () =>
+                          _openFullscreen(context, originalUrl!, resultUrl!),
+                      icon: const Icon(Icons.open_in_full, size: 18),
+                      label: const Text('Pantalla completa'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Slider
+              ClipRRect(
+                borderRadius: const BorderRadius.all(Radius.circular(14)),
+                child: _buildSlider(
+                  context: context,
+                  originalUrl: originalUrl!,
+                  resultUrl: resultUrl!,
+                  height: normalHeight,
+                ),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+class _SimulationCompareImage extends StatelessWidget {
+  const _SimulationCompareImage({
+    required this.url,
+    required this.height,
+    required this.fit,
+    required this.backgroundColor,
+  });
+
+  final String url;
+  final double height;
+  final BoxFit fit;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Image.network(
+        url,
+        width: double.infinity,
+        height: height,
+        fit: fit,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.high,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          final total = loadingProgress.expectedTotalBytes;
+          final progress = total == null
+              ? null
+              : loadingProgress.cumulativeBytesLoaded / total;
+          return Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                value: progress,
+                strokeWidth: 2.4,
+                color: OcgColors.bronze,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => SizedBox(
+          height: height,
+          child: const Center(child: Text('No se pudo cargar la imagen.')),
+        ),
+      ),
     );
   }
 }
@@ -1188,18 +1238,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 32,
-              color: OcgColors.error,
-            ),
+            const Icon(Icons.error_outline, size: 32, color: OcgColors.error),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
+            OutlinedButton(onPressed: onRetry, child: const Text('Reintentar')),
           ],
         ),
       ),
@@ -1215,15 +1258,16 @@ class _PhotoQualityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (photoQuality['status'] ?? '').toString();
-    final warnings = (photoQuality['warnings'] as List<dynamic>?)
+    final warnings =
+        (photoQuality['warnings'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const [];
     final blockingReasons =
         (photoQuality['blockingReasons'] as List<dynamic>?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const [];
+            ?.map((e) => e.toString())
+            .toList() ??
+        const [];
 
     final Color statusColor;
     final IconData statusIcon;
