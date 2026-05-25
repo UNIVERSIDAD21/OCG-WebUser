@@ -1,12 +1,40 @@
 import * as admin from 'firebase-admin';
 import {CallableRequest, onCall} from 'firebase-functions/v2/https';
 import OpenAI, {toFile} from 'openai';
+import sharp from 'sharp';
 
 import {loadSimulatorConfig, openAiApiKeySecret} from './simulator_config';
 import {
   GenerateSmileSimulationData,
   processGenerateSmileSimulation,
 } from './generate_smile_simulation_core';
+
+// ── Compresión de imagen de entrada para reducir tokens de OpenAI ──
+// gpt-image-2 procesa la imagen de referencia en alta fidelidad.
+// Comprimir antes de enviar reduce drásticamente los tokens de entrada.
+async function compressInputImage(bytes: Buffer): Promise<Buffer> {
+  const metadata = await sharp(bytes).metadata();
+  const maxDim = 1024; // suficiente para referencia dental
+  const w = metadata.width ?? 1024;
+  const h = metadata.height ?? 1024;
+  const resizeNeeded = w > maxDim || h > maxDim;
+
+  let pipeline = sharp(bytes);
+  if (resizeNeeded) {
+    pipeline = pipeline.resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true });
+  }
+
+  const compressed = await pipeline.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+
+  const savings = ((1 - compressed.length / bytes.length) * 100).toFixed(0);
+  console.info('[SimulatorCallable][input.compress]', {
+    originalBytes: bytes.length,
+    compressedBytes: compressed.length,
+    savingsPct: `${savings}%`,
+  });
+
+  return compressed;
+}
 
 export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
   {
@@ -57,8 +85,12 @@ export const generateSmileSimulation = onCall<GenerateSmileSimulationData>(
         },
         createOpenAiClient: (apiKey: string) => ({
           generateEditedImage: async ({originalBytes, prompt, model, size, quality}) => {
+            // Comprimir la imagen de entrada antes de enviarla a OpenAI
+            // para reducir tokens de entrada y bajar costos
+            const inputBytes = await compressInputImage(originalBytes);
+
             const client = new OpenAI({apiKey});
-            const originalFile = await toFile(originalBytes, 'original.jpg', {
+            const originalFile = await toFile(inputBytes, 'original.jpg', {
               type: 'image/jpeg',
             });
             const response = await client.images.edit({
