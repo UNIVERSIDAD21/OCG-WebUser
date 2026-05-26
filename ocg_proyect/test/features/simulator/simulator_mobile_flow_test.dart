@@ -122,6 +122,7 @@ class _FlowFakeRepository extends SimulationRepository {
     String? treatmentProfileId,
     String? visualGoal,
     Map<String, dynamic>? doctorConfig,
+    String? doctorOverride,
     Map<String, dynamic>? photoQuality,
   }) async {
     if (generateError != null) throw Exception(generateError!);

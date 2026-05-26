@@ -17,6 +17,7 @@ class _FakeSimulationRepository extends SimulationRepository {
   String? lastTreatmentProfileId;
   String? lastVisualGoal;
   Map<String, dynamic>? lastDoctorConfig;
+  String? lastDoctorOverride;
   Map<String, dynamic>? lastPhotoQuality;
 
   @override
@@ -34,6 +35,7 @@ class _FakeSimulationRepository extends SimulationRepository {
     String? treatmentProfileId,
     String? visualGoal,
     Map<String, dynamic>? doctorConfig,
+    String? doctorOverride,
     Map<String, dynamic>? photoQuality,
   }) async {
     generateCalls += 1;
@@ -42,6 +44,7 @@ class _FakeSimulationRepository extends SimulationRepository {
     lastTreatmentProfileId = treatmentProfileId;
     lastVisualGoal = visualGoal;
     lastDoctorConfig = doctorConfig;
+    lastDoctorOverride = doctorOverride;
     lastPhotoQuality = photoQuality;
     if (generateError != null) throw Exception(generateError!);
   }
