@@ -4,7 +4,8 @@ import '../../../../shared/theme/ocg_colors.dart';
 import '../../domain/dental_treatment_profile.dart';
 
 /// Dropdown selector for treatment profiles.
-class TreatmentProfileSelector extends StatelessWidget {
+/// Usa MenuAnchor para garantizar que el menú siempre abra hacia abajo.
+class TreatmentProfileSelector extends StatefulWidget {
   const TreatmentProfileSelector({
     super.key,
     required this.selectedProfileId,
@@ -17,17 +18,27 @@ class TreatmentProfileSelector extends StatelessWidget {
   final bool compact;
 
   @override
+  State<TreatmentProfileSelector> createState() =>
+      _TreatmentProfileSelectorState();
+}
+
+class _TreatmentProfileSelectorState extends State<TreatmentProfileSelector> {
+  final _controller = MenuController();
+
+  @override
   Widget build(BuildContext context) {
-    final selectedProfile = selectedProfileId == null
+    final selectedProfile = widget.selectedProfileId == null
         ? null
-        : lookupProfile(selectedProfileId!);
-    final selectedValue = selectedProfile?.id;
+        : lookupProfile(widget.selectedProfileId!);
     final accent = selectedProfile?.color ?? OcgColors.bronze;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
-      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.compact ? 10 : 12,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: selectedProfile == null
             ? OcgColors.ivory
@@ -46,46 +57,75 @@ class TreatmentProfileSelector extends StatelessWidget {
           ),
         ],
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedValue,
-          isExpanded: true,
-          borderRadius: BorderRadius.circular(16),
-          dropdownColor: const Color(0xFFFFFBF8),
-          menuMaxHeight: compact ? 330 : 420,
-          itemHeight: compact ? 62 : 70,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, color: accent),
-          hint: _SelectorHint(compact: compact),
-          selectedItemBuilder: (context) {
-            return treatmentProfiles
-                .map(
-                  (profile) =>
-                      _SelectedProfileRow(profile: profile, compact: compact),
-                )
-                .toList();
-          },
-          items: treatmentProfiles.map((profile) {
-            return DropdownMenuItem<String>(
-              value: profile.id,
-              child: _ProfileOptionRow(
-                profile: profile,
-                compact: compact,
-                isSelected: profile.id == selectedValue,
+      child: MenuAnchor(
+        controller: _controller,
+        alignmentOffset: const Offset(0, 4),
+        style: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(const Color(0xFFFFFBF8)),
+          maximumSize: WidgetStateProperty.all(
+            Size.fromHeight(widget.compact ? 330 : 420),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: accent.withOpacity(0.15),
               ),
-            );
-          }).toList(),
-          onChanged: (id) {
-            if (id != null) onSelected(id);
-          },
+            ),
+          ),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+        ),
+        menuChildren: treatmentProfiles.map((profile) {
+          final isSelected = profile.id == widget.selectedProfileId;
+          return MenuItemButton(
+            onPressed: () {
+              widget.onSelected(profile.id);
+              _controller.close();
+            },
+            child: _ProfileOptionRow(
+              profile: profile,
+              compact: widget.compact,
+              isSelected: isSelected,
+            ),
+          );
+        }).toList(),
+        child: SizedBox(
+          width: double.infinity,
+          child: InkWell(
+            onTap: () {
+              if (_controller.isOpen) {
+                _controller.close();
+              } else {
+                _controller.open();
+              }
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _SelectorDisplay(
+                selectedProfile: selectedProfile,
+                accent: accent,
+                compact: widget.compact,
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _SelectorHint extends StatelessWidget {
-  const _SelectorHint({required this.compact});
+class _SelectorDisplay extends StatelessWidget {
+  const _SelectorDisplay({
+    required this.selectedProfile,
+    required this.accent,
+    required this.compact,
+  });
 
+  final DentalTreatmentProfile? selectedProfile;
+  final Color accent;
   final bool compact;
 
   @override
@@ -96,57 +136,41 @@ class _SelectorHint extends StatelessWidget {
           width: compact ? 32 : 36,
           height: compact ? 32 : 36,
           decoration: BoxDecoration(
-            color: OcgColors.bronze.withOpacity(0.12),
+            color: selectedProfile == null
+                ? OcgColors.bronze.withOpacity(0.12)
+                : accent.withOpacity(0.12),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: OcgColors.bronze.withOpacity(0.18)),
-          ),
-          child: const Icon(
-            Icons.format_list_bulleted_rounded,
-            color: OcgColors.bronze,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Text(
-            'Selecciona un tratamiento',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: OcgColors.bronze,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
+            border: Border.all(
+              color: selectedProfile == null
+                  ? OcgColors.bronze.withOpacity(0.18)
+                  : accent.withOpacity(0.28),
             ),
           ),
+          child: Icon(
+            selectedProfile?.icon ?? Icons.format_list_bulleted_rounded,
+            color: selectedProfile == null ? OcgColors.bronze : accent,
+            size: compact ? 18 : 20,
+          ),
         ),
-      ],
-    );
-  }
-}
-
-class _SelectedProfileRow extends StatelessWidget {
-  const _SelectedProfileRow({required this.profile, required this.compact});
-
-  final DentalTreatmentProfile profile;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _ProfileIconBadge(profile: profile, compact: compact, filled: true),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            profile.label,
+            selectedProfile?.label ?? 'Selecciona un tratamiento',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: OcgColors.espresso,
+            style: TextStyle(
+              color:
+                  selectedProfile == null ? OcgColors.bronze : OcgColors.espresso,
               fontWeight: FontWeight.w900,
-              fontSize: 14,
+              fontSize: selectedProfile == null ? 13 : 14,
             ),
           ),
+        ),
+        const SizedBox(width: 6),
+        Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: accent,
+          size: 20,
         ),
       ],
     );
@@ -233,12 +257,10 @@ class _ProfileIconBadge extends StatelessWidget {
   const _ProfileIconBadge({
     required this.profile,
     required this.compact,
-    this.filled = false,
   });
 
   final DentalTreatmentProfile profile;
   final bool compact;
-  final bool filled;
 
   @override
   Widget build(BuildContext context) {
@@ -248,14 +270,14 @@ class _ProfileIconBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: filled ? profile.color : profile.color.withOpacity(0.12),
+        color: profile.color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: profile.color.withOpacity(0.28)),
       ),
       child: Icon(
         profile.icon,
         size: compact ? 18 : 20,
-        color: filled ? Colors.white : profile.color,
+        color: profile.color,
       ),
     );
   }
