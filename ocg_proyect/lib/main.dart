@@ -9,6 +9,21 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app/app.dart';
 import 'firebase_options.dart';
 
+const _webRecaptchaSiteKey = String.fromEnvironment(
+  'FIREBASE_APP_CHECK_WEB_SITE_KEY',
+);
+
+ReCaptchaV3Provider _releaseWebAppCheckProvider() {
+  if (_webRecaptchaSiteKey.isEmpty) {
+    throw StateError(
+      'FIREBASE_APP_CHECK_WEB_SITE_KEY is required for web release builds. '
+      'Pass it with --dart-define=FIREBASE_APP_CHECK_WEB_SITE_KEY=<site-key>.',
+    );
+  }
+
+  return ReCaptchaV3Provider(_webRecaptchaSiteKey);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -28,9 +43,13 @@ Future<void> main() async {
   // App Check: debug provider para desarrollo (evita error 403 "App attestation failed")
   // En producción se debe configurar Play Integrity con el SHA-256 correcto
   await FirebaseAppCheck.instance.activate(
-    androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    providerWeb: kIsWeb
+        ? (kDebugMode ? WebDebugProvider() : _releaseWebAppCheckProvider())
+        : null,
+    providerAndroid: kDebugMode
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
   );
-
 
   runApp(const ProviderScope(child: OcgApp()));
 }
