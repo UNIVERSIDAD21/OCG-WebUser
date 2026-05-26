@@ -135,6 +135,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 selectedProfileId: flow.treatmentProfileId,
                 activeProfile: activeProfile,
                 config: flow.doctorConfig ?? const {},
+                doctorOverride: flow.doctorOverride,
                 isGenerating: isGenerating,
                 onProfileSelected: (id) => ref
                     .read(simulatorFlowProvider.notifier)
@@ -142,6 +143,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                 onConfigChanged: (cfg) => ref
                     .read(simulatorFlowProvider.notifier)
                     .updateDoctorConfig(cfg),
+                onOverrideChanged: (value) => ref
+                    .read(simulatorFlowProvider.notifier)
+                    .updateDoctorOverride(value),
               ),
             ],
             // ── Photo step ─────────────────────────────────
@@ -655,22 +659,100 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
 
 /// ── Setup section (treatment selector + config form) ────
 
+/// Stateful text field for doctor override instructions.
+/// Uses its own TextEditingController to avoid cursor-reset on rebuilds.
+class _DoctorOverrideField extends StatefulWidget {
+  const _DoctorOverrideField({
+    required this.initialValue,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String initialValue;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_DoctorOverrideField> createState() => _DoctorOverrideFieldState();
+}
+
+class _DoctorOverrideFieldState extends State<_DoctorOverrideField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      maxLines: 4,
+      maxLength: 500,
+      enabled: widget.enabled,
+      decoration: InputDecoration(
+        hintText:
+            'Ej: dejar los dientes centrales un poco más largos, '
+            'cerrar el diastema entre incisivos, mantener el tono actual...',
+        hintStyle: const TextStyle(fontSize: 12, color: OcgColors.ink),
+        filled: true,
+        fillColor: OcgColors.ivory,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: OcgColors.bronze.withOpacity(0.2),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: OcgColors.bronze.withOpacity(0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: OcgColors.bronze,
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.all(12),
+        counterStyle: const TextStyle(fontSize: 10, color: OcgColors.ink),
+      ),
+      style: const TextStyle(fontSize: 13, color: OcgColors.espresso),
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
 class _SetupSection extends StatelessWidget {
   const _SetupSection({
     required this.selectedProfileId,
     required this.activeProfile,
     required this.config,
+    required this.doctorOverride,
     required this.isGenerating,
     required this.onProfileSelected,
     required this.onConfigChanged,
+    required this.onOverrideChanged,
   });
 
   final String? selectedProfileId;
   final DentalTreatmentProfile? activeProfile;
   final Map<String, dynamic> config;
+  final String? doctorOverride;
   final bool isGenerating;
   final ValueChanged<String> onProfileSelected;
   final ValueChanged<Map<String, dynamic>> onConfigChanged;
+  final ValueChanged<String> onOverrideChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -738,6 +820,21 @@ class _SetupSection extends StatelessWidget {
               config: config,
               enabled: !isGenerating,
               onChanged: onConfigChanged,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Paso 3: indicaciones libres (opcional)',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: OcgColors.bronze,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _DoctorOverrideField(
+              initialValue: doctorOverride ?? '',
+              enabled: !isGenerating,
+              onChanged: onOverrideChanged,
             ),
           ],
         ],

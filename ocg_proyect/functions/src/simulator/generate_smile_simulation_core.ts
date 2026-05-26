@@ -20,6 +20,8 @@ export type GenerateSmileSimulationData = {
   treatmentProfileId?: string;
   visualGoal?: string;
   doctorConfig?: Record<string, unknown>;
+  /** Free-text clinical instructions from the doctor. */
+  doctorOverride?: string;
   photoQuality?: Record<string, unknown>;
   notes?: string;
 };
@@ -142,6 +144,7 @@ export async function processGenerateSmileSimulation(
   const treatmentProfileId = normalizeText(data.treatmentProfileId);
   const visualGoal = normalizeText(data.visualGoal);
   const doctorConfig = toStorableMap(data.doctorConfig);
+  const doctorOverride = normalizeText(data.doctorOverride);
   const photoQuality = toStorableMap(data.photoQuality);
   const notes = normalizeText(data.notes);
 
@@ -249,6 +252,7 @@ export async function processGenerateSmileSimulation(
     legacyTreatmentType: treatmentType || undefined,
     visualGoal: visualGoal || undefined,
     doctorConfig: doctorConfig,
+    doctorOverride: doctorOverride || undefined,
     notes: notes || undefined,
   });
 
@@ -265,6 +269,7 @@ export async function processGenerateSmileSimulation(
     treatmentProfileId: profile.id,
     visualGoal: visualGoal || null,
     doctorConfig: doctorConfig ?? null,
+    doctorOverride: doctorOverride || null,
     photoQuality: photoQuality ?? null,
     promptVersion: promptResult.promptVersion,
     modelUsed,
@@ -288,6 +293,7 @@ export async function processGenerateSmileSimulation(
     treatmentProfileId: profile.id,
     visualGoal: visualGoal || null,
     doctorConfig: doctorConfig ?? null,
+    doctorOverride: doctorOverride || null,
     photoQuality: photoQuality ?? null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     lastGenerationRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -342,6 +348,7 @@ export async function processGenerateSmileSimulation(
       treatmentProfileId: profile.id,
       visualGoal: visualGoal || null,
       doctorConfig: doctorConfig ?? null,
+      doctorOverride: doctorOverride || null,
       photoQuality: photoQuality ?? null,
       modelUsed,
       generationProvider: 'openai',

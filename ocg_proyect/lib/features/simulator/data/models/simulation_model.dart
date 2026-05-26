@@ -38,6 +38,7 @@ class SimulationModel {
     this.treatmentProfileId,
     this.visualGoal,
     this.doctorConfig,
+    this.doctorOverride,
     this.photoQuality,
     this.doctorReviewStatus = 'pending',
     this.approvedAttemptId,
@@ -71,6 +72,8 @@ class SimulationModel {
   final String? treatmentProfileId;
   final String? visualGoal;
   final Map<String, dynamic>? doctorConfig;
+  /// Instrucciones libres del doctor en lenguaje natural.
+  final String? doctorOverride;
   final Map<String, dynamic>? photoQuality;
   final String doctorReviewStatus; // pending | approved | rejected
   final String? approvedAttemptId;
@@ -133,6 +136,7 @@ class SimulationModel {
       treatmentProfileId: _nullableString(json['treatmentProfileId']),
       visualGoal: _nullableString(json['visualGoal']),
       doctorConfig: _asMap(json['doctorConfig']),
+      doctorOverride: _nullableString(json['doctorOverride']),
       photoQuality: _asMap(json['photoQuality']),
       doctorReviewStatus:
           _firstNonEmpty(json['doctorReviewStatus'], 'pending'),
@@ -200,6 +204,10 @@ class SimulationModel {
     if (doctorConfig != null && doctorConfig!.isNotEmpty) {
       map['doctorConfig'] = doctorConfig;
     }
+    final doStr = (doctorOverride ?? '').trim();
+    if (doStr.isNotEmpty) {
+      map['doctorOverride'] = doctorOverride;
+    }
     if (photoQuality != null && photoQuality!.isNotEmpty) {
       map['photoQuality'] = photoQuality;
     }
@@ -253,6 +261,8 @@ class SimulationModel {
     bool clearVisualGoal = false,
     Map<String, dynamic>? doctorConfig,
     bool clearDoctorConfig = false,
+    String? doctorOverride,
+    bool clearDoctorOverride = false,
     Map<String, dynamic>? photoQuality,
     bool clearPhotoQuality = false,
     String? doctorReviewStatus,
@@ -300,6 +310,8 @@ class SimulationModel {
           clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
       doctorConfig:
           clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
+      doctorOverride:
+          clearDoctorOverride ? null : (doctorOverride ?? this.doctorOverride),
       photoQuality:
           clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
       doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,

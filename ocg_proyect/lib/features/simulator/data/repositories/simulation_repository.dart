@@ -181,6 +181,7 @@ class SimulationRepository {
     String? treatmentProfileId,
     String? visualGoal,
     Map<String, dynamic>? doctorConfig,
+    String? doctorOverride,
     Map<String, dynamic>? photoQuality,
   }) async {
     final callable = (_functions ?? FirebaseFunctions.instance).httpsCallable(
@@ -206,6 +207,8 @@ class SimulationRepository {
           'visualGoal': visualGoal,
         if (doctorConfig != null && doctorConfig.isNotEmpty)
           'doctorConfig': doctorConfig,
+        if (doctorOverride != null && doctorOverride.isNotEmpty)
+          'doctorOverride': doctorOverride,
         if (photoQuality != null && photoQuality.isNotEmpty)
           'photoQuality': photoQuality,
       });

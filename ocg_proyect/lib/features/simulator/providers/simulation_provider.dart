@@ -72,6 +72,7 @@ class SimulatorFlowState {
     this.treatmentProfileId,
     this.visualGoal,
     this.doctorConfig,
+    this.doctorOverride,
     this.photoQuality,
     this.doctorReviewStatus = 'pending',
     this.approvedAttemptId,
@@ -99,6 +100,8 @@ class SimulatorFlowState {
   final String? treatmentProfileId;
   final String? visualGoal;
   final Map<String, dynamic>? doctorConfig;
+  /// Instrucciones libres del doctor en lenguaje natural (alta prioridad).
+  final String? doctorOverride;
   final Map<String, dynamic>? photoQuality;
   final String doctorReviewStatus; // pending | approved | rejected
   final String? approvedAttemptId;
@@ -160,6 +163,8 @@ class SimulatorFlowState {
     bool clearVisualGoal = false,
     Map<String, dynamic>? doctorConfig,
     bool clearDoctorConfig = false,
+    String? doctorOverride,
+    bool clearDoctorOverride = false,
     Map<String, dynamic>? photoQuality,
     bool clearPhotoQuality = false,
     String? doctorReviewStatus,
@@ -201,6 +206,8 @@ class SimulatorFlowState {
           clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
       doctorConfig:
           clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
+      doctorOverride:
+          clearDoctorOverride ? null : (doctorOverride ?? this.doctorOverride),
       photoQuality:
           clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
       doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,
@@ -275,6 +282,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         treatmentProfileId: simulation.treatmentProfileId,
         visualGoal: simulation.visualGoal,
         doctorConfig: simulation.doctorConfig,
+        doctorOverride: simulation.doctorOverride,
         photoQuality: simulation.photoQuality,
         doctorReviewStatus: simulation.doctorReviewStatus,
         approvedAttemptId: simulation.approvedAttemptId,
@@ -473,6 +481,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         treatmentProfileId: current.treatmentProfileId,
         visualGoal: current.visualGoal,
         doctorConfig: current.doctorConfig,
+        doctorOverride: current.doctorOverride,
         photoQuality: current.photoQuality,
       );
     } catch (e) {
@@ -540,6 +549,12 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     final current = state.asData?.value;
     if (current == null) return;
     state = AsyncData(current.copyWith(doctorConfig: config));
+  }
+
+  void updateDoctorOverride(String value) {
+    final current = state.asData?.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(doctorOverride: value.isEmpty ? null : value));
   }
 
   Future<void> approveCurrentResult({
