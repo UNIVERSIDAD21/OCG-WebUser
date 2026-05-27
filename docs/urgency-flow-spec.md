@@ -3,6 +3,7 @@
 > **Especificación técnica para implementación completa**
 > Combina: solicitud de urgencia in-app con auto-redirección a WhatsApp + admin reprograma citas para dar slot a urgencia
 > Proyecto: OCG-WebUser | Repo: `/home/borlty/OCG-WebUser/ocg_proyect`
+> Última actualización: 2026-05-27 | Commit verificado en origin/main
 
 ---
 
