@@ -109,6 +109,8 @@ class SimulationRepository {
           final separator = clean.contains('?') ? '&' : '?';
           final ms = DateTime.now().millisecondsSinceEpoch;
           final busted = '$clean${separator}cb=$ms';
+          // ignore: avoid_print
+          print('[SimulatorRepository][resolveMediaUrl] path=$raw cacheBust=$bustCache cb=$ms');
           if (!bustCache) _resolvedMediaUrlCache[raw] = busted;
           return busted;
         })
