@@ -270,6 +270,9 @@ class UrgencyRepository {
     );
   }
 
+  // ─── Limpieza de urgencias antiguas (Bloque 8) ────────────────────────
+  /// Limpia urgencias completadas/rechazadas older than [daysAgo].
+  /// SOLO admin debe ejecutar esto. Default 30 días (spec).
   Future<int> cleanupOldUrgencies({int daysAgo = 30}) async {
     final cutoff = DateTime.now().subtract(Duration(days: daysAgo));
     final snapshot = await _collection
