@@ -243,5 +243,21 @@ service cloud.firestore {
       allow create, update: if isAdmin();
       allow delete: if false;
     }
+
+    // ── Solicitudes de urgencia ─────────────────────────────────────
+    match /urgencyRequests/{requestId} {
+      // Paciente puede crear y leer las suyas
+      allow create: if request.auth != null
+        && (request.resource.data.patientId == request.auth.uid);
+      allow read: if request.auth != null
+        && (
+          resource.data.patientId == request.auth.uid
+          || isAdmin()
+        );
+      // Solo admin puede actualizar (cambiar estado, notas, etc.)
+      allow update: if isAdmin();
+      // Solo admin puede borrar (limpieza histórica)
+      allow delete: if isAdmin();
+    }
   }
 }
