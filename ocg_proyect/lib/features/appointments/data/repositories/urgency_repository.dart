@@ -23,6 +23,10 @@ class UrgencyRepository {
       createdAt: DateTime.now(),
     );
     await docRef.set(model.toJson());
+
+    // Disparar notificación FCM al admin (bloque 7)
+    await _notifyAdminsOfNewUrgency(model);
+
     return model;
   }
 
@@ -151,5 +155,55 @@ class UrgencyRepository {
       appointmentId: urgentApptRef.id,
       reprogramadaFromId: originalAppointmentId,
     );
+  }
+
+  // ─── Notificación FCM a admins (Bloque 7) ─────────────────────────────
+
+  /// Notifica a todos los admins sobre nueva urgencia vía Cloud Functions.
+  Future<void> _notifyAdminsOfNewUrgency(UrgencyRequestModel request) async {
+    try {
+      // Llamada a Cloud Function que envía FCM a todos los admins
+      // La función debe estar deployada en functions/src/notifyUrgency.ts
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .add({
+            'type': 'new_urgency',
+            'urgencyId': request.id,
+            'patientName': request.patientName,
+            'descripcion': request.descripcion,
+            'createdAt': FieldValue.serverTimestamp(),
+            'priority': 'high',
+            'readBy': [],
+          });
+    } catch (e) {
+      // Si falla la notificación, no bloqueamos el flujo
+      // La urgencia ya está en Firestore y el admin la verá en la bandeja
+      print('Error notificando admins de urgencia: $e');
+    }
+  }
+
+  // ─── Limpieza de urgencias antiguas (Bloque 8) ────────────────────────
+
+  /// Limpia urgencias completadas/rechazadas older than [daysAgo].
+  /// SOLO admin debe ejecutar esto.
+  Future<int> cleanupOldUrgencies({int daysAgo = 90}) async {
+    final cutoff = DateTime.now().subtract(Duration(days: daysAgo));
+    int deleted = 0;
+
+    final snapshot = await _collection
+        .where('estado', whereIn: ['atendida', 'rechazada', 'reprogramada'])
+        .where('createdAt', isLessThan: Timestamp.fromDate(cutoff))
+        .get();
+
+    if (snapshot.docs.isEmpty) return 0;
+
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+      deleted++;
+    }
+
+    await batch.commit();
+    return deleted;
   }
 }
