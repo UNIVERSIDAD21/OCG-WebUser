@@ -996,7 +996,26 @@ class _StoragePreviewCard extends StatelessWidget {
   }
 }
 
-class _BeforeAfterFromStorage extends StatelessWidget {
+Widget _labelChip(String text, Color color) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.black54,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color, width: 1.5),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: 13,
+      ),
+    ),
+  );
+}
+
+class _BeforeAfterFromStorage extends StatefulWidget {
   const _BeforeAfterFromStorage({
     super.key,
     required this.originalPath,
@@ -1007,6 +1026,21 @@ class _BeforeAfterFromStorage extends StatelessWidget {
   final String originalPath;
   final String resultPath;
   final SimulationRepository repository;
+
+  @override
+  State<_BeforeAfterFromStorage> createState() => _BeforeAfterFromStorageState();
+}
+
+class _BeforeAfterFromStorageState extends State<_BeforeAfterFromStorage> {
+  @override
+  void initState() {
+    super.initState();
+    // Limpiar el cache interno de Flutter para forzar fetch de red.
+    // El ValueKey con attemptCount recrea este widget en cada regeneración;
+    // al limpiar el ImageCache nos aseguramos de que Image.network no sirva
+    // bytes viejas aunque la URL base sea la misma.
+    PaintingBinding.instance.imageCache.clear();
+  }
 
   Widget _buildSlider({
     required BuildContext context,
@@ -1050,25 +1084,6 @@ class _BeforeAfterFromStorage extends StatelessWidget {
     );
   }
 
-  static Widget _labelChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color, width: 1.5),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: 13,
-        ),
-      ),
-    );
-  }
-
   Future<void> _openFullscreen(
     BuildContext context,
     String originalUrl,
@@ -1099,8 +1114,8 @@ class _BeforeAfterFromStorage extends StatelessWidget {
 
     return FutureBuilder<List<String?>>(
       future: Future.wait([
-        repository.resolveMediaUrl(originalPath),
-        repository.resolveMediaUrl(resultPath),
+        widget.repository.resolveMediaUrl(widget.originalPath),
+        widget.repository.resolveMediaUrl(widget.resultPath),
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -1367,12 +1382,12 @@ class _FullscreenComparisonDialogState
               Positioned(
                 top: 10,
                 left: 12,
-                child: _BeforeAfterFromStorage._labelChip('Antes', OcgColors.bronze),
+                child: _labelChip('Antes', OcgColors.bronze),
               ),
               Positioned(
                 top: 10,
                 right: 12,
-                child: _BeforeAfterFromStorage._labelChip('Después', OcgColors.success),
+                child: _labelChip('Después', OcgColors.success),
               ),
             ],
           ),
