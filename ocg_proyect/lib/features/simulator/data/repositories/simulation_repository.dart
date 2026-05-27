@@ -24,6 +24,13 @@ class SimulationRepository {
   final Map<String, Future<String?>> _resolvedMediaUrlInflight =
       <String, Future<String?>>{};
 
+  /// Limpia la URL cacheada de un path para forzar resolución fresca.
+  /// Necesario después de regenerar una imagen en el mismo path.
+  void clearResolvedMediaUrlCache(String path) {
+    _resolvedMediaUrlCache.remove(path);
+    _resolvedMediaUrlInflight.remove(path);
+  }
+
   CollectionReference<Map<String, dynamic>> _simulationsRef(String patientId) {
     return _db.collection(FirestorePaths.patientSimulations(patientId));
   }
@@ -73,19 +80,22 @@ class SimulationRepository {
     return path;
   }
 
-  Future<String?> resolveMediaUrl(String? pathOrUrl) async {
+  Future<String?> resolveMediaUrl(String? pathOrUrl, {bool bustCache = false}) async {
     final raw = (pathOrUrl ?? '').trim();
     if (raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
 
-    final cached = _resolvedMediaUrlCache[raw];
-    if (cached != null && cached.isNotEmpty) {
-      return cached;
-    }
+    // Si bustCache=true, omitir el cache para forzar URL fresca.
+    if (!bustCache) {
+      final cached = _resolvedMediaUrlCache[raw];
+      if (cached != null && cached.isNotEmpty) {
+        return cached;
+      }
 
-    final inflight = _resolvedMediaUrlInflight[raw];
-    if (inflight != null) {
-      return inflight;
+      final inflight = _resolvedMediaUrlInflight[raw];
+      if (inflight != null) {
+        return inflight;
+      }
     }
 
     final future = (_storage ?? FirebaseStorage.instance)
@@ -93,14 +103,20 @@ class SimulationRepository {
         .getDownloadURL()
         .then((url) {
           final clean = url.trim();
-          if (clean.isNotEmpty) _resolvedMediaUrlCache[raw] = clean;
-          return clean.isEmpty ? null : clean;
+          if (clean.isEmpty) return null;
+          // Cache-buster: agregar timestamp para que el CDN de Firebase/GCP
+          // no sirva bytes viejos cuando se sobrescribe un archivo en el mismo path.
+          final separator = clean.contains('?') ? '&' : '?';
+          final ms = DateTime.now().millisecondsSinceEpoch;
+          final busted = '$clean${separator}cb=$ms';
+          if (!bustCache) _resolvedMediaUrlCache[raw] = busted;
+          return busted;
         })
         .whenComplete(() {
-          _resolvedMediaUrlInflight.remove(raw);
+          if (!bustCache) _resolvedMediaUrlInflight.remove(raw);
         });
 
-    _resolvedMediaUrlInflight[raw] = future;
+    if (!bustCache) _resolvedMediaUrlInflight[raw] = future;
     return future;
   }
 
@@ -184,6 +200,12 @@ class SimulationRepository {
     String? doctorOverride,
     Map<String, dynamic>? photoQuality,
   }) async {
+    // Desacreditar cache de la imagen resultado antes de regenerar.
+    // El resultPath no cambia entre regeneraciones, pero los bytes sí.
+    // Sin esto, resolveMediaUrl devuelve la URL cacheada con la imagen vieja.
+    final resultPath = StoragePaths.simulationResult(patientId, simulationId);
+    clearResolvedMediaUrlCache(resultPath);
+
     final callable = (_functions ?? FirebaseFunctions.instance).httpsCallable(
       'generateSmileSimulation',
     );

@@ -254,6 +254,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     ),
                     const SizedBox(height: 8),
                     _BeforeAfterFromStorage(
+                      key: ValueKey('ba-${flow.simulationId}-a${flow.attemptCount}'),
                       originalPath: flow.originalPath!,
                       resultPath: flow.resultPath!,
                       repository: repo,
@@ -997,6 +998,7 @@ class _StoragePreviewCard extends StatelessWidget {
 
 class _BeforeAfterFromStorage extends StatelessWidget {
   const _BeforeAfterFromStorage({
+    super.key,
     required this.originalPath,
     required this.resultPath,
     required this.repository,
