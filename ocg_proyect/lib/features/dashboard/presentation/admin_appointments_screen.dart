@@ -724,35 +724,55 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     });
     final notasTexto = _notesCtrl.text.trim();
     try {
-      final createdAppointmentId = await widget.callerRef
-          .read(appointmentsRepositoryProvider)
-          .createAppointment(
-            AppointmentModel(
-              id: '',
-              patientId: _selectedPatient!.id,
-              patientName: _selectedPatient!.nombre,
-              patientPhone: _selectedPatient!.telefono,
-              treatmentId: selectedTreatment?.id,
-              treatmentNameSnapshot: selectedTreatment?.displayName,
-              creadoPor: 'admin',
-              tipo: effectiveType,
-              estado: AppointmentStatus.programada,
-              fechaHora: _dateTime,
-              duracionMinutos: _durationMinutes,
-              notas: notasTexto.isEmpty ? null : notasTexto,
-              stageId: effectiveStage,
-              stageNameSnapshot:
-                  stageNames[effectiveStage] ?? effectiveStage.name,
-            ),
-          );
       if (_isUrgencyBooking) {
+        // Bloque 5: usar createAppointmentFromUrgency que bypassa validaciones
+        // y actualiza la urgencia en un solo batch atómico
+        final urgencyAppointment = AppointmentModel(
+          id: '',
+          patientId: _selectedPatient!.id,
+          patientName: _selectedPatient!.nombre,
+          patientPhone: _selectedPatient!.telefono,
+          treatmentId: selectedTreatment?.id,
+          treatmentNameSnapshot: selectedTreatment?.displayName,
+          creadoPor: 'admin',
+          tipo: effectiveType,
+          estado: AppointmentStatus.programada,
+          fechaHora: _dateTime,
+          duracionMinutos: _durationMinutes,
+          notas: notasTexto.isEmpty ? null : notasTexto,
+          stageId: effectiveStage,
+          stageNameSnapshot:
+              stageNames[effectiveStage] ?? effectiveStage.name,
+        );
         await widget.callerRef
             .read(urgencyRepositoryProvider)
-            .updateStatus(
-              requestId: widget.urgencyRequest!.id,
-              newStatus: UrgencyStatus.atendida,
-              appointmentId: createdAppointmentId,
+            .createAppointmentFromUrgency(
+              request: widget.urgencyRequest!,
+              appointment: urgencyAppointment,
+              adminId: 'admin',
               adminNotes: notasTexto.isEmpty ? null : notasTexto,
+            );
+      } else {
+        await widget.callerRef
+            .read(appointmentsRepositoryProvider)
+            .createAppointment(
+              AppointmentModel(
+                id: '',
+                patientId: _selectedPatient!.id,
+                patientName: _selectedPatient!.nombre,
+                patientPhone: _selectedPatient!.telefono,
+                treatmentId: selectedTreatment?.id,
+                treatmentNameSnapshot: selectedTreatment?.displayName,
+                creadoPor: 'admin',
+                tipo: effectiveType,
+                estado: AppointmentStatus.programada,
+                fechaHora: _dateTime,
+                duracionMinutos: _durationMinutes,
+                notas: notasTexto.isEmpty ? null : notasTexto,
+                stageId: effectiveStage,
+                stageNameSnapshot:
+                    stageNames[effectiveStage] ?? effectiveStage.name,
+              ),
             );
       }
       popDialog(context);
