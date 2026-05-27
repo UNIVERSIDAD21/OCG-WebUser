@@ -114,6 +114,11 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
         final canArchive =
             flow.status == SimulationStatus.ready ||
             flow.status == SimulationStatus.shared;
+        final showComparison =
+            flow.hasOriginal &&
+            flow.hasResult &&
+            (flow.status == SimulationStatus.ready ||
+                flow.status == SimulationStatus.shared);
         final treatmentLabel = _treatmentLabel(widget.treatmentType);
         final hasProfile = flow.hasProfile;
         final activeProfile = hasProfile
@@ -241,7 +246,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
             ],
             if (inPreview) ...[
               const SizedBox(height: 12),
-              if (flow.hasOriginal && flow.hasResult)
+              if (showComparison)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -254,7 +259,9 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                     ),
                     const SizedBox(height: 8),
                     _BeforeAfterFromStorage(
-                      key: ValueKey('ba-${flow.simulationId}-a${flow.attemptCount}'),
+                      key: ValueKey(
+                        'ba-${flow.simulationId}-a${flow.attemptCount}-${flow.resultPath}',
+                      ),
                       originalPath: flow.originalPath!,
                       resultPath: flow.resultPath!,
                       repository: repo,
@@ -708,22 +715,15 @@ class _DoctorOverrideFieldState extends State<_DoctorOverrideField> {
         fillColor: OcgColors.ivory,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: OcgColors.bronze.withOpacity(0.2),
-          ),
+          borderSide: BorderSide(color: OcgColors.bronze.withOpacity(0.2)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: OcgColors.bronze.withOpacity(0.2),
-          ),
+          borderSide: BorderSide(color: OcgColors.bronze.withOpacity(0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: OcgColors.bronze,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: OcgColors.bronze, width: 2),
         ),
         contentPadding: const EdgeInsets.all(12),
         counterStyle: const TextStyle(fontSize: 10, color: OcgColors.ink),
@@ -1028,7 +1028,8 @@ class _BeforeAfterFromStorage extends StatefulWidget {
   final SimulationRepository repository;
 
   @override
-  State<_BeforeAfterFromStorage> createState() => _BeforeAfterFromStorageState();
+  State<_BeforeAfterFromStorage> createState() =>
+      _BeforeAfterFromStorageState();
 }
 
 class _BeforeAfterFromStorageState extends State<_BeforeAfterFromStorage> {
@@ -1273,7 +1274,9 @@ class _FullscreenComparisonDialogState
                         _isLocked ? Icons.lock : Icons.lock_open,
                         color: _isLocked ? OcgColors.warning : Colors.white70,
                       ),
-                      tooltip: _isLocked ? 'Desbloquear (slider)' : 'Bloquear (zoom libre)',
+                      tooltip: _isLocked
+                          ? 'Desbloquear (slider)'
+                          : 'Bloquear (zoom libre)',
                     ),
                     const SizedBox(width: 4),
                     // Botón cerrar
@@ -1289,9 +1292,7 @@ class _FullscreenComparisonDialogState
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _isLocked
-                      ? _buildZoomMode()
-                      : _buildSliderMode(),
+                  child: _isLocked ? _buildZoomMode() : _buildSliderMode(),
                 ),
               ),
               // Hint
@@ -1326,9 +1327,7 @@ class _FullscreenComparisonDialogState
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.14),
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.14)),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x66000000),

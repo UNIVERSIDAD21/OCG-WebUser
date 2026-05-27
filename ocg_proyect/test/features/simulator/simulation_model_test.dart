@@ -81,6 +81,21 @@ void main() {
     expect(decoded.status, SimulationStatus.ready);
   });
 
+  test('usa activeResultPath como fallback legacy de resultPath', () {
+    final decoded = SimulationModel.fromJson({
+      'id': 'legacy-active',
+      'patientId': 'p-legacy',
+      'originalPath': 'simulations/p-legacy/legacy-active/original.jpg',
+      'activeResultPath': 'simulations/p-legacy/legacy-active/result.jpg',
+      'status': 'ready',
+      'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+      'createdBy': 'admin-legacy',
+    });
+
+    expect(decoded.resultPath, 'simulations/p-legacy/legacy-active/result.jpg');
+    expect(decoded.status, SimulationStatus.ready);
+  });
+
   test('documento legacy sin campos nuevos usa defaults correctos', () {
     final decoded = SimulationModel.fromJson({
       'id': 'legacy-no-new',
@@ -130,10 +145,7 @@ void main() {
       detectedRegion: null,
       promptMetadata: null,
       fechaCompartida: null,
-      doctorConfig: {
-        'ligatureColor': 'gris',
-        'arcada': 'superior',
-      },
+      doctorConfig: {'ligatureColor': 'gris', 'arcada': 'superior'},
       photoQuality: {
         'status': 'usable_with_warning',
         'score': 0.72,
@@ -196,13 +208,11 @@ void main() {
     expect(cleared.doctorConfig, isNull);
 
     // Limpiar treatmentProfileId
-    final clearedProfile =
-        original.copyWith(clearTreatmentProfileId: true);
+    final clearedProfile = original.copyWith(clearTreatmentProfileId: true);
     expect(clearedProfile.treatmentProfileId, isNull);
 
     // Setear approvedAttemptId
-    final withAttempt =
-        original.copyWith(approvedAttemptId: 'attempt_1');
+    final withAttempt = original.copyWith(approvedAttemptId: 'attempt_1');
     expect(withAttempt.approvedAttemptId, 'attempt_1');
   });
 }

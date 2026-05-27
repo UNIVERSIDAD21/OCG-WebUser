@@ -27,8 +27,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isAdminViewer = viewerMode == PatientViewerMode.adminViewer;
-    final authUid =
-        ref.watch(authStateProvider).asData?.value?.uid ?? '';
+    final authUid = ref.watch(authStateProvider).asData?.value?.uid ?? '';
     final userId = (patientIdOverride?.isNotEmpty == true)
         ? patientIdOverride!
         : authUid;
@@ -44,11 +43,12 @@ class PatientSimulationsScreen extends ConsumerWidget {
         ),
       );
     } else {
-      body = ref.watch(sharedSimulationsProvider(userId)).when(
+      body = ref
+          .watch(sharedSimulationsProvider(userId))
+          .when(
             loading: () => const OcgSkeletonList(items: 3),
-            error: (e, _) => Center(
-              child: Text('No se pudieron cargar simulaciones: $e'),
-            ),
+            error: (e, _) =>
+                Center(child: Text('No se pudieron cargar simulaciones: $e')),
             data: (items) {
               if (items.isEmpty) {
                 return Center(
@@ -72,9 +72,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 2),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color(0xFFD9C7B3),
-                        ),
+                        border: Border.all(color: const Color(0xFFD9C7B3)),
                         borderRadius: BorderRadius.circular(12),
                         color: const Color(0xFFFFF7EF),
                       ),
@@ -119,9 +117,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isAdminViewer
-                    ? 'Simulador del paciente'
-                    : 'Mis simulaciones',
+                isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones',
                 style: const TextStyle(
                   color: Color(0xFFF8F5F0),
                   fontSize: 20,
@@ -133,10 +129,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
                 isAdminViewer
                     ? 'Seguimiento visual del paciente'
                     : 'Compara evolución y resultados compartidos',
-                style: const TextStyle(
-                  color: Color(0xCCF8F5F0),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xCCF8F5F0), fontSize: 13),
               ),
             ],
           ),
@@ -149,9 +142,7 @@ class PatientSimulationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: OcgAppBar(
-        title: isAdminViewer
-            ? 'Simulador del paciente'
-            : 'Mis simulaciones',
+        title: isAdminViewer ? 'Simulador del paciente' : 'Mis simulaciones',
         onBack: () => Navigator.of(context).pop(),
       ),
       body: decoratedBody,
@@ -223,6 +214,9 @@ class _PatientSimulationCard extends StatelessWidget {
             if ((simulation.originalPath).trim().isNotEmpty &&
                 (simulation.resultPath ?? '').trim().isNotEmpty)
               _PatientBeforeAfter(
+                key: ValueKey(
+                  'patient-ba-${simulation.id}-${simulation.attemptCount}-${simulation.resultPath}',
+                ),
                 originalPath: simulation.originalPath,
                 resultPath: simulation.resultPath!,
                 repository: repository,
@@ -230,9 +224,7 @@ class _PatientSimulationCard extends StatelessWidget {
             else
               const SizedBox(
                 height: 120,
-                child: Center(
-                  child: Text('Imágenes no disponibles'),
-                ),
+                child: Center(child: Text('Imágenes no disponibles')),
               ),
           ],
         ),
@@ -247,6 +239,7 @@ class _PatientSimulationCard extends StatelessWidget {
 
 class _PatientBeforeAfter extends StatelessWidget {
   const _PatientBeforeAfter({
+    super.key,
     required this.originalPath,
     required this.resultPath,
     required this.repository,
@@ -272,9 +265,7 @@ class _PatientBeforeAfter extends StatelessWidget {
         if (before.isEmpty || after.isEmpty) {
           return const SizedBox(
             height: 120,
-            child: Center(
-              child: Text('No se pudieron cargar las imágenes.'),
-            ),
+            child: Center(child: Text('No se pudieron cargar las imágenes.')),
           );
         }
         return BeforeAfterSlider(

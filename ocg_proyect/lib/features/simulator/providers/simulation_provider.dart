@@ -32,9 +32,9 @@ final patientSimulationsProvider =
 
 final sharedSimulationsProvider =
     StreamProvider.family<List<SimulationModel>, String>((ref, patientId) {
-      return ref.watch(simulationRepositoryProvider).watchSharedSimulations(
-            patientId,
-          );
+      return ref
+          .watch(simulationRepositoryProvider)
+          .watchSharedSimulations(patientId);
     });
 
 enum SimulatorUiState {
@@ -100,6 +100,7 @@ class SimulatorFlowState {
   final String? treatmentProfileId;
   final String? visualGoal;
   final Map<String, dynamic>? doctorConfig;
+
   /// Instrucciones libres del doctor en lenguaje natural (alta prioridad).
   final String? doctorOverride;
   final Map<String, dynamic>? photoQuality;
@@ -107,12 +108,16 @@ class SimulatorFlowState {
   final String? approvedAttemptId;
 
   bool get hasProfile => (treatmentProfileId ?? '').isNotEmpty;
-  bool get isConfigurable => status == SimulationStatus.draft || status == SimulationStatus.ready || status == SimulationStatus.failed;
+  bool get isConfigurable =>
+      status == SimulationStatus.draft ||
+      status == SimulationStatus.ready ||
+      status == SimulationStatus.failed;
   bool get _photoQualityAllowsGeneration {
     final q = photoQuality;
     if (q == null) return true; // legacy: no preflight yet
     return (q['status'] ?? 'valid') != 'rejected';
   }
+
   bool get hasOriginal => (originalPath ?? '').isNotEmpty;
   bool get hasResult => (resultPath ?? '').isNotEmpty;
   bool get canGenerate =>
@@ -174,10 +179,12 @@ class SimulatorFlowState {
     return SimulatorFlowState(
       uiState: uiState ?? this.uiState,
       patientId: clearPatientId ? null : (patientId ?? this.patientId),
-      simulationId:
-          clearSimulationId ? null : (simulationId ?? this.simulationId),
-      originalPath:
-          clearOriginalPath ? null : (originalPath ?? this.originalPath),
+      simulationId: clearSimulationId
+          ? null
+          : (simulationId ?? this.simulationId),
+      originalPath: clearOriginalPath
+          ? null
+          : (originalPath ?? this.originalPath),
       resultPath: clearResultPath ? null : (resultPath ?? this.resultPath),
       shareWithPatient: shareWithPatient ?? this.shareWithPatient,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -193,8 +200,7 @@ class SimulatorFlowState {
       generationProvider: generationProvider ?? this.generationProvider,
       modelUsed: modelUsed ?? this.modelUsed,
       attemptCount: attemptCount ?? this.attemptCount,
-      promptUsed:
-          clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
+      promptUsed: clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
       promptVersion: clearPromptVersion
           ? null
           : (promptVersion ?? this.promptVersion),
@@ -202,14 +208,16 @@ class SimulatorFlowState {
       treatmentProfileId: clearTreatmentProfileId
           ? null
           : (treatmentProfileId ?? this.treatmentProfileId),
-      visualGoal:
-          clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
-      doctorConfig:
-          clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
-      doctorOverride:
-          clearDoctorOverride ? null : (doctorOverride ?? this.doctorOverride),
-      photoQuality:
-          clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
+      visualGoal: clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
+      doctorConfig: clearDoctorConfig
+          ? null
+          : (doctorConfig ?? this.doctorConfig),
+      doctorOverride: clearDoctorOverride
+          ? null
+          : (doctorOverride ?? this.doctorOverride),
+      photoQuality: clearPhotoQuality
+          ? null
+          : (photoQuality ?? this.photoQuality),
       doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,
       approvedAttemptId: clearApprovedAttemptId
           ? null
@@ -251,7 +259,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     bool preserveTransientError = true,
   }) {
     final current = state.asData?.value;
-    final nextError = preserveTransientError &&
+    final nextError =
+        preserveTransientError &&
             current != null &&
             (current.errorMessage ?? '').trim().isNotEmpty &&
             (simulation.errorMessage ?? '').trim().isEmpty
@@ -462,7 +471,10 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       current.copyWith(
         uiState: SimulatorUiState.generating,
         status: SimulationStatus.generating,
+        clearResultPath: true,
         clearError: true,
+        doctorReviewStatus: 'pending',
+        clearApprovedAttemptId: true,
       ),
     );
 
@@ -491,6 +503,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         doctorConfig: current.doctorConfig,
         doctorOverride: current.doctorOverride,
         photoQuality: current.photoQuality,
+        previousResultPath: current.resultPath,
       );
 
       // Re-ligar listener después de generar para seguir recibiendo actualizaciones.
@@ -561,12 +574,14 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     // Desacreditar parámetros anteriores: cancelar listener para que no
     // sobrescriba los nuevos valores con datos viejos de Firestore.
     _unbindSimulation();
-    state = AsyncData(current.copyWith(
-      treatmentProfileId: profileId,
-      visualGoal: profile?.defaultVisualGoal,
-      doctorConfig: profile?.buildDefaultConfig(),
-      clearDoctorOverride: true,
-    ));
+    state = AsyncData(
+      current.copyWith(
+        treatmentProfileId: profileId,
+        visualGoal: profile?.defaultVisualGoal,
+        doctorConfig: profile?.buildDefaultConfig(),
+        clearDoctorOverride: true,
+      ),
+    );
   }
 
   void updateDoctorConfig(Map<String, dynamic> config) {
@@ -582,12 +597,12 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     if (current == null) return;
     // Desacreditar override anterior: cancelar listener de Firestore.
     _unbindSimulation();
-    state = AsyncData(current.copyWith(doctorOverride: value.isEmpty ? null : value));
+    state = AsyncData(
+      current.copyWith(doctorOverride: value.isEmpty ? null : value),
+    );
   }
 
-  Future<void> approveCurrentResult({
-    required String patientId,
-  }) async {
+  Future<void> approveCurrentResult({required String patientId}) async {
     final current = state.asData?.value;
     if (current == null) return;
     final simId = current.simulationId;
@@ -672,8 +687,7 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
   void resetFlow() {
     _simulationSubscription?.cancel();
     _simulationSubscription = null;
-    state =
-        const AsyncData(SimulatorFlowState(uiState: SimulatorUiState.idle));
+    state = const AsyncData(SimulatorFlowState(uiState: SimulatorUiState.idle));
   }
 
   SimulatorUiState _uiStateForStatus(SimulationStatus status) {

@@ -27,8 +27,17 @@ class SimulationRepository {
   /// Limpia la URL cacheada de un path para forzar resolución fresca.
   /// Necesario después de regenerar una imagen en el mismo path.
   void clearResolvedMediaUrlCache(String path) {
-    _resolvedMediaUrlCache.remove(path);
-    _resolvedMediaUrlInflight.remove(path);
+    final raw = path.trim();
+    if (raw.isEmpty) return;
+    _resolvedMediaUrlCache.remove(raw);
+    _resolvedMediaUrlInflight.remove(raw);
+  }
+
+  bool _isMutableSimulationResultPath(String path) {
+    final parts = path.split('/');
+    return parts.length == 4 &&
+        parts[0] == 'simulations' &&
+        parts[3] == 'result.jpg';
   }
 
   CollectionReference<Map<String, dynamic>> _simulationsRef(String patientId) {
@@ -80,13 +89,18 @@ class SimulationRepository {
     return path;
   }
 
-  Future<String?> resolveMediaUrl(String? pathOrUrl, {bool bustCache = false}) async {
+  Future<String?> resolveMediaUrl(
+    String? pathOrUrl, {
+    bool bustCache = false,
+  }) async {
     final raw = (pathOrUrl ?? '').trim();
     if (raw.isEmpty) return null;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
 
+    final bypassCache = bustCache || _isMutableSimulationResultPath(raw);
+
     // Si bustCache=true, omitir el cache para forzar URL fresca.
-    if (!bustCache) {
+    if (!bypassCache) {
       final cached = _resolvedMediaUrlCache[raw];
       if (cached != null && cached.isNotEmpty) {
         return cached;
@@ -110,15 +124,17 @@ class SimulationRepository {
           final ms = DateTime.now().millisecondsSinceEpoch;
           final busted = '$clean${separator}cb=$ms';
           // ignore: avoid_print
-          print('[SimulatorRepository][resolveMediaUrl] path=$raw cacheBust=$bustCache cb=$ms');
-          if (!bustCache) _resolvedMediaUrlCache[raw] = busted;
+          print(
+            '[SimulatorRepository][resolveMediaUrl] path=$raw cacheBust=$bypassCache cb=$ms',
+          );
+          if (!bypassCache) _resolvedMediaUrlCache[raw] = busted;
           return busted;
         })
         .whenComplete(() {
-          if (!bustCache) _resolvedMediaUrlInflight.remove(raw);
+          if (!bypassCache) _resolvedMediaUrlInflight.remove(raw);
         });
 
-    if (!bustCache) _resolvedMediaUrlInflight[raw] = future;
+    if (!bypassCache) _resolvedMediaUrlInflight[raw] = future;
     return future;
   }
 
@@ -201,12 +217,16 @@ class SimulationRepository {
     Map<String, dynamic>? doctorConfig,
     String? doctorOverride,
     Map<String, dynamic>? photoQuality,
+    String? previousResultPath,
   }) async {
-    // Desacreditar cache de la imagen resultado antes de regenerar.
-    // El resultPath no cambia entre regeneraciones, pero los bytes sí.
-    // Sin esto, resolveMediaUrl devuelve la URL cacheada con la imagen vieja.
+    // Invalida tanto la copia legacy mutable como el resultado visible previo.
+    // Así la UI no puede quedarse pegada a bytes/URLs de un intento anterior.
     final resultPath = StoragePaths.simulationResult(patientId, simulationId);
     clearResolvedMediaUrlCache(resultPath);
+    final previousPath = (previousResultPath ?? '').trim();
+    if (previousPath.isNotEmpty) {
+      clearResolvedMediaUrlCache(previousPath);
+    }
 
     final callable = (_functions ?? FirebaseFunctions.instance).httpsCallable(
       'generateSmileSimulation',
@@ -240,7 +260,8 @@ class SimulationRepository {
       // ── Deadline exceeded / timeout: la función sigue corriendo en el servidor ──
       // La generación con IA tarda ~2-3 min. Si el cliente se agota, hacemos polling
       // de Firestore para obtener el estado real cuando la función termine.
-      final isTimeout = error.code == 'deadline-exceeded' ||
+      final isTimeout =
+          error.code == 'deadline-exceeded' ||
           error.code == 'resource-exhausted' ||
           (error.message ?? '').toLowerCase().contains('deadline');
 
@@ -256,9 +277,7 @@ class SimulationRepository {
 
         for (int i = 0; i < maxPolls; i++) {
           await Future<void>.delayed(pollInterval);
-          final doc = await _simulationsRef(patientId)
-              .doc(simulationId)
-              .get();
+          final doc = await _simulationsRef(patientId).doc(simulationId).get();
           final data = doc.data();
           final status = (data?['status'] ?? '').toString();
 
@@ -273,9 +292,7 @@ class SimulationRepository {
               '[SimulatorRepository][poll] estado final alcanzado: $status',
             );
             if (status == 'failed') {
-              final errorMsg = (data?['errorMessage'] ?? '')
-                  .toString()
-                  .trim();
+              final errorMsg = (data?['errorMessage'] ?? '').toString().trim();
               throw Exception(
                 errorMsg.isNotEmpty
                     ? errorMsg

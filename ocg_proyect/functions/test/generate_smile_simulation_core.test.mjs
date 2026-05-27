@@ -164,7 +164,8 @@ test('flujo exitoso mockeado guarda resultPath y deja status ready', async () =>
   const sim = d.db.store.get('patients/p1/simulations/s1');
   assert.equal(result.status, 'ready');
   assert.equal(sim.status, 'ready');
-  assert.equal(sim.resultPath, 'simulations/p1/s1/result.jpg');
+  assert.equal(sim.resultPath, 'simulations/p1/s1/attempts/attempt_1/result.jpg');
+  assert.equal(sim.activeResultPath, 'simulations/p1/s1/result.jpg');
   assert.equal(sim.modelUsed, 'gpt-image-2');
   assert.equal(sim.generationProvider, 'openai');
   assert.ok(typeof sim.promptUsed === 'string' && sim.promptUsed.length > 0);
@@ -256,7 +257,22 @@ test('flujo legacy sin treatmentProfileId infiere perfil desde treatmentType', a
 
   const sim = d.db.store.get('patients/p1/simulations/s1');
   assert.equal(sim.treatmentProfileId, 'clear_aligners');
-  assert.equal(sim.promptVersion, 'ocg-dental-treatment-v2');
+  assert.equal(sim.promptVersion, 'ocg-dental-treatment-v3');
+});
+
+test('flujo legacy de retenedores usa prompt Essix visible por defecto', async () => {
+  const d = deps({seed: baseSeed({treatmentType: 'retenedores'})});
+  await processGenerateSmileSimulation(d.value, {
+    patientId: 'p1',
+    simulationId: 's1',
+    treatmentType: 'retenedores',
+  });
+
+  const sim = d.db.store.get('patients/p1/simulations/s1');
+  assert.equal(sim.treatmentProfileId, 'retainer');
+  assert.match(sim.promptUsed, /Essix retainer tray/);
+  assert.match(sim.promptUsed, /visible tray edges/);
+  assert.match(sim.promptUsed, /clearly show that a retainer appliance is present/);
 });
 
 test('treatmentType desconocido usa smile_design como fallback', async () => {
@@ -278,7 +294,7 @@ test('prompt de metal_braces contiene palabras clave distintivas', () => {
   assert.match(result.promptUsed, /metal/);
   assert.match(result.promptUsed, /brackets/);
   assert.match(result.promptUsed, /archwire/);
-  assert.equal(result.promptVersion, 'ocg-dental-treatment-v2');
+  assert.equal(result.promptVersion, 'ocg-dental-treatment-v3');
   assert.equal(result.treatmentProfileId, 'metal_braces');
 });
 
@@ -347,7 +363,10 @@ test('prompt de retainer contiene retainer', () => {
     treatmentProfileId: 'retainer',
   });
   assert.match(result.promptUsed, /retainer/);
-  assert.match(result.promptUsed, /Essix|Hawley|fixed/);
+  assert.match(result.promptUsed, /Essix retainer tray/);
+  assert.match(result.promptUsed, /visible tray edges/);
+  assert.match(result.promptUsed, /Do not output a normal unchanged smile/);
+  assert.match(result.promptUsed, /clearly show that a retainer appliance is present/);
 });
 
 test('doctorConfig se convierte en instrucciones en el prompt', () => {
@@ -359,7 +378,7 @@ test('doctorConfig se convierte en instrucciones en el prompt', () => {
     },
   });
   assert.match(result.promptUsed, /azul/);
-  assert.match(result.promptUsed, /superior/);
+  assert.match(result.promptUsed, /upper teeth only|superior/);
 });
 
 test('notas del doctor se incluyen sin reemplazar el perfil', () => {
@@ -493,6 +512,8 @@ test('generación exitosa crea attempt con status ready', async () => {
   // Main doc updated
   const sim = d.db.store.get('patients/p1/simulations/s1');
   assert.equal(sim.status, 'ready');
+  assert.equal(sim.resultPath, 'simulations/p1/s1/attempts/attempt_1/result.jpg');
+  assert.equal(sim.activeResultPath, 'simulations/p1/s1/result.jpg');
   assert.equal(sim.doctorReviewStatus, 'pending');
   assert.equal(sim.approvedAttemptId, null);
   assert.equal(sim.attemptCount, 1);
@@ -576,10 +597,13 @@ test('segundo intento crea attempt_2 y conserva attempt_1', async () => {
   const a2 = d.db.store.get('patients/p1/simulations/s1/attempts/attempt_2');
   assert.equal(a2.status, 'ready');
   assert.equal(a2.attemptNumber, 2);
+  assert.equal(a2.resultPath, 'simulations/p1/s1/attempts/attempt_2/result.jpg');
 
   // Main doc updated
   const sim = d.db.store.get('patients/p1/simulations/s1');
   assert.equal(sim.attemptCount, 2);
+  assert.equal(sim.resultPath, 'simulations/p1/s1/attempts/attempt_2/result.jpg');
+  assert.equal(sim.activeResultPath, 'simulations/p1/s1/result.jpg');
   assert.equal(sim.doctorReviewStatus, 'pending');
   assert.equal(sim.approvedAttemptId, null);
 });

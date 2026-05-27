@@ -2,14 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../patients/data/models/patient_model.dart';
 
-enum SimulationStatus {
-  draft,
-  generating,
-  ready,
-  shared,
-  failed,
-  archived,
-}
+enum SimulationStatus { draft, generating, ready, shared, failed, archived }
 
 class SimulationModel {
   const SimulationModel({
@@ -72,6 +65,7 @@ class SimulationModel {
   final String? treatmentProfileId;
   final String? visualGoal;
   final Map<String, dynamic>? doctorConfig;
+
   /// Instrucciones libres del doctor en lenguaje natural.
   final String? doctorOverride;
   final Map<String, dynamic>? photoQuality;
@@ -97,7 +91,7 @@ class SimulationModel {
     );
     final resultPath = _firstNonEmptyNullable(
       json['resultPath'],
-      json['resultUrl'],
+      _firstNonEmptyNullable(json['activeResultPath'], json['resultUrl']),
     );
     final shared = (json['compartidaConPaciente'] as bool?) ?? false;
 
@@ -118,10 +112,7 @@ class SimulationModel {
         legacyModeRaw: legacyModeRaw,
       ),
       notes: json['notes']?.toString(),
-      generationProvider: _firstNonEmpty(
-        json['generationProvider'],
-        'openai',
-      ),
+      generationProvider: _firstNonEmpty(json['generationProvider'], 'openai'),
       modelUsed: _firstNonEmpty(json['modelUsed'], 'gpt-image-2'),
       attemptCount: _parseInt(json['attemptCount'], fallback: 0),
       errorMessage: json['errorMessage']?.toString(),
@@ -138,8 +129,7 @@ class SimulationModel {
       doctorConfig: _asMap(json['doctorConfig']),
       doctorOverride: _nullableString(json['doctorOverride']),
       photoQuality: _asMap(json['photoQuality']),
-      doctorReviewStatus:
-          _firstNonEmpty(json['doctorReviewStatus'], 'pending'),
+      doctorReviewStatus: _firstNonEmpty(json['doctorReviewStatus'], 'pending'),
       approvedAttemptId: _nullableString(json['approvedAttemptId']),
     );
   }
@@ -279,26 +269,29 @@ class SimulationModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: clearUpdatedAt ? null : (updatedAt ?? this.updatedAt),
       createdBy: createdBy ?? this.createdBy,
-      treatmentType:
-          clearTreatmentType ? null : (treatmentType ?? this.treatmentType),
+      treatmentType: clearTreatmentType
+          ? null
+          : (treatmentType ?? this.treatmentType),
       status: status ?? this.status,
       notes: clearNotes ? null : (notes ?? this.notes),
       generationProvider: generationProvider ?? this.generationProvider,
       modelUsed: modelUsed ?? this.modelUsed,
       attemptCount: attemptCount ?? this.attemptCount,
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
-      generatedAt:
-          clearGeneratedAt ? null : (generatedAt ?? this.generatedAt),
-      promptUsed:
-          clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
-      promptVersion:
-          clearPromptVersion ? null : (promptVersion ?? this.promptVersion),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
+      generatedAt: clearGeneratedAt ? null : (generatedAt ?? this.generatedAt),
+      promptUsed: clearPromptUsed ? null : (promptUsed ?? this.promptUsed),
+      promptVersion: clearPromptVersion
+          ? null
+          : (promptVersion ?? this.promptVersion),
       mlKitUsed: mlKitUsed ?? this.mlKitUsed,
-      detectedRegion:
-          clearDetectedRegion ? null : (detectedRegion ?? this.detectedRegion),
-      promptMetadata:
-          clearPromptMetadata ? null : (promptMetadata ?? this.promptMetadata),
+      detectedRegion: clearDetectedRegion
+          ? null
+          : (detectedRegion ?? this.detectedRegion),
+      promptMetadata: clearPromptMetadata
+          ? null
+          : (promptMetadata ?? this.promptMetadata),
       fechaCompartida: clearFechaCompartida
           ? null
           : (fechaCompartida ?? this.fechaCompartida),
@@ -306,14 +299,16 @@ class SimulationModel {
       treatmentProfileId: clearTreatmentProfileId
           ? null
           : (treatmentProfileId ?? this.treatmentProfileId),
-      visualGoal:
-          clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
-      doctorConfig:
-          clearDoctorConfig ? null : (doctorConfig ?? this.doctorConfig),
-      doctorOverride:
-          clearDoctorOverride ? null : (doctorOverride ?? this.doctorOverride),
-      photoQuality:
-          clearPhotoQuality ? null : (photoQuality ?? this.photoQuality),
+      visualGoal: clearVisualGoal ? null : (visualGoal ?? this.visualGoal),
+      doctorConfig: clearDoctorConfig
+          ? null
+          : (doctorConfig ?? this.doctorConfig),
+      doctorOverride: clearDoctorOverride
+          ? null
+          : (doctorOverride ?? this.doctorOverride),
+      photoQuality: clearPhotoQuality
+          ? null
+          : (photoQuality ?? this.photoQuality),
       doctorReviewStatus: doctorReviewStatus ?? this.doctorReviewStatus,
       approvedAttemptId: clearApprovedAttemptId
           ? null

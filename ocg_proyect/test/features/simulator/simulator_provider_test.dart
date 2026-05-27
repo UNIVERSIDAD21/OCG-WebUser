@@ -19,6 +19,7 @@ class _FakeSimulationRepository extends SimulationRepository {
   Map<String, dynamic>? lastDoctorConfig;
   String? lastDoctorOverride;
   Map<String, dynamic>? lastPhotoQuality;
+  String? lastPreviousResultPath;
 
   @override
   Stream<SimulationModel?> watchSimulation({
@@ -37,6 +38,7 @@ class _FakeSimulationRepository extends SimulationRepository {
     Map<String, dynamic>? doctorConfig,
     String? doctorOverride,
     Map<String, dynamic>? photoQuality,
+    String? previousResultPath,
   }) async {
     generateCalls += 1;
     lastPatientId = patientId;
@@ -46,6 +48,7 @@ class _FakeSimulationRepository extends SimulationRepository {
     lastDoctorConfig = doctorConfig;
     lastDoctorOverride = doctorOverride;
     lastPhotoQuality = photoQuality;
+    lastPreviousResultPath = previousResultPath;
     if (generateError != null) throw Exception(generateError!);
   }
 }
@@ -202,5 +205,36 @@ void main() {
     expect(repo.lastDoctorConfig?['material'], 'zafiro');
     expect(repo.lastPhotoQuality?['status'], 'valid');
     expect(repo.generateCalls, 1);
+  });
+
+  test('al regenerar limpia resultado anterior y pasa path previo', () async {
+    final repo = _FakeSimulationRepository();
+    final container = ProviderContainer(
+      overrides: [simulationRepositoryProvider.overrideWith((ref) => repo)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(simulatorFlowProvider.future);
+    final notifier = container.read(simulatorFlowProvider.notifier);
+    notifier.loadExistingSimulation(
+      baseSimulation(status: SimulationStatus.ready).copyWith(
+        attemptCount: 1,
+        resultPath: 'simulations/p1/s1/attempts/attempt_1/result.jpg',
+      ),
+    );
+
+    await notifier.generateWithAi(
+      patientId: 'p1',
+      treatmentType: 'Ortodoncia convencional',
+    );
+
+    final state = container.read(simulatorFlowProvider).requireValue;
+    expect(
+      repo.lastPreviousResultPath,
+      'simulations/p1/s1/attempts/attempt_1/result.jpg',
+    );
+    expect(state.status, SimulationStatus.generating);
+    expect(state.resultPath, isNull);
+    expect(state.doctorReviewStatus, 'pending');
   });
 }

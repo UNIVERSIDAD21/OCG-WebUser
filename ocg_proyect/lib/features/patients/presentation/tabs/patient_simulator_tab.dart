@@ -106,13 +106,9 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
       widget.patient.tipoTratamiento?.name,
     );
     if (defaultId != null) {
-      ref
-          .read(simulatorFlowProvider.notifier)
-          .setTreatmentProfile(defaultId);
+      ref.read(simulatorFlowProvider.notifier).setTreatmentProfile(defaultId);
     }
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _focusActiveFlow(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveFlow());
   }
 
   @override
@@ -222,27 +218,27 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
             if (items.isEmpty && !showActiveFlow)
               _SimulatorEmptyState(
                 onCamera: () {
-                setState(() {
-                  _openedSimulation = null;
-                  _creatingNewSimulation = true;
-                });
-                ref.read(simulatorFlowProvider.notifier).resetFlow();
-                final defaultId = defaultProfileIdFromTreatmentType(
-                  widget.patient.tipoTratamiento?.name,
-                );
-                if (defaultId != null) {
+                  setState(() {
+                    _openedSimulation = null;
+                    _creatingNewSimulation = true;
+                  });
+                  ref.read(simulatorFlowProvider.notifier).resetFlow();
+                  final defaultId = defaultProfileIdFromTreatmentType(
+                    widget.patient.tipoTratamiento?.name,
+                  );
+                  if (defaultId != null) {
+                    ref
+                        .read(simulatorFlowProvider.notifier)
+                        .setTreatmentProfile(defaultId);
+                  }
                   ref
                       .read(simulatorFlowProvider.notifier)
-                      .setTreatmentProfile(defaultId);
-                }
-                ref
-                    .read(simulatorFlowProvider.notifier)
-                    .pickOriginalFromCamera(
-                      patientId: widget.patient.id,
-                      adminId: adminId,
-                      treatmentType: widget.patient.tipoTratamiento,
-                    );
-              },
+                      .pickOriginalFromCamera(
+                        patientId: widget.patient.id,
+                        adminId: adminId,
+                        treatmentType: widget.patient.tipoTratamiento,
+                      );
+                },
               )
             else if (items.isNotEmpty) ...[
               const Text(
@@ -257,6 +253,9 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               const SizedBox(height: 10),
               ...items.map(
                 (s) => _AdminSimulationCard(
+                  key: ValueKey(
+                    'sim-card-${s.id}-${s.attemptCount}-${s.resultPath ?? ''}',
+                  ),
                   simulation: s,
                   onOpen: () {
                     setState(() {
@@ -673,6 +672,7 @@ bool shouldPrioritizeActiveSimulation({
 
 class _AdminSimulationCard extends StatelessWidget {
   const _AdminSimulationCard({
+    super.key,
     required this.simulation,
     required this.onOpen,
     required this.onToggleShare,
@@ -713,7 +713,12 @@ class _AdminSimulationCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SimulationPreview(path: previewPath),
+              _SimulationPreview(
+                key: ValueKey(
+                  'sim-preview-${simulation.id}-${simulation.attemptCount}-${previewPath ?? ''}',
+                ),
+                path: previewPath,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -757,12 +762,8 @@ class _AdminSimulationCard extends StatelessWidget {
                             simulation.status == SimulationStatus.shared ||
                             simulation.status == SimulationStatus.failed)
                           _SimulationChip(
-                            label: _reviewLabel(
-                              simulation.doctorReviewStatus,
-                            ),
-                            color: _reviewColor(
-                              simulation.doctorReviewStatus,
-                            ),
+                            label: _reviewLabel(simulation.doctorReviewStatus),
+                            color: _reviewColor(simulation.doctorReviewStatus),
                           ),
                       ],
                     ),
@@ -844,7 +845,7 @@ class _AdminSimulationCard extends StatelessWidget {
 }
 
 class _SimulationPreview extends ConsumerWidget {
-  const _SimulationPreview({required this.path});
+  const _SimulationPreview({super.key, required this.path});
 
   final String? path;
 

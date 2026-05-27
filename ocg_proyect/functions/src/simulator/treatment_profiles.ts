@@ -241,11 +241,12 @@ const RETAINER: TreatmentPromptProfile = {
   defaultConfig: {
     tipo: 'Essix',
     arcada: 'superior',
-    visibilidad: 'sutil',
+    visibilidad: 'media',
   },
   positiveInstructions: [
-    'If Essix type: add a thin, transparent retainer tray over the teeth, similar to an aligner but thinner and simpler, with subtle sheen.',
-    'If Hawley type: add a thin visible metal wire across the front teeth with a subtle acrylic base behind the teeth.',
+    'Add the selected orthodontic retainer appliance as the main dental change in the image.',
+    'Do not leave the teeth unchanged: the retainer must be identifiable in the generated photo.',
+    'For clear removable retainers, show visible tray edges, slight plastic thickness, and glossy reflections on the teeth.',
     'If fixed lingual type: barely visible — a very thin wire behind the teeth. From a frontal smile, this should be nearly invisible.',
   ],
   negativeInstructions: [

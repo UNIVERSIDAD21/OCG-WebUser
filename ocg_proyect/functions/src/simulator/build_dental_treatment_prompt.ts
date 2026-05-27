@@ -33,7 +33,7 @@ export type BuildDentalTreatmentPromptResult = {
 
 // ── Constants ───────────────────────────────────────────
 
-const PROMPT_VERSION = 'ocg-dental-treatment-v2';
+const PROMPT_VERSION = 'ocg-dental-treatment-v3';
 
 const CLINICAL_DISCLAIMER = [
   'The result is a visual simulation for educational purposes only.',
@@ -274,14 +274,17 @@ function doctorConfigToInstructions(
   // Retainer-specific
   const tipo = normalizeText(c['tipo'] as string | undefined);
   if (tipo) {
+    const tipoKey = tipo.toLowerCase();
     const retDesc =
-      tipo === 'Essix'
-        ? 'a thin clear plastic tray (Essix retainer) over the teeth'
-        : tipo === 'Hawley'
-          ? 'a Hawley retainer with visible metal wire across the front and acrylic behind'
-          : 'a fixed lingual wire bonded behind the teeth';
+      tipoKey === 'essix'
+        ? 'a thin clear plastic Essix retainer tray covering the selected teeth, with visible tray edges along the gumline and incisal edges, slight plastic thickness, and glossy highlights'
+        : tipoKey === 'hawley'
+          ? 'a Hawley retainer with a visible metal labial bow wire across the front teeth and subtle acrylic behind the teeth'
+          : 'a fixed lingual wire bonded behind the teeth, visible only as small bonding points or subtle wire glimpses where clinically plausible';
     instructions.push(
       `The retainer MUST look like ${retDesc}.`,
+      `Use the ${tipo} retainer style only; do not mix it with other retainer styles unless explicitly requested.`,
+      'Do not output a normal unchanged smile; the generated image MUST clearly show that a retainer appliance is present.',
     );
   }
 
@@ -293,8 +296,14 @@ function doctorConfigToInstructions(
         : visibilidad === 'baja'
           ? 'barely noticeable — very subtle presence'
           : 'subtly visible — present but not distracting';
+    const reinforcedVisDesc =
+      visibilidad === 'media'
+        ? 'clearly visible enough to confirm the retainer is present, without looking exaggerated'
+        : visibilidad === 'sutil'
+          ? 'subtle but still identifiable: visible tray edges, reflections, or wire must confirm it is present'
+          : visDesc;
     instructions.push(
-      `The retainer MUST be ${visDesc} in the photo.`,
+      `The retainer MUST be ${reinforcedVisDesc} in the photo.`,
     );
   }
 
@@ -312,6 +321,10 @@ export function buildDentalTreatmentPrompt(
   );
 
   const sections: string[] = [];
+  const effectiveDoctorConfig = {
+    ...profile.defaultConfig,
+    ...(input.doctorConfig ?? {}),
+  };
 
   // Layer 1: Identity preservation
   sections.push(IDENTITY_BASE);
@@ -322,7 +335,7 @@ export function buildDentalTreatmentPrompt(
   }
 
   // Layer 3: Doctor parameter instructions (detailed & imperative)
-  const configInstructions = doctorConfigToInstructions(input.doctorConfig);
+  const configInstructions = doctorConfigToInstructions(effectiveDoctorConfig);
   if (configInstructions.length > 0) {
     sections.push(
       'Doctor-specified configuration parameters:',

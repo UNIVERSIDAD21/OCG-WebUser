@@ -124,13 +124,16 @@ class _FlowFakeRepository extends SimulationRepository {
     Map<String, dynamic>? doctorConfig,
     String? doctorOverride,
     Map<String, dynamic>? photoQuality,
+    String? previousResultPath,
   }) async {
     if (generateError != null) throw Exception(generateError!);
   }
 
   @override
-  Future<String?> resolveMediaUrl(String? pathOrUrl, {bool bustCache = false}) async =>
-      'https://example.com/image.jpg';
+  Future<String?> resolveMediaUrl(
+    String? pathOrUrl, {
+    bool bustCache = false,
+  }) async => 'https://example.com/image.jpg';
 }
 
 class _FakePickerService extends ImagePickerService {
@@ -518,6 +521,7 @@ class _MutableFlowNotifier extends SimulatorFlowNotifier {
         patientId: patientId,
         simulationId: current.simulationId!,
         treatmentType: treatmentType,
+        previousResultPath: current.resultPath,
       );
     } catch (_) {
       state = AsyncData(

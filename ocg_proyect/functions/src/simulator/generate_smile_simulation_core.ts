@@ -321,7 +321,9 @@ export async function processGenerateSmileSimulation(
       quality: deps.config.openAiImageQuality,
     });
 
-    // Save to both paths: attempt archive + active
+    // Save to both paths: immutable attempt archive + legacy active copy.
+    // The simulation document points to the immutable attempt path so clients
+    // never keep showing a cached previous generation from result.jpg.
     const attemptResultPath = `simulations/${patientId}/${simulationId}/attempts/${attemptId}/result.jpg`;
     const activeResultPath = `simulations/${patientId}/${simulationId}/result.jpg`;
     await deps.storage.save(attemptResultPath, resultBytes);
@@ -340,7 +342,8 @@ export async function processGenerateSmileSimulation(
 
     // Update simulation → ready, pending review
     await simulationRef.set({
-      resultPath: activeResultPath,
+      resultPath: attemptResultPath,
+      activeResultPath,
       status: 'ready',
       generatedAt: admin.firestore.FieldValue.serverTimestamp(),
       promptUsed: promptResult.promptUsed,
@@ -367,7 +370,8 @@ export async function processGenerateSmileSimulation(
 
     return {
       ok: true, patientId, simulationId, attemptId,
-      resultPath: activeResultPath,
+      resultPath: attemptResultPath,
+      activeResultPath,
       status: 'ready',
       generationProvider: 'openai', modelUsed,
       promptVersion: promptResult.promptVersion,

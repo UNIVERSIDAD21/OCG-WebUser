@@ -245,10 +245,7 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         defaultValue: 'natural',
       ),
     ],
-    defaultConfig: {
-      'toneTarget': 'medio',
-      'naturalness': 'natural',
-    },
+    defaultConfig: {'toneTarget': 'medio', 'naturalness': 'natural'},
   ),
   const DentalTreatmentProfile(
     id: 'veneers',
@@ -287,14 +284,8 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         label: 'Tono',
         type: _chip,
         options: [
-          TreatmentConfigOption(
-            value: 'natural claro',
-            label: 'Natural claro',
-          ),
-          TreatmentConfigOption(
-            value: 'blanco calido',
-            label: 'Blanco cálido',
-          ),
+          TreatmentConfigOption(value: 'natural claro', label: 'Natural claro'),
+          TreatmentConfigOption(value: 'blanco calido', label: 'Blanco cálido'),
           TreatmentConfigOption(value: 'blanco alto', label: 'Blanco alto'),
         ],
         defaultValue: 'blanco calido',
@@ -306,10 +297,7 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         options: [
           TreatmentConfigOption(value: 'conservar', label: 'Conservar'),
           TreatmentConfigOption(value: 'alargar leve', label: 'Alargar leve'),
-          TreatmentConfigOption(
-            value: 'alargar medio',
-            label: 'Alargar medio',
-          ),
+          TreatmentConfigOption(value: 'alargar medio', label: 'Alargar medio'),
         ],
         defaultValue: 'conservar',
       ),
@@ -347,10 +335,7 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         options: [
           TreatmentConfigOption(value: 'leve', label: 'Leve'),
           TreatmentConfigOption(value: 'media', label: 'Media'),
-          TreatmentConfigOption(
-            value: 'idealizada',
-            label: 'Idealizada',
-          ),
+          TreatmentConfigOption(value: 'idealizada', label: 'Idealizada'),
         ],
         defaultValue: 'media',
       ),
@@ -359,10 +344,7 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         label: 'Tono dental',
         type: _chip,
         options: [
-          TreatmentConfigOption(
-            value: 'natural claro',
-            label: 'Natural claro',
-          ),
+          TreatmentConfigOption(value: 'natural claro', label: 'Natural claro'),
           TreatmentConfigOption(
             value: 'blanco moderado',
             label: 'Blanco moderado',
@@ -414,10 +396,7 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         options: [
           TreatmentConfigOption(value: 'Essix', label: 'Essix'),
           TreatmentConfigOption(value: 'Hawley', label: 'Hawley'),
-          TreatmentConfigOption(
-            value: 'fijo lingual',
-            label: 'Fijo lingual',
-          ),
+          TreatmentConfigOption(value: 'fijo lingual', label: 'Fijo lingual'),
         ],
         defaultValue: 'Essix',
       ),
@@ -439,14 +418,15 @@ final List<DentalTreatmentProfile> treatmentProfiles = [
         options: [
           TreatmentConfigOption(value: 'sutil', label: 'Sutil'),
           TreatmentConfigOption(value: 'media', label: 'Media'),
+          TreatmentConfigOption(value: 'alta', label: 'Alta'),
         ],
-        defaultValue: 'sutil',
+        defaultValue: 'media',
       ),
     ],
     defaultConfig: {
       'tipo': 'Essix',
       'arcada': 'superior',
-      'visibilidad': 'sutil',
+      'visibilidad': 'media',
     },
   ),
 ];
