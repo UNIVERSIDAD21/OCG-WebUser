@@ -471,8 +471,16 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
       print(
         '[SimulatorFlow][generate.request] '
         'patientId=$patientId simulationId=${current.simulationId}'
-        ' originalPath=${current.originalPath}',
+        ' originalPath=${current.originalPath}'
+        ' treatmentProfileId=${current.treatmentProfileId}'
+        ' visualGoal=${current.visualGoal}'
+        ' doctorOverride=${current.doctorOverride}',
       );
+
+      // Desacreditar listener antes de generar para que los nuevos parámetros
+      /// no sean sobrescritos por valores viejos de Firestore durante la generación.
+      _unbindSimulation();
+
       await _repo.generateWithAi(
         patientId: patientId,
         simulationId: current.simulationId!,
@@ -484,6 +492,9 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
         doctorOverride: current.doctorOverride,
         photoQuality: current.photoQuality,
       );
+
+      // Re-ligar listener después de generar para seguir recibiendo actualizaciones.
+      _bindSimulation(patientId, current.simulationId!);
     } catch (e) {
       state = AsyncData(
         current.copyWith(
@@ -492,6 +503,8 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
           errorMessage: _friendlyGenerateError(e),
         ),
       );
+      // Re-ligar listener incluso en error para recuperar estado.
+      _bindSimulation(patientId, current.simulationId!);
     }
   }
 
@@ -532,28 +545,43 @@ class SimulatorFlowNotifier extends AsyncNotifier<SimulatorFlowState> {
     state = AsyncData(current.copyWith(notes: value));
   }
 
+  /// Cancela el listener de Firestore para que los cambios locales del usuario
+  /// no sean sobrescritos por valores viejos de la DB antes de regenerar.
+  void _unbindSimulation() {
+    _simulationSubscription?.cancel();
+    _simulationSubscription = null;
+  }
+
   void setTreatmentProfile(String profileId) {
     final current = state.asData?.value;
     if (current == null) return;
     final profile = treatmentProfiles
         .where((p) => p.id == profileId)
         .firstOrNull;
+    // Desacreditar parámetros anteriores: cancelar listener para que no
+    // sobrescriba los nuevos valores con datos viejos de Firestore.
+    _unbindSimulation();
     state = AsyncData(current.copyWith(
       treatmentProfileId: profileId,
       visualGoal: profile?.defaultVisualGoal,
       doctorConfig: profile?.buildDefaultConfig(),
+      clearDoctorOverride: true,
     ));
   }
 
   void updateDoctorConfig(Map<String, dynamic> config) {
     final current = state.asData?.value;
     if (current == null) return;
+    // Desacreditar config anterior: cancelar listener de Firestore.
+    _unbindSimulation();
     state = AsyncData(current.copyWith(doctorConfig: config));
   }
 
   void updateDoctorOverride(String value) {
     final current = state.asData?.value;
     if (current == null) return;
+    // Desacreditar override anterior: cancelar listener de Firestore.
+    _unbindSimulation();
     state = AsyncData(current.copyWith(doctorOverride: value.isEmpty ? null : value));
   }
 
