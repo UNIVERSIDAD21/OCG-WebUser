@@ -16,6 +16,7 @@ class RouteNames {
   static const String adminTreatments = '/admin/treatments';
   static const String adminPayments = '/admin/payments';
   static const String adminSimulator = '/admin/simulator';
+  static const String adminUrgencies = '/admin/urgencies';
   static const String adminProfile = '/admin/profile';
   static const String adminNotifications = '/admin/notifications';
 

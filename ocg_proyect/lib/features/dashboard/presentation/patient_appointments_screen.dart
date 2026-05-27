@@ -2,12 +2,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
+import '../../appointments/data/repositories/urgency_repository.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../../core/constants/clinic_contact.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../../shared/constants/contact_channels.dart';
@@ -1045,6 +1048,8 @@ class _PatientAppointmentsScreenState
           incidenciasCount: incidenciasCount,
         ),
         const SizedBox(height: 12),
+        const _UrgencyBlock(),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: _FilterBar(
@@ -1162,6 +1167,149 @@ class _PatientAppointmentsScreenState
         ),
       ),
     );
+  }
+
+  // ─── Urgencia: diálogo de solicitud ──────────────────────────────────────
+
+  void _showUrgencyRequestDialog(BuildContext context, WidgetRef ref) {
+    final patient = FirebaseAuth.instance.currentUser;
+    if (patient == null) return;
+
+    final descriptionController = TextEditingController();
+    bool sending = false;
+    String? errorText;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+              SizedBox(width: 10),
+              Text('Solicitud de urgencia'),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Describe brevemente lo que te pasa. '
+                  'La clínica te responderá lo antes posible.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 4,
+                  maxLength: 500,
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Tengo dolor severo en...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorText: errorText,
+                    counterText: '',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: sending
+                  ? null
+                  : () async {
+                      final descripcion = descriptionController.text.trim();
+                      if (descripcion.length < 10) {
+                        setDialogState(() {
+                          errorText = 'Mínimo 10 caracteres';
+                        });
+                        return;
+                      }
+                      setDialogState(() {
+                        sending = true;
+                        errorText = null;
+                      });
+                      try {
+                        final repo = UrgencyRepository();
+                        await repo.create(
+                          patientId: patient.uid,
+                          patientName: patient.displayName ?? 'Paciente',
+                          patientPhone: patient.phoneNumber ?? '',
+                          descripcion: descripcion,
+                        );
+
+                        // Redirigir a WhatsApp del admin
+                        final phone = ClinicContact.whatsappNumber
+                            .replaceAll(RegExp(r'[^0-9+]'), '');
+                        final message =
+                            'Hola, soy ${patient.displayName ?? "un paciente"}. '
+                            'Acabo de enviar una solicitud de urgencia desde la app. '
+                            'Necesito atención urgente.';
+                        final uri = Uri.parse(
+                            'https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+
+                        if (mounted) {
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Solicitud enviada. Se abrió WhatsApp para contacto directo '
+                                'con la clínica.',
+                              ),
+                              backgroundColor: Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          sending = false;
+                          errorText = 'Error al enviar: $e';
+                        });
+                      }
+                    },
+              child: sending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Enviar solicitud'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── WhatsApp directo (fallback) ─────────────────────────────────────────
+
+  Future<void> _launchWhatsAppDirect() async {
+    final patient = FirebaseAuth.instance.currentUser;
+    if (patient == null) return;
+
+    final phone = ClinicContact.whatsappNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    final message =
+        'Hola, soy ${patient.displayName ?? "un paciente"}. '
+        'Necesito atención urgente en OCG Clínica.';
+    final uri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
@@ -1368,6 +1516,149 @@ class _Pill extends StatelessWidget {
                       fontSize: 11, fontWeight: FontWeight.w700)),
             ),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Urgency block (paciente) ─────────────────────────────────────────────
+
+class _UrgencyBlock extends ConsumerWidget {
+  const _UrgencyBlock();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFFE4E4), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEF4444).withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '¿Necesitas atención urgente?',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2C2016),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Si tienes una emergencia o dolor severo, envíanos tu situación.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  final state = context.findAncestorStateOfType<
+                      _PatientAppointmentsScreenState>();
+                  state?._showUrgencyRequestDialog(context, ref);
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.priority_high, size: 20),
+                label: const Text(
+                  '📝  Solicitar atención prioritaria',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Expanded(
+                  child: Divider(color: Color(0xFFE7DDD2)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'o también',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Expanded(
+                  child: Divider(color: Color(0xFFE7DDD2)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final state = context.findAncestorStateOfType<
+                      _PatientAppointmentsScreenState>();
+                  state?._launchWhatsAppDirect();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF25D366),
+                  side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                label: const Text(
+                  '💬  Ir directo a WhatsApp',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

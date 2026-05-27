@@ -10,6 +10,7 @@ import '../../features/auth/providers/auth_providers.dart';
 import '../../features/appointments/data/models/appointment_model.dart';
 import '../../presentation/web/common/web_layout_context.dart';
 import '../../features/dashboard/presentation/admin_appointments_screen.dart';
+import '../../features/appointments/presentation/admin_urgency_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard_screen.dart';
 import '../../features/dashboard/presentation/admin_modules_screens.dart';
 import '../../features/dashboard/presentation/admin_mobile_shell.dart';
@@ -173,6 +174,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: RouteNames.adminUrgencies,
+        builder: (context, state) => const _AdminTabRoute(
+          mobileIndex: 3,
+          desktopChild: AdminUrgencyScreen(),
+        ),
+      ),
+      GoRoute(
         path: RouteNames.adminTreatments,
         builder: (context, state) => const AdminTreatmentsScreen(),
       ),
@@ -183,14 +191,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.adminSimulator,
         builder: (context, state) => const _AdminTabRoute(
-          mobileIndex: 3,
+          mobileIndex: 4,
           desktopChild: AdminSimulatorScreen(),
         ),
       ),
       GoRoute(
         path: RouteNames.adminProfile,
         builder: (context, state) => const _AdminTabRoute(
-          mobileIndex: 4,
+          mobileIndex: 5,
           desktopChild: AdminProfileScreen(),
         ),
       ),

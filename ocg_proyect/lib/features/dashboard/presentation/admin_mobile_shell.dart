@@ -12,6 +12,7 @@ import 'admin_mobile_shell_controller.dart';
 import 'admin_modules_screens.dart';
 import 'admin_patients_screen.dart';
 import 'admin_profile_screen.dart';
+import '../../appointments/presentation/admin_urgency_screen.dart';
 
 class AdminMobileShell extends ConsumerStatefulWidget {
   const AdminMobileShell({super.key, this.initialIndex = 0, this.detailChild});
@@ -31,7 +32,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex.clamp(0, 4);
+    _selectedIndex = widget.initialIndex.clamp(0, 5);
     _showDetailChild = widget.detailChild != null;
   }
 
@@ -39,7 +40,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   void didUpdateWidget(covariant AdminMobileShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialIndex != widget.initialIndex) {
-      _selectedIndex = widget.initialIndex.clamp(0, 4);
+      _selectedIndex = widget.initialIndex.clamp(0, 5);
     }
     if (oldWidget.detailChild != widget.detailChild) {
       _showDetailChild = widget.detailChild != null;
@@ -52,6 +53,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
       AdminDashboardScreen(embeddedInMobileShell: true),
       AdminPatientsScreen(embeddedInMobileShell: true),
       AdminAppointmentsScreen(embeddedInMobileShell: true),
+      AdminUrgencyScreen(),
       AdminSimulatorScreen(embeddedInMobileShell: true),
       AdminProfileScreen(embeddedInMobileShell: true),
     ];
@@ -90,6 +92,11 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
                 label: 'Agenda',
               ),
               OcgMobileBottomNavItem(
+                icon: Icons.warning_amber_rounded,
+                activeIcon: Icons.warning_amber,
+                label: 'Urgencias',
+              ),
+              OcgMobileBottomNavItem(
                 icon: Icons.auto_awesome_outlined,
                 activeIcon: Icons.auto_awesome,
                 label: 'Simulador',
@@ -119,7 +126,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   }
 
   void _selectTab(int index) {
-    final nextIndex = index.clamp(0, 4);
+    final nextIndex = index.clamp(0, 5);
     if (_showDetailChild) {
       context.go(_routeForIndex(nextIndex));
       return;
@@ -133,8 +140,9 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
       0 => RouteNames.adminDashboard,
       1 => RouteNames.adminPatients,
       2 => RouteNames.adminAppointments,
-      3 => RouteNames.adminSimulator,
-      4 => RouteNames.adminProfile,
+      3 => RouteNames.adminUrgencies,
+      4 => RouteNames.adminSimulator,
+      5 => RouteNames.adminProfile,
       _ => RouteNames.adminDashboard,
     };
   }
