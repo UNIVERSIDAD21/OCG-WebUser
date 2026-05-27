@@ -44,7 +44,9 @@ class AuthService {
           .collection(FirestorePaths.admins)
           .doc(user.uid)
           .get();
-      if (adminSnap.exists) return 'admin';
+      if (adminSnap.exists && adminDocGrantsAdmin(adminSnap.data())) {
+        return 'admin';
+      }
 
       final patientSnap = await _db
           .collection(FirestorePaths.patients)
@@ -518,4 +520,17 @@ class AuthService {
       // Cualquier falla de red/función no debe bloquear autenticación.
     }
   }
+}
+
+@visibleForTesting
+bool adminDocGrantsAdmin(Map<String, dynamic>? data) {
+  if (data == null) return false;
+
+  final role = (data['role'] ?? '').toString().trim().toLowerCase();
+  if (role == 'patient') return false;
+  if (data['admin'] == false) return false;
+  if (data['active'] == false) return false;
+  if (data['disabled'] == true) return false;
+
+  return role.isEmpty || role == 'admin' || data['admin'] == true;
 }

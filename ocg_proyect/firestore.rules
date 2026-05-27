@@ -8,7 +8,10 @@ service cloud.firestore {
         request.auth.token.admin == true ||
         (
           exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin'
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role != 'patient' &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.admin != false &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active != false &&
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.disabled != true
         )
       );
     }
@@ -116,14 +119,13 @@ service cloud.firestore {
       }
 
       match /clinicalFiles/{fileId} {
-        // Admin: acceso total
-        allow read, create, update: if isAdmin() &&
+        allow read: if isAdmin() ||
+                    (isOwnPatient(patientId) &&
+                     resource.data.visibleToPatient == true &&
+                     resource.data.active == true);
+        allow create, update: if isAdmin() &&
                                 incomingPatientMatches(patientId) &&
                                 (!('id' in request.resource.data) || request.resource.data.id == fileId);
-        // Paciente: solo archivos visibles y activos
-        allow read: if isOwnPatient(patientId) &&
-                     resource.data.visibleToPatient == true &&
-                     resource.data.active == true;
         allow delete: if false;
       }
 
