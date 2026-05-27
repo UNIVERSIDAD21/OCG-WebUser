@@ -7,11 +7,13 @@ class OcgMobileBottomNavItem {
     required this.label,
     required this.icon,
     required this.activeIcon,
+    this.badgeCount = 0,
   });
 
   final String label;
   final IconData icon;
   final IconData activeIcon;
+  final int badgeCount;
 }
 
 class OcgMobileBottomNav extends StatelessWidget {
@@ -117,20 +119,57 @@ class _OcgMobileBottomNavButton extends StatelessWidget {
                         : OcgColors.bronze.withOpacity(0.12),
                   ),
                 ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeOutCubic,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(scale: animation, child: child),
-                  ),
-                  child: Icon(
-                    selected ? item.activeIcon : item.icon,
-                    key: ValueKey('${item.label}-$selected'),
-                    size: 20,
-                    color: iconColor,
-                  ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeOutCubic,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(
+                            scale: animation,
+                            child: child,
+                          ),
+                        ),
+                        child: Icon(
+                          selected ? item.activeIcon : item.icon,
+                          key: ValueKey('${item.label}-$selected'),
+                          size: 20,
+                          color: iconColor,
+                        ),
+                      ),
+                    ),
+                    if (item.badgeCount > 0)
+                      Positioned(
+                        top: -5,
+                        right: -3,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 17),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: OcgColors.error,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: OcgColors.ivory),
+                          ),
+                          child: Text(
+                            item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 4),

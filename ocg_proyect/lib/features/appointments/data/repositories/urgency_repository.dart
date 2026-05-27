@@ -1,11 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../../../shared/constants/firestore_paths.dart';
+import '../../../patients/data/models/patient_model.dart';
+import '../models/appointment_model.dart';
 import '../models/urgency_model.dart';
 
-/// Capa de datos para CRUD de solicitudes de urgencia.
-class UrgencyRepository {
-  final _collection = FirebaseFirestore.instance.collection('urgencyRequests');
+class UrgencyRescheduleResult {
+  const UrgencyRescheduleResult({
+    required this.urgentAppointmentId,
+    required this.movedAppointmentId,
+    required this.originalAppointmentId,
+  });
 
-  /// Crear nueva solicitud (paciente).
+  final String urgentAppointmentId;
+  final String movedAppointmentId;
+  final String originalAppointmentId;
+}
+
+/// Capa de datos para solicitudes de urgencia.
+class UrgencyRepository {
+  UrgencyRepository([FirebaseFirestore? db])
+    : _db = db ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _db;
+
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      _db.collection(FirestorePaths.urgencyRequests);
+
+  CollectionReference<Map<String, dynamic>> get _appointments =>
+      _db.collection(FirestorePaths.appointments);
+
+  CollectionReference<Map<String, dynamic>> get _patients =>
+      _db.collection(FirestorePaths.patients);
+
   Future<UrgencyRequestModel> create({
     required String patientId,
     required String patientName,
@@ -23,55 +50,35 @@ class UrgencyRepository {
       createdAt: DateTime.now(),
     );
     await docRef.set(model.toJson());
-
-    // Disparar notificación FCM al admin (bloque 7)
-    await _notifyAdminsOfNewUrgency(model);
-
     return model;
   }
 
-  /// Stream de todas las urgencias (admin) — ordenadas por más reciente primero.
   Stream<List<UrgencyRequestModel>> watchAll() {
     return _collection
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UrgencyRequestModel.fromJson({
-                  ...doc.data(),
-                  'id': doc.id,
-                }))
-            .toList());
+        .map(_mapSnapshot);
   }
 
-  /// Stream de urgencias de un paciente específico.
   Stream<List<UrgencyRequestModel>> watchByPatient(String patientId) {
     return _collection
         .where('patientId', isEqualTo: patientId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UrgencyRequestModel.fromJson({
-                  ...doc.data(),
-                  'id': doc.id,
-                }))
-            .toList());
+        .map(_mapSnapshot);
   }
 
-  /// Urgencias activas (pendientes + en proceso) — para admin.
   Stream<List<UrgencyRequestModel>> watchActive() {
     return _collection
-        .where('estado', whereIn: ['pendiente', 'enProceso'])
+        .where(
+          'estado',
+          whereIn: [UrgencyStatus.pendiente.name, UrgencyStatus.enProceso.name],
+        )
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UrgencyRequestModel.fromJson({
-                  ...doc.data(),
-                  'id': doc.id,
-                }))
-            .toList());
+        .map(_mapSnapshot);
   }
 
-  /// Actualizar estado (solo admin).
   Future<void> updateStatus({
     required String requestId,
     required UrgencyStatus newStatus,
@@ -91,119 +98,227 @@ class UrgencyRepository {
     await _collection.doc(requestId).update(data);
   }
 
-  /// Conteo de urgencias pendientes (para badge en admin).
   Stream<int> countPending() {
     return _collection
-        .where('estado', isEqualTo: 'pendiente')
+        .where('estado', isEqualTo: UrgencyStatus.pendiente.name)
         .snapshots()
         .map((snapshot) => snapshot.docs.length);
   }
 
-  /// Reprogramar una cita existente y dar su slot a la urgencia.
-  /// SOLO admin puede ejecutar esto. Operación atómica via batch.
-  Future<void> rescheduleAppointmentForUrgency({
-    required String requestId,
-    required String originalAppointmentId,
-    required String originalPatientId,
-    required DateTime newDateTimeForOriginal,
-    required DateTime urgentSlotDateTime,
-    required String urgentPatientId,
-    required String urgentPatientName,
-    required String urgentPatientPhone,
+  Future<String> createAppointmentFromUrgency({
+    required UrgencyRequestModel request,
+    required AppointmentModel appointment,
     required String adminId,
-    int duracionMinutos = 30,
+    String? adminNotes,
   }) async {
-    final batch = FirebaseFirestore.instance.batch();
+    final appointmentRef = _appointments.doc();
+    final requestRef = _collection.doc(request.id);
+    final patientRef = _patients.doc(request.patientId);
+    final now = DateTime.now();
+    final urgencyAppointment = appointment.copyWith(
+      id: appointmentRef.id,
+      patientId: request.patientId,
+      patientName: request.patientName,
+      patientPhone: request.patientPhone,
+      tipo: AppointmentType.urgencia,
+      estado: AppointmentStatus.programada,
+      creadoPor: adminId,
+      createdAt: now,
+      updatedAt: now,
+    );
 
-    // 1. Reprogramar la cita original del otro paciente
-    final originalApptRef = FirebaseFirestore.instance
-        .collection('appointments')
-        .doc(originalAppointmentId);
-    batch.update(originalApptRef, {
-      'estado': 'reprogramada',
-      'fechaHora': Timestamp.fromDate(newDateTimeForOriginal),
-      'updatedAt': FieldValue.serverTimestamp(),
+    final batch = _db.batch();
+    batch.set(appointmentRef, {
+      ...urgencyAppointment.toJson(),
+      'createdByRole': 'admin',
+      'createdBy': adminId,
+      'lastActionByRole': 'admin',
+      'lastActionBy': adminId,
+      'updatedByRole': 'admin',
+      'updatedBy': adminId,
+      'urgencyRequestId': request.id,
     });
-
-    // 2. Crear nueva cita de urgencia en el slot que se liberó
-    final urgentApptRef = FirebaseFirestore.instance
-        .collection('appointments')
-        .doc();
-    final urgentApptData = {
-      'id': urgentApptRef.id,
-      'patientId': urgentPatientId,
-      'patientName': urgentPatientName,
-      'patientPhone': urgentPatientPhone,
-      'tipo': 'urgencia',
-      'estado': 'programada',
-      'fechaHora': Timestamp.fromDate(urgentSlotDateTime),
-      'duracionMinutos': duracionMinutos,
-      'creadoPor': adminId,
-      'notas': 'Cita de urgencia — slot liberado por reprogramación',
-      'createdAt': FieldValue.serverTimestamp(),
+    final requestUpdate = <String, dynamic>{
+      'estado': UrgencyStatus.atendida.name,
+      'appointmentId': appointmentRef.id,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    batch.set(urgentApptRef, urgentApptData);
-
-    // Ejecutar atómicamente
+    if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;
+    batch.update(requestRef, requestUpdate);
+    batch.update(patientRef, {
+      'proximaCita': Timestamp.fromDate(appointment.fechaHora),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
     await batch.commit();
+    return appointmentRef.id;
+  }
 
-    // 3. Marcar urgencia como atendida vía reprogramación
-    await updateStatus(
-      requestId: requestId,
-      newStatus: UrgencyStatus.atendida,
-      appointmentId: urgentApptRef.id,
-      reprogramadaFromId: originalAppointmentId,
+  Future<UrgencyRescheduleResult> rescheduleAppointmentForUrgency({
+    required UrgencyRequestModel request,
+    required AppointmentModel originalAppointment,
+    required DateTime newDateTimeForOriginal,
+    required String adminId,
+    String? adminNotes,
+  }) async {
+    final originalRef = _appointments.doc(originalAppointment.id);
+    final movedRef = _appointments.doc();
+    final urgentRef = _appointments.doc();
+    final requestRef = _collection.doc(request.id);
+    final originalPatientRef = _patients.doc(originalAppointment.patientId);
+    final urgentPatientRef = _patients.doc(request.patientId);
+    final urgentSlotDateTime = originalAppointment.fechaHora;
+    final now = DateTime.now();
+
+    await _db.runTransaction((transaction) async {
+      final originalSnapshot = await transaction.get(originalRef);
+      if (!originalSnapshot.exists || originalSnapshot.data() == null) {
+        throw StateError('La cita original ya no existe.');
+      }
+
+      final currentOriginal = AppointmentModel.fromJson({
+        ...originalSnapshot.data()!,
+        'id': originalAppointment.id,
+      });
+      if (currentOriginal.estado != AppointmentStatus.programada &&
+          currentOriginal.estado != AppointmentStatus.confirmada) {
+        throw StateError(
+          'Solo se pueden reprogramar citas programadas o confirmadas.',
+        );
+      }
+
+      final movedAppointment = currentOriginal.copyWith(
+        id: movedRef.id,
+        fechaHora: newDateTimeForOriginal,
+        estado: AppointmentStatus.programada,
+        createdAt: now,
+        updatedAt: now,
+        notas: [
+          if ((currentOriginal.notas ?? '').trim().isNotEmpty)
+            currentOriginal.notas!.trim(),
+          'Cita reprogramada por gestion de urgencia.',
+        ].join('\n'),
+      );
+      final urgentAppointment = AppointmentModel(
+        id: urgentRef.id,
+        patientId: request.patientId,
+        patientName: request.patientName,
+        patientPhone: request.patientPhone,
+        tipo: AppointmentType.urgencia,
+        estado: AppointmentStatus.programada,
+        fechaHora: urgentSlotDateTime,
+        duracionMinutos: currentOriginal.duracionMinutos,
+        creadoPor: adminId,
+        notas: 'Cita de urgencia en slot liberado por reprogramacion.',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      transaction.update(originalRef, {
+        'estado': AppointmentStatus.reprogramada.name,
+        'fechaHora': Timestamp.fromDate(newDateTimeForOriginal),
+        'rescheduledToAppointmentId': movedRef.id,
+        'rescheduledTo': Timestamp.fromDate(newDateTimeForOriginal),
+        'lastActionByRole': 'admin',
+        'lastActionBy': adminId,
+        'updatedByRole': 'admin',
+        'updatedBy': adminId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(movedRef, {
+        ...movedAppointment.toJson(),
+        'createdByRole': 'admin',
+        'createdBy': adminId,
+        'lastActionByRole': 'admin',
+        'lastActionBy': adminId,
+        'updatedByRole': 'admin',
+        'updatedBy': adminId,
+        'rescheduledFromId': originalAppointment.id,
+      });
+      transaction.set(urgentRef, {
+        ...urgentAppointment.toJson(),
+        'createdByRole': 'admin',
+        'createdBy': adminId,
+        'lastActionByRole': 'admin',
+        'lastActionBy': adminId,
+        'updatedByRole': 'admin',
+        'updatedBy': adminId,
+        'urgencyRequestId': request.id,
+        'reprogramadaFromId': originalAppointment.id,
+      });
+      final requestUpdate = <String, dynamic>{
+        'estado': UrgencyStatus.atendida.name,
+        'appointmentId': urgentRef.id,
+        'reprogramadaFromId': originalAppointment.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;
+      transaction.update(requestRef, requestUpdate);
+      transaction.update(originalPatientRef, {
+        'proximaCita': Timestamp.fromDate(newDateTimeForOriginal),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.update(urgentPatientRef, {
+        'proximaCita': Timestamp.fromDate(urgentSlotDateTime),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    return UrgencyRescheduleResult(
+      urgentAppointmentId: urgentRef.id,
+      movedAppointmentId: movedRef.id,
+      originalAppointmentId: originalAppointment.id,
     );
   }
 
-  // ─── Notificación FCM a admins (Bloque 7) ─────────────────────────────
-
-  /// Notifica a todos los admins sobre nueva urgencia vía Cloud Functions.
-  Future<void> _notifyAdminsOfNewUrgency(UrgencyRequestModel request) async {
-    try {
-      // Llamada a Cloud Function que envía FCM a todos los admins
-      // La función debe estar deployada en functions/src/notifyUrgency.ts
-      await FirebaseFirestore.instance
-          .collection('notifications')
-          .add({
-            'type': 'new_urgency',
-            'urgencyId': request.id,
-            'patientName': request.patientName,
-            'descripcion': request.descripcion,
-            'createdAt': FieldValue.serverTimestamp(),
-            'priority': 'high',
-            'readBy': [],
-          });
-    } catch (e) {
-      // Si falla la notificación, no bloqueamos el flujo
-      // La urgencia ya está en Firestore y el admin la verá en la bandeja
-      print('Error notificando admins de urgencia: $e');
-    }
-  }
-
-  // ─── Limpieza de urgencias antiguas (Bloque 8) ────────────────────────
-
-  /// Limpia urgencias completadas/rechazadas older than [daysAgo].
-  /// SOLO admin debe ejecutar esto.
-  Future<int> cleanupOldUrgencies({int daysAgo = 90}) async {
+  Future<int> cleanupOldUrgencies({int daysAgo = 30}) async {
     final cutoff = DateTime.now().subtract(Duration(days: daysAgo));
-    int deleted = 0;
-
     final snapshot = await _collection
-        .where('estado', whereIn: ['atendida', 'rechazada', 'reprogramada'])
+        .where(
+          'estado',
+          whereIn: [
+            UrgencyStatus.atendida.name,
+            UrgencyStatus.rechazada.name,
+            UrgencyStatus.reprogramada.name,
+          ],
+        )
         .where('createdAt', isLessThan: Timestamp.fromDate(cutoff))
         .get();
 
     if (snapshot.docs.isEmpty) return 0;
 
-    final batch = FirebaseFirestore.instance.batch();
+    final batch = _db.batch();
     for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-      deleted++;
+      batch.update(doc.reference, {
+        'archived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+      });
     }
-
     await batch.commit();
-    return deleted;
+    return snapshot.docs.length;
+  }
+
+  List<UrgencyRequestModel> _mapSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    return snapshot.docs
+        .where((doc) => doc.data()['archived'] != true)
+        .map(
+          (doc) => UrgencyRequestModel.fromJson({...doc.data(), 'id': doc.id}),
+        )
+        .toList();
+  }
+
+  PatientModel patientFromUrgency(UrgencyRequestModel request) {
+    return PatientModel.fromJson({
+      'id': request.patientId,
+      'uid': request.patientId,
+      'nombre': request.patientName,
+      'telefono': request.patientPhone,
+      'etapaActual': TreatmentStage.valoracionInicial.name,
+      'fechaInicio': Timestamp.fromDate(DateTime.now()),
+      'notasClinicas': '',
+      'totalTratamiento': 0,
+      'saldoPendiente': 0,
+    });
   }
 }

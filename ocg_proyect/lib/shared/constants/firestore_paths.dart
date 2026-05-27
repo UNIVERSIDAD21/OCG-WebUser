@@ -4,6 +4,7 @@ class FirestorePaths {
   static const String admins = 'admins';
   static const String patients = 'patients';
   static const String appointments = 'appointments';
+  static const String urgencyRequests = 'urgencyRequests';
   static const String payments = 'payments';
   static const String simulations = 'simulations';
   static const String notifications = 'notifications';

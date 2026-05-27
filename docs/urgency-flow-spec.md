@@ -472,7 +472,7 @@ class UrgencyRepository {
     required DateTime newDateTimeForOriginal,
     required DateTime urgentSlotDateTime,
     required String urgentPatientId,
-    required String urgentPatientName,
+    required String urgentPatientName,m   
     required String urgentPatientPhone,
     required String adminId,
     int duracionMinutos = 30,

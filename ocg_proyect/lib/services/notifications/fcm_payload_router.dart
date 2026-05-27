@@ -22,6 +22,7 @@ class FcmPayloadRouter {
     RouteNames.adminDashboard,
     RouteNames.adminPatients,
     RouteNames.adminAppointments,
+    RouteNames.adminUrgencies,
     RouteNames.adminTreatments,
     RouteNames.adminPayments,
     RouteNames.adminSimulator,
@@ -92,6 +93,26 @@ class FcmPayloadRouter {
     );
   }
 
+  static Map<String, dynamic> buildUrgencyPayload({
+    required String patientName,
+    required String requestId,
+    required String descripcion,
+  }) {
+    return {
+      'type': 'urgency_request',
+      'title': 'Nueva solicitud de urgencia',
+      'body': '$patientName: ${_truncate(descripcion, 80)}',
+      'requestId': requestId,
+      'priority': 'high',
+      'channel_id': 'urgency_alerts',
+      'route': RouteNames.adminUrgencies,
+    };
+  }
+
+  static String _truncate(String text, int maxLen) {
+    return text.length > maxLen ? '${text.substring(0, maxLen)}...' : text;
+  }
+
   static bool _entityMatches(String entityType, String keyword) {
     return entityType.toLowerCase().contains(keyword);
   }
@@ -118,10 +139,14 @@ class FcmPayloadRouter {
         if (_isTreatmentNotification(type, entityType)) {
           return RouteNames.adminTreatments;
         }
-        if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
+        if (_isSimulationType(type) ||
+            _entityMatches(entityType, 'simulation') ||
+            _entityMatches(entityType, 'simulador')) {
           return RouteNames.adminSimulator;
         }
-        if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
+        if (_isPaymentType(type) ||
+            _entityMatches(entityType, 'payment') ||
+            _entityMatches(entityType, 'pago')) {
           return RouteNames.adminPayments;
         }
         // Último recurso: volver al detalle del paciente si hay ID,
@@ -135,6 +160,9 @@ class FcmPayloadRouter {
 
     // Sin ruta explícita: resolver semánticamente por tipo.
     if (explicitRoute.isEmpty) {
+      if (_isUrgencyType(type) || _entityMatches(entityType, 'urgency')) {
+        return RouteNames.adminUrgencies;
+      }
       if (_isTreatmentNotification(type, entityType)) {
         return patientId.isEmpty
             ? RouteNames.adminTreatments
@@ -179,7 +207,8 @@ class FcmPayloadRouter {
     final path = uri.path;
     final section = uri.queryParameters['section'] ?? '';
 
-    if (path == RouteNames.patientHome || path == RouteNames.patientRoot ||
+    if (path == RouteNames.patientHome ||
+        path == RouteNames.patientRoot ||
         path == RouteNames.patientTreatment) {
       // Home o tratamiento → tratamientos si es notificación de tratamiento,
       // sino la sección del query param, sino detalle paciente genérico.
@@ -256,13 +285,19 @@ class FcmPayloadRouter {
       if (_isTreatmentNotification(type, entityType)) {
         return RouteNames.patientTreatment;
       }
-      if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
+      if (_isAppointmentType(type) ||
+          _entityMatches(entityType, 'appointment') ||
+          _entityMatches(entityType, 'cita')) {
         return RouteNames.patientAppointments;
       }
-      if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
+      if (_isSimulationType(type) ||
+          _entityMatches(entityType, 'simulation') ||
+          _entityMatches(entityType, 'simulador')) {
         return RouteNames.patientSimulations;
       }
-      if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
+      if (_isPaymentType(type) ||
+          _entityMatches(entityType, 'payment') ||
+          _entityMatches(entityType, 'pago')) {
         return RouteNames.patientPayments;
       }
       if (_isClinicalFileType(type) || _isClinicalFileEntity(entityType)) {
@@ -292,7 +327,9 @@ class FcmPayloadRouter {
         entityTypeOverride ?? (data['entityType'] ?? '').toString().trim();
     final patientId = _patientIdFromPayload(data, role);
 
-    if (_isAppointmentType(type) || _entityMatches(entityType, 'appointment') || _entityMatches(entityType, 'cita')) {
+    if (_isAppointmentType(type) ||
+        _entityMatches(entityType, 'appointment') ||
+        _entityMatches(entityType, 'cita')) {
       if (role == 'admin' && patientId.isNotEmpty) {
         return _adminPatientSectionRoute(patientId, 'citas');
       }
@@ -301,7 +338,15 @@ class FcmPayloadRouter {
           : RouteNames.patientAppointments;
     }
 
-    if (_isPaymentType(type) || _entityMatches(entityType, 'payment') || _entityMatches(entityType, 'pago')) {
+    if (_isUrgencyType(type) || _entityMatches(entityType, 'urgency')) {
+      return role == 'admin'
+          ? RouteNames.adminUrgencies
+          : RouteNames.patientNotifications;
+    }
+
+    if (_isPaymentType(type) ||
+        _entityMatches(entityType, 'payment') ||
+        _entityMatches(entityType, 'pago')) {
       if (role == 'admin' && patientId.isNotEmpty) {
         return _adminPatientSectionRoute(patientId, 'pagos');
       }
@@ -319,7 +364,9 @@ class FcmPayloadRouter {
       return RouteNames.patientClinicalFiles;
     }
 
-    if (_isSimulationType(type) || _entityMatches(entityType, 'simulation') || _entityMatches(entityType, 'simulador')) {
+    if (_isSimulationType(type) ||
+        _entityMatches(entityType, 'simulation') ||
+        _entityMatches(entityType, 'simulador')) {
       if (role == 'admin') {
         return patientId.isEmpty
             ? RouteNames.adminSimulator
@@ -329,7 +376,9 @@ class FcmPayloadRouter {
     }
 
     if (role == 'patient' &&
-        (_isProfileType(type) || _entityMatches(entityType, 'profile') || _entityMatches(entityType, 'perfil'))) {
+        (_isProfileType(type) ||
+            _entityMatches(entityType, 'profile') ||
+            _entityMatches(entityType, 'perfil'))) {
       return RouteNames.patientProfile;
     }
 
@@ -445,6 +494,11 @@ class FcmPayloadRouter {
   bool _isAppointmentType(String type) {
     final t = type.toLowerCase();
     return t.contains('appointment') || t.contains('cita');
+  }
+
+  bool _isUrgencyType(String type) {
+    final t = type.toLowerCase();
+    return t.contains('urgency') || t.contains('urgencia');
   }
 
   bool _isPaymentType(String type) {

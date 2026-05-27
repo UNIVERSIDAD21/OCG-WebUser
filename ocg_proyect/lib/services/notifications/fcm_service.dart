@@ -18,6 +18,10 @@ const _androidChannelId = 'ocg_clinica_push';
 const _androidChannelName = 'OCG - Oral Care Global';
 const _androidChannelDescription =
     'Notificaciones push operativas y clinicas de OCG - Oral Care Global';
+const _urgencyAndroidChannelId = 'urgency_alerts';
+const _urgencyAndroidChannelName = 'Urgencias OCG';
+const _urgencyAndroidChannelDescription =
+    'Alertas prioritarias de solicitudes de urgencia';
 const _deviceIdKey = 'fcm_device_installation_id';
 
 typedef FcmPlatformResolver = String? Function();
@@ -375,6 +379,17 @@ class FcmService {
         importance: Importance.high,
       ),
     );
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _urgencyAndroidChannelId,
+        _urgencyAndroidChannelName,
+        description: _urgencyAndroidChannelDescription,
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
@@ -389,28 +404,40 @@ class FcmService {
       );
       return;
     }
+    final urgencyChannel =
+        message.data['channel_id']?.toString() == _urgencyAndroidChannelId ||
+        message.data['type']?.toString() == 'urgency_request';
+    final channelId = urgencyChannel
+        ? _urgencyAndroidChannelId
+        : _androidChannelId;
+    final channelName = urgencyChannel
+        ? _urgencyAndroidChannelName
+        : _androidChannelName;
+    final channelDescription = urgencyChannel
+        ? _urgencyAndroidChannelDescription
+        : _androidChannelDescription;
     await _localNotifications.show(
       message.messageId.hashCode ^
           (title ?? '').hashCode ^
           (body ?? '').hashCode,
       title,
       body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          _androidChannelId,
-          _androidChannelName,
-          channelDescription: _androidChannelDescription,
+          channelId,
+          channelName,
+          channelDescription: channelDescription,
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
         ),
-        iOS: DarwinNotificationDetails(
+        iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
           sound: 'default',
         ),
-        macOS: DarwinNotificationDetails(
+        macOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,

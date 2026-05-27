@@ -227,6 +227,11 @@ class _AdminSidebarState extends ConsumerState<AdminSidebar> {
         route: RouteNames.adminAppointments,
       ),
       (
+        label: 'Urgencias',
+        icon: Icons.warning_amber_outlined,
+        route: RouteNames.adminUrgencies,
+      ),
+      (
         label: 'Tratamientos',
         icon: Icons.monitor_heart_outlined,
         route: RouteNames.adminTreatments,

@@ -13,6 +13,7 @@ import 'admin_modules_screens.dart';
 import 'admin_patients_screen.dart';
 import 'admin_profile_screen.dart';
 import '../../appointments/presentation/admin_urgency_screen.dart';
+import '../../appointments/providers/urgency_provider.dart';
 
 class AdminMobileShell extends ConsumerStatefulWidget {
   const AdminMobileShell({super.key, this.initialIndex = 0, this.detailChild});
@@ -49,11 +50,13 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
 
   @override
   Widget build(BuildContext context) {
+    final pendingUrgencies =
+        ref.watch(pendingUrgenciesCountProvider).asData?.value ?? 0;
     final sections = const [
       AdminDashboardScreen(embeddedInMobileShell: true),
       AdminPatientsScreen(embeddedInMobileShell: true),
       AdminAppointmentsScreen(embeddedInMobileShell: true),
-      AdminUrgencyScreen(),
+      AdminUrgencyScreen(embeddedInMobileShell: true),
       AdminSimulatorScreen(embeddedInMobileShell: true),
       AdminProfileScreen(embeddedInMobileShell: true),
     ];
@@ -75,18 +78,18 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
           bottomNavigationBar: OcgMobileBottomNav(
             selectedIndex: _selectedIndex,
             onSelected: _selectTab,
-            items: const [
-              OcgMobileBottomNavItem(
+            items: [
+              const OcgMobileBottomNavItem(
                 icon: Icons.dashboard_outlined,
                 activeIcon: Icons.dashboard,
                 label: 'Inicio',
               ),
-              OcgMobileBottomNavItem(
+              const OcgMobileBottomNavItem(
                 icon: Icons.people_outline,
                 activeIcon: Icons.people,
                 label: 'Pacientes',
               ),
-              OcgMobileBottomNavItem(
+              const OcgMobileBottomNavItem(
                 icon: Icons.calendar_month_outlined,
                 activeIcon: Icons.calendar_month,
                 label: 'Agenda',
@@ -95,13 +98,14 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
                 icon: Icons.warning_amber_rounded,
                 activeIcon: Icons.warning_amber,
                 label: 'Urgencias',
+                badgeCount: pendingUrgencies,
               ),
-              OcgMobileBottomNavItem(
+              const OcgMobileBottomNavItem(
                 icon: Icons.auto_awesome_outlined,
                 activeIcon: Icons.auto_awesome,
                 label: 'Simulador',
               ),
-              OcgMobileBottomNavItem(
+              const OcgMobileBottomNavItem(
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
                 label: 'Perfil',

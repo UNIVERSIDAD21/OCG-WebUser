@@ -34,6 +34,10 @@ import {onTreatmentStageChangeWrite} from './treatments/on_treatment_stage_chang
 import {generateSmileSimulation} from './simulator/generate_smile_simulation';
 import {resendEmailNotification} from './notifications/resend_email_notification';
 import {generateConsultationPdf} from './consultation/generate_consultation_pdf';
+import {
+  archiveOldUrgencies,
+  onUrgencyCreate,
+} from './urgencies/on_urgency_create';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -72,4 +76,6 @@ export {
   generateSmileSimulation,
   resendEmailNotification,
   generateConsultationPdf,
+  onUrgencyCreate,
+  archiveOldUrgencies,
 };

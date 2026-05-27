@@ -88,6 +88,21 @@ class AppointmentsRepository {
       return createAppointmentAsPatient(appointment);
     }
 
+    if (appointment.tipo == AppointmentType.urgencia) {
+      final ref = _appointmentsRef.doc();
+      await ref.set({
+        ...appointment.copyWith(id: ref.id).toJson(),
+        'createdByRole': 'admin',
+        'createdBy': appointment.creadoPor,
+        'lastActionByRole': 'admin',
+        'lastActionBy': appointment.creadoPor,
+        'updatedByRole': 'admin',
+        'updatedBy': appointment.creadoPor,
+      });
+      await _updatePatientNextAppointment(appointment.patientId);
+      return ref.id;
+    }
+
     try {
       final workingHoursError =
           AppointmentsBusinessRules.validateWithinWorkingHours(

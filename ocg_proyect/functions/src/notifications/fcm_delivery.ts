@@ -197,6 +197,7 @@ export function buildFcmMessageForDevice(
   device: DeviceTokenRecord,
 ): admin.messaging.Message {
   const data = buildDataPayload(payload);
+  const channelId = data.channel_id || 'ocg_clinica_push';
   const base: admin.messaging.Message = {
     token: device.token,
     notification: {
@@ -227,7 +228,7 @@ export function buildFcmMessageForDevice(
     android: {
       priority: 'high',
       notification: {
-        channelId: 'ocg_clinica_push',
+        channelId,
       },
     },
   };

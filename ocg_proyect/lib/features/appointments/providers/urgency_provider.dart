@@ -1,22 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/repositories/urgency_repository.dart';
 import '../data/models/urgency_model.dart';
+import '../../patients/providers/patients_provider.dart';
 
 /// Provider del repositorio de urgencias.
 final urgencyRepositoryProvider = Provider<UrgencyRepository>((ref) {
-  return UrgencyRepository();
+  return UrgencyRepository(ref.watch(firestoreProvider));
 });
 
 /// Stream de todas las urgencias (admin).
-final allUrgenciesProvider =
-    StreamProvider<List<UrgencyRequestModel>>((ref) {
+final allUrgenciesProvider = StreamProvider<List<UrgencyRequestModel>>((ref) {
   final repo = ref.watch(urgencyRepositoryProvider);
   return repo.watchAll();
 });
 
 /// Stream de urgencias activas (pendientes + en proceso).
-final activeUrgenciesProvider =
-    StreamProvider<List<UrgencyRequestModel>>((ref) {
+final activeUrgenciesProvider = StreamProvider<List<UrgencyRequestModel>>((
+  ref,
+) {
   final repo = ref.watch(urgencyRepositoryProvider);
   return repo.watchActive();
 });
@@ -24,9 +25,9 @@ final activeUrgenciesProvider =
 /// Stream de urgencias de un paciente específico.
 final urgenciesByPatientProvider =
     StreamProvider.family<List<UrgencyRequestModel>, String>((ref, patientId) {
-  final repo = ref.watch(urgencyRepositoryProvider);
-  return repo.watchByPatient(patientId);
-});
+      final repo = ref.watch(urgencyRepositoryProvider);
+      return repo.watchByPatient(patientId);
+    });
 
 /// Conteo de urgencias pendientes (para badge).
 final pendingUrgenciesCountProvider = StreamProvider<int>((ref) {

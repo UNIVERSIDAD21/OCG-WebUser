@@ -87,14 +87,26 @@ export async function notifyAppointmentPatientChanges(
   });
 
   if (!before) {
+    const isUrgencyAppointment = String(after.tipo ?? '').trim() === 'urgencia';
+    const isRescheduledCopy = String(after.rescheduledFromId ?? '').trim().length > 0;
     await notifyPatientAppointmentEvent(db, {
-      notificationId: `appointment_${appointmentId}_created`,
+      notificationId: isRescheduledCopy
+        ? `appointment_${appointmentId}_rescheduled_copy`
+        : `appointment_${appointmentId}_created`,
       patientId,
       appointmentId,
       treatmentId,
-      type: 'appointment_created',
-      title: 'Nueva cita agendada',
-      body: `Tu cita fue agendada para ${formatDateTimeBogota(after.fechaHora)}.`,
+      type: isRescheduledCopy ? 'appointment_rescheduled' : 'appointment_created',
+      title: isUrgencyAppointment
+        ? 'Tu cita de urgencia fue confirmada'
+        : isRescheduledCopy
+          ? 'Tu cita fue reprogramada'
+          : 'Nueva cita agendada',
+      body: isUrgencyAppointment
+        ? `Tu cita de urgencia fue confirmada para ${formatDateTimeBogota(after.fechaHora)}.`
+        : isRescheduledCopy
+          ? `Tu cita fue reprogramada para ${formatDateTimeBogota(after.fechaHora)}.`
+          : `Tu cita fue agendada para ${formatDateTimeBogota(after.fechaHora)}.`,
       appointmentAt: after.fechaHora,
     });
 
@@ -190,6 +202,7 @@ export async function notifyAppointmentPatientChanges(
 
   const becameRescheduled = currentStatus === 'reprogramada' && previousStatus !== 'reprogramada';
   if (dateChanged || becameRescheduled) {
+    const rescheduledTo = after.rescheduledTo ?? after.fechaHora;
     await notifyPatientAppointmentEvent(db, {
       notificationId: `appointment_${appointmentId}_rescheduled_${afterMillis ?? 'na'}`,
       patientId,
@@ -198,7 +211,7 @@ export async function notifyAppointmentPatientChanges(
       type: 'appointment_rescheduled',
       title: 'Tu cita fue reprogramada',
       body: `Tu cita cambió de ${formatDateTimeBogota(before.fechaHora)} a ${formatDateTimeBogota(after.fechaHora)}.`,
-      appointmentAt: after.fechaHora,
+      appointmentAt: rescheduledTo,
       previousAppointmentAt: before.fechaHora,
     });
 

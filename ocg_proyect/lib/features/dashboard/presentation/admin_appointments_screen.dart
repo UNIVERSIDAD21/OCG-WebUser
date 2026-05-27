@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../appointments/data/models/appointment_model.dart';
 import '../../appointments/data/models/availability_day_model.dart';
+import '../../appointments/data/models/urgency_model.dart';
 import '../../appointments/domain/appointments_business_rules.dart';
 import '../../appointments/providers/appointments_provider.dart';
 import '../../appointments/providers/availability_provider.dart';
+import '../../appointments/providers/urgency_provider.dart';
 import '../../notifications/providers/notifications_provider.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../patients/data/models/patient_model.dart';
@@ -147,6 +149,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     DateTime? baseDate,
     PatientModel? preselectedPatient,
     List<AppointmentModel> existingAppointments = const [],
+    UrgencyRequestModel? urgencyRequest,
   }) async {
     await showDialog<void>(
       context: context,
@@ -154,6 +157,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
         baseDate: baseDate,
         preselectedPatient: preselectedPatient,
         existingAppointments: existingAppointments,
+        urgencyRequest: urgencyRequest,
         // Pasamos el ref del caller para poder escribir en Firestore
         callerRef: ref,
       ),
@@ -346,12 +350,14 @@ class _CreateApptDialog extends ConsumerStatefulWidget {
     required this.existingAppointments,
     this.baseDate,
     this.preselectedPatient,
+    this.urgencyRequest,
   });
 
   final WidgetRef callerRef;
   final List<AppointmentModel> existingAppointments;
   final DateTime? baseDate;
   final PatientModel? preselectedPatient;
+  final UrgencyRequestModel? urgencyRequest;
 
   @override
   ConsumerState<_CreateApptDialog> createState() => _CreateApptDialogState();
@@ -370,16 +376,37 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   bool _expandAfternoon = true;
   String? _errorMsg;
 
+  bool get _isUrgencyBooking => widget.urgencyRequest != null;
+
+  PatientModel _patientFromUrgency(UrgencyRequestModel urgency) {
+    return PatientModel.fromJson({
+      'id': urgency.patientId,
+      'uid': urgency.patientId,
+      'nombre': urgency.patientName,
+      'telefono': urgency.patientPhone,
+      'etapaActual': TreatmentStage.valoracionInicial.name,
+      'fechaInicio': DateTime.now(),
+      'notasClinicas': '',
+      'totalTratamiento': 0,
+      'saldoPendiente': 0,
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     final seed = widget.baseDate ?? DateTime.now();
     _dateTime = DateTime(seed.year, seed.month, seed.day, 10, 0);
-    _selectedPatient = widget.preselectedPatient;
-    _searchCtrl = TextEditingController(
-      text: widget.preselectedPatient?.nombre ?? '',
+    final urgency = widget.urgencyRequest;
+    _selectedPatient =
+        widget.preselectedPatient ??
+        (urgency == null ? null : _patientFromUrgency(urgency));
+    _searchCtrl = TextEditingController(text: _selectedPatient?.nombre ?? '');
+    _notesCtrl = TextEditingController(
+      text: urgency == null
+          ? ''
+          : 'Solicitud de urgencia: ${urgency.descripcion}',
     );
-    _notesCtrl = TextEditingController();
   }
 
   @override
@@ -401,6 +428,13 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
     final now = DateTime.now();
     final notPast = base.where((slot) => slot.start.isAfter(now)).toList();
+    if (_isUrgencyBooking) {
+      return notPast
+          .map(
+            (slot) => AppointmentTimeSlot(start: slot.start, isAvailable: true),
+          )
+          .toList();
+    }
 
     if (availability == null) return notPast;
 
@@ -450,12 +484,14 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   }
 
   TreatmentStage _appointmentStage(PatientTreatment? treatment) {
+    if (_isUrgencyBooking) return TreatmentStage.valoracionInicial;
     return treatment?.etapaActual ??
         _selectedPatient?.etapaActual ??
         TreatmentStage.valoracionInicial;
   }
 
   AppointmentType? _appointmentTypeFor(PatientTreatment? treatment) {
+    if (_isUrgencyBooking) return AppointmentType.urgencia;
     final patient = _selectedPatient;
     if (patient == null) return null;
     return AppointmentsBusinessRules.appointmentTypeForStage(
@@ -464,6 +500,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   }
 
   void _selectPatient(PatientModel patient) {
+    if (_isUrgencyBooking) return;
     _selectedPatient = patient;
     _selectedTreatmentId = null;
     _searchCtrl.text = patient.nombre;
@@ -471,6 +508,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   }
 
   void _clearSelectedPatient() {
+    if (_isUrgencyBooking) return;
     _selectedPatient = null;
     _selectedTreatmentId = null;
     _searchCtrl.clear();
@@ -485,14 +523,21 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       lastDate: DateTime(2035),
     );
     if (d == null) return;
+    TimeOfDay? pickedTime;
+    if (_isUrgencyBooking && mounted) {
+      pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_dateTime),
+      );
+    }
 
     setState(() {
       _dateTime = DateTime(
         d.year,
         d.month,
         d.day,
-        AppointmentsBusinessRules.workdayStartHour,
-        0,
+        pickedTime?.hour ?? AppointmentsBusinessRules.workdayStartHour,
+        pickedTime?.minute ?? 0,
       );
       _errorMsg = null;
     });
@@ -627,11 +672,12 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       return;
     }
 
-    final workingHoursError =
-        AppointmentsBusinessRules.validateWithinWorkingHours(
-          start: _dateTime,
-          durationMinutes: _durationMinutes,
-        );
+    final workingHoursError = _isUrgencyBooking
+        ? null
+        : AppointmentsBusinessRules.validateWithinWorkingHours(
+            start: _dateTime,
+            durationMinutes: _durationMinutes,
+          );
     if (workingHoursError != null) {
       setState(() => _errorMsg = workingHoursError);
       return;
@@ -642,12 +688,34 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       newStart: _dateTime,
       durationMinutes: _durationMinutes,
     );
-    if (hasConflict) {
+    if (hasConflict && !_isUrgencyBooking) {
       setState(
         () => _errorMsg =
             'Ese horario está ocupado o dentro del buffer de 10 min.',
       );
       return;
+    }
+    if (hasConflict && _isUrgencyBooking) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirmar cita de urgencia'),
+          content: const Text(
+            'Hay otra cita en ese horario. Para urgencias puedes confirmar de todas formas.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => popDialog(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => popDialog(ctx, true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
     }
 
     setState(() {
@@ -656,7 +724,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     });
     final notasTexto = _notesCtrl.text.trim();
     try {
-      await widget.callerRef
+      final createdAppointmentId = await widget.callerRef
           .read(appointmentsRepositoryProvider)
           .createAppointment(
             AppointmentModel(
@@ -677,6 +745,16 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                   stageNames[effectiveStage] ?? effectiveStage.name,
             ),
           );
+      if (_isUrgencyBooking) {
+        await widget.callerRef
+            .read(urgencyRepositoryProvider)
+            .updateStatus(
+              requestId: widget.urgencyRequest!.id,
+              newStatus: UrgencyStatus.atendida,
+              appointmentId: createdAppointmentId,
+              adminNotes: notasTexto.isEmpty ? null : notasTexto,
+            );
+      }
       popDialog(context);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -805,7 +883,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
         _searchCtrl.text.isNotEmpty && _selectedPatient == null;
 
     return AlertDialog(
-      title: const Text('Nueva cita'),
+      title: Text(_isUrgencyBooking ? 'Nueva cita de urgencia' : 'Nueva cita'),
       content: SizedBox(
         // ✅ Ancho fijo evita que IntrinsicWidth falle con el dropdown
         width: 400,
@@ -814,13 +892,24 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_isUrgencyBooking) ...[
+                _flowInfoCard(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Citando desde solicitud de urgencia',
+                  subtitle:
+                      'Se usara tipo urgencia. Solo se bloquean fechas pasadas; los conflictos se confirman manualmente.',
+                  color: OcgColors.error,
+                ),
+                const SizedBox(height: 12),
+              ],
               // ── Buscador de paciente ───────────────────────────────────
               TextField(
                 controller: _searchCtrl,
+                readOnly: _isUrgencyBooking,
                 decoration: InputDecoration(
                   labelText: 'Buscar paciente',
                   prefixIcon: const Icon(Icons.person_search),
-                  suffixIcon: _selectedPatient != null
+                  suffixIcon: _selectedPatient != null && !_isUrgencyBooking
                       ? IconButton(
                           icon: const Icon(Icons.close, size: 18),
                           tooltip: 'Cambiar paciente',
@@ -828,11 +917,13 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                         )
                       : null,
                 ),
-                onChanged: (_) => setState(() {
-                  _selectedPatient = null;
-                  _selectedTreatmentId = null;
-                  _errorMsg = null;
-                }),
+                onChanged: _isUrgencyBooking
+                    ? null
+                    : (_) => setState(() {
+                        _selectedPatient = null;
+                        _selectedTreatmentId = null;
+                        _errorMsg = null;
+                      }),
               ),
 
               // ── Dropdown de resultados ─────────────────────────────────
@@ -948,7 +1039,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                 ),
               ],
 
-              if (_selectedPatient != null) ...[
+              if (_selectedPatient != null && !_isUrgencyBooking) ...[
                 const SizedBox(height: 10),
                 _treatmentAssociationCard(
                   treatments: writableTreatments,
