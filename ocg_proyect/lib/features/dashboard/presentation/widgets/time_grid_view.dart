@@ -220,6 +220,12 @@ class _TimeGridViewState extends State<TimeGridView>
         AppointmentType.alta        => 'Alta',
       };
 
+  /// Posición X de la línea "Ahora" según el día actual.
+  double _nowLineLeft(DateTime now, List<DateTime> days, double dayWidth) {
+    final idx = days.indexWhere((d) => _isSameDay(d, now));
+    return idx >= 0 ? idx * dayWidth : 0;
+  }
+
   // ─── Calcular columnas para citas superpuestas ─────────────
   /// Calcula posición X y ancho para cada cita considerando solapamientos.
   /// Retorna lista de (left, width) para cada cita.
@@ -748,119 +754,76 @@ class _TimeGridViewState extends State<TimeGridView>
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final minWidthPerDay = widget.showWeek ? 90.0 : double.infinity;
-                    final needsHorizontalScroll = widget.showWeek &&
-                        constraints.maxWidth < minWidthPerDay * 7;
+                    // Altura total del contenido scrollable (header + todo-el-día + slots)
+                    final contentHeight = dayHeaderHeight +
+                        allDaySectionHeight +
+                        (totalSlots * slotHeight);
+
+                    // Calcular ancho de días para modo semana
+                    final dayWidth = widget.showWeek
+                        ? constraints.maxWidth.clamp(90.0, double.infinity) / days.length
+                        : constraints.maxWidth;
 
                     return SingleChildScrollView(
                       controller: _scrollController,
                       scrollDirection: Axis.vertical,
                       child: SizedBox(
-                        width: needsHorizontalScroll
-                            ? minWidthPerDay * days.length
-                            : null,
+                        width: constraints.maxWidth,
+                        height: contentHeight,
                         child: Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: days.asMap().entries.map((entry) {
-                                final dayIndex = entry.key;
-                                final day = entry.value;
-                                return Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        right: dayIndex < days.length - 1
-                                            ? BorderSide(
-                                                color: OcgColors.espresso
-                                                    .withOpacity(0.06),
-                                              )
-                                            : BorderSide.none,
-                                      ),
-                                    ),
-                                    child: _buildDayColumn(
-                                      day,
-                                      dayAppointments[dayIndex],
+                            // Columnas de días
+                            ...days.asMap().entries.map((entry) {
+                              final dayIndex = entry.key;
+                              final day = entry.value;
+                              return Positioned(
+                                top: 0,
+                                left: dayIndex * dayWidth,
+                                width: dayWidth,
+                                height: contentHeight,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      right: dayIndex < days.length - 1
+                                          ? BorderSide(
+                                              color: OcgColors.espresso
+                                                  .withOpacity(0.06),
+                                            )
+                                          : BorderSide.none,
                                     ),
                                   ),
-                                );
-                              }).toList(),
-                            ),
-                            // Línea "Ahora" (encima de todas las columnas)
-                            ...days.map((day) {
-                              if (!_isSameDay(day, now)) {
-                                return const SizedBox.shrink();
-                              }
-                              final dayIndex = days.indexOf(day);
-                              final dayWidth = constraints.maxWidth /
-                                  (needsHorizontalScroll
-                                      ? days.length
-                                      : 1);
-                              return Positioned(
-                                top: dayHeaderHeight +
-                                    allDaySectionHeight +
-                                    (now.hour - startHour) * 60 / 30 *
-                                        slotHeight +
-                                    now.minute / 30 * slotHeight,
-                                left: dayIndex * dayWidth + hourColWidth + 1,
-                                right: (days.length - dayIndex - 1) *
-                                    dayWidth,
-                                child: Container(
-                                  height: 2,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFDC2626),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Color(0xFFDC2626),
-                                        blurRadius: 4,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
+                                  child: _buildDayColumn(
+                                    day,
+                                    dayAppointments[dayIndex],
                                   ),
                                 ),
                               );
-                            }).toList(),
-                            // Punto "Ahora" en columna de horas
-                            if (_isSameDay(
-                              days.first,
-                              now,
-                            )) // Solo si el primer día es hoy
+                            }),
+                            // Línea "Ahora" (encima de todas las columnas)
+                            if (_isSameDay(now, days.first) ||
+                                (widget.showWeek && days.any((d) => _isSameDay(d, now))))
                               Positioned(
                                 top: dayHeaderHeight +
                                     allDaySectionHeight +
-                                    (now.hour - startHour) * 60 / 30 *
-                                        slotHeight +
-                                    now.minute / 30 * slotHeight -
-                                    5,
-                                left: 0,
-                                child: AnimatedBuilder(
-                                  animation: _nowLineAnimation,
-                                  builder: (context, child) {
-                                    return Opacity(
-                                      opacity: 0.6 +
-                                          _nowLineAnimation.value * 0.4,
-                                      child: Container(
-                                        width: hourColWidth - 4,
-                                        height: 10,
-                                        alignment: Alignment.centerRight,
-                                        child: Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFFDC2626),
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Color(0xFFDC2626),
-                                                blurRadius: 6,
-                                                spreadRadius: 2,
-                                              ),
-                                            ],
-                                          ),
+                                    (now.hour - startHour) * 2 * slotHeight +
+                                    (now.minute / 30) * slotHeight,
+                                left: _nowLineLeft(now, days, dayWidth),
+                                width: dayWidth,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    height: 2,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFDC2626),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Color(0xFFDC2626),
+                                          blurRadius: 4,
+                                          spreadRadius: 1,
                                         ),
-                                      ),
-                                    );
-                                  },
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                           ],
