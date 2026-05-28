@@ -3,7 +3,7 @@ class ClinicContact {
 
   static const String whatsappNumber = String.fromEnvironment(
     'OCG_CLINIC_WHATSAPP',
-    defaultValue: '573000000000',
+    defaultValue: '573133169251',
   );
 
   static const String clinicName = 'OCG Clinica';
