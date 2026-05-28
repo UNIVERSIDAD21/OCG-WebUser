@@ -2684,13 +2684,13 @@ class _AdminAppointmentsScreenState
       _handleStatusAction(a, action);
     }
 
-    // Dictamen — siempre visible
+    // Dictamen — siempre visible (navegación directa, sin cerrar diálogo primero)
     quick.add(
       _quickActionBtn(
         icon: Icons.description_outlined,
         label: 'Dictamen',
         color: OcgColors.bronze,
-        onTap: () => run('dictamen'),
+        onTap: () => _handleStatusAction(a, 'dictamen'),
       ),
     );
 
