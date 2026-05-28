@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/widgets/before_after_slider.dart';
+import '../../../shared/widgets/before_after_fullscreen_viewer.dart';
 import '../../../shared/widgets/ocg_empty_state.dart';
 import '../../../shared/widgets/ocg_app_bar.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
@@ -268,17 +268,9 @@ class _PatientBeforeAfter extends StatelessWidget {
             child: Center(child: Text('No se pudieron cargar las imágenes.')),
           );
         }
-        return BeforeAfterSlider(
-          before: Image.network(
-            before,
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-          ),
-          after: Image.network(
-            after,
-            fit: BoxFit.contain,
-            alignment: Alignment.center,
-          ),
+        return BeforeAfterFullscreenViewer(
+          beforeUrl: before,
+          afterUrl: after,
         );
       },
     );
