@@ -201,7 +201,9 @@ class _ManagePatientTreatmentDialogState
           onPressed: () => Navigator.of(context).pop(false),
         ),
         title: Text(
-          _editing ? 'Editar tratamiento' : 'Crear tratamiento',
+          _editing
+              ? 'Editar tratamiento: ${widget.initialTreatment!.displayName}'
+              : 'Crear tratamiento',
           style: const TextStyle(
             color: OcgColors.espresso,
             fontSize: 18,
@@ -394,7 +396,9 @@ class _ManagePatientTreatmentDialogState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _editing ? 'Editar tratamiento' : 'Crear tratamiento',
+                  _editing
+                      ? 'Editando: ${widget.initialTreatment!.displayName}'
+                      : 'Crear tratamiento',
                   style: const TextStyle(
                     color: OcgColors.espresso,
                     fontSize: 28,
