@@ -161,12 +161,14 @@ class _PatientPaymentsTabState extends ConsumerState<PatientPaymentsTab> {
                       subtitle:
                           'Revisa el tratamiento para activar su estructura financiera y empezar a registrar pagos.',
                       ctaLabel: 'Revisar tratamiento',
-                      onCta: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => ManagePatientTreatmentDialog(
-                          patientId: widget.patientId,
-                          patientName: patient.nombre,
-                          initialTreatment: selectedTreatment,
+                      onCta: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ManagePatientTreatmentDialog(
+                            patientId: widget.patientId,
+                            patientName: patient.nombre,
+                            initialTreatment: selectedTreatment,
+                          ),
                         ),
                       ),
                     )
@@ -336,11 +338,13 @@ Widget _buildNoTreatmentPaymentsView(
           subtitle:
               'Crea el tratamiento primero y esta pestaña abrirá sus cuentas, saldo y pagos por separado.',
           ctaLabel: 'Crear tratamiento',
-          onCta: () => showDialog<void>(
-            context: context,
-            builder: (_) => ManagePatientTreatmentDialog(
-              patientId: resolution.patient.id,
-              patientName: resolution.patient.nombre,
+          onCta: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ManagePatientTreatmentDialog(
+                patientId: resolution.patient.id,
+                patientName: resolution.patient.nombre,
+              ),
             ),
           ),
         ),

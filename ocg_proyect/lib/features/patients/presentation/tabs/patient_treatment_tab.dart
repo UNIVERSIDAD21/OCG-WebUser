@@ -652,12 +652,14 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   runSpacing: 10,
                   children: [
                     FilledButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => ManagePatientTreatmentDialog(
-                          patientId: widget.patientId,
-                          patientName: widget.patient.nombre,
-                          initialTreatment: selectedTreatment,
+                      onPressed: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ManagePatientTreatmentDialog(
+                            patientId: widget.patientId,
+                            patientName: widget.patient.nombre,
+                            initialTreatment: selectedTreatment,
+                          ),
                         ),
                       ),
                       icon: const Icon(Icons.visibility_outlined, size: 18),
@@ -937,11 +939,13 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
           ctaLabel: isLoading ? null : 'Crear tratamiento',
           onCta: isLoading
               ? null
-              : () => showDialog<void>(
-                  context: context,
-                  builder: (_) => ManagePatientTreatmentDialog(
-                    patientId: widget.patientId,
-                    patientName: widget.patient.nombre,
+              : () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ManagePatientTreatmentDialog(
+                      patientId: widget.patientId,
+                      patientName: widget.patient.nombre,
+                    ),
                   ),
                 ),
         ),
@@ -1056,23 +1060,27 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                   _HeroActionButton(
                     icon: Icons.add_circle_outline,
                     label: 'Nuevo tratamiento',
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => ManagePatientTreatmentDialog(
-                        patientId: widget.patientId,
-                        patientName: widget.patient.nombre,
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ManagePatientTreatmentDialog(
+                          patientId: widget.patientId,
+                          patientName: widget.patient.nombre,
+                        ),
                       ),
                     ),
                   ),
                   _HeroActionButton(
                     icon: Icons.edit_outlined,
                     label: 'Editar tratamiento',
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => ManagePatientTreatmentDialog(
-                        patientId: widget.patientId,
-                        patientName: widget.patient.nombre,
-                        initialTreatment: selectedTreatment,
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ManagePatientTreatmentDialog(
+                          patientId: widget.patientId,
+                          patientName: widget.patient.nombre,
+                          initialTreatment: selectedTreatment,
+                        ),
                       ),
                     ),
                   ),
@@ -1742,12 +1750,14 @@ class _PatientTreatmentTabState extends ConsumerState<PatientTreatmentTab> {
                 label: 'Editar tratamiento',
                 icon: Icons.edit_outlined,
                 filled: true,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => ManagePatientTreatmentDialog(
-                    patientId: widget.patientId,
-                    patientName: widget.patient.nombre,
-                    initialTreatment: selectedTreatment,
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ManagePatientTreatmentDialog(
+                      patientId: widget.patientId,
+                      patientName: widget.patient.nombre,
+                      initialTreatment: selectedTreatment,
+                    ),
                   ),
                 ),
               ),
@@ -2116,12 +2126,14 @@ class _TreatmentScheduleCard extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           TextButton.icon(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (_) => ManagePatientTreatmentDialog(
-                patientId: patientId,
-                patientName: patientName,
-                initialTreatment: treatment,
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ManagePatientTreatmentDialog(
+                  patientId: patientId,
+                  patientName: patientName,
+                  initialTreatment: treatment,
+                ),
               ),
             ),
             icon: const Icon(Icons.edit_calendar_outlined),

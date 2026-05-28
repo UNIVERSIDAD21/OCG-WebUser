@@ -892,12 +892,14 @@ class _AdminPatientWorkspaceState
 
   // ignore: unused_element
   Future<void> _openManageTreatmentDialog([PatientTreatment? treatment]) async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => ManagePatientTreatmentDialog(
-        patientId: widget.patient.id,
-        patientName: widget.patient.nombre,
-        initialTreatment: treatment,
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ManagePatientTreatmentDialog(
+          patientId: widget.patient.id,
+          patientName: widget.patient.nombre,
+          initialTreatment: treatment,
+        ),
       ),
     );
   }

@@ -191,30 +191,41 @@ class _ManagePatientTreatmentDialogState
     );
     final summary = _buildFinancialSummary(effectiveFinancialItems);
 
-    final media = MediaQuery.sizeOf(context);
-    final wide = media.width >= 980;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Container(
-        width: wide ? 1120 : media.width - 32,
-        constraints: BoxConstraints(maxHeight: media.height - 48),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFCF8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F0E8),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: OcgColors.espresso),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        title: Text(
+          _editing ? 'Editar tratamiento' : 'Crear tratamiento',
+          style: const TextStyle(
+            color: OcgColors.espresso,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: OcgColors.espresso.withOpacity(0.08)),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
             colors: [Color(0xFFFFFCF8), Color(0xFFF7F0E8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: const Color(0xFFE7DDD2)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x262C2016),
-              blurRadius: 36,
-              offset: Offset(0, 18),
-            ),
-          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(24),
