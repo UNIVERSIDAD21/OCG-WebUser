@@ -398,13 +398,60 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   DateTime _initialDateTime() {
     final base = widget.baseDate;
     if (base != null) {
-      final fromBase = DateTime(base.year, base.month, base.day, 10);
-      if (fromBase.isAfter(DateTime.now())) return fromBase;
+      final fromBase = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        base.hour,
+        base.minute,
+      );
+      if (fromBase.isAfter(DateTime.now()) &&
+          (base.hour > 0 || base.minute > 0)) {
+        final withinWorkingHours =
+            AppointmentsBusinessRules.validateWithinWorkingHours(
+              start: fromBase,
+              durationMinutes: _durationMinutes,
+            ) ==
+            null;
+        if (_isUrgencyBooking || withinWorkingHours) return fromBase;
+
+        final nextFromBase = _nextWorkingSlotFrom(fromBase);
+        if (nextFromBase.isAfter(DateTime.now())) return nextFromBase;
+      }
+
+      final dayStart = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        AppointmentsBusinessRules.workdayStartHour,
+      );
+      final workingSlot = _nextWorkingSlotFrom(dayStart);
+      if (workingSlot.isAfter(DateTime.now())) return workingSlot;
     }
 
     final nextSlot = _roundUpToNextSlot(DateTime.now());
     if (_isUrgencyBooking) return nextSlot;
     return _nextWorkingSlotFrom(nextSlot);
+  }
+
+  DateTime _firstSelectableSlotForDay(DateTime day) {
+    final slots = AppointmentsBusinessRules.buildDailySlots(
+      day: day,
+      existingAppointments: widget.existingAppointments,
+      durationMinutes: _durationMinutes,
+      stepMinutes: AppointmentsBusinessRules.slotStepMinutes,
+    );
+    final now = DateTime.now();
+    final futureSlots = slots.where((slot) => slot.start.isAfter(now)).toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+    if (futureSlots.isNotEmpty) return futureSlots.first.start;
+
+    return DateTime(
+      day.year,
+      day.month,
+      day.day,
+      AppointmentsBusinessRules.workdayStartHour,
+    );
   }
 
   DateTime _nextWorkingSlotFrom(DateTime from) {
@@ -575,29 +622,17 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   }
 
   Future<void> _pickDateTime() async {
+    final now = DateTime.now();
     final d = await showDatePicker(
       context: context,
-      initialDate: _dateTime,
-      firstDate: DateTime.now(),
+      initialDate: _dateTime.isBefore(now) ? now : _dateTime,
+      firstDate: now,
       lastDate: DateTime(2035),
     );
     if (d == null) return;
-    TimeOfDay? pickedTime;
-    if (_isUrgencyBooking && mounted) {
-      pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_dateTime),
-      );
-    }
 
     setState(() {
-      _dateTime = DateTime(
-        d.year,
-        d.month,
-        d.day,
-        pickedTime?.hour ?? AppointmentsBusinessRules.workdayStartHour,
-        pickedTime?.minute ?? 0,
-      );
+      _dateTime = _firstSelectableSlotForDay(d);
       _errorMsg = null;
     });
   }
@@ -724,6 +759,161 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
       subtitle:
           '$available disponibles · $blocked bloqueados. Seleccionado: ${appointmentFmtDateTime(_dateTime)}.',
       color: color,
+    );
+  }
+
+  Widget _dateTimeSelector(AvailabilityDayModel? availability) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.schedule, color: OcgColors.espresso),
+          title: const Text('Fecha y hora'),
+          subtitle: Text(
+            appointmentFmtDateTime(_dateTime),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: OcgColors.espresso,
+            ),
+          ),
+          trailing: const Icon(Icons.edit_calendar, color: OcgColors.bronze),
+          onTap: _pickDateTime,
+        ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Horarios disponibles por jornada. Mañana arriba (08:00 a 11:30) y tarde abajo (14:00 en adelante). Puedes desplegar o recoger cada bloque.',
+            style: TextStyle(
+              fontSize: 12,
+              color: OcgColors.ink.withOpacity(0.65),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Builder(
+          builder: (_) {
+            final sortedSlots = _slotsForCurrentDay(availability).toList()
+              ..sort((a, b) => a.start.compareTo(b.start));
+            final morningSlots = sortedSlots
+                .where((s) => s.start.hour < 12)
+                .toList();
+            final afternoonSlots = sortedSlots
+                .where((s) => s.start.hour >= 12)
+                .toList();
+
+            Widget slotChip(AppointmentTimeSlot slot) {
+              final isSelected = slot.start == _dateTime;
+              return ChoiceChip(
+                label: Text(
+                  slot.label,
+                  style: TextStyle(
+                    color: slot.isAvailable
+                        ? OcgColors.espresso
+                        : Colors.grey.shade600,
+                  ),
+                ),
+                selected: isSelected && slot.isAvailable,
+                disabledColor: Colors.grey.shade300,
+                selectedColor: OcgColors.sand,
+                avatar: slot.isAvailable
+                    ? const Icon(Icons.check_circle_outline, size: 15)
+                    : const Icon(Icons.block, size: 15),
+                onSelected: slot.isAvailable
+                    ? (_) => setState(() {
+                        _dateTime = slot.start;
+                        _errorMsg = null;
+                      })
+                    : null,
+              );
+            }
+
+            Widget section({
+              required String title,
+              required bool expanded,
+              required VoidCallback onToggle,
+              required List<AppointmentTimeSlot> slots,
+            }) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7EF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: OcgColors.bronze.withOpacity(0.22)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: onToggle,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: OcgColors.espresso,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            expanded ? Icons.expand_less : Icons.expand_more,
+                            color: OcgColors.bronze,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (expanded) ...[
+                      const SizedBox(height: 8),
+                      if (slots.isEmpty)
+                        Text(
+                          'Sin horarios en esta jornada.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: OcgColors.ink.withOpacity(0.6),
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: slots.map(slotChip).toList(),
+                        ),
+                    ],
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _slotAvailabilitySummary(sortedSlots),
+                const SizedBox(height: 8),
+                _slotLegend(),
+                const SizedBox(height: 8),
+                section(
+                  title: 'Mañana (08:00 - 11:30)',
+                  expanded: _expandMorning,
+                  onToggle: () =>
+                      setState(() => _expandMorning = !_expandMorning),
+                  slots: morningSlots,
+                ),
+                section(
+                  title: 'Tarde (14:00 - cierre)',
+                  expanded: _expandAfternoon,
+                  onToggle: () =>
+                      setState(() => _expandAfternoon = !_expandAfternoon),
+                  slots: afternoonSlots,
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -999,6 +1189,8 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
                   color: OcgColors.error,
                 ),
                 const SizedBox(height: 12),
+                _dateTimeSelector(availability),
+                const SizedBox(height: 12),
               ],
               // ── Buscador de paciente ───────────────────────────────────
               TextField(
@@ -1244,163 +1436,169 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               const SizedBox(height: 10),
 
               // ── Fecha y hora ───────────────────────────────────────────
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.schedule, color: OcgColors.espresso),
-                title: const Text('Fecha y hora'),
-                subtitle: Text(
-                  appointmentFmtDateTime(_dateTime),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
+              if (!_isUrgencyBooking) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.schedule,
                     color: OcgColors.espresso,
                   ),
+                  title: const Text('Fecha y hora'),
+                  subtitle: Text(
+                    appointmentFmtDateTime(_dateTime),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.edit_calendar,
+                    color: OcgColors.bronze,
+                  ),
+                  onTap: _pickDateTime,
                 ),
-                trailing: const Icon(
-                  Icons.edit_calendar,
-                  color: OcgColors.bronze,
-                ),
-                onTap: _pickDateTime,
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Horarios disponibles por jornada. Mañana arriba (08:00 a 11:30) y tarde abajo (14:00 en adelante). Puedes desplegar o recoger cada bloque.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: OcgColors.ink.withOpacity(0.65),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Horarios disponibles por jornada. Mañana arriba (08:00 a 11:30) y tarde abajo (14:00 en adelante). Puedes desplegar o recoger cada bloque.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: OcgColors.ink.withOpacity(0.65),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Builder(
-                builder: (_) {
-                  final sortedSlots = _slotsForCurrentDay(availability).toList()
-                    ..sort((a, b) => a.start.compareTo(b.start));
-                  final morningSlots = sortedSlots
-                      .where((s) => s.start.hour < 12)
-                      .toList();
-                  final afternoonSlots = sortedSlots
-                      .where((s) => s.start.hour >= 12)
-                      .toList();
+                const SizedBox(height: 6),
+                Builder(
+                  builder: (_) {
+                    final sortedSlots = _slotsForCurrentDay(
+                      availability,
+                    ).toList()..sort((a, b) => a.start.compareTo(b.start));
+                    final morningSlots = sortedSlots
+                        .where((s) => s.start.hour < 12)
+                        .toList();
+                    final afternoonSlots = sortedSlots
+                        .where((s) => s.start.hour >= 12)
+                        .toList();
 
-                  Widget slotChip(AppointmentTimeSlot slot) {
-                    final isSelected = slot.start == _dateTime;
-                    return ChoiceChip(
-                      label: Text(
-                        slot.label,
-                        style: TextStyle(
-                          color: slot.isAvailable
-                              ? OcgColors.espresso
-                              : Colors.grey.shade600,
+                    Widget slotChip(AppointmentTimeSlot slot) {
+                      final isSelected = slot.start == _dateTime;
+                      return ChoiceChip(
+                        label: Text(
+                          slot.label,
+                          style: TextStyle(
+                            color: slot.isAvailable
+                                ? OcgColors.espresso
+                                : Colors.grey.shade600,
+                          ),
                         ),
-                      ),
-                      selected: isSelected && slot.isAvailable,
-                      disabledColor: Colors.grey.shade300,
-                      selectedColor: OcgColors.sand,
-                      avatar: slot.isAvailable
-                          ? const Icon(Icons.check_circle_outline, size: 15)
-                          : const Icon(Icons.block, size: 15),
-                      onSelected: slot.isAvailable
-                          ? (_) => setState(() {
-                              _dateTime = slot.start;
-                              _errorMsg = null;
-                            })
-                          : null,
-                    );
-                  }
+                        selected: isSelected && slot.isAvailable,
+                        disabledColor: Colors.grey.shade300,
+                        selectedColor: OcgColors.sand,
+                        avatar: slot.isAvailable
+                            ? const Icon(Icons.check_circle_outline, size: 15)
+                            : const Icon(Icons.block, size: 15),
+                        onSelected: slot.isAvailable
+                            ? (_) => setState(() {
+                                _dateTime = slot.start;
+                                _errorMsg = null;
+                              })
+                            : null,
+                      );
+                    }
 
-                  Widget section({
-                    required String title,
-                    required bool expanded,
-                    required VoidCallback onToggle,
-                    required List<AppointmentTimeSlot> slots,
-                  }) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7EF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: OcgColors.bronze.withOpacity(0.22),
+                    Widget section({
+                      required String title,
+                      required bool expanded,
+                      required VoidCallback onToggle,
+                      required List<AppointmentTimeSlot> slots,
+                    }) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7EF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: OcgColors.bronze.withOpacity(0.22),
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: onToggle,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: OcgColors.espresso,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: onToggle,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: OcgColors.espresso,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Icon(
-                                  expanded
-                                      ? Icons.expand_less
-                                      : Icons.expand_more,
-                                  color: OcgColors.bronze,
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (expanded) ...[
-                            const SizedBox(height: 8),
-                            if (slots.isEmpty)
-                              Text(
-                                'Sin horarios en esta jornada.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: OcgColors.ink.withOpacity(0.6),
-                                ),
-                              )
-                            else
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: slots.map(slotChip).toList(),
+                                  Icon(
+                                    expanded
+                                        ? Icons.expand_less
+                                        : Icons.expand_more,
+                                    color: OcgColors.bronze,
+                                  ),
+                                ],
                               ),
+                            ),
+                            if (expanded) ...[
+                              const SizedBox(height: 8),
+                              if (slots.isEmpty)
+                                Text(
+                                  'Sin horarios en esta jornada.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: OcgColors.ink.withOpacity(0.6),
+                                  ),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: slots.map(slotChip).toList(),
+                                ),
+                            ],
                           ],
-                        ],
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _slotAvailabilitySummary(sortedSlots),
-                      const SizedBox(height: 8),
-                      _slotLegend(),
-                      const SizedBox(height: 8),
-                      section(
-                        title: 'Mañana (08:00 - 11:30)',
-                        expanded: _expandMorning,
-                        onToggle: () =>
-                            setState(() => _expandMorning = !_expandMorning),
-                        slots: morningSlots,
-                      ),
-                      section(
-                        title: 'Tarde (14:00 - cierre)',
-                        expanded: _expandAfternoon,
-                        onToggle: () => setState(
-                          () => _expandAfternoon = !_expandAfternoon,
                         ),
-                        slots: afternoonSlots,
-                      ),
-                    ],
-                  );
-                },
-              ),
+                      );
+                    }
 
-              // ── Duración ───────────────────────────────────────────────
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _slotAvailabilitySummary(sortedSlots),
+                        const SizedBox(height: 8),
+                        _slotLegend(),
+                        const SizedBox(height: 8),
+                        section(
+                          title: 'Mañana (08:00 - 11:30)',
+                          expanded: _expandMorning,
+                          onToggle: () =>
+                              setState(() => _expandMorning = !_expandMorning),
+                          slots: morningSlots,
+                        ),
+                        section(
+                          title: 'Tarde (14:00 - cierre)',
+                          expanded: _expandAfternoon,
+                          onToggle: () => setState(
+                            () => _expandAfternoon = !_expandAfternoon,
+                          ),
+                          slots: afternoonSlots,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                // ── Duración ───────────────────────────────────────────────
+              ],
               //No va a llevar duracion porque cada cita puede durar en promedio 30 a 45 minutos.
 
               // ── Notas ──────────────────────────────────────────────────
@@ -1568,80 +1766,46 @@ class _AdminAppointmentsScreenState
     BuildContext context,
     AppointmentModel a,
   ) async {
-    final ui = appointmentStatusUi(a);
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(a.patientName),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (dialogCtx) {
+        var detailClosed = false;
+
+        void closeDetail() {
+          if (detailClosed) return;
+          detailClosed = true;
+          popDialog(dialogCtx);
+        }
+
+        return AlertDialog(
+          titlePadding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+          contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          title: Row(
             children: [
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 16, color: ui.dot),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')}/${a.fechaHora.year} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.medical_services, size: 16, color: ui.dot),
-                  const SizedBox(width: 6),
-                  Text(_tipoLabel(a.tipo)),
-                ],
-              ),
-              if (a.notas != null && a.notas!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('Notas: ${a.notas}'),
-              ],
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: ui.dot.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  ui.label,
-                  style: TextStyle(color: ui.dot, fontWeight: FontWeight.w700),
-                ),
+              const Icon(Icons.event_note_outlined, color: OcgColors.bronze),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Detalle de cita')),
+              IconButton(
+                tooltip: 'Cerrar',
+                onPressed: closeDetail,
+                icon: const Icon(Icons.close),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: _buildAgendaAppointmentCard(
+                a,
+                dense: true,
+                beforeAction: closeDetail,
+              ),
+            ),
           ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showRescheduleDialog(a);
-            },
-            child: const Text('Reprogramar'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
-
-  String _tipoLabel(AppointmentType t) => switch (t) {
-    AppointmentType.valoracion => 'Valoración',
-    AppointmentType.control => 'Control',
-    AppointmentType.instalacion => 'Instalación',
-    AppointmentType.urgencia => 'Urgencia',
-    AppointmentType.alta => 'Alta',
-  };
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
@@ -2506,7 +2670,19 @@ class _AdminAppointmentsScreenState
 
   /// Acciones de acceso rápido (botones visibles fuera del popup)
   List<Widget> _buildQuickActions(AppointmentModel a) {
+    return _buildQuickActionsFor(a);
+  }
+
+  List<Widget> _buildQuickActionsFor(
+    AppointmentModel a, {
+    VoidCallback? beforeAction,
+  }) {
     final quick = <Widget>[];
+
+    void run(String action) {
+      beforeAction?.call();
+      _handleStatusAction(a, action);
+    }
 
     // Dictamen — siempre visible
     quick.add(
@@ -2514,7 +2690,7 @@ class _AdminAppointmentsScreenState
         icon: Icons.description_outlined,
         label: 'Dictamen',
         color: OcgColors.bronze,
-        onTap: () => _handleStatusAction(a, 'dictamen'),
+        onTap: () => run('dictamen'),
       ),
     );
 
@@ -2525,7 +2701,7 @@ class _AdminAppointmentsScreenState
           icon: Icons.check_circle_outline,
           label: 'Confirmar',
           color: const Color(0xFF1565C0),
-          onTap: () => _handleStatusAction(a, 'confirmar'),
+          onTap: () => run('confirmar'),
         ),
       );
     } else if (a.estado == AppointmentStatus.confirmada) {
@@ -2534,7 +2710,7 @@ class _AdminAppointmentsScreenState
           icon: Icons.done_all,
           label: 'Completar',
           color: const Color(0xFF2E7D32),
-          onTap: () => _handleStatusAction(a, 'completar'),
+          onTap: () => run('completar'),
         ),
       );
     }
@@ -2569,15 +2745,25 @@ class _AdminAppointmentsScreenState
   /// Acciones secundarias (dentro del popup)
   List<PopupMenuEntry<_AppointmentAction>> _buildSecondaryMenuItems(
     AppointmentModel a,
-  ) {
+  ) => _buildSecondaryMenuItemsFor(a);
+
+  List<PopupMenuEntry<_AppointmentAction>> _buildSecondaryMenuItemsFor(
+    AppointmentModel a, {
+    VoidCallback? beforeAction,
+  }) {
     final items = <PopupMenuEntry<_AppointmentAction>>[];
+
+    void run(VoidCallback action) {
+      beforeAction?.call();
+      action();
+    }
 
     items.add(
       PopupMenuItem<_AppointmentAction>(
         value: _AppointmentAction(
           label: 'Perfil del paciente',
           icon: Icons.person_outline,
-          onTap: () => _openPatientProfile(a.patientId),
+          onTap: () => run(() => _openPatientProfile(a.patientId)),
         ),
         height: 42,
         child: _actionRow(
@@ -2601,7 +2787,7 @@ class _AdminAppointmentsScreenState
             label: label,
             icon: icon,
             color: color,
-            onTap: onTap,
+            onTap: () => run(onTap),
           ),
           height: 42,
           child: _actionRow(icon, label, color ?? OcgColors.espresso),
@@ -2645,8 +2831,13 @@ class _AdminAppointmentsScreenState
     return items;
   }
 
-  Widget _buildAppointmentActionsInline(AppointmentModel a) {
-    final quickActions = _buildQuickActions(a);
+  Widget _buildAppointmentActionsInline(
+    AppointmentModel a, {
+    VoidCallback? beforeAction,
+  }) {
+    final quickActions = beforeAction == null
+        ? _buildQuickActions(a)
+        : _buildQuickActionsFor(a, beforeAction: beforeAction);
 
     return Wrap(
       spacing: 8,
@@ -2697,6 +2888,7 @@ class _AdminAppointmentsScreenState
     bool showDate = true,
     bool dense = false,
     bool highlighted = false,
+    VoidCallback? beforeAction,
   }) {
     final ui = appointmentStatusUi(a);
     final timeLabel = showDate
@@ -2882,7 +3074,7 @@ class _AdminAppointmentsScreenState
                 ),
               ],
               const SizedBox(height: 10),
-              _buildAppointmentActionsInline(a),
+              _buildAppointmentActionsInline(a, beforeAction: beforeAction),
             ],
           ),
           // ── Botón ⋮ fijo en esquina inferior derecha ──
@@ -2896,7 +3088,9 @@ class _AdminAppointmentsScreenState
                 borderRadius: BorderRadius.circular(16),
               ),
               elevation: 8,
-              itemBuilder: (context) => _buildSecondaryMenuItems(a),
+              itemBuilder: (context) => beforeAction == null
+                  ? _buildSecondaryMenuItems(a)
+                  : _buildSecondaryMenuItemsFor(a, beforeAction: beforeAction),
               onSelected: (action) => action.onTap(),
             ),
           ),

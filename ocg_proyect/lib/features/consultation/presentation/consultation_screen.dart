@@ -93,24 +93,26 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
   }
 
   Future<void> _loadPatientData() async {
-    final patientId = widget.appointment.patientId;
+    final appointment = widget.appointment;
+    final patientId = appointment.patientId;
     debugPrint('[_loadPatientData] Cargando datos para patientId=$patientId');
 
     try {
       // Usar el repositorio directamente para evitar problemas con StreamProvider
-      final repo = ref.read(patientsRepositoryProvider);
-      final patient = await repo.getPatient(patientId);
+      final patientsRepo = ref.read(patientsRepositoryProvider);
+      final treatmentsRepo = ref.read(patientTreatmentsRepositoryProvider);
+
+      final patient = await patientsRepo.getPatient(patientId);
+      if (!mounted) return;
       debugPrint('[_loadPatientData] Paciente: ${patient?.nombre ?? 'null'}');
 
-      final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
-      final treatments = await treatRepo.getPatientTreatments(patientId);
+      final treatments = await treatmentsRepo.getPatientTreatments(patientId);
+      if (!mounted) return;
       debugPrint('[_loadPatientData] Tratamientos: ${treatments.length}');
       final treatmentResolution = const ConsultationTreatmentResolver().resolve(
-        appointment: widget.appointment,
+        appointment: appointment,
         treatments: treatments,
       );
-
-      if (!mounted) return;
 
       setState(() {
         _patient = patient;
@@ -255,6 +257,8 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
       final now = DateTime.now();
       final patientId = widget.appointment.patientId;
       final actorId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+      final treatmentsRepo = ref.read(patientTreatmentsRepositoryProvider);
+      final consultationRepo = ref.read(consultationRepositoryProvider);
 
       // ── Auto-crear tratamiento si el paciente no tiene ninguno ──────
       // La primera valoración *es* donde nace el tratamiento. Si no existe,
@@ -264,7 +268,6 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         debugPrint(
           '[Consultation] Paciente sin tratamiento — auto-creando uno',
         );
-        final treatRepo = ref.read(patientTreatmentsRepositoryProvider);
         final newTreatmentId = '$patientId-auto-${now.millisecondsSinceEpoch}';
         treatment = PatientTreatment(
           id: newTreatmentId,
@@ -285,10 +288,11 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
               'Creado automáticamente durante la consulta '
               'del ${_fmtDate(widget.appointment.fechaHora)}.',
         );
-        await treatRepo.saveTreatment(
+        await treatmentsRepo.saveTreatment(
           patientId: patientId,
           treatment: treatment,
         );
+        if (!mounted) return;
         // Actualizar estado local para que la consulta use este tratamiento
         setState(() {
           _selectedTreatment = treatment;
@@ -301,8 +305,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
         debugPrint('[Consultation] Tratamiento auto-creado: ${treatment.id}');
       }
 
-      final repo = ref.read(consultationRepositoryProvider);
-      final consultationId = repo.newConsultationId(patientId);
+      final consultationId = consultationRepo.newConsultationId(patientId);
       final treatmentId = treatment.id.startsWith('legacy-primary-')
           ? null
           : treatment.id;
@@ -418,7 +421,7 @@ class _ConsultationScreenState extends ConsumerState<ConsultationScreen> {
 
       // 3. Si avanzó de fase, actualizar paciente
       final attachmentsSummary = _buildAttachmentsSummary();
-      await repo.saveCompletedConsultation(
+      await consultationRepo.saveCompletedConsultation(
         consultation: consultation,
         clinicalFiles: clinicalFiles,
         appointmentId: widget.appointment.id,

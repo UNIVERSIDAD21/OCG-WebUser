@@ -317,9 +317,8 @@ class _TimeGridViewState extends State<TimeGridView>
         final otherEnd = other.fechaHora.add(
           Duration(minutes: other.duracionMinutos),
         );
-        if (!appt.fechaHora.isAtSameMomentAs(other.fechaHora) &&
-            !apptEnd.isBefore(other.fechaHora) &&
-            !otherEnd.isBefore(appt.fechaHora)) {
+        if (appt.fechaHora.isBefore(otherEnd) &&
+            other.fechaHora.isBefore(apptEnd)) {
           overlapsAny = true;
           break;
         }
@@ -494,56 +493,70 @@ class _TimeGridViewState extends State<TimeGridView>
         // Sección todo el día
         _buildAllDaySection(day, allDayAppts),
         // Grilla de tiempo
-        ...List.generate(totalSlots, (slotIndex) {
-          final isHourMark = slotIndex % 2 == 0;
-          final slotHour = startHour + (slotIndex ~/ 2);
-          final isCurrentSlot =
-              isToday &&
-              slotHour == now.hour &&
-              ((slotIndex % 2 == 0 && now.minute < 30) ||
-                  (slotIndex % 2 == 1 && now.minute >= 30));
-          final isPast =
-              isToday &&
-              (slotHour < now.hour ||
-                  (slotHour == now.hour &&
-                      (slotIndex % 2 == 0 ? 0 : 30) < now.minute));
+        SizedBox(
+          height: totalSlots * slotHeight,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              Widget slotCell(int slotIndex) {
+                final isHourMark = slotIndex % 2 == 0;
+                final slotHour = startHour + (slotIndex ~/ 2);
+                final slotMinute = slotIndex % 2 == 0 ? 0 : 30;
+                final slotTime = DateTime(
+                  day.year,
+                  day.month,
+                  day.day,
+                  slotHour,
+                  slotMinute,
+                );
+                final isCurrentSlot =
+                    isToday &&
+                    slotHour == now.hour &&
+                    ((slotIndex % 2 == 0 && now.minute < 30) ||
+                        (slotIndex % 2 == 1 && now.minute >= 30));
+                final isPast =
+                    isToday &&
+                    (slotHour < now.hour ||
+                        (slotHour == now.hour && slotMinute < now.minute));
 
-          // Citas que empiezan en este slot
-          final slotAppts = normalAppts.where((a) {
-            return _slotIndex(a.fechaHora) == slotIndex;
-          }).toList();
-
-          return Container(
-            height: slotHeight,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isHourMark
-                      ? OcgColors.espresso.withOpacity(0.1)
-                      : OcgColors.espresso.withOpacity(0.04),
-                  width: isHourMark ? 1 : 0.5,
-                  style: isHourMark ? BorderStyle.solid : BorderStyle.solid,
-                ),
-              ),
-              color: isPast
-                  ? OcgColors.espresso.withOpacity(0.02)
-                  : (isCurrentSlot
-                        ? const Color(0xFFDC2626).withOpacity(0.04)
-                        : null),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Citas en este slot
-                for (final appt in slotAppts)
-                  _buildAppointmentCard(
-                    appt,
-                    layouts[normalAppts.indexOf(appt)],
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => widget.onTapSlot(slotTime),
+                  child: Container(
+                    height: slotHeight,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isHourMark
+                              ? OcgColors.espresso.withOpacity(0.1)
+                              : OcgColors.espresso.withOpacity(0.04),
+                          width: isHourMark ? 1 : 0.5,
+                        ),
+                      ),
+                      color: isPast
+                          ? OcgColors.espresso.withOpacity(0.02)
+                          : (isCurrentSlot
+                                ? const Color(0xFFDC2626).withOpacity(0.04)
+                                : null),
+                    ),
                   ),
-              ],
-            ),
-          );
-        }),
+                );
+              }
+
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Column(children: List.generate(totalSlots, slotCell)),
+                  for (final entry in normalAppts.asMap().entries)
+                    _buildAppointmentCard(
+                      entry.value,
+                      layouts[entry.key],
+                      constraints.maxWidth,
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -551,27 +564,35 @@ class _TimeGridViewState extends State<TimeGridView>
   Widget _buildAppointmentCard(
     AppointmentModel appt,
     ({double left, double width}) layout,
+    double availableWidth,
   ) {
     final slotIdx = _slotIndex(appt.fechaHora);
     if (slotIdx < 0) return const SizedBox.shrink();
 
     final minutesIntoSlot = appt.fechaHora.minute % 30;
-    final topOffset = (minutesIntoSlot / 30) * slotHeight + 2;
+    final topOffset =
+        (slotIdx * slotHeight) + (minutesIntoSlot / 30) * slotHeight + 2;
     final height = _slotSpanMinutes(appt.duracionMinutos) - 4;
     final color = _appointmentColor(appt.estado);
     final bgColor = _appointmentBgColor(appt.estado);
     final textColor = _appointmentTextColor(appt.estado);
+    final usableWidth = (availableWidth - 8)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    final isFullWidth = layout.width == double.infinity;
+    final minCardWidth = usableWidth < 28 ? usableWidth : 28.0;
+    final cardWidth = isFullWidth
+        ? null
+        : (layout.width * usableWidth)
+              .clamp(minCardWidth, usableWidth)
+              .toDouble();
 
     return Positioned(
       top: topOffset,
-      left: layout.width == double.infinity
-          ? 4.0
-          : layout.left * (100 - 8) / 100 + 4,
-      right: layout.width == double.infinity ? 4.0 : null,
-      width: layout.width == double.infinity
-          ? null
-          : layout.width * (100 - 8) / 100,
-      height: height.clamp(30.0, height),
+      left: isFullWidth ? 4.0 : 4.0 + layout.left * usableWidth,
+      right: isFullWidth ? 4.0 : null,
+      width: cardWidth,
+      height: height < 30 ? 30.0 : height,
       child: GestureDetector(
         onTap: () => widget.onTapAppointment(appt),
         child: Material(
