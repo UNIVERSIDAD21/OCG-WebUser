@@ -39,12 +39,14 @@ class AppointmentsRepository {
         });
   }
 
-  // ✅ CAMBIO: watchAllAppointments ahora incluye citas canceladas
-  //    para que la tab "Canceladas" del admin pueda mostrarlas.
-  //    Cada filtro en AdminAppointmentsScreen excluye las que no corresponden.
+  // ✅ watchAllAppointments trae TODAS las citas sin filtro de estado.
+  //    Cada filtro en AdminAppointmentsScreen aplica su propio criterio.
+  //    Se agrega .limit(1000) para evitar sobrecarga del listener en
+  //    colecciones grandes sin perder datos visibles en la agenda.
   Stream<List<AppointmentModel>> watchAllAppointments() {
     return _appointmentsRef
         .orderBy('fechaHora', descending: true)
+        .limit(1000)
         .snapshots()
         .map((s) {
           return _dedupeAppointments(
