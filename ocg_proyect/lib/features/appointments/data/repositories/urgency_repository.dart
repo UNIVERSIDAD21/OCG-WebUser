@@ -263,11 +263,63 @@ class UrgencyRepository {
       });
     });
 
+    // Notificar al paciente original que su cita fue reprogramada
+    await _notifyPatientOfReschedule(
+      originalPatientId: originalAppointment.patientId,
+      originalPatientName: originalAppointment.patientName,
+      originalDateTime: originalAppointment.fechaHora,
+      newDateTime: newDateTimeForOriginal,
+      urgencyRequestId: request.id,
+      movedAppointmentId: movedRef.id,
+    );
+
     return UrgencyRescheduleResult(
       urgentAppointmentId: urgentRef.id,
       movedAppointmentId: movedRef.id,
       originalAppointmentId: originalAppointment.id,
     );
+  }
+
+  // ─── Notificación al paciente reprogramado ────────────────────────────
+
+  /// Notifica al paciente original que su cita fue reprogramada.
+  Future<void> _notifyPatientOfReschedule({
+    required String originalPatientId,
+    required String originalPatientName,
+    required DateTime originalDateTime,
+    required DateTime newDateTime,
+    required String urgencyRequestId,
+    required String movedAppointmentId,
+  }) async {
+    try {
+      final fmtDate = (DateTime d) =>
+          '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')}/'
+          '${d.year} '
+          '${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}';
+
+      await _db.collection('notifications').add({
+        'patientId': originalPatientId,
+        'patientName': originalPatientName,
+        'type': 'appointment_rescheduled_for_urgency',
+        'title': 'Tu cita fue reprogramada',
+        'body':
+            'Tu cita del ${fmtDate(originalDateTime)} fue reprogramada '
+            'para atender una urgencia. Tu nuevo horario es ${fmtDate(newDateTime)}. '
+            'Si tienes dudas, contáctanos por WhatsApp.',
+        'originalDateTime': Timestamp.fromDate(originalDateTime),
+        'newDateTime': Timestamp.fromDate(newDateTime),
+        'urgencyRequestId': urgencyRequestId,
+        'movedAppointmentId': movedAppointmentId,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Si falla la notificación, no rompemos el flujo
+      // La cita ya fue reprogramada correctamente
+      print('Error notificando paciente reprogramado: $e');
+    }
   }
 
   // ─── Limpieza de urgencias antiguas (Bloque 8) ────────────────────────
