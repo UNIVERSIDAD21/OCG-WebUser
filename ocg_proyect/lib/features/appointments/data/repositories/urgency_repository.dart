@@ -300,6 +300,7 @@ class UrgencyRepository {
           '${d.minute.toString().padLeft(2, '0')}';
 
       await _db.collection('notifications').add({
+        'recipientId': originalPatientId,
         'patientId': originalPatientId,
         'patientName': originalPatientName,
         'type': 'appointment_rescheduled_for_urgency',
