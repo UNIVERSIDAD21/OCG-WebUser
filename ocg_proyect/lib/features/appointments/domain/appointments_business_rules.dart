@@ -106,7 +106,10 @@ class AppointmentsBusinessRules {
   static const int bufferMinutesBetweenAppointments = 10;
 
   /// Granularidad de slots de disponibilidad.
-  static const int slotStepMinutes = 15;
+  static const int slotStepMinutes = 30;
+
+  /// Duración por defecto de cada cita (minutos).
+  static const int defaultAppointmentDurationMinutes = 30;
 
   /// Devuelve los bloques horarios del día dado.
   /// Retorna lista vacía si el día está cerrado (domingo).

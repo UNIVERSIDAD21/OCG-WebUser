@@ -194,8 +194,14 @@ class _TimeGridViewState extends State<TimeGridView>
 
   String _formatTimeShort(DateTime d) {
     final h = d.hour > 12 ? d.hour - 12 : (d.hour == 0 ? 12 : d.hour);
-    final suffix = d.hour >= 12 ? 'p' : 'a';
-    return '$h$suffix';
+    final suffix = d.hour >= 12 ? 'PM' : 'AM';
+    return '$h:${d.minute.toString().padLeft(2, '0')} $suffix';
+  }
+
+  String _formatHourLabel(DateTime d) {
+    final h = d.hour > 12 ? d.hour - 12 : (d.hour == 0 ? 12 : d.hour);
+    final suffix = d.hour >= 12 ? 'PM' : 'AM';
+    return '$h $suffix';
   }
 
   String _formatDate(DateTime d) {
@@ -401,7 +407,7 @@ class _TimeGridViewState extends State<TimeGridView>
         ...List.generate(totalSlots, (i) {
           final isHour = i % 2 == 0;
           final label = isHour
-              ? _formatTimeShort(DateTime(0, 1, 1, startHour + (i ~/ 2)))
+              ? _formatHourLabel(DateTime(0, 1, 1, startHour + (i ~/ 2)))
               : '';
           return Container(
             height: slotHeight,
