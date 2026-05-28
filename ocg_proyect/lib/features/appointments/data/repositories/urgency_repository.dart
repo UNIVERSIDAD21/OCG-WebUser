@@ -1,9 +1,19 @@
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../shared/constants/firestore_paths.dart';
 import '../../../patients/data/models/patient_model.dart';
 import '../models/appointment_model.dart';
 import '../models/urgency_model.dart';
+
+String _fmtDate(DateTime d) {
+  return '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/'
+      '${d.year} '
+      '${d.hour.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')}';
+}
 
 class UrgencyRescheduleResult {
   const UrgencyRescheduleResult({
@@ -32,6 +42,22 @@ class UrgencyRepository {
 
   CollectionReference<Map<String, dynamic>> get _patients =>
       _db.collection(FirestorePaths.patients);
+
+  Map<String, dynamic> _patientNextAppointmentPatch({
+    required String patientId,
+    required String patientName,
+    required String patientPhone,
+    required DateTime nextAppointment,
+  }) {
+    return {
+      'id': patientId,
+      'uid': patientId,
+      if (patientName.trim().isNotEmpty) 'nombre': patientName.trim(),
+      if (patientPhone.trim().isNotEmpty) 'telefono': patientPhone.trim(),
+      'proximaCita': Timestamp.fromDate(nextAppointment),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
 
   Future<UrgencyRequestModel> create({
     required String patientId,
@@ -145,10 +171,16 @@ class UrgencyRepository {
     };
     if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;
     batch.update(requestRef, requestUpdate);
-    batch.update(patientRef, {
-      'proximaCita': Timestamp.fromDate(appointment.fechaHora),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    batch.set(
+      patientRef,
+      _patientNextAppointmentPatch(
+        patientId: request.patientId,
+        patientName: request.patientName,
+        patientPhone: request.patientPhone,
+        nextAppointment: urgencyAppointment.fechaHora,
+      ),
+      SetOptions(merge: true),
+    );
     await batch.commit();
     return appointmentRef.id;
   }
@@ -253,14 +285,26 @@ class UrgencyRepository {
       };
       if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;
       transaction.update(requestRef, requestUpdate);
-      transaction.update(originalPatientRef, {
-        'proximaCita': Timestamp.fromDate(newDateTimeForOriginal),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      transaction.update(urgentPatientRef, {
-        'proximaCita': Timestamp.fromDate(urgentSlotDateTime),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      transaction.set(
+        originalPatientRef,
+        _patientNextAppointmentPatch(
+          patientId: currentOriginal.patientId,
+          patientName: currentOriginal.patientName,
+          patientPhone: currentOriginal.patientPhone,
+          nextAppointment: newDateTimeForOriginal,
+        ),
+        SetOptions(merge: true),
+      );
+      transaction.set(
+        urgentPatientRef,
+        _patientNextAppointmentPatch(
+          patientId: request.patientId,
+          patientName: request.patientName,
+          patientPhone: request.patientPhone,
+          nextAppointment: urgentSlotDateTime,
+        ),
+        SetOptions(merge: true),
+      );
     });
 
     // Notificar al paciente original que su cita fue reprogramada
@@ -292,13 +336,6 @@ class UrgencyRepository {
     required String movedAppointmentId,
   }) async {
     try {
-      final fmtDate = (DateTime d) =>
-          '${d.day.toString().padLeft(2, '0')}/'
-          '${d.month.toString().padLeft(2, '0')}/'
-          '${d.year} '
-          '${d.hour.toString().padLeft(2, '0')}:'
-          '${d.minute.toString().padLeft(2, '0')}';
-
       await _db.collection('notifications').add({
         'recipientId': originalPatientId,
         'patientId': originalPatientId,
@@ -306,8 +343,8 @@ class UrgencyRepository {
         'type': 'appointment_rescheduled_for_urgency',
         'title': 'Tu cita fue reprogramada',
         'body':
-            'Tu cita del ${fmtDate(originalDateTime)} fue reprogramada '
-            'para atender una urgencia. Tu nuevo horario es ${fmtDate(newDateTime)}. '
+            'Tu cita del ${_fmtDate(originalDateTime)} fue reprogramada '
+            'para atender una urgencia. Tu nuevo horario es ${_fmtDate(newDateTime)}. '
             'Si tienes dudas, contáctanos por WhatsApp.',
         'originalDateTime': Timestamp.fromDate(originalDateTime),
         'newDateTime': Timestamp.fromDate(newDateTime),
@@ -319,7 +356,11 @@ class UrgencyRepository {
     } catch (e) {
       // Si falla la notificación, no rompemos el flujo
       // La cita ya fue reprogramada correctamente
-      print('Error notificando paciente reprogramado: $e');
+      developer.log(
+        'Error notificando paciente reprogramado',
+        name: 'UrgencyRepository',
+        error: e,
+      );
     }
   }
 

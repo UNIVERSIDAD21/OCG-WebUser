@@ -380,6 +380,64 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 
   bool get _isUrgencyBooking => widget.urgencyRequest != null;
 
+  DateTime _roundUpToNextSlot(DateTime value) {
+    final withLeadTime = value.add(const Duration(minutes: 15));
+    final roundedMinute = withLeadTime.minute <= 30 ? 30 : 0;
+    final roundedHour = withLeadTime.minute <= 30
+        ? withLeadTime.hour
+        : withLeadTime.hour + 1;
+    return DateTime(
+      withLeadTime.year,
+      withLeadTime.month,
+      withLeadTime.day,
+      roundedHour,
+      roundedMinute,
+    );
+  }
+
+  DateTime _initialDateTime() {
+    final base = widget.baseDate;
+    if (base != null) {
+      final fromBase = DateTime(base.year, base.month, base.day, 10);
+      if (fromBase.isAfter(DateTime.now())) return fromBase;
+    }
+
+    final nextSlot = _roundUpToNextSlot(DateTime.now());
+    if (_isUrgencyBooking) return nextSlot;
+    return _nextWorkingSlotFrom(nextSlot);
+  }
+
+  DateTime _nextWorkingSlotFrom(DateTime from) {
+    final firstDay = DateTime(from.year, from.month, from.day);
+    for (var dayOffset = 0; dayOffset < 21; dayOffset++) {
+      final day = firstDay.add(Duration(days: dayOffset));
+      for (final block in AppointmentsBusinessRules.scheduleBlocksForDay(day)) {
+        final blockStart = DateTime(
+          day.year,
+          day.month,
+          day.day,
+          block.startHour,
+        );
+        final blockEnd = DateTime(day.year, day.month, day.day, block.endHour);
+        final candidate = dayOffset == 0 && from.isAfter(blockStart)
+            ? from
+            : blockStart;
+        if (!candidate
+            .add(Duration(minutes: _durationMinutes))
+            .isAfter(blockEnd)) {
+          return candidate;
+        }
+      }
+    }
+
+    return DateTime(
+      from.year,
+      from.month,
+      from.day + 1,
+      AppointmentsBusinessRules.workdayStartHour,
+    );
+  }
+
   PatientModel _patientFromUrgency(UrgencyRequestModel urgency) {
     return PatientModel.fromJson({
       'id': urgency.patientId,
@@ -397,8 +455,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   @override
   void initState() {
     super.initState();
-    final seed = widget.baseDate ?? DateTime.now();
-    _dateTime = DateTime(seed.year, seed.month, seed.day, 10, 0);
+    _dateTime = _initialDateTime();
     final urgency = widget.urgencyRequest;
     _selectedPatient =
         widget.preselectedPatient ??
@@ -632,6 +689,24 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   }
 
   Widget _slotAvailabilitySummary(List<AppointmentTimeSlot> slots) {
+    if (_isUrgencyBooking) {
+      final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+        start: _dateTime,
+      );
+      final isReady = notPastError == null;
+      return _flowInfoCard(
+        icon: isReady
+            ? Icons.priority_high_rounded
+            : Icons.warning_amber_outlined,
+        title: isReady
+            ? 'Horario de urgencia listo'
+            : 'Selecciona un horario futuro',
+        subtitle:
+            'Seleccionado: ${appointmentFmtDateTime(_dateTime)}. Si hay conflicto, se pedirá confirmación manual.',
+        color: isReady ? const Color(0xFF2E7D32) : OcgColors.error,
+      );
+    }
+
     final total = slots.length;
     final available = slots.where((s) => s.isAvailable).length;
     final blocked = total - available;
@@ -727,6 +802,8 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     final notasTexto = _notesCtrl.text.trim();
     try {
       if (_isUrgencyBooking) {
+        final adminId =
+            ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
         // Bloque 5: usar createAppointmentFromUrgency que bypassa validaciones
         // y actualiza la urgencia en un solo batch atómico
         final urgencyAppointment = AppointmentModel(
@@ -736,22 +813,21 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
           patientPhone: _selectedPatient!.telefono,
           treatmentId: selectedTreatment?.id,
           treatmentNameSnapshot: selectedTreatment?.displayName,
-          creadoPor: 'admin',
+          creadoPor: adminId,
           tipo: effectiveType,
           estado: AppointmentStatus.programada,
           fechaHora: _dateTime,
           duracionMinutos: _durationMinutes,
           notas: notasTexto.isEmpty ? null : notasTexto,
           stageId: effectiveStage,
-          stageNameSnapshot:
-              stageNames[effectiveStage] ?? effectiveStage.name,
+          stageNameSnapshot: stageNames[effectiveStage] ?? effectiveStage.name,
         );
         await widget.callerRef
             .read(urgencyRepositoryProvider)
             .createAppointmentFromUrgency(
               request: widget.urgencyRequest!,
               appointment: urgencyAppointment,
-              adminId: 'admin',
+              adminId: adminId,
               adminNotes: notasTexto.isEmpty ? null : notasTexto,
             );
       } else {
@@ -1382,7 +1458,8 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   AgendaInnerTab _innerTab = AgendaInnerTab.hoy;
-  bool _showTimeGrid = false; // Toggle entre vista lista y grilla de tiempo
+  final bool _showTimeGrid =
+      false; // Toggle entre vista lista y grilla de tiempo
   DateTime _monthCursor = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -1525,7 +1602,10 @@ class _AdminAppointmentsScreenState
               ],
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: ui.dot.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -1556,12 +1636,12 @@ class _AdminAppointmentsScreenState
   }
 
   String _tipoLabel(AppointmentType t) => switch (t) {
-        AppointmentType.valoracion => 'Valoración',
-        AppointmentType.control => 'Control',
-        AppointmentType.instalacion => 'Instalación',
-        AppointmentType.urgencia => 'Urgencia',
-        AppointmentType.alta => 'Alta',
-      };
+    AppointmentType.valoracion => 'Valoración',
+    AppointmentType.control => 'Control',
+    AppointmentType.instalacion => 'Instalación',
+    AppointmentType.urgencia => 'Urgencia',
+    AppointmentType.alta => 'Alta',
+  };
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
@@ -3496,12 +3576,21 @@ class AppointmentCard extends StatelessWidget {
       AppointmentStatus.noAsistio => 'No asistió',
       AppointmentStatus.reprogramada => 'Reprogramada',
     };
+    final isUrgency = appointment.tipo == AppointmentType.urgencia;
+    final cardRadius = BorderRadius.circular(isUrgency ? 8 : 14);
+    final borderColor = isUrgency
+        ? OcgColors.error.withOpacity(0.38)
+        : statusColor.withOpacity(0.25);
 
     return Card(
-      elevation: 1,
+      elevation: isUrgency ? 3 : 1,
+      color: isUrgency ? const Color(0xFFFFFCF8) : null,
+      shadowColor: isUrgency
+          ? OcgColors.error.withOpacity(0.18)
+          : OcgColors.espresso.withOpacity(0.08),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: statusColor.withOpacity(0.25)),
+        borderRadius: cardRadius,
+        side: BorderSide(color: borderColor, width: isUrgency ? 1.2 : 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -3509,52 +3598,67 @@ class AppointmentCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Cabecera ─────────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    appointment.patientName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+            if (isUrgency)
+              _UrgentAppointmentHeader(
+                appointment: appointment,
+                statusColor: statusColor,
+                statusLabel: statusLabel,
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      appointment.patientName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 3,
+                  _AppointmentStatusChip(
+                    label: statusLabel,
+                    color: statusColor,
                   ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${appointmentTypeLabel(appointment.tipo)} · '
-              '${appointmentFmtDateTime(appointment.fechaHora)} · '
-              '${appointment.duracionMinutos} min',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            if (appointment.notas != null && appointment.notas!.isNotEmpty) ...[
-              const SizedBox(height: 4),
+                ],
+              ),
+            const SizedBox(height: 8),
+            if (isUrgency)
+              _UrgentAppointmentMeta(appointment: appointment)
+            else
               Text(
-                appointment.notas!,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic,
+                '${appointmentTypeLabel(appointment.tipo)} · '
+                '${appointmentFmtDateTime(appointment.fechaHora)} · '
+                '${appointment.duracionMinutos} min',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            if (appointment.notas != null && appointment.notas!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isUrgency ? 10 : 0,
+                  vertical: isUrgency ? 8 : 0,
+                ),
+                decoration: BoxDecoration(
+                  color: isUrgency
+                      ? const Color(0xFFFFF4F2)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: isUrgency
+                      ? Border.all(color: OcgColors.error.withOpacity(0.14))
+                      : null,
+                ),
+                child: Text(
+                  appointment.notas!,
+                  style: TextStyle(
+                    fontSize: isUrgency ? 12 : 11,
+                    color: isUrgency
+                        ? OcgColors.espresso.withOpacity(0.72)
+                        : Colors.grey.shade500,
+                    fontStyle: FontStyle.italic,
+                    height: 1.25,
+                  ),
                 ),
               ),
             ],
@@ -3771,6 +3875,155 @@ class AppointmentCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UrgentAppointmentHeader extends StatelessWidget {
+  const _UrgentAppointmentHeader({
+    required this.appointment,
+    required this.statusColor,
+    required this.statusLabel,
+  });
+
+  final AppointmentModel appointment;
+  final Color statusColor;
+  final String statusLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: OcgColors.espresso,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(
+            Icons.priority_high_rounded,
+            color: Color(0xFFFFE7E7),
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Urgencia OCG',
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                appointment.patientName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: OcgColors.espresso.withOpacity(0.68),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _AppointmentStatusChip(label: statusLabel, color: statusColor),
+      ],
+    );
+  }
+}
+
+class _UrgentAppointmentMeta extends StatelessWidget {
+  const _UrgentAppointmentMeta({required this.appointment});
+
+  final AppointmentModel appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: OcgColors.ivory,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OcgColors.sand.withOpacity(0.8)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.schedule_rounded,
+            size: 17,
+            color: OcgColors.espresso.withOpacity(0.72),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              appointmentFmtDateTime(appointment.fechaHora),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: OcgColors.sand),
+            ),
+            child: Text(
+              '${appointment.duracionMinutos} min',
+              style: const TextStyle(
+                color: OcgColors.bronze,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppointmentStatusChip extends StatelessWidget {
+  const _AppointmentStatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.16)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

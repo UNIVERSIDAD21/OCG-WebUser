@@ -1692,16 +1692,16 @@ class _UrgencyBlock extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFFE4E4), width: 1.5),
+          color: const Color(0xFFFFFCF8),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: OcgColors.sand),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFEF4444).withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: OcgColors.espresso.withOpacity(0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -1711,14 +1711,15 @@ class _UrgencyBlock extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: OcgColors.espresso,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
                     Icons.warning_amber_rounded,
-                    color: Color(0xFFEF4444),
+                    color: Color(0xFFFFE7E7),
                     size: 22,
                   ),
                 ),
@@ -1731,16 +1732,17 @@ class _UrgencyBlock extends ConsumerWidget {
                         '¿Necesitas atención urgente?',
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF2C2016),
+                          fontWeight: FontWeight.w900,
+                          color: OcgColors.espresso,
                         ),
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Si tienes una emergencia o dolor severo, envíanos tu situación.',
+                        'Dolor severo, inflamación o accidente con aparatología.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          color: OcgColors.bronze,
+                          height: 1.25,
                         ),
                       ),
                     ],
@@ -1760,17 +1762,17 @@ class _UrgencyBlock extends ConsumerWidget {
                   state?._showUrgencyRequestDialog(context, ref);
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF4444),
-                  foregroundColor: Colors.white,
+                  backgroundColor: OcgColors.espresso,
+                  foregroundColor: OcgColors.ivory,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 icon: const Icon(Icons.priority_high, size: 20),
                 label: const Text(
-                  '📝  Solicitar atención prioritaria',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  'Solicitar atención prioritaria',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -1784,8 +1786,8 @@ class _UrgencyBlock extends ConsumerWidget {
                     'o también',
                     style: TextStyle(
                       fontSize: 11,
-                      color: const Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
+                      color: OcgColors.bronze,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1805,16 +1807,19 @@ class _UrgencyBlock extends ConsumerWidget {
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF25D366),
-                  side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
+                  side: BorderSide(
+                    color: const Color(0xFF25D366).withOpacity(0.85),
+                    width: 1.2,
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 icon: const Icon(Icons.chat_bubble_outline, size: 20),
                 label: const Text(
-                  '💬  Ir directo a WhatsApp',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  'Ir directo a WhatsApp',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
                 ),
               ),
             ),

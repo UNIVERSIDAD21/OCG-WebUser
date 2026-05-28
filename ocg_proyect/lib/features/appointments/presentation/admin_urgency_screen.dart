@@ -129,17 +129,19 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     UrgencyRequestModel urgency,
     List<AppointmentModel> appointments,
   ) async {
+    final now = DateTime.now();
     final candidates =
         appointments
             .where(_isOperationalNormalAppointment)
             .where((appointment) => appointment.patientId != urgency.patientId)
+            .where((appointment) => appointment.fechaHora.isAfter(now))
             .toList()
           ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
     if (candidates.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No hay citas normales para reprogramar.'),
+          content: Text('No hay citas normales futuras para reprogramar.'),
         ),
       );
       return;
@@ -352,7 +354,11 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
-      return AdminWebShell(title: 'Urgencias', child: content);
+      return AdminWebShell(
+        title: 'Urgencias',
+        scrollable: false,
+        child: content,
+      );
     }
 
     if (widget.embeddedInMobileShell) return content;
