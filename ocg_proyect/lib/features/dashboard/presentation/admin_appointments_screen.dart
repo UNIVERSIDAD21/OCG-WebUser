@@ -28,6 +28,8 @@ import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../presentation/web/common/web_layout_context.dart';
 import 'admin_appointments_agenda_helpers.dart';
 import 'admin_appointments_formatters.dart';
+import 'widgets/time_grid_view.dart';
+import 'widgets/month_calendar_widget.dart';
 import '../../admin/presentation/web/layout/admin_desktop_layout.dart';
 import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../admin/presentation/web/components/section_panel.dart';
@@ -1380,6 +1382,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
 class _AdminAppointmentsScreenState
     extends ConsumerState<AdminAppointmentsScreen> {
   AgendaInnerTab _innerTab = AgendaInnerTab.hoy;
+  bool _showTimeGrid = false; // Toggle entre vista lista y grilla de tiempo
   DateTime _monthCursor = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -1483,6 +1486,82 @@ class _AdminAppointmentsScreenState
       ],
     );
   }
+
+  Future<void> _openAppointmentDetail(
+    BuildContext context,
+    AppointmentModel a,
+  ) async {
+    final ui = appointmentStatusUi(a);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(a.patientName),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 16, color: ui.dot),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${a.fechaHora.day.toString().padLeft(2, '0')}/${a.fechaHora.month.toString().padLeft(2, '0')}/${a.fechaHora.year} ${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.medical_services, size: 16, color: ui.dot),
+                  const SizedBox(width: 6),
+                  Text(_tipoLabel(a.tipo)),
+                ],
+              ),
+              if (a.notas != null && a.notas!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Notas: ${a.notas}'),
+              ],
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: ui.dot.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ui.label,
+                  style: TextStyle(color: ui.dot, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showRescheduleDialog(a);
+            },
+            child: const Text('Reprogramar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _tipoLabel(AppointmentType t) => switch (t) {
+        AppointmentType.valoracion => 'Valoración',
+        AppointmentType.control => 'Control',
+        AppointmentType.instalacion => 'Instalación',
+        AppointmentType.urgencia => 'Urgencia',
+        AppointmentType.alta => 'Alta',
+      };
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     DateTime newDateTime = appt.fechaHora;
@@ -2222,6 +2301,7 @@ class _AdminAppointmentsScreenState
         child: Row(
           children: [
             item(AgendaInnerTab.hoy, 'Hoy'),
+            item(AgendaInnerTab.semana, 'Semana'),
             item(AgendaInnerTab.mes, 'Mes'),
             item(AgendaInnerTab.historial, 'Historial'),
           ],
@@ -2240,6 +2320,11 @@ class _AdminAppointmentsScreenState
             value: AgendaInnerTab.hoy,
             label: 'Hoy',
             icon: Icons.today_outlined,
+          ),
+          OcgSegmentedTabItem(
+            value: AgendaInnerTab.semana,
+            label: 'Semana',
+            icon: Icons.view_week_outlined,
           ),
           OcgSegmentedTabItem(
             value: AgendaInnerTab.mes,
@@ -4024,17 +4109,93 @@ class _AdminAppointmentsScreenState
     final loadedAppointments =
         appointmentsAsync.asData?.value ?? const <AppointmentModel>[];
 
+    // Calendario del mes: SIEMPRE visible como sidebar/hero
+    final persistentCalendar = MonthCalendarWidget(
+      monthCursor: _monthCursor,
+      selectedDay: _selectedMonthDay,
+      appointments: loadedAppointments,
+      onMonthChange: (delta) => setState(() => _changeMonth(delta)),
+      onDayTap: (day, dayItems) {
+        setState(() {
+          _selectedMonthDay = day;
+          ref.read(selectedAppointmentsDateProvider.notifier).setDate(day);
+        });
+      },
+    );
+
+    // Hoy: TimeGrid día
     final hoyAgendaBody = appointmentsAsync.when(
       loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
-      data: (appointments) =>
-          _buildTodayAgenda(context, appointments, selectedDate),
+      data: (appointments) => TimeGridView(
+        appointments: appointments,
+        selectedDate: selectedDate,
+        showWeek: false,
+        onTapAppointment: (a) => _openAppointmentDetail(context, a),
+        onTapSlot: (slotTime) => AdminAppointmentsScreen.showCreateDialog(
+          context,
+          ref,
+          baseDate: slotTime,
+          existingAppointments: appointments,
+        ),
+      ),
     );
 
+    // Semana: TimeGrid semanal
+    final semanaAgendaBody = appointmentsAsync.when(
+      loading: () => OcgLoadingState(),
+      error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
+      data: (appointments) => TimeGridView(
+        appointments: appointments,
+        selectedDate: selectedDate,
+        showWeek: true,
+        onTapAppointment: (a) => _openAppointmentDetail(context, a),
+        onTapSlot: (slotTime) => AdminAppointmentsScreen.showCreateDialog(
+          context,
+          ref,
+          baseDate: slotTime,
+          existingAppointments: appointments,
+        ),
+      ),
+    );
+
+    // Mes: Lista de citas del día seleccionado en el calendario
     final mesAgendaBody = appointmentsAsync.when(
       loading: () => OcgLoadingState(),
       error: (e, _) => Center(child: Text('No se pudo cargar agenda: $e')),
-      data: (appointments) => _buildMonthAgenda(context, appointments),
+      data: (appointments) {
+        final selectedDay = _selectedMonthDay;
+        if (selectedDay == null) {
+          return _agendaEmptyState(
+            title: 'Selecciona un día',
+            subtitle:
+                'Toca una fecha del calendario para ver las citas de ese día.',
+            icon: Icons.calendar_month_outlined,
+          );
+        }
+        final dayItems = appointmentsForDay(appointments, selectedDay);
+        if (dayItems.isEmpty) {
+          return _agendaEmptyState(
+            title: 'Sin citas este día',
+            subtitle:
+                'No hay citas programadas para ${selectedDay.day}/${selectedDay.month}/${selectedDay.year}.',
+            icon: Icons.event_available_outlined,
+            onPrimary: () => AdminAppointmentsScreen.showCreateDialog(
+              context,
+              ref,
+              baseDate: selectedDay,
+              existingAppointments: appointments,
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(12),
+          itemCount: dayItems.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) =>
+              _buildAgendaAppointmentCard(dayItems[index], dense: true),
+        );
+      },
     );
 
     final historialAgendaBody = appointmentsAsync.when(
@@ -4045,18 +4206,21 @@ class _AdminAppointmentsScreenState
 
     final agendaBody = switch (_innerTab) {
       AgendaInnerTab.hoy => hoyAgendaBody,
+      AgendaInnerTab.semana => semanaAgendaBody,
       AgendaInnerTab.mes => mesAgendaBody,
       AgendaInnerTab.historial => historialAgendaBody,
     };
 
     final subtitleByTab = switch (_innerTab) {
       AgendaInnerTab.hoy => 'Seguimiento diario con timeline y resumen',
+      AgendaInnerTab.semana => 'Vista semanal con slots de 30 minutos',
       AgendaInnerTab.mes => 'Vista mensual con detalle por día',
       AgendaInnerTab.historial => 'Historial por estado y mes',
     };
 
     final panelTitleByTab = switch (_innerTab) {
       AgendaInnerTab.hoy => 'Hoy',
+      AgendaInnerTab.semana => 'Semana',
       AgendaInnerTab.mes => 'Mes',
       AgendaInnerTab.historial => 'Historial',
     };
@@ -4064,13 +4228,8 @@ class _AdminAppointmentsScreenState
     final mobileContent = NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) {
         return [
-          SliverToBoxAdapter(
-            child: _buildMobileAgendaHero(
-              context,
-              loadedAppointments,
-              selectedDate,
-            ),
-          ),
+          SliverToBoxAdapter(child: persistentCalendar),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           SliverToBoxAdapter(child: _buildInnerTabs()),
         ];
       },
@@ -4125,28 +4284,39 @@ class _AdminAppointmentsScreenState
             ),
           ),
           const SizedBox(height: 12),
-          SectionPanel(
-            title: panelTitleByTab,
-            trailing: ActionToolbar(
-              actions: [
-                OutlinedButton.icon(
-                  onPressed: () => ref
-                      .read(selectedAppointmentsDateProvider.notifier)
-                      .setDate(selectedDate),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Actualizar vista'),
+          SizedBox(
+            height: 720,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sidebar: Calendario del mes (siempre visible)
+                SizedBox(width: 300, child: persistentCalendar),
+                const SizedBox(width: 12),
+                // Contenido principal
+                Expanded(
+                  child: SectionPanel(
+                    title: panelTitleByTab,
+                    trailing: ActionToolbar(
+                      actions: [
+                        OutlinedButton.icon(
+                          onPressed: () => ref
+                              .read(selectedAppointmentsDateProvider.notifier)
+                              .setDate(selectedDate),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Actualizar vista'),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildInnerTabs(premium: false),
+                        const SizedBox(height: 8),
+                        Expanded(child: agendaBody),
+                      ],
+                    ),
+                  ),
                 ),
               ],
-            ),
-            child: SizedBox(
-              height: 720,
-              child: Column(
-                children: [
-                  _buildInnerTabs(premium: false),
-                  const SizedBox(height: 8),
-                  Expanded(child: agendaBody),
-                ],
-              ),
             ),
           ),
         ],

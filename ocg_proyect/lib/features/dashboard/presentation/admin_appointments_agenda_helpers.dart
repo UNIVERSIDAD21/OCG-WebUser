@@ -14,7 +14,7 @@ enum AgendaFilter {
 }
 
 /// Tabs internas del módulo agenda admin.
-enum AgendaInnerTab { hoy, mes, historial }
+enum AgendaInnerTab { hoy, semana, mes, historial }
 
 /// Filtros rápidos del detalle móvil de agenda.
 enum AgendaDayQuickFilter { dia, manana, pendientes, incidencias, historicas }
