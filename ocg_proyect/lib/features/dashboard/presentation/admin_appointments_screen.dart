@@ -3284,6 +3284,7 @@ class _AdminAppointmentsScreenState
                 Expanded(
                   child: SectionPanel(
                     title: panelTitleByTab,
+                    expandChild: true,
                     trailing: ActionToolbar(
                       actions: [
                         OutlinedButton.icon(
