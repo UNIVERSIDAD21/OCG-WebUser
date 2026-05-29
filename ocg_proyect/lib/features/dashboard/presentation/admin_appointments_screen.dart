@@ -145,7 +145,8 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
   //    que maneja su estado y sus providers limpiamente, sin que un rebuild
   //    externo del stream pueda corromper el árbol de layout del diálogo.
 
-  static Future<void> showCreateDialog(
+  /// Retorna un mapa con 'id' y 'fechaHora' de la cita creada, o null si se canceló.
+  static Future<Map<String, dynamic>?> showCreateDialog(
     BuildContext context,
     WidgetRef ref, {
     DateTime? baseDate,
@@ -153,7 +154,7 @@ class AdminAppointmentsScreen extends ConsumerStatefulWidget {
     List<AppointmentModel> existingAppointments = const [],
     UrgencyRequestModel? urgencyRequest,
   }) async {
-    await showDialog<void>(
+    return await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _CreateApptDialog(
         baseDate: baseDate,
@@ -1000,6 +1001,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     });
     final notasTexto = _notesCtrl.text.trim();
     try {
+      String newAppointmentId;
       if (_isUrgencyBooking) {
         final adminId =
             ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
@@ -1021,7 +1023,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
           stageId: effectiveStage,
           stageNameSnapshot: stageNames[effectiveStage] ?? effectiveStage.name,
         );
-        await widget.callerRef
+        newAppointmentId = await widget.callerRef
             .read(urgencyRepositoryProvider)
             .createAppointmentFromUrgency(
               request: widget.urgencyRequest!,
@@ -1030,7 +1032,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               adminNotes: notasTexto.isEmpty ? null : notasTexto,
             );
       } else {
-        await widget.callerRef
+        newAppointmentId = await widget.callerRef
             .read(appointmentsRepositoryProvider)
             .createAppointment(
               AppointmentModel(
@@ -1052,8 +1054,12 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
               ),
             );
       }
-      popDialog(context);
+      // Devolver el ID y la fecha para que el caller pueda usarlos
       if (mounted) {
+        Navigator.of(context).pop(<String, dynamic>{
+          'id': newAppointmentId,
+          'fechaHora': _dateTime.toIso8601String(),
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Cita creada.')));

@@ -223,8 +223,8 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
         .where((a) => a.id != selectedAppointment.id)
         .toList();
 
-    // Abrir el diálogo de Crear Cita con el paciente desplazado autoseleccionado
-    await AdminAppointmentsScreen.showCreateDialog(
+    // ── Paso A: abrir el diálogo de Crear Cita y CAPTURAR el resultado ──
+    final result = await AdminAppointmentsScreen.showCreateDialog(
       context,
       ref,
       baseDate: selectedAppointment.fechaHora.add(const Duration(days: 7)),
@@ -232,51 +232,44 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
       existingAppointments: otherAppointments,
     );
 
-    // Después de cerrar el diálogo, buscar la cita nueva creada para el paciente desplazado
-    if (!context.mounted) return;
-    final updatedAppointments =
-        ref.read(appointmentsProvider).asData?.value ??
-        const <AppointmentModel>[];
+    // El usuario canceló o el diálogo falló
+    if (result == null || !context.mounted) return;
 
-    final newAppointment = updatedAppointments.where((a) {
-      return a.patientId == selectedAppointment.patientId &&
-          a.estado == AppointmentStatus.programada &&
-          a.id != selectedAppointment.id &&
-          a.fechaHora.isAfter(selectedAppointment.fechaHora);
-    }).toList()
-      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+    final newId = result['id'] as String;
+    final newDateTime =
+        DateTime.parse(result['fechaHora'] as String);
 
-    if (newAppointment.isNotEmpty) {
-      // Ejecutar la transacción de urgencia: marcar original como reprogramada
-      // + crear cita de urgencia en el slot liberado.
-      // PASAMOS el ID de la cita YA CREADA por el diálogo para que el repo
-      // no cree un duplicado (solo añada metadatos de reprogramación).
-      try {
-        final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
-        await ref.read(urgencyRepositoryProvider).rescheduleAppointmentForUrgency(
-          request: urgency,
-          originalAppointment: selectedAppointment,
-          newDateTimeForOriginal: newAppointment.first.fechaHora,
-          adminId: adminId,
-          newAppointmentId: newAppointment.first.id,
-          adminNotes: 'Slot liberado desde ${selectedAppointment.id}.',
-        );
-        // Refrescar providers para que Agenda refleje los cambios inmediatamente
-        ref.invalidate(appointmentsProvider);
-        ref.invalidate(allUrgenciesProvider);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cita reprogramada y urgencia agendada.'),
-            backgroundColor: Color(0xFF2E7D32),
-          ),
-        );
-      } catch (e) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo completar la reprogramación: $e')),
-        );
-      }
+    // ── Paso B: transacción atómica ──
+    try {
+      final adminId =
+          ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+      await ref
+          .read(urgencyRepositoryProvider)
+          .rescheduleAppointmentForUrgency(
+            request: urgency,
+            originalAppointment: selectedAppointment,
+            newDateTimeForOriginal: newDateTime,
+            adminId: adminId,
+            newAppointmentId: newId,
+            adminNotes: 'Slot liberado desde ${selectedAppointment.id}.',
+          );
+      // Refrescar providers para que Agenda refleje los cambios
+      ref.invalidate(appointmentsProvider);
+      ref.invalidate(allUrgenciesProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cita reprogramada y urgencia agendada.'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo completar la reprogramación: $e'),
+        ),
+      );
     }
   }
 
