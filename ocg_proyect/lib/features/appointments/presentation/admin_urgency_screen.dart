@@ -61,9 +61,9 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     BuildContext context,
     UrgencyRequestModel urgency,
   ) async {
-    final appointments =
-        ref.read(appointmentsProvider).asData?.value ??
-        const <AppointmentModel>[];
+    // Forzar refresh para datos frescos de Firestore
+    ref.invalidate(appointmentsProvider);
+    final appointments = await ref.read(appointmentsProvider.future);
     final fallbackPatient = ref
         .read(urgencyRepositoryProvider)
         .patientFromUrgency(urgency);
@@ -128,11 +128,12 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     BuildContext context,
     UrgencyRequestModel urgency,
   ) async {
-    // Leer SIEMPRE del provider para tener los datos más actuales,
-    // no la copia capturada en el closure del build.
-    final appointments =
-        ref.read(appointmentsProvider).asData?.value ??
-        const <AppointmentModel>[];
+    // Forzar refresh del stream de citas para obtener datos frescos de
+    // Firestore, no el valor cacheado que puede estar desactualizado si
+    // hubo una reprogramación reciente.
+    ref.invalidate(appointmentsProvider);
+    final appointmentsAsync = await ref.read(appointmentsProvider.future);
+    final appointments = appointmentsAsync;
     final urgencyDate = urgency.createdAt;
 
     // Citas activas/confirmadas desde la fecha de la urgencia en adelante
