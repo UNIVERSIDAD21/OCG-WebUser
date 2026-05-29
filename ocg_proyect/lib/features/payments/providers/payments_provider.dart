@@ -417,6 +417,23 @@ class RegisterPaymentNotifier extends AsyncNotifier<void> {
       }
     }());
   }
+
+  Future<void> editTransactionAmount({
+    required String patientId,
+    required String transactionId,
+    required double nuevoMonto,
+    required String treatmentId,
+    String? notas,
+  }) async {
+    final repository = ref.read(paymentsRepositoryProvider);
+    await repository.editTransactionAmount(
+      patientId: patientId,
+      transactionId: transactionId,
+      nuevoMonto: nuevoMonto,
+      treatmentId: treatmentId,
+      notas: notas,
+    );
+  }
 }
 
 final registerPaymentProvider =

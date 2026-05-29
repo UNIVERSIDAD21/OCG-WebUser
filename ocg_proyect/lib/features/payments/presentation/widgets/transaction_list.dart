@@ -8,6 +8,7 @@ import '../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../data/models/payment_model.dart';
 import '../../providers/payments_provider.dart';
+import 'edit_transaction_dialog.dart';
 
 class TransactionList extends ConsumerWidget {
   const TransactionList({super.key, required this.patientId, this.treatmentId});
@@ -58,6 +59,10 @@ class TransactionList extends ConsumerWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final tx = transactions[index];
+            final tid = treatmentId;
+            final canEdit = tid != null &&
+                tid.isNotEmpty &&
+                _canEditTransaction(tx);
             return Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -122,13 +127,33 @@ class TransactionList extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            currency.format(tx.monto),
-                            style: const TextStyle(
-                              color: OcgColors.bronze,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                currency.format(tx.monto),
+                                style: const TextStyle(
+                                  color: OcgColors.bronze,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              if (canEdit)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _showEditTransactionDialog(
+                                    context: context,
+                                    patientId: patientId,
+                                    treatmentId: tid,
+                                    transactionId: tx.id,
+                                    currentMonto: tx.monto,
+                                  ),
+                                  tooltip: 'Editar monto',
+                                ),
+                            ],
                           ),
                           if ((tx.reciboUrl ?? '').isNotEmpty)
                             TextButton(
@@ -232,6 +257,32 @@ class TransactionList extends ConsumerWidget {
       );
     }
   }
+}
+
+bool _canEditTransaction(PaymentTransaction tx) {
+  return tx.metodo != PaymentMethod.epayco &&
+      tx.registradoPor != 'epayco_webhook' &&
+      tx.epaycoOrderId == null &&
+      tx.epaycoTransactionId == null;
+}
+
+void _showEditTransactionDialog({
+  required BuildContext context,
+  required String patientId,
+  required String treatmentId,
+  required String transactionId,
+  required double currentMonto,
+}) {
+  if (treatmentId.isEmpty) return;
+  showDialog<void>(
+    context: context,
+    builder: (_) => EditTransactionDialog(
+      patientId: patientId,
+      transactionId: transactionId,
+      treatmentId: treatmentId,
+      currentMonto: currentMonto,
+    ),
+  );
 }
 
 class _TxInfoChip extends StatelessWidget {

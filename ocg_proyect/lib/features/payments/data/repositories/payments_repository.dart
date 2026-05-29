@@ -687,6 +687,145 @@ class PaymentsRepository {
         .update({'reciboUrl': reciboUrl});
   }
 
+  Future<void> editTransactionAmount({
+    required String patientId,
+    required String transactionId,
+    required double nuevoMonto,
+    String? treatmentId,
+    String? notas,
+  }) async {
+    if (treatmentId == null || treatmentId.isEmpty) {
+      throw Exception('TREATMENT_ID_REQUIRED');
+    }
+    if (nuevoMonto <= 0) {
+      throw Exception('PAYMENT_AMOUNT_INVALID');
+    }
+
+    final txRef = _db.doc(
+      '${FirestorePaths.treatmentTransactions(patientId, treatmentId)}/$transactionId',
+    );
+    final txSnap = await txRef.get();
+    if (!txSnap.exists || txSnap.data() == null) {
+      throw Exception('TRANSACTION_NOT_FOUND');
+    }
+
+    final existingTx = PaymentTransaction.fromJson(txSnap.data()!);
+    final montoAnterior = existingTx.monto;
+
+    if (montoAnterior == nuevoMonto) return;
+
+    final paymentRef = _treatmentPaymentRef(patientId, treatmentId);
+    final paymentSnap = await paymentRef.get();
+    if (!paymentSnap.exists || paymentSnap.data() == null) {
+      throw Exception('PAYMENT_DOC_NOT_FOUND');
+    }
+    final paymentData = paymentSnap.data()!;
+    final targetTotal =
+        (paymentData['totalTratamiento'] as num?)?.toDouble() ?? 0;
+    final oldPagado =
+        (paymentData['montoPagado'] as num?)?.toDouble() ?? 0;
+    final fechaProximoPago = _parseNullableDate(
+      paymentData['fechaProximoPago'],
+    );
+
+    final delta = nuevoMonto - montoAnterior;
+    final nuevoPagado = (oldPagado + delta)
+        .clamp(0, double.infinity)
+        .toDouble();
+    final nuevoSaldo = (targetTotal - nuevoPagado)
+        .clamp(0, double.infinity)
+        .toDouble();
+
+    if (nuevoSaldo < 0) {
+      throw Exception('PAYMENT_EXCEEDS_TOTAL');
+    }
+
+    final nuevoEstado = PaymentModel.calcularEstado(
+      saldoPendiente: nuevoSaldo,
+      fechaProximoPago: fechaProximoPago,
+    );
+
+    final treatmentDoc = await _treatmentRef(patientId, treatmentId).get();
+    final treatment = treatmentDoc.exists
+        ? PatientTreatment.fromJson(treatmentDoc.data()!, id: treatmentId)
+        : null;
+
+    final updateTxData = <String, dynamic>{
+      'monto': nuevoMonto,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (notas != null) {
+      updateTxData['notas'] = notas;
+    }
+    updateTxData['editedBy'] = 'admin';
+    updateTxData['originalMonto'] = montoAnterior;
+
+    final batch = _db.batch();
+    batch.update(txRef, updateTxData);
+
+    batch.update(paymentRef, {
+      'montoPagado': nuevoPagado,
+      'saldoPendiente': nuevoSaldo,
+      'estado': nuevoEstado.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    if (treatmentDoc.exists) {
+      batch.update(_treatmentRef(patientId, treatmentId), {
+        'saldoPendiente': nuevoSaldo,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'financialSummary.paidAmount': nuevoPagado,
+        'financialSummary.pendingAmount': nuevoSaldo,
+      });
+    }
+
+    if (treatment != null && treatment.isPrimary) {
+      batch.set(_legacyPaymentRef(patientId), {
+        'id': patientId,
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'totalTratamiento': targetTotal,
+        'montoPagado': nuevoPagado,
+        'saldoPendiente': nuevoSaldo,
+        'estado': nuevoEstado.name,
+        'fechaProximoPago': paymentData['fechaProximoPago'],
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': paymentData['createdAt'] ?? FieldValue.serverTimestamp(),
+        'schemaVersion': 1,
+        'legacyMirror': true,
+      }, SetOptions(merge: true));
+
+      batch.set(_patientRef(patientId), {
+        'primaryTreatmentId': treatmentId,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'treatmentOverview.financial.totalTratamiento': targetTotal,
+        'treatmentOverview.financial.montoPagado': nuevoPagado,
+        'treatmentOverview.financial.saldoPendiente': nuevoSaldo,
+        'treatmentOverview.source': 'treatment-truth',
+        'legacyProjection.financialSource': 'compatibility-only',
+      }, SetOptions(merge: true));
+    }
+
+    try {
+      await batch.commit();
+      _trace('editTransactionAmount.success', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'transactionId': transactionId,
+        'montoAnterior': montoAnterior,
+        'nuevoMonto': nuevoMonto,
+      });
+    } catch (error) {
+      _trace('editTransactionAmount.error', {
+        'patientId': patientId,
+        'treatmentId': treatmentId,
+        'transactionId': transactionId,
+        'error': error.toString(),
+      });
+      rethrow;
+    }
+  }
+
   Future<void> updateNextPaymentDate(
     String patientId,
     DateTime fecha, {
