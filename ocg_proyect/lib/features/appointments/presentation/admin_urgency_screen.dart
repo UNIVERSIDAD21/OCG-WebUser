@@ -60,8 +60,10 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
   Future<void> _createAppointmentFromUrgency(
     BuildContext context,
     UrgencyRequestModel urgency,
-    List<AppointmentModel> appointments,
   ) async {
+    final appointments =
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
     final fallbackPatient = ref
         .read(urgencyRepositoryProvider)
         .patientFromUrgency(urgency);
@@ -125,8 +127,12 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
   Future<void> _showRescheduleDialog(
     BuildContext context,
     UrgencyRequestModel urgency,
-    List<AppointmentModel> appointments,
   ) async {
+    // Leer SIEMPRE del provider para tener los datos más actuales,
+    // no la copia capturada en el closure del build.
+    final appointments =
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
     final urgencyDate = urgency.createdAt;
 
     // Citas activas/confirmadas desde la fecha de la urgencia en adelante
@@ -292,9 +298,9 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
       showHistory: _showHistory,
       onToggleHistory: () => setState(() => _showHistory = !_showHistory),
       onCreateAppointment: (urgency) =>
-          _createAppointmentFromUrgency(context, urgency, appointments),
+          _createAppointmentFromUrgency(context, urgency),
       onReschedule: (urgency) =>
-          _showRescheduleDialog(context, urgency, appointments),
+          _showRescheduleDialog(context, urgency),
       onReject: (urgency) => _rejectUrgency(context, urgency),
     );
 
