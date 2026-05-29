@@ -11,6 +11,9 @@ import '../../auth/providers/auth_providers.dart';
 import '../../dashboard/presentation/admin_appointments_formatters.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/admin_appointments_agenda_helpers.dart';
+import '../../patients/data/models/patient_model.dart';
+import '../../patients/providers/patients_provider.dart';
+import '../../treatment/data/models/patient_treatment.dart';
 import '../data/models/appointment_model.dart';
 import '../data/models/availability_day_model.dart';
 import '../data/models/urgency_model.dart';
@@ -20,10 +23,11 @@ import '../providers/availability_provider.dart';
 import '../providers/urgency_provider.dart';
 
 String _fmtDate(DateTime d) {
+  final h = d.hour == 0 ? 12 : d.hour > 12 ? d.hour - 12 : d.hour;
+  final ap = d.hour < 12 ? 'AM' : 'PM';
   return '${d.day.toString().padLeft(2, '0')}/'
       '${d.month.toString().padLeft(2, '0')}/${d.year} '
-      '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
+      '$h:${d.minute.toString().padLeft(2, '0')} $ap';
 }
 
 Color _statusColor(UrgencyStatus status) => switch (status) {
@@ -153,24 +157,120 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
       return;
     }
 
-    AppointmentModel? selectedCandidate = candidates.first;
-    DateTime newDateTime = selectedCandidate.fechaHora.add(
-      const Duration(days: 7),
+    // Paso 1: Seleccionar la cita a mover
+    final selectedCandidate = await _selectCandidateDialog(
+      context,
+      urgency,
+      candidates,
     );
+    if (selectedCandidate == null || !context.mounted) return;
 
-    await showDialog<void>(
+    // Paso 2: Abrir el MISMO diálogo de "Crear cita" con el paciente desplazado autoseleccionado
+    // para elegir el nuevo horario con la misma UI y lógica de slots
+    await _createNewSlotForDisplacedPatient(
+      context,
+      urgency,
+      selectedCandidate,
+      appointments,
+    );
+  }
+
+  Future<AppointmentModel?> _selectCandidateDialog(
+    BuildContext context,
+    UrgencyRequestModel urgency,
+    List<AppointmentModel> candidates,
+  ) async {
+    AppointmentModel? selected = candidates.first;
+
+    final result = await showDialog<AppointmentModel>(
       context: context,
-      barrierDismissible: false,
       builder: (dialogContext) {
-        return _ReprogramarDialog(
+        return _SelectCandidateDialog(
           urgency: urgency,
           candidates: candidates,
-          appointments: appointments,
-          initialSelected: selectedCandidate,
-          initialNewDateTime: newDateTime,
+          initialSelected: selected,
         );
       },
     );
+    return result;
+  }
+
+  Future<void> _createNewSlotForDisplacedPatient(
+    BuildContext context,
+    UrgencyRequestModel urgency,
+    AppointmentModel selectedAppointment,
+    List<AppointmentModel> allAppointments,
+  ) async {
+    // Buscar el paciente desplazado
+    final patients = ref.read(patientsStreamProvider).asData?.value ?? const [];
+    final displacedPatient = patients.firstWhere(
+      (p) => p.id == selectedAppointment.patientId,
+      orElse: () => PatientModel.fromJson({
+        'id': selectedAppointment.patientId,
+        'uid': selectedAppointment.patientId,
+        'nombre': selectedAppointment.patientName,
+        'telefono': selectedAppointment.patientPhone ?? '',
+        'etapaActual': (selectedAppointment.stageId ?? TreatmentStage.valoracionInicial).name,
+        'fechaInicio': DateTime.now(),
+        'notasClinicas': '',
+        'totalTratamiento': 0,
+        'saldoPendiente': 0,
+      }),
+    );
+
+    // Excluir la cita seleccionada de los conflictos
+    final otherAppointments = allAppointments
+        .where((a) => a.id != selectedAppointment.id)
+        .toList();
+
+    // Abrir el diálogo de Crear Cita con el paciente desplazado autoseleccionado
+    await AdminAppointmentsScreen.showCreateDialog(
+      context,
+      ref,
+      baseDate: selectedAppointment.fechaHora.add(const Duration(days: 7)),
+      preselectedPatient: displacedPatient,
+      existingAppointments: otherAppointments,
+    );
+
+    // Después de cerrar el diálogo, buscar la cita nueva creada para el paciente desplazado
+    if (!context.mounted) return;
+    final updatedAppointments =
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
+
+    final newAppointment = updatedAppointments.where((a) {
+      return a.patientId == selectedAppointment.patientId &&
+          a.estado == AppointmentStatus.programada &&
+          a.id != selectedAppointment.id &&
+          a.fechaHora.isAfter(selectedAppointment.fechaHora);
+    }).toList()
+      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+
+    if (newAppointment.isNotEmpty) {
+      // Ejecutar la transacción de urgencia: mover cita original + crear cita urgencia
+      try {
+        final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+        await ref.read(urgencyRepositoryProvider).rescheduleAppointmentForUrgency(
+          request: urgency,
+          originalAppointment: selectedAppointment,
+          newDateTimeForOriginal: newAppointment.first.fechaHora,
+          adminId: adminId,
+          adminNotes: 'Slot liberado desde ${selectedAppointment.id}.',
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cita reprogramada y urgencia agendada.'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo completar la reprogramación: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -736,6 +836,389 @@ class _ReprogramacionDetail extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+// ─── _SelectCandidateDialog ────────────────────────────────────────────────
+// Diálogo paso 1 del flujo de reprogramación en urgencias:
+// muestra las citas candidatas a desplazar con el badge
+// "Seleccionada para reprogramar" en la elegida.
+
+class _SelectCandidateDialog extends ConsumerStatefulWidget {
+  const _SelectCandidateDialog({
+    required this.urgency,
+    required this.candidates,
+    required this.initialSelected,
+  });
+
+  final UrgencyRequestModel urgency;
+  final List<AppointmentModel> candidates;
+  final AppointmentModel? initialSelected;
+
+  @override
+  ConsumerState<_SelectCandidateDialog> createState() =>
+      _SelectCandidateDialogState();
+}
+
+class _SelectCandidateDialogState extends ConsumerState<_SelectCandidateDialog> {
+  late AppointmentModel _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialSelected ?? widget.candidates.first;
+  }
+
+  String _dateLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateDay = DateTime(d.year, d.month, d.day);
+    final diff = dateDay.difference(today).inDays;
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Mañana';
+    final weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return '${weekdays[d.weekday - 1]} ${d.day}/${d.month}';
+  }
+
+  Widget _candidateCard(AppointmentModel a, bool isSelected) {
+    final ui = appointmentStatusUi(a);
+    final timeLabel = _fmtDate(a.fechaHora);
+
+    return GestureDetector(
+      onTap: () => setState(() => _selected = a),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF8EE) : OcgColors.ivory,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF6366F1)
+                : ui.line.withOpacity(0.18),
+            width: isSelected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFF6366F1).withOpacity(0.14)
+                  : OcgColors.espresso.withOpacity(0.04),
+              blurRadius: isSelected ? 20 : 14,
+              offset: Offset(0, isSelected ? 10 : 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: ui.line.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    color: ui.line,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        a.patientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OcgColors.espresso,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$timeLabel · ${appointmentTypeLabel(a.tipo)} · ${a.duracionMinutos} min',
+                        style: TextStyle(
+                          color: OcgColors.ink.withOpacity(0.68),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ui.line.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    ui.label,
+                    style: TextStyle(
+                      color: ui.line,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (a.treatmentNameSnapshot != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.local_hospital_outlined,
+                    size: 13,
+                    color: OcgColors.ink.withOpacity(0.45),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    a.treatmentNameSnapshot!,
+                    style: TextStyle(
+                      color: OcgColors.ink.withOpacity(0.55),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (isSelected) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 15,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Seleccionada para reprogramar',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFEDE8DC),
+        appBar: AppBar(
+          backgroundColor: OcgColors.ivory,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: OcgColors.espresso),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Seleccionar cita a desplazar',
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                'Elige la cita que será reprogramada',
+                style: TextStyle(
+                  color: OcgColors.ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Column(
+          children: [
+            // Banner de la urgencia
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFCC80)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Urgencia: ${widget.urgency.patientName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: OcgColors.espresso,
+                          ),
+                        ),
+                        Text(
+                          widget.urgency.descripcion,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: OcgColors.ink.withOpacity(0.65),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Encabezado de sección
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_busy_outlined,
+                    size: 18,
+                    color: OcgColors.ink.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Citas para desplazar (${widget.candidates.length})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Lista de candidatos
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: widget.candidates.length,
+                itemBuilder: (context, index) {
+                  final a = widget.candidates[index];
+                  final showDateHeader =
+                      index == 0 ||
+                      _dateLabel(a.fechaHora) !=
+                          _dateLabel(
+                            widget.candidates[index - 1].fechaHora,
+                          );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showDateHeader) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 14,
+                                color: OcgColors.ink.withOpacity(0.5),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _dateLabel(a.fechaHora),
+                                style: TextStyle(
+                                  color: OcgColors.ink.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      _candidateCard(a, _selected.id == a.id),
+                    ],
+                  );
+                },
+              ),
+            ),
+            // Barra inferior con botón
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(_selected),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'Reprogramar cita seleccionada',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
