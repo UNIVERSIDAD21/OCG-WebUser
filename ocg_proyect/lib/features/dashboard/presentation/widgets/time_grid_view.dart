@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../appointments/data/models/appointment_model.dart';
+import '../admin_appointments_agenda_helpers.dart';
 
 /// Grilla de tiempo estilo Google Calendar con slots de 30 minutos.
 ///
@@ -127,10 +128,10 @@ class _TimeGridViewState extends State<TimeGridView>
   // ─── Colores por estado ─────────────────────────────────────
   Color _appointmentColor(AppointmentStatus status) {
     return switch (status) {
-      AppointmentStatus.confirmada => const Color(0xFF7C3AED),
-      AppointmentStatus.noAsistio => const Color(0xFFDC2626),
-      AppointmentStatus.cancelada => const Color(0xFFDC2626),
-      AppointmentStatus.reprogramada => const Color(0xFF2563EB),
+      AppointmentStatus.confirmada => agendaConfirmedColor,
+      AppointmentStatus.noAsistio => agendaRejectedColor,
+      AppointmentStatus.cancelada => agendaRejectedColor,
+      AppointmentStatus.reprogramada => agendaRescheduledColor,
       AppointmentStatus.completada => const Color(0xFF6366F1),
       AppointmentStatus.programada => const Color(0xFF10B981),
     };
@@ -253,6 +254,12 @@ class _TimeGridViewState extends State<TimeGridView>
     return idx >= 0 ? idx * dayWidth : 0;
   }
 
+  double _dayWidthFor(double availableWidth, int dayCount) {
+    if (!widget.showWeek) return availableWidth;
+    final minTotalWidth = dayCount * 90.0;
+    return (availableWidth < minTotalWidth ? 90.0 : availableWidth / dayCount);
+  }
+
   // ─── Calcular columnas para citas superpuestas ─────────────
   /// Calcula posición X y ancho para cada cita considerando solapamientos.
   /// Retorna lista de (left, width) para cada cita.
@@ -340,8 +347,7 @@ class _TimeGridViewState extends State<TimeGridView>
   Widget _buildAllDaySection(DateTime day, List<AppointmentModel> allAppts) {
     // Citas que duran todo el día o son de tipo especial
     final allDayAppts = allAppts.where((a) {
-      return a.duracionMinutos >= 480 || // 8+ horas = todo el día
-          a.estado == AppointmentStatus.reprogramada;
+      return a.duracionMinutos >= 480;
     }).toList();
 
     return Container(
@@ -392,6 +398,32 @@ class _TimeGridViewState extends State<TimeGridView>
 
   Widget _buildHourColumn() {
     return Column(
+      children: List.generate(totalSlots, (i) {
+        final isHour = i % 2 == 0;
+        final label = isHour
+            ? _formatHourLabel(DateTime(0, 1, 1, startHour + (i ~/ 2)))
+            : '';
+        return Container(
+          height: slotHeight,
+          padding: const EdgeInsets.only(right: 6, top: 2),
+          alignment: Alignment.topRight,
+          child: isHour
+              ? Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: OcgColors.espresso.withOpacity(0.35),
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              : null,
+        );
+      }),
+    );
+  }
+
+  Widget _buildHourHeaderColumn() {
+    return Column(
       children: [
         Container(height: dayHeaderHeight, color: OcgColors.ivory),
         Container(
@@ -403,161 +435,197 @@ class _TimeGridViewState extends State<TimeGridView>
             ),
           ),
         ),
-        ...List.generate(totalSlots, (i) {
-          final isHour = i % 2 == 0;
-          final label = isHour
-              ? _formatHourLabel(DateTime(0, 1, 1, startHour + (i ~/ 2)))
-              : '';
-          return Container(
-            height: slotHeight,
-            padding: const EdgeInsets.only(right: 6, top: 2),
-            alignment: Alignment.topRight,
-            child: isHour
-                ? Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: OcgColors.espresso.withOpacity(0.35),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  )
-                : null,
-          );
-        }),
       ],
     );
   }
 
+  Widget _buildDayHeaderCell(DateTime day) {
+    final isToday = _isSameDay(day, DateTime.now());
+    return Container(
+      height: dayHeaderHeight,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isToday
+            ? agendaConfirmedColor.withOpacity(0.08)
+            : Colors.transparent,
+        border: Border(
+          bottom: BorderSide(
+            color: OcgColors.espresso.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _dayHeader(day),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: widget.showWeek ? 11 : 12,
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                color: isToday
+                    ? agendaConfirmedColor
+                    : OcgColors.espresso.withOpacity(0.7),
+                height: 1.2,
+              ),
+            ),
+            if (isToday)
+              Container(
+                margin: const EdgeInsets.only(top: 3),
+                width: 24,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: agendaConfirmedColor,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Columna de un día ─────────────────────────────────────
+  Widget _buildStickyDaysHeader(
+    List<DateTime> days,
+    List<List<AppointmentModel>> dayAppointments,
+  ) {
+    final height = dayHeaderHeight + allDaySectionHeight;
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: hourColWidth,
+            height: height,
+            child: _buildHourHeaderColumn(),
+          ),
+          Container(
+            width: 1,
+            height: height,
+            color: OcgColors.espresso.withOpacity(0.1),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final dayWidth = _dayWidthFor(
+                  constraints.maxWidth,
+                  days.length,
+                );
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: height,
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      ...days.asMap().entries.map((entry) {
+                        final dayIndex = entry.key;
+                        final day = entry.value;
+                        return Positioned(
+                          top: 0,
+                          left: dayIndex * dayWidth,
+                          width: dayWidth,
+                          height: height,
+                          child: Container(
+                            color: OcgColors.ivory,
+                            child: Column(
+                              children: [
+                                _buildDayHeaderCell(day),
+                                _buildAllDaySection(
+                                  day,
+                                  dayAppointments[dayIndex],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDayColumn(DateTime day, List<AppointmentModel> dayAppts) {
     final isToday = _isSameDay(day, DateTime.now());
     final now = DateTime.now();
 
-    // Separar citas "todo el día" de las normales
-    final allDayAppts = dayAppts.where((a) {
-      return a.duracionMinutos >= 480;
-    }).toList();
     final normalAppts = dayAppts.where((a) => a.duracionMinutos < 480).toList();
 
     // Calcular layout de superposición
     final layouts = _computeOverlapLayout(normalAppts);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Header del día
-        Container(
-          height: dayHeaderHeight,
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isToday
-                ? const Color(0xFF7C3AED).withOpacity(0.08)
-                : Colors.transparent,
-            border: Border(
-              bottom: BorderSide(
-                color: OcgColors.espresso.withOpacity(0.1),
-                width: 1,
-              ),
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _dayHeader(day),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: widget.showWeek ? 11 : 12,
-                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-                    color: isToday
-                        ? const Color(0xFF7C3AED)
-                        : OcgColors.espresso.withOpacity(0.7),
-                    height: 1.2,
+    return SizedBox(
+      height: totalSlots * slotHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          Widget slotCell(int slotIndex) {
+            final isHourMark = slotIndex % 2 == 0;
+            final slotHour = startHour + (slotIndex ~/ 2);
+            final slotMinute = slotIndex % 2 == 0 ? 0 : 30;
+            final slotTime = DateTime(
+              day.year,
+              day.month,
+              day.day,
+              slotHour,
+              slotMinute,
+            );
+            final isCurrentSlot =
+                isToday &&
+                slotHour == now.hour &&
+                ((slotIndex % 2 == 0 && now.minute < 30) ||
+                    (slotIndex % 2 == 1 && now.minute >= 30));
+            final isPast =
+                isToday &&
+                (slotHour < now.hour ||
+                    (slotHour == now.hour && slotMinute < now.minute));
+
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => widget.onTapSlot(slotTime),
+              child: Container(
+                height: slotHeight,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isHourMark
+                          ? OcgColors.espresso.withOpacity(0.1)
+                          : OcgColors.espresso.withOpacity(0.04),
+                      width: isHourMark ? 1 : 0.5,
+                    ),
                   ),
+                  color: isPast
+                      ? OcgColors.espresso.withOpacity(0.02)
+                      : (isCurrentSlot
+                            ? agendaRejectedColor.withOpacity(0.04)
+                            : null),
                 ),
-                if (isToday)
-                  Container(
-                    margin: const EdgeInsets.only(top: 3),
-                    width: 24,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7C3AED),
-                      borderRadius: BorderRadius.circular(1.5),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        // Sección todo el día
-        _buildAllDaySection(day, allDayAppts),
-        // Grilla de tiempo
-        SizedBox(
-          height: totalSlots * slotHeight,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              Widget slotCell(int slotIndex) {
-                final isHourMark = slotIndex % 2 == 0;
-                final slotHour = startHour + (slotIndex ~/ 2);
-                final slotMinute = slotIndex % 2 == 0 ? 0 : 30;
-                final slotTime = DateTime(
-                  day.year,
-                  day.month,
-                  day.day,
-                  slotHour,
-                  slotMinute,
-                );
-                final isCurrentSlot =
-                    isToday &&
-                    slotHour == now.hour &&
-                    ((slotIndex % 2 == 0 && now.minute < 30) ||
-                        (slotIndex % 2 == 1 && now.minute >= 30));
-                final isPast =
-                    isToday &&
-                    (slotHour < now.hour ||
-                        (slotHour == now.hour && slotMinute < now.minute));
+              ),
+            );
+          }
 
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onTapSlot(slotTime),
-                  child: Container(
-                    height: slotHeight,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: isHourMark
-                              ? OcgColors.espresso.withOpacity(0.1)
-                              : OcgColors.espresso.withOpacity(0.04),
-                          width: isHourMark ? 1 : 0.5,
-                        ),
-                      ),
-                      color: isPast
-                          ? OcgColors.espresso.withOpacity(0.02)
-                          : (isCurrentSlot
-                                ? const Color(0xFFDC2626).withOpacity(0.04)
-                                : null),
-                    ),
-                  ),
-                );
-              }
-
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Column(children: List.generate(totalSlots, slotCell)),
-                  for (final entry in normalAppts.asMap().entries)
-                    _buildAppointmentCard(
-                      entry.value,
-                      layouts[entry.key],
-                      constraints.maxWidth,
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(children: List.generate(totalSlots, slotCell)),
+              for (final entry in normalAppts.asMap().entries)
+                _buildAppointmentCard(
+                  entry.value,
+                  layouts[entry.key],
+                  constraints.maxWidth,
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -576,6 +644,14 @@ class _TimeGridViewState extends State<TimeGridView>
     final color = _appointmentColor(appt.estado);
     final bgColor = _appointmentBgColor(appt.estado);
     final textColor = _appointmentTextColor(appt.estado);
+    final showRescheduledSplit =
+        appt.wasRescheduled && appt.estado == AppointmentStatus.programada;
+    final rescheduledBgColor = _appointmentBgColor(
+      AppointmentStatus.reprogramada,
+    );
+    final borderColor = showRescheduledSplit
+        ? agendaRescheduledColor.withOpacity(0.5)
+        : color.withOpacity(0.4);
     final usableWidth = (availableWidth - 8)
         .clamp(0.0, double.infinity)
         .toDouble();
@@ -599,9 +675,15 @@ class _TimeGridViewState extends State<TimeGridView>
           color: Colors.transparent,
           child: Container(
             decoration: BoxDecoration(
-              color: bgColor,
+              color: showRescheduledSplit ? null : bgColor,
+              gradient: showRescheduledSplit
+                  ? LinearGradient(
+                      colors: [bgColor, rescheduledBgColor],
+                      stops: const [0.5, 0.5],
+                    )
+                  : null,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+              border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.12),
@@ -682,7 +764,11 @@ class _TimeGridViewState extends State<TimeGridView>
     // Filtrar citas por día
     final dayAppointments = days.map((day) {
       return widget.appointments
-          .where((a) => _isSameDay(a.fechaHora, day))
+          .where(
+            (a) =>
+                _isSameDay(a.fechaHora, day) &&
+                a.estado != AppointmentStatus.reprogramada,
+          )
           .toList();
     }).toList();
 
@@ -790,10 +876,10 @@ class _TimeGridViewState extends State<TimeGridView>
             spacing: 14,
             runSpacing: 4,
             children: [
-              _legendDot(const Color(0xFF7C3AED), 'Confirmada'),
+              _legendDot(agendaConfirmedColor, 'Confirmada'),
               _legendDot(const Color(0xFF10B981), 'Activa'),
-              _legendDot(const Color(0xFF2563EB), 'Reprogramada'),
-              _legendDot(const Color(0xFFDC2626), 'No asistió'),
+              _legendDot(agendaRescheduledColor, 'Reprogramada'),
+              _legendDot(agendaRejectedColor, 'No asistió'),
               _legendDot(const Color(0xFF6366F1), 'Completada'),
             ],
           ),
@@ -803,117 +889,139 @@ class _TimeGridViewState extends State<TimeGridView>
           child: LayoutBuilder(
             builder: (context, viewportConstraints) {
               // Altura total del contenido scrollable (header + todo-el-día + slots)
-              final contentHeight =
-                  dayHeaderHeight +
-                  allDaySectionHeight +
-                  (totalSlots * slotHeight);
+              final gridHeight = totalSlots * slotHeight;
+              final stickyHeaderHeight = dayHeaderHeight + allDaySectionHeight;
 
-              return SingleChildScrollView(
-                controller: _scrollController,
-                scrollDirection: Axis.vertical,
-                child: SizedBox(
-                  width: viewportConstraints.maxWidth,
-                  height: contentHeight,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Columna de horas
-                      SizedBox(
-                        width: hourColWidth,
-                        height: contentHeight,
-                        child: _buildHourColumn(),
-                      ),
-                      // Línea divisora
-                      Container(
-                        width: 1,
-                        height: contentHeight,
-                        color: OcgColors.espresso.withOpacity(0.1),
-                      ),
-                      // Columnas de días
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Calcular ancho de días para modo semana
-                            final dayWidth = widget.showWeek
-                                ? constraints.maxWidth.clamp(
-                                        90.0,
-                                        double.infinity,
-                                      ) /
-                                      days.length
-                                : constraints.maxWidth;
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.vertical,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: stickyHeaderHeight),
+                        child: SizedBox(
+                          width: viewportConstraints.maxWidth,
+                          height: gridHeight,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Columna de horas
+                              SizedBox(
+                                width: hourColWidth,
+                                height: gridHeight,
+                                child: _buildHourColumn(),
+                              ),
+                              // Línea divisora
+                              Container(
+                                width: 1,
+                                height: gridHeight,
+                                color: OcgColors.espresso.withOpacity(0.1),
+                              ),
+                              // Columnas de días
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    // Calcular ancho de días para modo semana
+                                    final dayWidth = _dayWidthFor(
+                                      constraints.maxWidth,
+                                      days.length,
+                                    );
 
-                            return SizedBox(
-                              width: constraints.maxWidth,
-                              height: contentHeight,
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  // Columnas de días
-                                  ...days.asMap().entries.map((entry) {
-                                    final dayIndex = entry.key;
-                                    final day = entry.value;
-                                    return Positioned(
-                                      top: 0,
-                                      left: dayIndex * dayWidth,
-                                      width: dayWidth,
-                                      height: contentHeight,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            right: dayIndex < days.length - 1
-                                                ? BorderSide(
-                                                    color: OcgColors.espresso
-                                                        .withOpacity(0.06),
-                                                  )
-                                                : BorderSide.none,
-                                          ),
-                                        ),
-                                        child: _buildDayColumn(
-                                          day,
-                                          dayAppointments[dayIndex],
-                                        ),
+                                    return SizedBox(
+                                      width: constraints.maxWidth,
+                                      height: gridHeight,
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          // Columnas de días
+                                          ...days.asMap().entries.map((entry) {
+                                            final dayIndex = entry.key;
+                                            final day = entry.value;
+                                            return Positioned(
+                                              top: 0,
+                                              left: dayIndex * dayWidth,
+                                              width: dayWidth,
+                                              height: gridHeight,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  border: Border(
+                                                    right:
+                                                        dayIndex <
+                                                            days.length - 1
+                                                        ? BorderSide(
+                                                            color: OcgColors
+                                                                .espresso
+                                                                .withOpacity(
+                                                                  0.06,
+                                                                ),
+                                                          )
+                                                        : BorderSide.none,
+                                                  ),
+                                                ),
+                                                child: _buildDayColumn(
+                                                  day,
+                                                  dayAppointments[dayIndex],
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                          // Línea "Ahora" (encima de todas las columnas)
+                                          if (_isSameDay(now, days.first) ||
+                                              (widget.showWeek &&
+                                                  days.any(
+                                                    (d) => _isSameDay(d, now),
+                                                  )))
+                                            Positioned(
+                                              top:
+                                                  (now.hour - startHour) *
+                                                      2 *
+                                                      slotHeight +
+                                                  (now.minute / 30) *
+                                                      slotHeight,
+                                              left: _nowLineLeft(
+                                                now,
+                                                days,
+                                                dayWidth,
+                                              ),
+                                              width: dayWidth,
+                                              child: IgnorePointer(
+                                                child: Container(
+                                                  height: 2,
+                                                  decoration: const BoxDecoration(
+                                                    color: agendaRejectedColor,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color:
+                                                            agendaRejectedColor,
+                                                        blurRadius: 4,
+                                                        spreadRadius: 1,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     );
-                                  }),
-                                  // Línea "Ahora" (encima de todas las columnas)
-                                  if (_isSameDay(now, days.first) ||
-                                      (widget.showWeek &&
-                                          days.any((d) => _isSameDay(d, now))))
-                                    Positioned(
-                                      top:
-                                          dayHeaderHeight +
-                                          allDaySectionHeight +
-                                          (now.hour - startHour) *
-                                              2 *
-                                              slotHeight +
-                                          (now.minute / 30) * slotHeight,
-                                      left: _nowLineLeft(now, days, dayWidth),
-                                      width: dayWidth,
-                                      child: IgnorePointer(
-                                        child: Container(
-                                          height: 2,
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFFDC2626),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Color(0xFFDC2626),
-                                                blurRadius: 4,
-                                                spreadRadius: 1,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                                  },
+                                ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: stickyHeaderHeight,
+                    child: _buildStickyDaysHeader(days, dayAppointments),
+                  ),
+                ],
               );
             },
           ),

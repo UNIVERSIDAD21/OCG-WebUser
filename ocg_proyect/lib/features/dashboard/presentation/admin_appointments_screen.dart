@@ -542,14 +542,20 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
           .toList();
     }
 
-    if (availability == null) return notPast;
+    final alignedAvailability =
+        availability?.slotDurationMinutes ==
+            AppointmentsBusinessRules.slotStepMinutes
+        ? availability
+        : null;
+    if (alignedAvailability == null) return notPast;
 
     return notPast
         .map(
           (slot) => AppointmentTimeSlot(
             start: slot.start,
             isAvailable:
-                slot.isAvailable && availability.isSlotAvailable(slot.label),
+                slot.isAvailable &&
+                alignedAvailability.isSlotAvailable(slot.label),
           ),
         )
         .toList();
@@ -958,7 +964,7 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     if (hasConflict && !_isUrgencyBooking) {
       setState(
         () => _errorMsg =
-            'Ese horario está ocupado o dentro del buffer de 10 min.',
+            'Ese horario esta ocupado. Elige otro slot de 30 minutos.',
       );
       return;
     }
@@ -2164,7 +2170,7 @@ class _AdminAppointmentsScreenState
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Ese horario está ocupado o dentro del buffer de 10 min.',
+                        'Ese horario esta ocupado. Elige otro slot de 30 minutos.',
                       ),
                     ),
                   );
@@ -2641,10 +2647,16 @@ class _AdminAppointmentsScreenState
     final now = DateTime.now();
     final normalizedDay = DateTime(day.year, day.month, day.day);
     final today = DateTime(now.year, now.month, now.day);
+    final alignedAvailability =
+        availability?.slotDurationMinutes ==
+            AppointmentsBusinessRules.slotStepMinutes
+        ? availability
+        : null;
 
     return slots.where((slot) {
       if (normalizedDay == today && !slot.start.isAfter(now)) return false;
-      if (availability != null && !availability.isSlotAvailable(slot.label)) {
+      if (alignedAvailability != null &&
+          !alignedAvailability.isSlotAvailable(slot.label)) {
         return false;
       }
       return true;
@@ -2680,8 +2692,14 @@ class _AdminAppointmentsScreenState
     final quick = <Widget>[];
 
     void run(String action) {
-      beforeAction?.call();
-      _handleStatusAction(a, action);
+      if (beforeAction == null) {
+        _handleStatusAction(a, action);
+        return;
+      }
+      beforeAction();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleStatusAction(a, action);
+      });
     }
 
     // Dictamen — siempre visible (navegación directa, sin cerrar diálogo primero)
@@ -2700,7 +2718,7 @@ class _AdminAppointmentsScreenState
         _quickActionBtn(
           icon: Icons.check_circle_outline,
           label: 'Confirmar',
-          color: const Color(0xFF1565C0),
+          color: agendaConfirmedColor,
           onTap: () => run('confirmar'),
         ),
       );
@@ -2754,8 +2772,14 @@ class _AdminAppointmentsScreenState
     final items = <PopupMenuEntry<_AppointmentAction>>[];
 
     void run(VoidCallback action) {
-      beforeAction?.call();
-      action();
+      if (beforeAction == null) {
+        action();
+        return;
+      }
+      beforeAction();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) action();
+      });
     }
 
     items.add(
@@ -2801,13 +2825,13 @@ class _AdminAppointmentsScreenState
       addAction(
         icon: Icons.edit_calendar_outlined,
         label: 'Reprogramar',
-        color: OcgColors.bronze,
+        color: agendaRescheduledColor,
         onTap: () => _handleStatusAction(a, 'reprogramar'),
       );
       addAction(
         icon: Icons.person_off_outlined,
         label: 'No asistió',
-        color: const Color(0xFFC56B16),
+        color: agendaRejectedColor,
         onTap: () => _handleStatusAction(a, 'no_asistio'),
       );
       addAction(
@@ -2823,7 +2847,7 @@ class _AdminAppointmentsScreenState
       addAction(
         icon: Icons.lock_open_outlined,
         label: 'Reabrir cita',
-        color: const Color(0xFF1565C0),
+        color: agendaConfirmedColor,
         onTap: () => _handleStatusAction(a, 'reabrir'),
       );
     }
@@ -3755,11 +3779,11 @@ class AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color statusColor = switch (appointment.estado) {
       AppointmentStatus.programada => const Color(0xFFBA7517),
-      AppointmentStatus.confirmada => const Color(0xFF1565C0),
+      AppointmentStatus.confirmada => agendaConfirmedColor,
       AppointmentStatus.completada => const Color(0xFF2E7D32),
-      AppointmentStatus.cancelada => OcgColors.error,
-      AppointmentStatus.noAsistio => OcgColors.error,
-      AppointmentStatus.reprogramada => const Color(0xFF7E3AF2),
+      AppointmentStatus.cancelada => agendaRejectedColor,
+      AppointmentStatus.noAsistio => agendaRejectedColor,
+      AppointmentStatus.reprogramada => agendaRescheduledColor,
     };
 
     final String statusLabel = switch (appointment.estado) {
@@ -3932,8 +3956,8 @@ class AppointmentCard extends StatelessWidget {
                       icon: const Icon(Icons.check, size: 14),
                       label: const Text('Confirmar'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1565C0),
-                        side: const BorderSide(color: Color(0xFF1565C0)),
+                        foregroundColor: agendaConfirmedColor,
+                        side: const BorderSide(color: agendaConfirmedColor),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 4,
@@ -3964,8 +3988,8 @@ class AppointmentCard extends StatelessWidget {
                       icon: const Icon(Icons.edit_calendar, size: 14),
                       label: const Text('Reprogramar'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: OcgColors.bronze,
-                        side: const BorderSide(color: OcgColors.bronze),
+                        foregroundColor: agendaRescheduledColor,
+                        side: const BorderSide(color: agendaRescheduledColor),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 4,
@@ -4017,8 +4041,8 @@ class AppointmentCard extends StatelessWidget {
                       icon: const Icon(Icons.lock_open_outlined, size: 14),
                       label: const Text('Reabrir'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1565C0),
-                        side: const BorderSide(color: Color(0xFF1565C0)),
+                        foregroundColor: agendaConfirmedColor,
+                        side: const BorderSide(color: agendaConfirmedColor),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 4,
@@ -4033,8 +4057,8 @@ class AppointmentCard extends StatelessWidget {
                       icon: const Icon(Icons.person_off_outlined, size: 14),
                       label: const Text('No asistió'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orange.shade800,
-                        side: BorderSide(color: Colors.orange.shade800),
+                        foregroundColor: agendaRejectedColor,
+                        side: const BorderSide(color: agendaRejectedColor),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 4,

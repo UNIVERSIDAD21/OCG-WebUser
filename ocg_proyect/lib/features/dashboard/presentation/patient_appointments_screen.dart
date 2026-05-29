@@ -369,7 +369,11 @@ class _PatientAppointmentsScreenState
                             null;
                         if (!fitsWorkingHours) return false;
 
-                        if (availability == null) return true;
+                        if (availability == null ||
+                            availability.slotDurationMinutes !=
+                                AppointmentsBusinessRules.slotStepMinutes) {
+                          return true;
+                        }
 
                         final end = start.add(
                           const Duration(minutes: operationalMinutes),
@@ -805,7 +809,9 @@ class _PatientAppointmentsScreenState
                               ),
                             );
 
-                        if (availability != null) {
+                        if (availability != null &&
+                            availability.slotDurationMinutes ==
+                                AppointmentsBusinessRules.slotStepMinutes) {
                           const operationalMinutes =
                               30 +
                               AppointmentsBusinessRules

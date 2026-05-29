@@ -234,6 +234,19 @@ class AppointmentsRepository {
     required String originalId,
     required AppointmentModel newAppointment,
   }) async {
+    final originalSnapshot = await _appointmentsRef.doc(originalId).get();
+    if (!originalSnapshot.exists || originalSnapshot.data() == null) {
+      throw FirebaseException(
+        plugin: 'appointments',
+        code: 'NOT_FOUND',
+        message: 'La cita original ya no existe.',
+      );
+    }
+    final originalAppointment = AppointmentModel.fromJson({
+      ...originalSnapshot.data()!,
+      'id': originalId,
+    });
+
     final workingHoursError =
         AppointmentsBusinessRules.validateWithinWorkingHours(
           start: newAppointment.fechaHora,
@@ -261,15 +274,23 @@ class AppointmentsRepository {
       );
     }
 
-    // Marcar la cita original como reprogramada
+    // Mover la misma cita para que desaparezca del slot anterior y conserve
+    // trazabilidad visual como cita activa reprogramada en el nuevo slot.
     await _appointmentsRef.doc(originalId).update({
-      'estado': AppointmentStatus.reprogramada.name,
+      'estado': AppointmentStatus.programada.name,
+      'fechaHora': Timestamp.fromDate(newAppointment.fechaHora),
+      'duracionMinutos': newAppointment.duracionMinutos,
+      'notas': newAppointment.notas ?? '',
+      'rescheduledFrom': Timestamp.fromDate(originalAppointment.fechaHora),
+      'rescheduledPreviousStatus': originalAppointment.estado.name,
+      'rescheduledAt': FieldValue.serverTimestamp(),
+      'lastActionByRole': 'admin',
+      'lastActionBy': newAppointment.creadoPor,
+      'updatedByRole': 'admin',
+      'updatedBy': newAppointment.creadoPor,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // Crear el nuevo documento
-    final ref = _appointmentsRef.doc();
-    await ref.set(newAppointment.copyWith(id: ref.id).toJson());
     await _updatePatientNextAppointment(newAppointment.patientId);
   }
 
@@ -331,12 +352,23 @@ class AppointmentsRepository {
           .where('patientId', isEqualTo: patientId)
           .where('fechaHora', isGreaterThanOrEqualTo: Timestamp.fromDate(now))
           .orderBy('fechaHora')
-          .limit(1)
+          .limit(20)
           .get();
 
-      final nextDate = upcoming.docs.isNotEmpty
-          ? (upcoming.docs.first.data()['fechaHora'] as Timestamp).toDate()
-          : null;
+      DateTime? nextDate;
+      for (final doc in upcoming.docs) {
+        final data = doc.data();
+        final status = (data['estado'] ?? '').toString();
+        if (status != AppointmentStatus.programada.name &&
+            status != AppointmentStatus.confirmada.name) {
+          continue;
+        }
+        final fechaHora = data['fechaHora'];
+        if (fechaHora is Timestamp) {
+          nextDate = fechaHora.toDate();
+          break;
+        }
+      }
 
       await _db.collection(FirestorePaths.patients).doc(patientId).update({
         'proximaCita': nextDate != null ? Timestamp.fromDate(nextDate) : null,

@@ -59,5 +59,23 @@ void main() {
       expect(restored.patientPhone, isEmpty);
       expect(restored.creadoPor, 'admin');
     });
+
+    test('parsea trazabilidad de cita reprogramada', () {
+      final restored = AppointmentModel.fromJson({
+        'id': 'appt-rescheduled',
+        'patientId': 'patient-1',
+        'patientName': 'Paciente Demo',
+        'tipo': 'control',
+        'estado': 'programada',
+        'fechaHora': DateTime(2026, 5, 16, 10, 30),
+        'duracionMinutos': 30,
+        'rescheduledFrom': DateTime(2026, 5, 16, 8),
+        'rescheduledAt': DateTime(2026, 5, 15, 12),
+      });
+
+      expect(restored.wasRescheduled, isTrue);
+      expect(restored.rescheduledFrom, DateTime(2026, 5, 16, 8));
+      expect(restored.estado, AppointmentStatus.programada);
+    });
   });
 }

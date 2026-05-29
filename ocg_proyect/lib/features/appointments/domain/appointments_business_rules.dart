@@ -103,7 +103,8 @@ class AppointmentsBusinessRules {
   static const int workdayStartHour = 8;
 
   /// Buffer mínimo entre citas (en minutos).
-  static const int bufferMinutesBetweenAppointments = 10;
+  // La agenda opera en slots exactos de 30 minutos: 08:00 no bloquea 08:30.
+  static const int bufferMinutesBetweenAppointments = 0;
 
   /// Granularidad de slots de disponibilidad.
   static const int slotStepMinutes = 30;

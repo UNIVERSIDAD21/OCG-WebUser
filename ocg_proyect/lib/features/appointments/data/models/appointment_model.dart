@@ -33,6 +33,9 @@ class AppointmentModel {
     this.recordatorio2hEnviado = false,
     this.createdAt,
     this.updatedAt,
+    this.rescheduledFrom,
+    this.rescheduledAt,
+    this.rescheduledFromId,
   });
 
   final String id;
@@ -65,6 +68,14 @@ class AppointmentModel {
 
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? rescheduledFrom;
+  final DateTime? rescheduledAt;
+  final String? rescheduledFromId;
+
+  bool get wasRescheduled =>
+      rescheduledFrom != null ||
+      rescheduledAt != null ||
+      (rescheduledFromId ?? '').trim().isNotEmpty;
 
   // ─── Parsers internos ─────────────────────────────────────────────────────
 
@@ -123,11 +134,18 @@ class AppointmentModel {
       recordatorio2hEnviado: (json['recordatorio2hEnviado'] as bool?) ?? false,
       createdAt: _parseNullableDate(json['createdAt']),
       updatedAt: _parseNullableDate(json['updatedAt']),
+      rescheduledFrom: _parseNullableDate(
+        json['rescheduledFrom'] ??
+            json['previousFechaHora'] ??
+            json['originalFechaHora'],
+      ),
+      rescheduledAt: _parseNullableDate(json['rescheduledAt']),
+      rescheduledFromId: json['rescheduledFromId']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'id': id,
       'patientId': patientId,
       'patientName': patientName,
@@ -149,6 +167,16 @@ class AppointmentModel {
           : Timestamp.fromDate(createdAt!),
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    if (rescheduledFrom != null) {
+      json['rescheduledFrom'] = Timestamp.fromDate(rescheduledFrom!);
+    }
+    if (rescheduledAt != null) {
+      json['rescheduledAt'] = Timestamp.fromDate(rescheduledAt!);
+    }
+    if ((rescheduledFromId ?? '').trim().isNotEmpty) {
+      json['rescheduledFromId'] = rescheduledFromId!.trim();
+    }
+    return json;
   }
 
   AppointmentModel copyWith({
@@ -170,6 +198,9 @@ class AppointmentModel {
     bool? recordatorio2hEnviado,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? rescheduledFrom,
+    DateTime? rescheduledAt,
+    String? rescheduledFromId,
   }) {
     return AppointmentModel(
       id: id ?? this.id,
@@ -193,6 +224,9 @@ class AppointmentModel {
           recordatorio2hEnviado ?? this.recordatorio2hEnviado,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      rescheduledFrom: rescheduledFrom ?? this.rescheduledFrom,
+      rescheduledAt: rescheduledAt ?? this.rescheduledAt,
+      rescheduledFromId: rescheduledFromId ?? this.rescheduledFromId,
     );
   }
 

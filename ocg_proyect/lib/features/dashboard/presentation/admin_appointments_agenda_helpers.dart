@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/theme/ocg_colors.dart';
 import '../../appointments/data/models/appointment_model.dart';
 
 /// Filtros principales del inbox de agenda admin.
@@ -33,6 +32,9 @@ enum AgendaSummaryFilter {
 }
 
 const Duration adminCompletionWindow = Duration(hours: 24);
+const Color agendaConfirmedColor = Color(0xFF7C3AED);
+const Color agendaRejectedColor = Color(0xFFDC2626);
+const Color agendaRescheduledColor = Color(0xFF2563EB);
 
 bool _isOpenAppointment(AppointmentModel appointment) =>
     appointment.estado == AppointmentStatus.programada ||
@@ -71,53 +73,53 @@ bool isAgendaIncident(AppointmentModel appointment) =>
 ({Color dot, Color line, String label}) appointmentStatusUi(
   AppointmentModel appointment,
 ) {
+  final statusColor = switch (appointment.estado) {
+    AppointmentStatus.programada => const Color(0xFFBA7517),
+    AppointmentStatus.confirmada => agendaConfirmedColor,
+    AppointmentStatus.completada => const Color(0xFF1B45A0),
+    AppointmentStatus.cancelada => agendaRejectedColor,
+    AppointmentStatus.noAsistio => agendaRejectedColor,
+    AppointmentStatus.reprogramada => agendaRescheduledColor,
+  };
   if (isLostAppointment(appointment)) {
-    return (dot: OcgColors.error, line: OcgColors.error, label: 'Perdida');
+    return (dot: statusColor, line: statusColor, label: 'Perdida');
   }
   if (isPastAdminCompletionWindow(appointment)) {
-    return (
-      dot: OcgColors.error,
-      line: OcgColors.error,
-      label: 'Pendiente +24 h',
-    );
+    return (dot: statusColor, line: statusColor, label: 'Pendiente +24 h');
   }
   if (isPendingAdminCompletion(appointment)) {
-    return (
-      dot: const Color(0xFFC56B16),
-      line: const Color(0xFFC56B16),
-      label: 'Por completar',
-    );
+    return (dot: statusColor, line: statusColor, label: 'Por completar');
   }
 
   return switch (appointment.estado) {
     AppointmentStatus.programada => (
-      dot: const Color(0xFFBA7517),
-      line: const Color(0xFFBA7517),
+      dot: statusColor,
+      line: statusColor,
       label: 'Activa',
     ),
     AppointmentStatus.confirmada => (
-      dot: const Color(0xFF639922),
-      line: const Color(0xFF639922),
+      dot: statusColor,
+      line: statusColor,
       label: 'Confirmada',
     ),
     AppointmentStatus.completada => (
-      dot: const Color(0xFF1B45A0),
-      line: const Color(0xFF1B45A0),
+      dot: statusColor,
+      line: statusColor,
       label: 'Completada',
     ),
     AppointmentStatus.cancelada => (
-      dot: const Color(0xFF888780),
-      line: const Color(0xFF888780),
+      dot: statusColor,
+      line: statusColor,
       label: 'Cancelada',
     ),
     AppointmentStatus.noAsistio => (
-      dot: OcgColors.error,
-      line: OcgColors.error,
+      dot: statusColor,
+      line: statusColor,
       label: 'Perdida',
     ),
     AppointmentStatus.reprogramada => (
-      dot: const Color(0xFF7E3AF2),
-      line: const Color(0xFF7E3AF2),
+      dot: statusColor,
+      line: statusColor,
       label: 'Reprogramada',
     ),
   };

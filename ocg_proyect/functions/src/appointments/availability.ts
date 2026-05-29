@@ -6,8 +6,8 @@ type AppointmentLite = {
   duracionMinutos?: number;
 };
 
-const SLOT_MINUTES = 15;
-const BUFFER_MINUTES = 10;
+const SLOT_MINUTES = 30;
+const BUFFER_MINUTES = 0;
 const COLOMBIA_UTC_OFFSET_HOURS = 5; // Bogotá UTC-5
 
 /** Bloques horarios por día de semana (getDay(): 0=Dom, 1=Lun … 6=Sab) */
@@ -109,7 +109,7 @@ export async function rebuildAvailabilityForDay(day: Date): Promise<void> {
     const startBogota = toBogotaDateParts(startAtUtc);
 
     const startMinutes = startBogota.hour * 60 + startBogota.minute;
-    const duration = Math.max(15, Number(appt.duracionMinutos ?? 30));
+    const duration = Math.max(SLOT_MINUTES, Number(appt.duracionMinutos ?? 30));
     const endMinutes = startMinutes + duration + BUFFER_MINUTES;
 
     for (const label of Object.keys(slots)) {

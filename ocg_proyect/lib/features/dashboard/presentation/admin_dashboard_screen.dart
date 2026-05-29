@@ -1806,7 +1806,7 @@ class _TodayAgendaCard extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Ese horario está ocupado o dentro del buffer de 10 min.',
+            'Ese horario esta ocupado. Elige otro slot de 30 minutos.',
           ),
         ),
       );

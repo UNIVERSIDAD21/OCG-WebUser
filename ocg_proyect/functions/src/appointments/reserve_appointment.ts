@@ -10,7 +10,7 @@ type ReserveAppointmentData = {
   notes?: string;
 };
 
-const BUFFER_MINUTES = 10;
+const BUFFER_MINUTES = 0;
 const COLOMBIA_OFFSET_HOURS = 5; // UTC-5 => sumar 5 para UTC
 
 /** Bloques horarios por día (getDay(): 0=Dom … 6=Sab) */

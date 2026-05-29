@@ -254,7 +254,7 @@ void main() {
       expect(hasConflict, isFalse);
     });
 
-    test('buffer de 10 min bloquea slot siguiente inmediato', () {
+    test('slot siguiente de 30 min queda disponible sin buffer', () {
       final existing = [
         _appt(
           id: 'a1',
@@ -270,14 +270,14 @@ void main() {
         durationMinutes: 30,
       );
 
-      final hasConflictAt840 = AppointmentsBusinessRules.hasTimeConflict(
+      final hasConflictAt815 = AppointmentsBusinessRules.hasTimeConflict(
         existingAppointments: existing,
-        newStart: DateTime(2026, 3, 13, 8, 40),
+        newStart: DateTime(2026, 3, 13, 8, 15),
         durationMinutes: 30,
       );
 
-      expect(hasConflictAt830, isTrue);
-      expect(hasConflictAt840, isFalse);
+      expect(hasConflictAt815, isTrue);
+      expect(hasConflictAt830, isFalse);
     });
   });
 
