@@ -21,6 +21,7 @@ class UrgencyRequestModel {
     required this.createdAt,
     this.updatedAt,
     this.appointmentId,          // Si se creó cita desde esta urgencia
+    this.appointmentFechaHora,   // Fecha/hora de la cita de urgencia creada
     this.reprogramadaFromId,     // ID de la cita que se reprogramó para dar slot
     this.reprogramadaPacienteNombre,  // Nombre del paciente desplazado
     this.reprogramadaHoraOriginal,    // Hora original del paciente desplazado
@@ -37,6 +38,7 @@ class UrgencyRequestModel {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final String? appointmentId;
+  final DateTime? appointmentFechaHora;
   final String? reprogramadaFromId;
   final String? reprogramadaPacienteNombre;
   final DateTime? reprogramadaHoraOriginal;
@@ -59,6 +61,7 @@ class UrgencyRequestModel {
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseNullableDate(json['updatedAt']),
       appointmentId: json['appointmentId']?.toString(),
+      appointmentFechaHora: _parseNullableDate(json['appointmentFechaHora']),
       reprogramadaFromId: json['reprogramadaFromId']?.toString(),
       reprogramadaPacienteNombre: json['reprogramadaPacienteNombre']?.toString(),
       reprogramadaHoraOriginal: _parseNullableDate(json['reprogramadaHoraOriginal']),
@@ -80,6 +83,8 @@ class UrgencyRequestModel {
           ? Timestamp.fromDate(updatedAt!)
           : FieldValue.serverTimestamp(),
       if (appointmentId != null) 'appointmentId': appointmentId,
+      if (appointmentFechaHora != null)
+        'appointmentFechaHora': Timestamp.fromDate(appointmentFechaHora!),
       if (reprogramadaFromId != null) 'reprogramadaFromId': reprogramadaFromId,
       if (reprogramadaPacienteNombre != null)
         'reprogramadaPacienteNombre': reprogramadaPacienteNombre,
@@ -102,6 +107,7 @@ class UrgencyRequestModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? appointmentId,
+    DateTime? appointmentFechaHora,
     String? reprogramadaFromId,
     String? reprogramadaPacienteNombre,
     DateTime? reprogramadaHoraOriginal,
@@ -118,6 +124,7 @@ class UrgencyRequestModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       appointmentId: appointmentId ?? this.appointmentId,
+      appointmentFechaHora: appointmentFechaHora ?? this.appointmentFechaHora,
       reprogramadaFromId: reprogramadaFromId ?? this.reprogramadaFromId,
       reprogramadaPacienteNombre: reprogramadaPacienteNombre ?? this.reprogramadaPacienteNombre,
       reprogramadaHoraOriginal: reprogramadaHoraOriginal ?? this.reprogramadaHoraOriginal,

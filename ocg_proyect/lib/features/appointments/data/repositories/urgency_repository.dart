@@ -179,6 +179,7 @@ class UrgencyRepository {
     final requestUpdate = <String, dynamic>{
       'estado': UrgencyStatus.atendida.name,
       'appointmentId': appointmentRef.id,
+      'appointmentFechaHora': Timestamp.fromDate(urgencyAppointment.fechaHora),
       'updatedAt': FieldValue.serverTimestamp(),
     };
     if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;

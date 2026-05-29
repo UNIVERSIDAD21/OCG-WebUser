@@ -10,8 +10,6 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../dashboard/presentation/admin_appointments_formatters.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
-import '../../patients/data/models/patient_model.dart';
-import '../../patients/providers/patients_provider.dart';
 import '../data/models/appointment_model.dart';
 import '../data/models/urgency_model.dart';
 import '../domain/appointments_business_rules.dart';
@@ -726,7 +724,7 @@ class _UrgencyCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Cita creada: ${urgency.appointmentId}',
+                            'Cita creada: ${urgency.appointmentFechaHora != null ? _fmtDate(urgency.appointmentFechaHora!) : urgency.appointmentId}',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -748,10 +746,8 @@ class _UrgencyCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     _ReprogramacionDetail(
                       pacienteDesplazado: urgency.reprogramadaPacienteNombre ?? 'Paciente',
-                      horaOriginal: urgency.reprogramadaHoraOriginal,
-                      horaNueva: urgency.reprogramadaHoraNueva,
-                      citaOriginalId: urgency.reprogramadaFromId ?? '',
-                      citaUrgenciaId: urgency.appointmentId ?? '',
+                      citaPacienteDesplazado: urgency.reprogramadaHoraOriginal,
+                      citaUrgencia: urgency.appointmentFechaHora,
                     ),
                   ],
                 ],
@@ -791,17 +787,13 @@ class _UrgencyCard extends StatelessWidget {
 class _ReprogramacionDetail extends StatelessWidget {
   const _ReprogramacionDetail({
     required this.pacienteDesplazado,
-    required this.horaOriginal,
-    required this.horaNueva,
-    required this.citaOriginalId,
-    required this.citaUrgenciaId,
+    required this.citaPacienteDesplazado,
+    required this.citaUrgencia,
   });
 
   final String pacienteDesplazado;
-  final DateTime? horaOriginal;
-  final DateTime? horaNueva;
-  final String citaOriginalId;
-  final String citaUrgenciaId;
+  final DateTime? citaPacienteDesplazado;
+  final DateTime? citaUrgencia;
 
   @override
   Widget build(BuildContext context) {
@@ -824,52 +816,25 @@ class _ReprogramacionDetail extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            const Icon(Icons.link, size: 14, color: Color(0xFF6E5644)),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'Cita desplazada: $citaOriginalId',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF6E5644)),
-              ),
-            ),
-          ],
-        ),
-        if (horaOriginal != null) ...[
+        if (citaPacienteDesplazado != null) ...[
           const SizedBox(height: 4),
           Row(
             children: [
               const Icon(Icons.access_time, size: 14, color: Color(0xFFB06A5A)),
               const SizedBox(width: 6),
-              Text(
-                'Cita original: ${_fmtDate(horaOriginal!)}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF6E5644)),
-              ),
-            ],
-          ),
-        ],
-        if (horaNueva != null) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.event_repeat_outlined, size: 14, color: Color(0xFF2E7D4C)),
-              const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Reprogramada a: ${_fmtDate(horaNueva!)}',
+                  'Cita paciente desplazado: ${_fmtDate(citaPacienteDesplazado!)}',
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E7D4C),
+                    color: Color(0xFF6E5644),
                   ),
                 ),
               ),
             ],
           ),
         ],
-        if (citaUrgenciaId.isNotEmpty) ...[
+        if (citaUrgencia != null) ...[
           const SizedBox(height: 4),
           Row(
             children: [
@@ -881,8 +846,11 @@ class _ReprogramacionDetail extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Cita urgencia: $citaUrgenciaId',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF6E5644)),
+                  'Cita urgencia: ${_fmtDate(citaUrgencia!)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF6E5644),
+                  ),
                 ),
               ),
             ],
