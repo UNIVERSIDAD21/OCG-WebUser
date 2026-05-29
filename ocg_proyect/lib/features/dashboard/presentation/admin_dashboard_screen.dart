@@ -1995,7 +1995,7 @@ class _AdminProfileButton extends ConsumerWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(99),
-      onTap: () => context.goAdminTab(4, RouteNames.adminProfile),
+      onTap: () => context.go(RouteNames.adminProfile),
       child: Container(
         width: 36,
         height: 36,

@@ -11,7 +11,6 @@ import 'admin_dashboard_screen.dart';
 import 'admin_mobile_shell_controller.dart';
 import 'admin_modules_screens.dart';
 import 'admin_patients_screen.dart';
-import 'admin_profile_screen.dart';
 import '../../appointments/presentation/admin_urgency_screen.dart';
 import '../../appointments/providers/urgency_provider.dart';
 
@@ -33,7 +32,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex.clamp(0, 5);
+    _selectedIndex = widget.initialIndex.clamp(0, 4);
     _showDetailChild = widget.detailChild != null;
   }
 
@@ -41,7 +40,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   void didUpdateWidget(covariant AdminMobileShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialIndex != widget.initialIndex) {
-      _selectedIndex = widget.initialIndex.clamp(0, 5);
+      _selectedIndex = widget.initialIndex.clamp(0, 4);
     }
     if (oldWidget.detailChild != widget.detailChild) {
       _showDetailChild = widget.detailChild != null;
@@ -58,7 +57,6 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
       AdminAppointmentsScreen(embeddedInMobileShell: true),
       AdminUrgencyScreen(embeddedInMobileShell: true),
       AdminSimulatorScreen(embeddedInMobileShell: true),
-      AdminProfileScreen(embeddedInMobileShell: true),
     ];
 
     final visibleDetailChild = _showDetailChild ? widget.detailChild : null;
@@ -105,11 +103,6 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
                 activeIcon: Icons.auto_awesome,
                 label: 'Simulador',
               ),
-              const OcgMobileBottomNavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Perfil',
-              ),
             ],
           ),
         ),
@@ -130,7 +123,7 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
   }
 
   void _selectTab(int index) {
-    final nextIndex = index.clamp(0, 5);
+    final nextIndex = index.clamp(0, 4);
     if (_showDetailChild) {
       context.go(_routeForIndex(nextIndex));
       return;
@@ -146,7 +139,6 @@ class _AdminMobileShellState extends ConsumerState<AdminMobileShell> {
       2 => RouteNames.adminAppointments,
       3 => RouteNames.adminUrgencies,
       4 => RouteNames.adminSimulator,
-      5 => RouteNames.adminProfile,
       _ => RouteNames.adminDashboard,
     };
   }

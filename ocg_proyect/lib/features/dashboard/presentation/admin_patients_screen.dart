@@ -2484,7 +2484,7 @@ class _AdminMobileProfileAction extends ConsumerWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(99),
-      onTap: () => context.goAdminTab(4, RouteNames.adminProfile),
+      onTap: () => context.go(RouteNames.adminProfile),
       child: Container(
         width: 34,
         height: 34,
