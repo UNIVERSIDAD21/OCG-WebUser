@@ -227,7 +227,10 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     final result = await AdminAppointmentsScreen.showCreateDialog(
       context,
       ref,
-      baseDate: selectedAppointment.fechaHora.add(const Duration(days: 7)),
+      // Usamos el día siguiente para evitar conflicto con la cita original
+      // que aún está como 'programada' en este momento.
+      // El usuario puede cambiar la fecha desde el date picker del diálogo.
+      baseDate: selectedAppointment.fechaHora.add(const Duration(days: 1)),
       preselectedPatient: displacedPatient,
       existingAppointments: otherAppointments,
     );
