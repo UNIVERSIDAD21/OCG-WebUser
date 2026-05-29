@@ -57,13 +57,6 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     UrgencyRequestModel urgency,
     List<AppointmentModel> appointments,
   ) async {
-    PatientModel? patient;
-    try {
-      patient = await ref.read(patientByIdProvider(urgency.patientId).future);
-    } catch (_) {
-      patient = null;
-    }
-
     final fallbackPatient = ref
         .read(urgencyRepositoryProvider)
         .patientFromUrgency(urgency);
@@ -71,7 +64,7 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     await AdminAppointmentsScreen.showCreateDialog(
       context,
       ref,
-      preselectedPatient: patient ?? fallbackPatient,
+      preselectedPatient: fallbackPatient,
       existingAppointments: appointments,
       urgencyRequest: urgency,
     );
