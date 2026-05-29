@@ -12,9 +12,11 @@ import '../../dashboard/presentation/admin_appointments_formatters.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/admin_appointments_agenda_helpers.dart';
 import '../data/models/appointment_model.dart';
+import '../data/models/availability_day_model.dart';
 import '../data/models/urgency_model.dart';
 import '../domain/appointments_business_rules.dart';
 import '../providers/appointments_provider.dart';
+import '../providers/availability_provider.dart';
 import '../providers/urgency_provider.dart';
 
 String _fmtDate(DateTime d) {

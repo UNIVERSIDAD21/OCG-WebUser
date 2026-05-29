@@ -1817,400 +1817,78 @@ class _AdminAppointmentsScreenState
   }
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
-    DateTime newDateTime = appt.fechaHora;
-    int newDuration = appt.duracionMinutos;
-    bool expandMorning = true;
-    bool expandAfternoon = true;
+    // Buscar el paciente de la cita que se va a reprogramar
+    final patients =
+        ref.read(patientsStreamProvider).asData?.value ?? const [];
+    final patient = patients.firstWhere(
+      (p) => p.id == appt.patientId,
+      orElse: () => PatientModel.fromJson({
+        'id': appt.patientId,
+        'uid': appt.patientId,
+        'nombre': appt.patientName,
+        'telefono': appt.patientPhone ?? '',
+        'etapaActual': (appt.stageId ?? TreatmentStage.valoracionInicial).name,
+        'fechaInicio': DateTime.now(),
+        'notasClinicas': '',
+        'totalTratamiento': 0,
+        'saldoPendiente': 0,
+      }),
+    );
+
+    // Obtener citas existentes excluyendo la que se está reprogramando
     final existingAppointments =
         ref.read(appointmentsProvider).asData?.value ??
         const <AppointmentModel>[];
-    final notesCtrl = TextEditingController(text: appt.notas ?? '');
+    final otherAppointments = existingAppointments
+        .where((a) => a.id != appt.id)
+        .toList();
 
-    AvailabilityDayModel? availabilityForCurrentDay() {
-      return ref
-          .read(availabilityByDayProvider(appointmentDayKey(newDateTime)))
-          .asData
-          ?.value;
-    }
+    // Abrir el MISMO diálogo de "Crear cita" con el paciente preseleccionado
+    await AdminAppointmentsScreen.showCreateDialog(
+      context,
+      ref,
+      baseDate: appt.fechaHora,
+      preselectedPatient: patient,
+      existingAppointments: otherAppointments,
+    );
 
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDs) => AlertDialog(
-          title: const Text('Reprogramar cita'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(appointmentFmtDateTime(newDateTime)),
-                  subtitle: const Text(
-                    'Fecha (L-V 08:00-12:00 y 14:00-18:00 · Sáb 08:00-12:00)',
-                  ),
-                  trailing: const Icon(Icons.edit_calendar, size: 18),
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: ctx,
-                      initialDate: newDateTime,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2035),
-                    );
-                    if (d == null) return;
+    // Después de cerrar el diálogo, verificar si se creó una nueva cita
+    // para este paciente y marcar la original como reprogramada
+    if (!mounted) return;
+    final updatedAppointments =
+        ref.read(appointmentsProvider).asData?.value ??
+        const <AppointmentModel>[];
 
-                    final slots = _visibleSlotsForDay(
-                      day: d,
-                      existingAppointments: existingAppointments,
-                      durationMinutes: newDuration,
-                      excludeAppointmentId: appt.id,
-                      availability: ref
-                          .read(availabilityByDayProvider(appointmentDayKey(d)))
-                          .asData
-                          ?.value,
-                    );
-                    final firstAvailable = slots
-                        .where((s) => s.isAvailable)
-                        .firstOrNull;
+    // Buscar si hay una cita nueva (programada) para este paciente
+    // con fecha posterior a la original
+    final newAppointment = updatedAppointments.where((a) {
+      return a.patientId == appt.patientId &&
+          a.estado == AppointmentStatus.programada &&
+          a.id != appt.id &&
+          a.fechaHora.isAfter(appt.fechaHora);
+    }).toList()
+      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
-                    setDs(() {
-                      newDateTime =
-                          firstAvailable?.start ??
-                          DateTime(
-                            d.year,
-                            d.month,
-                            d.day,
-                            AppointmentsBusinessRules.workdayStartHour,
-                            0,
-                          );
-                    });
-                  },
-                ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Horarios por jornada (secuenciales). Mañana arriba y tarde abajo. Puedes desplegar o recoger cada bloque.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: OcgColors.ink.withOpacity(0.65),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Builder(
-                  builder: (_) {
-                    final slots = _visibleSlotsForDay(
-                      day: newDateTime,
-                      existingAppointments: existingAppointments,
-                      durationMinutes: newDuration,
-                      excludeAppointmentId: appt.id,
-                      availability: availabilityForCurrentDay(),
-                    ).toList()..sort((a, b) => a.start.compareTo(b.start));
-
-                    final morningSlots = slots
-                        .where((s) => s.start.hour < 12)
-                        .toList();
-                    final afternoonSlots = slots
-                        .where((s) => s.start.hour >= 12)
-                        .toList();
-
-                    Widget chip(AppointmentTimeSlot slot) {
-                      final isSelected = slot.start == newDateTime;
-                      return ChoiceChip(
-                        label: Text(
-                          slot.label,
-                          style: TextStyle(
-                            color: slot.isAvailable
-                                ? OcgColors.espresso
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                        avatar: slot.isAvailable
-                            ? const Icon(Icons.check_circle_outline, size: 15)
-                            : const Icon(Icons.block, size: 15),
-                        selected: isSelected && slot.isAvailable,
-                        disabledColor: Colors.grey.shade300,
-                        selectedColor: OcgColors.sand,
-                        onSelected: slot.isAvailable
-                            ? (_) => setDs(() => newDateTime = slot.start)
-                            : null,
-                      );
-                    }
-
-                    Widget section({
-                      required String title,
-                      required bool expanded,
-                      required VoidCallback onToggle,
-                      required List<AppointmentTimeSlot> sectionSlots,
-                    }) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7EF),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: OcgColors.bronze.withOpacity(0.22),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            InkWell(
-                              onTap: onToggle,
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      title,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: OcgColors.espresso,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(
-                                    expanded
-                                        ? Icons.expand_less
-                                        : Icons.expand_more,
-                                    color: OcgColors.bronze,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (expanded) ...[
-                              const SizedBox(height: 8),
-                              if (sectionSlots.isEmpty)
-                                Text(
-                                  'Sin horarios en esta jornada.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: OcgColors.ink.withOpacity(0.6),
-                                  ),
-                                )
-                              else
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: sectionSlots.map(chip).toList(),
-                                ),
-                            ],
-                          ],
-                        ),
-                      );
-                    }
-
-                    final available = slots.where((s) => s.isAvailable).length;
-                    final blocked = slots.length - available;
-                    final selectedAvailable = slots.any(
-                      (s) => s.start == newDateTime && s.isAvailable,
-                    );
-                    final summaryColor = selectedAvailable
-                        ? const Color(0xFF2E7D32)
-                        : OcgColors.error;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: summaryColor.withOpacity(0.09),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: summaryColor.withOpacity(0.18),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                selectedAvailable
-                                    ? Icons.event_repeat_outlined
-                                    : Icons.warning_amber_outlined,
-                                size: 19,
-                                color: summaryColor,
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  selectedAvailable
-                                      ? '$available disponibles · $blocked bloqueados. Nuevo horario listo: ${appointmentFmtDateTime(newDateTime)}.'
-                                      : '$available disponibles · $blocked bloqueados. Elige un horario disponible para continuar.',
-                                  style: TextStyle(
-                                    color: OcgColors.ink.withOpacity(0.76),
-                                    fontSize: 12,
-                                    height: 1.25,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 6,
-                          children: [
-                            _miniLegend(OcgColors.sand, 'Seleccionado'),
-                            _miniLegend(const Color(0xFF7A8A20), 'Disponible'),
-                            _miniLegend(Colors.grey.shade500, 'Bloqueado'),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        section(
-                          title: 'Mañana (08:00 - 11:30)',
-                          expanded: expandMorning,
-                          onToggle: () =>
-                              setDs(() => expandMorning = !expandMorning),
-                          sectionSlots: morningSlots,
-                        ),
-                        section(
-                          title: 'Tarde (14:00 - cierre)',
-                          expanded: expandAfternoon,
-                          onToggle: () =>
-                              setDs(() => expandAfternoon = !expandAfternoon),
-                          sectionSlots: afternoonSlots,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: newDuration,
-                  decoration: const InputDecoration(
-                    labelText: 'Duración (min)',
-                  ),
-                  items: [15, 30, 45, 60, 90, 120]
-                      .map(
-                        (m) =>
-                            DropdownMenuItem(value: m, child: Text('$m min')),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    final nextDuration = v ?? 30;
-                    final slots = _visibleSlotsForDay(
-                      day: newDateTime,
-                      existingAppointments: existingAppointments,
-                      durationMinutes: nextDuration,
-                      excludeAppointmentId: appt.id,
-                      availability: availabilityForCurrentDay(),
-                    );
-                    final currentAvailable = slots.any(
-                      (s) => s.start == newDateTime && s.isAvailable,
-                    );
-                    final firstAvailable = slots
-                        .where((s) => s.isAvailable)
-                        .firstOrNull;
-
-                    setDs(() {
-                      newDuration = nextDuration;
-                      if (!currentAvailable && firstAvailable != null) {
-                        newDateTime = firstAvailable.start;
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                    prefixIcon: Icon(Icons.notes),
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
+    if (newAppointment.isNotEmpty) {
+      // Marcar la cita original como reprogramada
+      try {
+        await ref
+            .read(appointmentsRepositoryProvider)
+            .updateAppointmentStatus(appt.id, AppointmentStatus.reprogramada);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cita reprogramada exitosamente.'),
+            backgroundColor: Color(0xFF2E7D32),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => popDialog(ctx),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: OcgColors.bronze,
-                foregroundColor: OcgColors.ivory,
-              ),
-              onPressed: () async {
-                final notPastError =
-                    AppointmentsBusinessRules.validateStartNotInPast(
-                      start: newDateTime,
-                    );
-                if (notPastError != null) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(notPastError)));
-                  return;
-                }
-
-                final workingHoursError =
-                    AppointmentsBusinessRules.validateWithinWorkingHours(
-                      start: newDateTime,
-                      durationMinutes: newDuration,
-                    );
-                if (workingHoursError != null) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(workingHoursError)));
-                  return;
-                }
-
-                final hasConflict = AppointmentsBusinessRules.hasTimeConflict(
-                  existingAppointments: existingAppointments,
-                  newStart: newDateTime,
-                  durationMinutes: newDuration,
-                  excludeAppointmentId: appt.id,
-                );
-                if (hasConflict) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Ese horario esta ocupado. Elige otro slot de 30 minutos.',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                popDialog(ctx);
-                try {
-                  await ref
-                      .read(appointmentsRepositoryProvider)
-                      .rescheduleAppointment(
-                        originalId: appt.id,
-                        newAppointment: appt.copyWith(
-                          id: '',
-                          fechaHora: newDateTime,
-                          duracionMinutos: newDuration,
-                          notas: notesCtrl.text.trim(),
-                          estado: AppointmentStatus.programada,
-                        ),
-                      );
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cita reprogramada.')),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo reprogramar: $e')),
-                  );
-                }
-              },
-              child: const Text('Reprogramar'),
-            ),
-          ],
-        ),
-      ),
-    ).then((_) => notesCtrl.dispose());
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cita creada pero no se pudo marcar la original como reprogramada: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showCancelDialog(AppointmentModel appt) async {
