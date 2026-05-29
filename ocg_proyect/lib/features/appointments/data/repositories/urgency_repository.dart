@@ -257,10 +257,9 @@ class UrgencyRepository {
         updatedAt: now,
       );
 
-      // ── Actualizar la cita ORIGINAL a reprogramada ──
+      // ── Marcar la cita ORIGINAL como reprogramada (sin cambiar su hora) ──
       transaction.update(originalRef, {
         'estado': AppointmentStatus.reprogramada.name,
-        'fechaHora': Timestamp.fromDate(newDateTimeForOriginal),
         'rescheduledToAppointmentId': movedRef.id,
         'rescheduledTo': Timestamp.fromDate(newDateTimeForOriginal),
         'lastActionByRole': 'admin',
