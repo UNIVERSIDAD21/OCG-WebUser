@@ -18,7 +18,9 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
 import '../../payments/data/models/admin_payment_overview.dart';
+import '../../payments/data/models/payment_model.dart';
 import '../../payments/providers/payments_provider.dart';
+import '../../payments/presentation/widgets/edit_transaction_dialog.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/providers/patient_treatments_provider.dart';
 
@@ -2503,16 +2505,20 @@ class _PaymentsCompactRow extends StatelessWidget {
   }
 }
 
-class _PaymentsHistoryRow extends StatelessWidget {
+class _PaymentsHistoryRow extends ConsumerWidget {
   const _PaymentsHistoryRow({required this.item, required this.onOpen});
 
   final AdminPaymentHistoryItem item;
   final VoidCallback onOpen;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final patient = item.patient;
     final transaction = item.transaction;
+    final canEdit = transaction.metodo != PaymentMethod.epayco &&
+        transaction.registradoPor != 'epayco_webhook' &&
+        transaction.epaycoOrderId == null &&
+        transaction.epaycoTransactionId == null;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -2561,13 +2567,46 @@ class _PaymentsHistoryRow extends StatelessWidget {
             ),
             Expanded(
               flex: 2,
-              child: Text(
-                '\$${formatCop(transaction.monto)}',
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: OcgColors.espresso,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    '\$${formatCop(transaction.monto)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                  if (canEdit)
+                    GestureDetector(
+                      onTap: () {
+                        final treatmentId =
+                            transaction.treatmentId?.trim().isNotEmpty == true
+                                ? transaction.treatmentId
+                                : null;
+                        if (treatmentId != null) {
+                          showDialog<void>(
+                            context: context,
+                            builder: (_) => EditTransactionDialog(
+                              patientId: patient.id,
+                              transactionId: transaction.id,
+                              treatmentId: treatmentId,
+                              currentMonto: transaction.monto,
+                            ),
+                          );
+                        }
+                      },
+                      behavior: HitTestBehavior.deferToChild,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 15,
+                          color: OcgColors.bronze.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             Expanded(
