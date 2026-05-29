@@ -10,11 +10,12 @@ import '../../admin/presentation/web/shell/admin_web_shell.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../dashboard/presentation/admin_appointments_formatters.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
+import '../../dashboard/presentation/admin_appointments_agenda_helpers.dart';
 import '../data/models/appointment_model.dart';
-import '../providers/urgency_provider.dart';
 import '../data/models/urgency_model.dart';
 import '../domain/appointments_business_rules.dart';
 import '../providers/appointments_provider.dart';
+import '../providers/urgency_provider.dart';
 
 String _fmtDate(DateTime d) {
   return '${d.day.toString().padLeft(2, '0')}/'
@@ -120,205 +121,53 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     UrgencyRequestModel urgency,
     List<AppointmentModel> appointments,
   ) async {
-    final now = DateTime.now();
+    final urgencyDate = urgency.createdAt;
+
+    // Citas activas/confirmadas desde la fecha de la urgencia en adelante
     final candidates =
         appointments
-            .where(_isOperationalNormalAppointment)
-            .where((appointment) => appointment.patientId != urgency.patientId)
-            .where((appointment) => appointment.fechaHora.isAfter(now))
+            .where((a) {
+              final s = a.estado;
+              final isActive =
+                  s == AppointmentStatus.programada ||
+                  s == AppointmentStatus.confirmada;
+              return isActive &&
+                  _isOperationalNormalAppointment(a) &&
+                  a.patientId != urgency.patientId &&
+                  (a.fechaHora.isAtSameMomentAs(urgencyDate) ||
+                      a.fechaHora.isAfter(urgencyDate));
+            })
             .toList()
           ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
 
     if (candidates.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No hay citas normales futuras para reprogramar.'),
+          content: Text(
+            'No hay citas activas/confirmadas desde la fecha de esta urgencia.',
+          ),
         ),
       );
       return;
     }
 
-    AppointmentModel selected = candidates.first;
-    DateTime newDateTime = selected.fechaHora.add(const Duration(days: 7));
-    bool saving = false;
-    String? errorText;
+    AppointmentModel? selectedCandidate = candidates.first;
+    DateTime newDateTime = selectedCandidate.fechaHora.add(
+      const Duration(days: 7),
+    );
 
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
-          Future<void> pickDateTime() async {
-            final date = await showDatePicker(
-              context: dialogContext,
-              initialDate: newDateTime,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 120)),
-            );
-            if (date == null) return;
-            if (!dialogContext.mounted) return;
-            final time = await showTimePicker(
-              context: dialogContext,
-              initialTime: TimeOfDay.fromDateTime(newDateTime),
-            );
-            setDialogState(() {
-              newDateTime = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                time?.hour ?? newDateTime.hour,
-                time?.minute ?? newDateTime.minute,
-              );
-              errorText = null;
-            });
-          }
-
-          return AlertDialog(
-            title: const Text('Reprogramar para dar slot'),
-            content: SizedBox(
-              width: 520,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _UrgencySummary(urgency: urgency),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Selecciona la cita que se movera:',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    ...candidates
-                        .take(12)
-                        .map(
-                          (appointment) => RadioListTile<AppointmentModel>(
-                            value: appointment,
-                            groupValue: selected,
-                            dense: true,
-                            onChanged: saving
-                                ? null
-                                : (value) {
-                                    if (value == null) return;
-                                    setDialogState(() {
-                                      selected = value;
-                                      newDateTime = value.fechaHora.add(
-                                        const Duration(days: 7),
-                                      );
-                                      errorText = null;
-                                    });
-                                  },
-                            title: Text(
-                              '${appointmentFmtDateTime(appointment.fechaHora)} - ${appointment.patientName}',
-                            ),
-                            subtitle: Text(
-                              '${appointmentTypeLabel(appointment.tipo)} - ${appointment.patientPhone}',
-                            ),
-                          ),
-                        ),
-                    const SizedBox(height: 10),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.event_repeat_outlined),
-                      title: const Text('Nuevo horario de la cita movida'),
-                      subtitle: Text(appointmentFmtDateTime(newDateTime)),
-                      trailing: const Icon(Icons.edit_calendar_outlined),
-                      onTap: saving ? null : pickDateTime,
-                    ),
-                    if (errorText != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        errorText!,
-                        style: const TextStyle(color: OcgColors.error),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: saving ? null : () => popDialog(dialogContext),
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                onPressed: saving
-                    ? null
-                    : () async {
-                        final notPastError =
-                            AppointmentsBusinessRules.validateStartNotInPast(
-                              start: newDateTime,
-                            );
-                        final workingHoursError =
-                            AppointmentsBusinessRules.validateWithinWorkingHours(
-                              start: newDateTime,
-                              durationMinutes: selected.duracionMinutos,
-                            );
-                        final conflict =
-                            AppointmentsBusinessRules.hasTimeConflict(
-                              existingAppointments: appointments,
-                              newStart: newDateTime,
-                              durationMinutes: selected.duracionMinutos,
-                              excludeAppointmentId: selected.id,
-                            );
-                        if (notPastError != null ||
-                            workingHoursError != null ||
-                            conflict) {
-                          setDialogState(() {
-                            errorText =
-                                notPastError ??
-                                workingHoursError ??
-                                'El nuevo horario ya esta ocupado.';
-                          });
-                          return;
-                        }
-
-                        setDialogState(() {
-                          saving = true;
-                          errorText = null;
-                        });
-                        try {
-                          final adminId =
-                              ref.read(authStateProvider).asData?.value?.uid ??
-                              'admin';
-                          await ref
-                              .read(urgencyRepositoryProvider)
-                              .rescheduleAppointmentForUrgency(
-                                request: urgency,
-                                originalAppointment: selected,
-                                newDateTimeForOriginal: newDateTime,
-                                adminId: adminId,
-                                adminNotes:
-                                    'Slot liberado desde ${selected.id}.',
-                              );
-                          if (dialogContext.mounted) popDialog(dialogContext);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Cita reprogramada y urgencia agendada.',
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          setDialogState(() {
-                            saving = false;
-                            errorText = 'No se pudo reprogramar: $e';
-                          });
-                        }
-                      },
-                child: saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Confirmar cambio'),
-              ),
-            ],
-          );
-        },
-      ),
+      builder: (dialogContext) {
+        return _ReprogramarDialog(
+          urgency: urgency,
+          candidates: candidates,
+          appointments: appointments,
+          initialSelected: selectedCandidate,
+          initialNewDateTime: newDateTime,
+        );
+      },
     );
   }
 
@@ -560,36 +409,6 @@ class _UrgencyHeader extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UrgencySummary extends StatelessWidget {
-  const _UrgencySummary({required this.urgency});
-
-  final UrgencyRequestModel urgency;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7EF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFE4E4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            urgency.patientName,
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 4),
-          Text(urgency.descripcion),
         ],
       ),
     );
@@ -915,6 +734,530 @@ class _ReprogramacionDetail extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _ReprogramarDialog extends ConsumerStatefulWidget {
+  const _ReprogramarDialog({
+    required this.urgency,
+    required this.candidates,
+    required this.appointments,
+    required this.initialSelected,
+    required this.initialNewDateTime,
+  });
+
+  final UrgencyRequestModel urgency;
+  final List<AppointmentModel> candidates;
+  final List<AppointmentModel> appointments;
+  final AppointmentModel initialSelected;
+  final DateTime initialNewDateTime;
+
+  @override
+  ConsumerState<_ReprogramarDialog> createState() => _ReprogramarDialogState();
+}
+
+class _ReprogramarDialogState extends ConsumerState<_ReprogramarDialog> {
+  late AppointmentModel _selected;
+  late DateTime _newDateTime;
+  bool _saving = false;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialSelected;
+    _newDateTime = widget.initialNewDateTime;
+  }
+
+  Future<void> _pickNewDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _newDateTime,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 120)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_newDateTime),
+    );
+    if (!mounted) return;
+    setState(() {
+      _newDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time?.hour ?? _newDateTime.hour,
+        time?.minute ?? _newDateTime.minute,
+      );
+      _errorText = null;
+    });
+  }
+
+  Future<void> _confirm() async {
+    final notPastError = AppointmentsBusinessRules.validateStartNotInPast(
+      start: _newDateTime,
+    );
+    final workingHoursError =
+        AppointmentsBusinessRules.validateWithinWorkingHours(
+          start: _newDateTime,
+          durationMinutes: _selected.duracionMinutos,
+        );
+    final conflict = AppointmentsBusinessRules.hasTimeConflict(
+      existingAppointments: widget.appointments,
+      newStart: _newDateTime,
+      durationMinutes: _selected.duracionMinutos,
+      excludeAppointmentId: _selected.id,
+    );
+    if (notPastError != null || workingHoursError != null || conflict) {
+      setState(() {
+        _errorText =
+            notPastError ?? workingHoursError ?? 'El nuevo horario ya esta ocupado.';
+      });
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _errorText = null;
+    });
+    try {
+      final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
+      await ref.read(urgencyRepositoryProvider).rescheduleAppointmentForUrgency(
+            request: widget.urgency,
+            originalAppointment: _selected,
+            newDateTimeForOriginal: _newDateTime,
+            adminId: adminId,
+            adminNotes: 'Slot liberado desde ${_selected.id}.',
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cita reprogramada y urgencia agendada.'),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _saving = false;
+        _errorText = 'No se pudo reprogramar: $e';
+      });
+    }
+  }
+
+  String _appointmentDateLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateDay = DateTime(d.year, d.month, d.day);
+    final diff = dateDay.difference(today).inDays;
+
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Mañana';
+    final weekdays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return '${weekdays[d.weekday - 1]} ${d.day}/${d.month}';
+  }
+
+  Widget _buildAgendaCard(AppointmentModel a, bool isSelected) {
+    final ui = appointmentStatusUi(a);
+    final timeLabel =
+        '${a.fechaHora.hour.toString().padLeft(2, '0')}:${a.fechaHora.minute.toString().padLeft(2, '0')}';
+
+    return GestureDetector(
+      onTap: _saving ? null : () => setState(() => _selected = a),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF8EE) : OcgColors.ivory,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF6366F1)
+                : ui.line.withOpacity(0.18),
+            width: isSelected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFF6366F1).withOpacity(0.14)
+                  : OcgColors.espresso.withOpacity(0.04),
+              blurRadius: isSelected ? 20 : 14,
+              offset: Offset(0, isSelected ? 10 : 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: ui.line.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.person_outline_rounded,
+                    color: ui.line,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        a.patientName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OcgColors.espresso,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$timeLabel · ${appointmentTypeLabel(a.tipo)} · ${a.duracionMinutos} min',
+                        style: TextStyle(
+                          color: OcgColors.ink.withOpacity(0.68),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ui.line.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    ui.label,
+                    style: TextStyle(
+                      color: ui.line,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (a.treatmentNameSnapshot != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.local_hospital_outlined,
+                    size: 13,
+                    color: OcgColors.ink.withOpacity(0.45),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    a.treatmentNameSnapshot!,
+                    style: TextStyle(
+                      color: OcgColors.ink.withOpacity(0.55),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (isSelected) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 15, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'Seleccionada para reprogramar',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFEDE8DC),
+        appBar: AppBar(
+          backgroundColor: OcgColors.ivory,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: OcgColors.espresso),
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          ),
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Reprogramar cita',
+                style: TextStyle(
+                  color: OcgColors.espresso,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                'Selecciona la cita a mover y el nuevo horario',
+                style: TextStyle(
+                  color: OcgColors.ink,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Column(
+          children: [
+            // Urgency context banner
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFCC80)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.urgency.patientName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: OcgColors.espresso,
+                          ),
+                        ),
+                        Text(
+                          widget.urgency.descripcion,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: OcgColors.ink.withOpacity(0.65),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Section header: Cita a mover
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Row(
+                children: [
+                  Icon(Icons.event_busy_outlined, size: 18, color: OcgColors.ink.withOpacity(0.6)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Cita a mover (${widget.candidates.length})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Candidates list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: widget.candidates.length,
+                itemBuilder: (context, index) {
+                  final a = widget.candidates[index];
+                  final showDateHeader =
+                      index == 0 ||
+                      _appointmentDateLabel(a.fechaHora) !=
+                          _appointmentDateLabel(widget.candidates[index - 1].fechaHora);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showDateHeader) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 14,
+                                color: OcgColors.ink.withOpacity(0.5),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _appointmentDateLabel(a.fechaHora),
+                                style: TextStyle(
+                                  color: OcgColors.ink.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      _buildAgendaCard(a, _selected.id == a.id),
+                    ],
+                  );
+                },
+              ),
+            ),
+            // Error message
+            if (_errorText != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: OcgColors.error.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: OcgColors.error.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, size: 16, color: OcgColors.error),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _errorText!,
+                        style: const TextStyle(
+                          color: OcgColors.error,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // Bottom bar: Nuevo horario + Confirm
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              decoration: BoxDecoration(
+                color: OcgColors.ivory,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.event_repeat_outlined,
+                        size: 18,
+                        color: OcgColors.ink.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Nuevo horario:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: OcgColors.espresso,
+                        ),
+                      ),
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _pickNewDateTime,
+                        icon: const Icon(Icons.edit_calendar, size: 16),
+                        label: Text(
+                          appointmentFmtDateTime(_newDateTime),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton(
+                    onPressed: _saving ? null : _confirm,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          )
+                        : const Text(
+                            'Confirmar reprogramación',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
