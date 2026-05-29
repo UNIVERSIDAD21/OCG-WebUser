@@ -189,7 +189,7 @@ void main() {
     final sim = baseSimulation(
       treatmentProfileId: 'esthetic_braces',
       visualGoal: 'show_appliance',
-      doctorConfig: {'material': 'zafiro'},
+      doctorConfig: {'material': 'metalico'},
       photoQuality: {'status': 'valid'},
     );
 
@@ -202,7 +202,7 @@ void main() {
 
     expect(repo.lastTreatmentProfileId, 'esthetic_braces');
     expect(repo.lastVisualGoal, 'show_appliance');
-    expect(repo.lastDoctorConfig?['material'], 'zafiro');
+    expect(repo.lastDoctorConfig?['material'], 'metalico');
     expect(repo.lastPhotoQuality?['status'], 'valid');
     expect(repo.generateCalls, 1);
   });

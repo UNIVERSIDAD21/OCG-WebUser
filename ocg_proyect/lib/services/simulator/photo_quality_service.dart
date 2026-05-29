@@ -17,12 +17,12 @@ class PhotoQualityResult {
   final Map<String, dynamic> metadata;
 
   Map<String, dynamic> toJson() => {
-        'status': status,
-        'score': score,
-        'warnings': warnings,
-        'blockingReasons': blockingReasons,
-        'metadata': metadata,
-      };
+    'status': status,
+    'score': score,
+    'warnings': warnings,
+    'blockingReasons': blockingReasons,
+    'metadata': metadata,
+  };
 
   factory PhotoQualityResult.fromJson(Map<String, dynamic> json) {
     return PhotoQualityResult(
@@ -30,11 +30,13 @@ class PhotoQualityResult {
       score: (json['score'] ?? 0.5) is int
           ? (json['score'] as int).toDouble()
           : (json['score'] ?? 0.5) as double,
-      warnings: (json['warnings'] as List<dynamic>?)
+      warnings:
+          (json['warnings'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
-      blockingReasons: (json['blockingReasons'] as List<dynamic>?)
+      blockingReasons:
+          (json['blockingReasons'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
@@ -62,9 +64,7 @@ class PhotoQualityResult {
     status: 'rejected',
     score: 0.0,
     warnings: [],
-    blockingReasons: [
-      'No se detectaron dientes visibles en la foto.',
-    ],
+    blockingReasons: ['No se detectaron dientes visibles en la foto.'],
     metadata: {'hasFace': false},
   );
 }
@@ -85,10 +85,9 @@ class PhotoQualityService {
       'faceDetectionSource': detection.source,
     };
 
-    final profile =
-        treatmentProfileId != null
-            ? lookupProfile(treatmentProfileId)
-            : null;
+    final profile = treatmentProfileId != null
+        ? lookupProfile(treatmentProfileId)
+        : null;
 
     // ── 1. File size ──────────────────────────────────────
     if (bytesLength < 1024) {
@@ -164,12 +163,19 @@ class PhotoQualityService {
           }
           break;
 
-        case 'whitening':
+        case 'blanqueamiento':
           _assessSmileVisible(warnings, blockingReasons, detection, score);
           break;
 
-        case 'veneers':
-        case 'smile_design':
+        case 'carillas':
+        case 'reconstruccion':
+        case 'limpieza_oral':
+        case 'reemplazo_dental':
+        case 'implantes_dentales':
+        case 'bordes_incisales':
+        case 'gingivectomia':
+        case 'gingivoplastia':
+        case 'alineacion_margenes':
           _assessSmileVisible(warnings, blockingReasons, detection, score);
           if (detection.detectedRegion == null && !detection.hasFace) {
             warnings.add(
@@ -181,8 +187,7 @@ class PhotoQualityService {
 
         case 'palatal_expander':
           // Expander requires intraoral upper photo
-          final configType =
-              doctorConfig?['tipoVisual']?.toString() ?? 'Hyrax';
+          final configType = doctorConfig?['tipoVisual']?.toString() ?? 'Hyrax';
           if (configType == 'removible') {
             warnings.add(
               'El expansor removible puede no ser visible en una'

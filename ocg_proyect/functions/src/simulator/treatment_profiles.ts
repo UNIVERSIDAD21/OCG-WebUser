@@ -25,25 +25,215 @@ export type TreatmentPromptProfile = {
   fallbackProfileId: string;
 };
 
-// ── Identity preservation (shared by all profiles) ─────
+const AESTHETIC_FALLBACK_PROFILE_ID = 'carillas';
 
-const IDENTITY_BASE = [
-  'Edit ONLY the visible dental area of the patient.',
-  'Preserve the face, lips, skin, facial expression, lighting, framing, and identity exactly as they are.',
-  'Do not change the shape of the face.',
-  'Do not alter eyes, nose, hair, skin, or background.',
-  'Keep the image looking like a real clinical photo, not an artificial rendering.',
-  'The result is an orientative visual simulation, not a clinical promise.',
-];
+const RECONSTRUCCION: TreatmentPromptProfile = {
+  id: 'reconstruccion',
+  label: 'Reconstrucción',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    diente: 'anterior',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Reconstruct the selected damaged or decayed tooth area so it looks restored with natural dental anatomy.',
+    'Match the restoration shade and translucency to the neighboring teeth.',
+    'Keep the result conservative and clinically believable, as a direct restoration or rebuilding of the visible tooth structure.',
+  ],
+  negativeInstructions: [
+    'Do NOT add orthodontic appliances, brackets, archwires, aligners, retainers, or expanders.',
+    'Do NOT redesign the whole smile unless the selected tooth requires local harmony.',
+    'Do NOT create oversized crowns or unnaturally perfect teeth.',
+  ],
+  photoRequirements: [
+    'Photo where the target tooth and neighboring teeth are visible.',
+    'Good lighting and enough sharpness to see the damaged tooth area.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
 
-// ── Profiles ────────────────────────────────────────────
+const LIMPIEZA_ORAL: TreatmentPromptProfile = {
+  id: 'limpieza_oral',
+  label: 'Limpieza',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    intensidad: 'media',
+    arcada: 'ambas',
+  },
+  positiveInstructions: [
+    'Simulate the result after a professional oral cleaning.',
+    'Reduce visible plaque, calculus, and superficial staining while keeping natural tooth color and shape.',
+    'Make gums and teeth look cleaner and healthier without changing the patient identity.',
+  ],
+  negativeInstructions: [
+    'Do NOT make teeth dramatically whiter as if a whitening treatment was performed.',
+    'Do NOT change tooth shape, position, size, lips, or facial features.',
+    'Do NOT add veneers, crowns, or any appliances.',
+  ],
+  photoRequirements: [
+    'Frontal or intraoral photo where tooth surfaces and gumline are visible.',
+    'Good lighting for stain and plaque visibility.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const REEMPLAZO_DENTAL: TreatmentPromptProfile = {
+  id: 'reemplazo_dental',
+  label: 'Reemplazo de dientes',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    tipoProtesis: 'corona',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Replace the indicated missing or compromised tooth area with a natural-looking prosthetic dental result.',
+    'The replacement must harmonize with neighboring teeth in color, size, contour, and alignment.',
+    'If the selected type is bridge or partial prosthesis, make it look like a realistic dental restoration, not an appliance display.',
+  ],
+  negativeInstructions: [
+    'Do NOT add orthodontic brackets, archwires, aligners, retainers, or expanders.',
+    'Do NOT alter healthy neighboring teeth more than needed for natural harmony.',
+    'Do NOT create an artificial denture-like smile.',
+  ],
+  photoRequirements: [
+    'Photo showing the missing tooth area or the area to be replaced.',
+    'Neighboring teeth should be visible for shade and proportion matching.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const IMPLANTES_DENTALES: TreatmentPromptProfile = {
+  id: 'implantes_dentales',
+  label: 'Implantes dentales',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    cantidad: 'unitario',
+    zona: 'anterior',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Simulate the final visible crown restoration over dental implant treatment.',
+    'Show a natural tooth emerging from the gum with realistic contour, shade, and proportion.',
+    'The visible result should look like a completed implant-supported crown or crowns, not like surgical hardware.',
+  ],
+  negativeInstructions: [
+    'Do NOT show screws, surgical instruments, titanium roots, blood, incisions, or clinical surgery.',
+    'Do NOT add orthodontic appliances.',
+    'Do NOT change lips, skin, face, or background.',
+  ],
+  photoRequirements: [
+    'Photo showing the edentulous or restoration area.',
+    'Gumline and neighboring teeth should be visible.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const BORDES_INCISALES: TreatmentPromptProfile = {
+  id: 'bordes_incisales',
+  label: 'Bordes dentales',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    ajuste: 'moderado',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Improve worn, fractured, uneven, or short incisal edges on anterior teeth.',
+    'Refine the shape and length of the front teeth while keeping natural anatomy and patient-specific character.',
+    'Create a balanced smile line that still looks realistic and clinically conservative.',
+  ],
+  negativeInstructions: [
+    'Do NOT add brackets, aligners, retainers, crowns, or full veneers unless explicitly indicated.',
+    'Do NOT make all teeth perfectly identical or unnaturally square.',
+    'Do NOT alter gums, lips, face, or background.',
+  ],
+  photoRequirements: [
+    'Frontal smile with anterior incisal edges visible.',
+    'Good lighting and focus on the front teeth.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const GINGIVECTOMIA: TreatmentPromptProfile = {
+  id: 'gingivectomia',
+  label: 'Gingivectomía',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    zona: 'sector1',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Simulate a conservative gingivectomy result by reducing excess gingival tissue in the selected area.',
+    'Reveal slightly more natural tooth crown length while preserving realistic gum texture and color.',
+    'Keep the gumline healthy, smooth, and clinically plausible.',
+  ],
+  negativeInstructions: [
+    'Do NOT show bleeding, incisions, sutures, surgical instruments, or trauma.',
+    'Do NOT overexpose roots or make teeth look unnaturally long.',
+    'Do NOT change lips, face, skin, or background.',
+  ],
+  photoRequirements: [
+    'Photo where the gumline and target teeth are clearly visible.',
+    'Good lighting to distinguish tooth and gingiva contours.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const GINGIVOPLASTIA: TreatmentPromptProfile = {
+  id: 'gingivoplastia',
+  label: 'Gingivoplastia',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    zona: 'sector1',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Remodel the visible gingival contour for a more aesthetic and harmonious gum shape.',
+    'Improve scalloping and symmetry while preserving a natural gum color and texture.',
+    'The result should look like healed aesthetic gum contouring, not a surgical moment.',
+  ],
+  negativeInstructions: [
+    'Do NOT show blood, cuts, sutures, instruments, or fresh surgery.',
+    'Do NOT change tooth shade or add restorative material unless needed for gum contour harmony.',
+    'Do NOT alter lips, face, skin, or background.',
+  ],
+  photoRequirements: [
+    'Frontal smile with gumline visible.',
+    'Good lighting and enough detail around the gingival margins.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
+
+const ALINEACION_MARGENES: TreatmentPromptProfile = {
+  id: 'alineacion_margenes',
+  label: 'Alineación de márgenes',
+  allowedVisualGoals: ['aesthetic_improvement'],
+  defaultConfig: {
+    zona: 'sector1',
+    arcada: 'superior',
+  },
+  positiveInstructions: [
+    'Correct the visible gingival margin contour so gum levels look more symmetrical.',
+    'Align the gumline heights between comparable teeth while keeping natural gingival anatomy.',
+    'Create a balanced, healed, aesthetic contour with realistic tissue texture.',
+  ],
+  negativeInstructions: [
+    'Do NOT show surgical trauma, bleeding, cuts, or instruments.',
+    'Do NOT make teeth unnaturally long or identical.',
+    'Do NOT alter lips, face, skin, or background.',
+  ],
+  photoRequirements: [
+    'Frontal smile where gingival margins are visible.',
+    'Good lighting and focus around the gumline.',
+  ],
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
+};
 
 const METAL_BRACES: TreatmentPromptProfile = {
   id: 'metal_braces',
   label: 'Brackets metálicos',
   allowedVisualGoals: ['show_appliance'],
   defaultConfig: {
-    ligatureColor: 'gris',
+    ligatureColor: '#9E9E9E',
     archwire: 'visible',
     arcada: 'superior',
   },
@@ -73,19 +263,19 @@ const ESTHETIC_BRACES: TreatmentPromptProfile = {
   defaultConfig: {
     material: 'ceramico',
     ligatureColor: 'transparente',
-    archwire: 'estetico',
+    archwire: 'estandar',
     arcada: 'superior',
   },
   positiveInstructions: [
-    'Add ceramic or sapphire brackets on the visible teeth. They should look clear, translucent, or tooth-colored — discreet, not metallic.',
-    'Add a subtle, tooth-colored or clear archwire.',
-    'Add clear or pearl-colored elastic ligatures.',
+    'Add discreet orthodontic brackets on the visible teeth according to the selected material.',
+    'Keep the brackets low-profile, clean, and clinically realistic.',
+    'Add elastic ligatures and an archwire that match the selected configuration.',
   ],
   negativeInstructions: [
-    'Do NOT add dark metal brackets.',
-    'Do NOT make the brackets completely invisible like aligners.',
+    'Do NOT add invisible aligners.',
     'Do NOT dramatically whiten the teeth.',
     'Do NOT change tooth shape or position dramatically.',
+    'Do NOT make the appliance look oversized or artificial.',
   ],
   photoRequirements: [
     'Frontal smile with upper teeth visible.',
@@ -112,18 +302,18 @@ const CLEAR_ALIGNERS: TreatmentPromptProfile = {
   negativeInstructions: [
     'Do NOT add metal or ceramic brackets.',
     'Do NOT add archwires.',
-    'Do NOT make the aligner completely invisible — a subtle sheen must be present.',
+    'Do NOT make the aligner completely invisible; a subtle sheen must be present.',
     'Do NOT dramatically whiten the teeth.',
   ],
   photoRequirements: [
     'Frontal smile with teeth visible.',
     'Sufficient lighting.',
   ],
-  fallbackProfileId: 'smile_design',
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
 };
 
-const WHITENING: TreatmentPromptProfile = {
-  id: 'whitening',
+const BLANQUEAMIENTO: TreatmentPromptProfile = {
+  id: 'blanqueamiento',
   label: 'Blanqueamiento dental',
   allowedVisualGoals: ['aesthetic_improvement'],
   defaultConfig: {
@@ -134,7 +324,7 @@ const WHITENING: TreatmentPromptProfile = {
   positiveInstructions: [
     'Lighten the tooth shade by 2-4 shades, achieving a natural, healthy white tone.',
     'Keep the tooth color uniform and believable for the patient\'s age and skin tone.',
-    'Maintain natural translucency at the incisal edges — do not make teeth look opaque or chalky.',
+    'Maintain natural translucency at the incisal edges; do not make teeth look opaque or chalky.',
   ],
   negativeInstructions: [
     'Do NOT change the shape, size, or position of any tooth.',
@@ -146,11 +336,11 @@ const WHITENING: TreatmentPromptProfile = {
     'Frontal smile with teeth visible.',
     'Good lighting for accurate shade perception.',
   ],
-  fallbackProfileId: 'smile_design',
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
 };
 
-const VENEERS: TreatmentPromptProfile = {
-  id: 'veneers',
+const CARILLAS: TreatmentPromptProfile = {
+  id: 'carillas',
   label: 'Carillas / vinillas',
   allowedVisualGoals: ['aesthetic_improvement', 'final_result'],
   defaultConfig: {
@@ -165,7 +355,7 @@ const VENEERS: TreatmentPromptProfile = {
     'Improve the shape, proportion, symmetry, and color of the visible anterior teeth so they look like natural, well-designed ceramic veneers.',
     'Harmonize the incisal edges for a balanced smile line.',
     'If closing gaps is indicated, close diastemas naturally.',
-    'Achieve a warm, natural white tone — not artificial or overly bright.',
+    'Achieve a warm, natural white tone; not artificial or overly bright.',
   ],
   negativeInstructions: [
     'Do NOT add brackets, archwires, or aligners.',
@@ -177,37 +367,7 @@ const VENEERS: TreatmentPromptProfile = {
     'Frontal smile with anterior teeth clearly visible.',
     'Good lighting.',
   ],
-  fallbackProfileId: 'smile_design',
-};
-
-const SMILE_DESIGN: TreatmentPromptProfile = {
-  id: 'smile_design',
-  label: 'Diseño de sonrisa',
-  allowedVisualGoals: ['final_result'],
-  defaultConfig: {
-    estilo: 'armonico',
-    alineacionFinal: 'media',
-    tono: 'blanco moderado',
-    bordeIncisal: 'armonizado',
-    simetriaSonrisa: 'media',
-  },
-  positiveInstructions: [
-    'Create the ideal final orthodontic result: perfectly aligned teeth with a harmonious smile arc.',
-    'Teeth should look straight, well-proportioned, and naturally beautiful.',
-    'Achieve a clean, healthy tooth shade appropriate for the patient\'s appearance.',
-    'The smile should look balanced, symmetrical, and confident.',
-  ],
-  negativeInstructions: [
-    'Do NOT show any brackets, wires, aligners, expanders, or retainers.',
-    'Do NOT create an unnaturally white or artificial smile.',
-    'Do NOT alter face shape, lips, or skin.',
-    'Do NOT produce a "Hollywood" smile unless it fits the patient naturally.',
-  ],
-  photoRequirements: [
-    'Frontal smile with teeth clearly visible.',
-    'Good lighting.',
-  ],
-  fallbackProfileId: 'smile_design',
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
 };
 
 const PALATAL_EXPANDER: TreatmentPromptProfile = {
@@ -231,7 +391,7 @@ const PALATAL_EXPANDER: TreatmentPromptProfile = {
     'Intraoral upper photo or open mouth showing palate is strongly recommended.',
     'Frontal smile photos may not be suitable for this treatment.',
   ],
-  fallbackProfileId: 'smile_design',
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
 };
 
 const RETAINER: TreatmentPromptProfile = {
@@ -247,7 +407,7 @@ const RETAINER: TreatmentPromptProfile = {
     'Add the selected orthodontic retainer appliance as the main dental change in the image.',
     'Do not leave the teeth unchanged: the retainer must be identifiable in the generated photo.',
     'For clear removable retainers, show visible tray edges, slight plastic thickness, and glossy reflections on the teeth.',
-    'If fixed lingual type: barely visible — a very thin wire behind the teeth. From a frontal smile, this should be nearly invisible.',
+    'If fixed lingual type: barely visible, a very thin wire behind the teeth. From a frontal smile, this should be nearly invisible.',
   ],
   negativeInstructions: [
     'Do NOT add brackets with archwires.',
@@ -257,25 +417,37 @@ const RETAINER: TreatmentPromptProfile = {
   ],
   photoRequirements: [
     'Frontal smile with teeth visible.',
-    'For fixed lingual, no special requirements — the wire is behind the teeth.',
+    'For fixed lingual, no special requirements; the wire is behind the teeth.',
   ],
-  fallbackProfileId: 'smile_design',
+  fallbackProfileId: AESTHETIC_FALLBACK_PROFILE_ID,
 };
 
-// ── Profile map and resolution ─────────────────────────
+// Profile map and resolution
 
 export const TREATMENT_PROFILES: Record<string, TreatmentPromptProfile> = {
+  reconstruccion: RECONSTRUCCION,
+  limpieza_oral: LIMPIEZA_ORAL,
+  reemplazo_dental: REEMPLAZO_DENTAL,
+  implantes_dentales: IMPLANTES_DENTALES,
+  bordes_incisales: BORDES_INCISALES,
+  gingivectomia: GINGIVECTOMIA,
+  gingivoplastia: GINGIVOPLASTIA,
+  alineacion_margenes: ALINEACION_MARGENES,
   metal_braces: METAL_BRACES,
   esthetic_braces: ESTHETIC_BRACES,
   clear_aligners: CLEAR_ALIGNERS,
-  whitening: WHITENING,
-  veneers: VENEERS,
-  smile_design: SMILE_DESIGN,
+  blanqueamiento: BLANQUEAMIENTO,
+  carillas: CARILLAS,
   palatal_expander: PALATAL_EXPANDER,
   retainer: RETAINER,
 };
 
-/** Legacy treatmentType → profileId mapping for backward compatibility */
+const RENAMED_PROFILE_ALIASES: Record<string, string> = {
+  whitening: 'blanqueamiento',
+  veneers: 'carillas',
+};
+
+/** Legacy treatmentType -> profileId mapping for backward compatibility */
 const LEGACY_TREATMENT_MAP: Record<string, string> = {
   alineadores: 'clear_aligners',
   retenedores: 'retainer',
@@ -289,13 +461,13 @@ export function resolveTreatmentProfile(
   treatmentProfileId?: string,
   legacyTreatmentType?: string,
 ): TreatmentPromptProfile {
-  // Use explicit profile ID if valid
   if (treatmentProfileId) {
-    const direct = TREATMENT_PROFILES[treatmentProfileId.trim()];
+    const requestedId = treatmentProfileId.trim();
+    const normalizedId = RENAMED_PROFILE_ALIASES[requestedId] ?? requestedId;
+    const direct = TREATMENT_PROFILES[normalizedId];
     if (direct) return direct;
   }
 
-  // Fallback: infer from legacy treatmentType
   if (legacyTreatmentType) {
     const key = LEGACY_TREATMENT_MAP[legacyTreatmentType.trim().toLowerCase()];
     if (key) {
@@ -304,6 +476,5 @@ export function resolveTreatmentProfile(
     }
   }
 
-  // Ultimate fallback
-  return SMILE_DESIGN;
+  return CARILLAS;
 }

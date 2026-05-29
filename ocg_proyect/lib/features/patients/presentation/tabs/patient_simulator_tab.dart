@@ -140,22 +140,76 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
               flow: flow,
               openedSimulation: _openedSimulation,
             );
-        return ListView(
-          controller: widget.scrollable ? _scrollController : null,
-          shrinkWrap: !widget.scrollable,
-          physics: widget.scrollable
-              ? null
-              : const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          children: [
-            _SimulatorMobileHeader(
-              patientName: widget.patient.nombre,
-              latestSimulation: latest,
-              onNew: _startNewSimulation,
+        final children = <Widget>[
+          _SimulatorMobileHeader(
+            patientName: widget.patient.nombre,
+            latestSimulation: latest,
+            onNew: _startNewSimulation,
+          ),
+          const SizedBox(height: 14),
+          _SimulatorPrimaryActionsCard(
+            hasSimulations: items.isNotEmpty,
+            onCamera: () {
+              setState(() {
+                _openedSimulation = null;
+                _creatingNewSimulation = true;
+              });
+              ref.read(simulatorFlowProvider.notifier).resetFlow();
+              final defaultId = defaultProfileIdFromTreatmentType(
+                widget.patient.tipoTratamiento?.name,
+              );
+              if (defaultId != null) {
+                ref
+                    .read(simulatorFlowProvider.notifier)
+                    .setTreatmentProfile(defaultId);
+              }
+              ref
+                  .read(simulatorFlowProvider.notifier)
+                  .pickOriginalFromCamera(
+                    patientId: widget.patient.id,
+                    adminId: adminId,
+                    treatmentType: widget.patient.tipoTratamiento,
+                  );
+            },
+            onGallery: () {
+              setState(() {
+                _openedSimulation = null;
+                _creatingNewSimulation = true;
+              });
+              ref.read(simulatorFlowProvider.notifier).resetFlow();
+              final defaultId = defaultProfileIdFromTreatmentType(
+                widget.patient.tipoTratamiento?.name,
+              );
+              if (defaultId != null) {
+                ref
+                    .read(simulatorFlowProvider.notifier)
+                    .setTreatmentProfile(defaultId);
+              }
+              ref
+                  .read(simulatorFlowProvider.notifier)
+                  .pickOriginalFromGallery(
+                    patientId: widget.patient.id,
+                    adminId: adminId,
+                    treatmentType: widget.patient.tipoTratamiento,
+                  );
+            },
+          ),
+          const SizedBox(height: 14),
+          if (showActiveFlow) ...[
+            Container(
+              key: _activeFlowKey,
+              child: SimulatorScreen(
+                patientId: widget.patient.id,
+                adminId: adminId,
+                treatmentType: widget.patient.tipoTratamiento,
+                initialSimulation: _openedSimulation,
+                embedded: true,
+              ),
             ),
-            const SizedBox(height: 14),
-            _SimulatorPrimaryActionsCard(
-              hasSimulations: items.isNotEmpty,
+            const SizedBox(height: 16),
+          ],
+          if (items.isEmpty && !showActiveFlow)
+            _SimulatorEmptyState(
               onCamera: () {
                 setState(() {
                   _openedSimulation = null;
@@ -178,191 +232,140 @@ class _PatientSimulatorTabState extends ConsumerState<PatientSimulatorTab> {
                       treatmentType: widget.patient.tipoTratamiento,
                     );
               },
-              onGallery: () {
-                setState(() {
-                  _openedSimulation = null;
-                  _creatingNewSimulation = true;
-                });
-                ref.read(simulatorFlowProvider.notifier).resetFlow();
-                final defaultId = defaultProfileIdFromTreatmentType(
-                  widget.patient.tipoTratamiento?.name,
-                );
-                if (defaultId != null) {
-                  ref
-                      .read(simulatorFlowProvider.notifier)
-                      .setTreatmentProfile(defaultId);
-                }
-                ref
-                    .read(simulatorFlowProvider.notifier)
-                    .pickOriginalFromGallery(
-                      patientId: widget.patient.id,
-                      adminId: adminId,
-                      treatmentType: widget.patient.tipoTratamiento,
-                    );
-              },
+            )
+          else if (items.isNotEmpty) ...[
+            const Text(
+              'Historial de simulaciones',
+              key: ValueKey('simulation-history-title'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: OcgColors.espresso,
+              ),
             ),
-            const SizedBox(height: 14),
-            if (showActiveFlow) ...[
-              Container(
-                key: _activeFlowKey,
-                child: SimulatorScreen(
-                  patientId: widget.patient.id,
-                  adminId: adminId,
-                  treatmentType: widget.patient.tipoTratamiento,
-                  initialSimulation: _openedSimulation,
-                  embedded: true,
+            const SizedBox(height: 10),
+            ...items.map(
+              (s) => _AdminSimulationCard(
+                key: ValueKey(
+                  'sim-card-${s.id}-${s.attemptCount}-${s.resultPath ?? ''}',
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (items.isEmpty && !showActiveFlow)
-              _SimulatorEmptyState(
-                onCamera: () {
+                simulation: s,
+                onOpen: () {
                   setState(() {
-                    _openedSimulation = null;
-                    _creatingNewSimulation = true;
+                    _openedSimulation = s;
+                    _creatingNewSimulation = false;
                   });
-                  ref.read(simulatorFlowProvider.notifier).resetFlow();
-                  final defaultId = defaultProfileIdFromTreatmentType(
-                    widget.patient.tipoTratamiento?.name,
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _focusActiveFlow(),
                   );
-                  if (defaultId != null) {
-                    ref
-                        .read(simulatorFlowProvider.notifier)
-                        .setTreatmentProfile(defaultId);
-                  }
-                  ref
-                      .read(simulatorFlowProvider.notifier)
-                      .pickOriginalFromCamera(
-                        patientId: widget.patient.id,
-                        adminId: adminId,
-                        treatmentType: widget.patient.tipoTratamiento,
-                      );
                 },
-              )
-            else if (items.isNotEmpty) ...[
-              const Text(
-                'Historial de simulaciones',
-                key: ValueKey('simulation-history-title'),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: OcgColors.espresso,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...items.map(
-                (s) => _AdminSimulationCard(
-                  key: ValueKey(
-                    'sim-card-${s.id}-${s.attemptCount}-${s.resultPath ?? ''}',
-                  ),
-                  simulation: s,
-                  onOpen: () {
-                    setState(() {
-                      _openedSimulation = s;
-                      _creatingNewSimulation = false;
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback(
-                      (_) => _focusActiveFlow(),
-                    );
-                  },
-                  onToggleShare: (value) async {
-                    try {
+                onToggleShare: (value) async {
+                  try {
+                    await ref
+                        .read(simulationRepositoryProvider)
+                        .unshareSimulationWithPatient(widget.patient.id, s.id);
+                    if (value) {
                       await ref
                           .read(simulationRepositoryProvider)
-                          .unshareSimulationWithPatient(
-                            widget.patient.id,
-                            s.id,
-                          );
-                      if (value) {
-                        await ref
-                            .read(simulationRepositoryProvider)
-                            .shareSimulationWithPatient(
-                              widget.patient.id,
-                              s.id,
-                            );
-                      }
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            value
-                                ? 'Simulación compartida con paciente.'
-                                : 'Simulación descompartida correctamente.',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'No se pudo actualizar el estado de compartir: $e',
-                          ),
-                        ),
-                      );
+                          .shareSimulationWithPatient(widget.patient.id, s.id);
                     }
-                  },
-                  onDelete: () async {
-                    final confirmar = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Eliminar simulación'),
-                        content: const Text(
-                          '¿Seguro que deseas eliminar esta simulación? Esta acción no se puede deshacer.',
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          value
+                              ? 'Simulación compartida con paciente.'
+                              : 'Simulación descompartida correctamente.',
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(false),
-                            child: const Text('Cancelar'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(ctx).pop(true),
-                            child: const Text('Eliminar'),
-                          ),
-                        ],
                       ),
                     );
-
-                    if (confirmar != true) return;
-
-                    try {
-                      await ref
-                          .read(simulationRepositoryProvider)
-                          .deleteSimulation(
-                            patientId: widget.patient.id,
-                            simulationId: s.id,
-                          );
-
-                      if (_openedSimulation?.id == s.id) {
-                        setState(() {
-                          _openedSimulation = null;
-                          _creatingNewSimulation = false;
-                        });
-                        ref.read(simulatorFlowProvider.notifier).resetFlow();
-                      }
-
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Simulación eliminada correctamente.'),
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'No se pudo actualizar el estado de compartir: $e',
                         ),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'No se pudo eliminar la simulación: $e',
-                          ),
+                      ),
+                    );
+                  }
+                },
+                onDelete: () async {
+                  final confirmar = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Eliminar simulación'),
+                      content: const Text(
+                        '¿Seguro que deseas eliminar esta simulación? Esta acción no se puede deshacer.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Cancelar'),
                         ),
-                      );
+                        FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Eliminar'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmar != true) return;
+
+                  try {
+                    await ref
+                        .read(simulationRepositoryProvider)
+                        .deleteSimulation(
+                          patientId: widget.patient.id,
+                          simulationId: s.id,
+                        );
+
+                    if (_openedSimulation?.id == s.id) {
+                      setState(() {
+                        _openedSimulation = null;
+                        _creatingNewSimulation = false;
+                      });
+                      ref.read(simulatorFlowProvider.notifier).resetFlow();
                     }
-                  },
-                ),
+
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Simulación eliminada correctamente.'),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('No se pudo eliminar la simulación: $e'),
+                      ),
+                    );
+                  }
+                },
               ),
-            ],
+            ),
           ],
+        ];
+
+        if (!widget.scrollable) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
         );
       },
     );

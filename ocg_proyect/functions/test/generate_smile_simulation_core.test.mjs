@@ -275,7 +275,7 @@ test('flujo legacy de retenedores usa prompt Essix visible por defecto', async (
   assert.match(sim.promptUsed, /clearly show that a retainer appliance is present/);
 });
 
-test('treatmentType desconocido usa smile_design como fallback', async () => {
+test('treatmentType desconocido usa carillas como fallback', async () => {
   const d = deps({seed: baseSeed({treatmentType: 'desconocido'})});
   await processGenerateSmileSimulation(d.value, {
     patientId: 'p1',
@@ -284,7 +284,7 @@ test('treatmentType desconocido usa smile_design como fallback', async () => {
   });
 
   const sim = d.db.store.get('patients/p1/simulations/s1');
-  assert.equal(sim.treatmentProfileId, 'smile_design');
+  assert.equal(sim.treatmentProfileId, 'carillas');
 });
 
 test('prompt de metal_braces contiene palabras clave distintivas', () => {
@@ -298,11 +298,11 @@ test('prompt de metal_braces contiene palabras clave distintivas', () => {
   assert.equal(result.treatmentProfileId, 'metal_braces');
 });
 
-test('prompt de esthetic_braces contiene ceramic/sapphire', () => {
+test('prompt de esthetic_braces contiene brackets discretos', () => {
   const result = buildDentalTreatmentPrompt({
     treatmentProfileId: 'esthetic_braces',
   });
-  assert.match(result.promptUsed, /ceramic|sapphire/);
+  assert.match(result.promptUsed, /ceramic|bracket/i);
   // Positive instructions should NOT describe metal brackets
   const posEnd = result.promptUsed.indexOf('Do NOT');
   const positivePart = posEnd > 0 ? result.promptUsed.slice(0, posEnd) : result.promptUsed;
@@ -318,9 +318,9 @@ test('prompt de clear_aligners contiene aligner tray', () => {
   assert.doesNotMatch(result.promptUsed, /metal brackets/);
 });
 
-test('prompt de whitening contiene tooth shade', () => {
+test('prompt de blanqueamiento contiene tooth shade', () => {
   const result = buildDentalTreatmentPrompt({
-    treatmentProfileId: 'whitening',
+    treatmentProfileId: 'blanqueamiento',
   });
   assert.match(result.promptUsed, /shade/i);
   assert.match(result.promptUsed, /lighten/i);
@@ -330,9 +330,9 @@ test('prompt de whitening contiene tooth shade', () => {
   assert.doesNotMatch(positivePart, /brackets/);
 });
 
-test('prompt de veneers contiene veneers', () => {
+test('prompt de carillas contiene veneers', () => {
   const result = buildDentalTreatmentPrompt({
-    treatmentProfileId: 'veneers',
+    treatmentProfileId: 'carillas',
   });
   assert.match(result.promptUsed, /veneer/i);
   assert.match(result.promptUsed, /shape/i);
@@ -342,11 +342,11 @@ test('prompt de veneers contiene veneers', () => {
   assert.doesNotMatch(positivePart, /brackets|aligner/);
 });
 
-test('prompt de smile_design contiene no visible appliances', () => {
+test('prompt de bordes_incisales contiene incisal edges', () => {
   const result = buildDentalTreatmentPrompt({
-    treatmentProfileId: 'smile_design',
+    treatmentProfileId: 'bordes_incisales',
   });
-  assert.match(result.promptUsed, /no.*brackets|no.*appliance|no.*aligner/);
+  assert.match(result.promptUsed, /incisal edges/i);
   assert.doesNotMatch(result.promptUsed, /metal brackets/);
 });
 
@@ -377,13 +377,13 @@ test('doctorConfig se convierte en instrucciones en el prompt', () => {
       arcada: 'superior',
     },
   });
-  assert.match(result.promptUsed, /azul/);
+  assert.match(result.promptUsed, /blue|azul/);
   assert.match(result.promptUsed, /upper teeth only|superior/);
 });
 
 test('notas del doctor se incluyen sin reemplazar el perfil', () => {
   const result = buildDentalTreatmentPrompt({
-    treatmentProfileId: 'whitening',
+    treatmentProfileId: 'blanqueamiento',
     notes: 'El paciente tiene sensibilidad dental previa',
   });
   assert.match(result.promptUsed, /sensibilidad dental/);
@@ -391,21 +391,28 @@ test('notas del doctor se incluyen sin reemplazar el perfil', () => {
   assert.match(result.promptUsed, /shade/);
 });
 
-test('payload con treatmentProfileId inválido usa smile_design', () => {
+test('payload con treatmentProfileId inválido usa carillas', () => {
   const result = buildDentalTreatmentPrompt({
     treatmentProfileId: 'perfil_inventado',
   });
-  assert.equal(result.treatmentProfileId, 'smile_design');
+  assert.equal(result.treatmentProfileId, 'carillas');
 });
 
 test('prompts son distintos entre sí — no colisionan palabras clave', () => {
   const profiles = [
+    'reconstruccion',
+    'limpieza_oral',
+    'reemplazo_dental',
+    'implantes_dentales',
+    'bordes_incisales',
+    'gingivectomia',
+    'gingivoplastia',
+    'alineacion_margenes',
     'metal_braces',
     'esthetic_braces',
     'clear_aligners',
-    'whitening',
-    'veneers',
-    'smile_design',
+    'blanqueamiento',
+    'carillas',
     'palatal_expander',
     'retainer',
   ];
@@ -416,7 +423,7 @@ test('prompts son distintos entre sí — no colisionan palabras clave', () => {
 
   // All prompts must be different strings
   const unique = new Set(prompts);
-  assert.equal(unique.size, 8, 'Cada perfil debe producir un prompt único');
+  assert.equal(unique.size, 15, 'Cada perfil debe producir un prompt único');
 });
 
 // ── Bloque 04: Photo quality / preflight tests ──────────

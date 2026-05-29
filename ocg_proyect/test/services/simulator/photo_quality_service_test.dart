@@ -37,15 +37,14 @@ void main() {
           detectedRegion: null,
           source: 'no_face',
         ),
-        treatmentProfileId: 'whitening',
+        treatmentProfileId: 'blanqueamiento',
         doctorConfig: null,
       );
 
       expect(result.status, 'rejected');
       expect(result.blockingReasons, isNotEmpty);
       expect(
-        result.blockingReasons
-            .any((r) => r.contains('dientes visibles')),
+        result.blockingReasons.any((r) => r.contains('dientes visibles')),
         isTrue,
       );
     });
@@ -55,12 +54,7 @@ void main() {
         bytesLength: 500 * 1024,
         detection: const FaceDetectionResult(
           hasFace: true,
-          detectedRegion: {
-            'x': 100,
-            'y': 200,
-            'w': 300,
-            'h': 100,
-          },
+          detectedRegion: {'x': 100, 'y': 200, 'w': 300, 'h': 100},
           source: 'mlkit_face_detector',
         ),
         treatmentProfileId: 'palatal_expander',
@@ -69,8 +63,7 @@ void main() {
 
       expect(result.status, 'rejected');
       expect(
-        result.blockingReasons
-            .any((r) => r.contains('intraoral')),
+        result.blockingReasons.any((r) => r.contains('intraoral')),
         isTrue,
       );
     });
@@ -80,12 +73,7 @@ void main() {
         bytesLength: 500 * 1024,
         detection: const FaceDetectionResult(
           hasFace: true,
-          detectedRegion: {
-            'x': 100,
-            'y': 200,
-            'w': 300,
-            'h': 100,
-          },
+          detectedRegion: {'x': 100, 'y': 200, 'w': 300, 'h': 100},
           source: 'mlkit_face_detector',
         ),
         treatmentProfileId: 'retainer',
@@ -105,7 +93,7 @@ void main() {
           detectedRegion: null,
           source: 'mlkit_unavailable_web',
         ),
-        treatmentProfileId: 'smile_design',
+        treatmentProfileId: 'carillas',
         doctorConfig: null,
       );
 
