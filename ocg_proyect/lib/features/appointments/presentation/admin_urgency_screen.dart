@@ -13,13 +13,10 @@ import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../dashboard/presentation/admin_appointments_agenda_helpers.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../../patients/providers/patients_provider.dart';
-import '../../treatment/data/models/patient_treatment.dart';
 import '../data/models/appointment_model.dart';
-import '../data/models/availability_day_model.dart';
 import '../data/models/urgency_model.dart';
 import '../domain/appointments_business_rules.dart';
 import '../providers/appointments_provider.dart';
-import '../providers/availability_provider.dart';
 import '../providers/urgency_provider.dart';
 
 String _fmtDate(DateTime d) {
@@ -82,46 +79,55 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
     UrgencyRequestModel urgency,
   ) async {
     final notesCtrl = TextEditingController(text: urgency.adminNotes ?? '');
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rechazar urgencia'),
-        content: TextField(
-          controller: notesCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Motivo o nota interna',
-            prefixIcon: Icon(Icons.notes_outlined),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rechazar urgencia'),
+          content: TextField(
+            controller: notesCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo o nota interna',
+              prefixIcon: Icon(Icons.notes_outlined),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => popDialog(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: OcgColors.error),
+              onPressed: () => popDialog(ctx, true),
+              child: const Text('Rechazar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => popDialog(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: OcgColors.error),
-            onPressed: () => popDialog(ctx, true),
-            child: const Text('Rechazar'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    final notes = notesCtrl.text.trim();
-    notesCtrl.dispose();
-    if (confirmed != true) return;
-    await ref
-        .read(urgencyRepositoryProvider)
-        .updateStatus(
-          requestId: urgency.id,
-          newStatus: UrgencyStatus.rechazada,
-          adminNotes: notes,
+      final notes = notesCtrl.text.trim();
+      if (confirmed != true) return;
+      await ref
+          .read(urgencyRepositoryProvider)
+          .updateStatus(
+            requestId: urgency.id,
+            newStatus: UrgencyStatus.rechazada,
+            adminNotes: notes,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Urgencia rechazada.')));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al rechazar: $e')),
         );
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Urgencia rechazada.')));
+      }
+    } finally {
+      notesCtrl.dispose();
+    }
   }
 
   Future<void> _showRescheduleDialog(
@@ -390,6 +396,7 @@ class _UrgenciesContent extends StatelessWidget {
                   else
                     ...active.map(
                       (urgency) => Padding(
+                        key: ValueKey('active-${urgency.id}'),
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _UrgencyCard(
                           urgency: urgency,
@@ -429,6 +436,7 @@ class _UrgenciesContent extends StatelessWidget {
                   if (showHistory)
                     ...history.map(
                       (urgency) => Padding(
+                        key: ValueKey('history-${urgency.id}'),
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _UrgencyCard(
                           urgency: urgency,
