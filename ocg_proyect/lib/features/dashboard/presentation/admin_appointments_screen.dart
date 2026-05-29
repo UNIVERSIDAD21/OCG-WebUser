@@ -537,7 +537,10 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
     if (_isUrgencyBooking) {
       return notPast
           .map(
-            (slot) => AppointmentTimeSlot(start: slot.start, isAvailable: true),
+            (slot) => AppointmentTimeSlot(
+              start: slot.start,
+              isAvailable: slot.isAvailable,
+            ),
           )
           .toList();
     }

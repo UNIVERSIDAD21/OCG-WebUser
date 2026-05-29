@@ -111,6 +111,9 @@ class UrgencyRepository {
     String? adminNotes,
     String? appointmentId,
     String? reprogramadaFromId,
+    String? reprogramadaPacienteNombre,
+    DateTime? reprogramadaHoraOriginal,
+    DateTime? reprogramadaHoraNueva,
   }) async {
     final data = <String, dynamic>{
       'estado': newStatus.name,
@@ -120,6 +123,15 @@ class UrgencyRepository {
     if (appointmentId != null) data['appointmentId'] = appointmentId;
     if (reprogramadaFromId != null) {
       data['reprogramadaFromId'] = reprogramadaFromId;
+    }
+    if (reprogramadaPacienteNombre != null) {
+      data['reprogramadaPacienteNombre'] = reprogramadaPacienteNombre;
+    }
+    if (reprogramadaHoraOriginal != null) {
+      data['reprogramadaHoraOriginal'] = Timestamp.fromDate(reprogramadaHoraOriginal);
+    }
+    if (reprogramadaHoraNueva != null) {
+      data['reprogramadaHoraNueva'] = Timestamp.fromDate(reprogramadaHoraNueva);
     }
     await _collection.doc(requestId).update(data);
   }
@@ -281,6 +293,9 @@ class UrgencyRepository {
         'estado': UrgencyStatus.atendida.name,
         'appointmentId': urgentRef.id,
         'reprogramadaFromId': originalAppointment.id,
+        'reprogramadaPacienteNombre': currentOriginal.patientName,
+        'reprogramadaHoraOriginal': currentOriginal.fechaHora,
+        'reprogramadaHoraNueva': newDateTimeForOriginal,
         'updatedAt': FieldValue.serverTimestamp(),
       };
       if (adminNotes != null) requestUpdate['adminNotes'] = adminNotes;

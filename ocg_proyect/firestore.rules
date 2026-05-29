@@ -182,16 +182,14 @@ service cloud.firestore {
     match /payments/{patientId} {
       allow read: if isAdmin() || isOwnPatient(patientId);
       allow create: if isAdmin();
-      // Solo el admin que registró el pago puede editarlo o borrarlo
-      allow update, delete: if isAdmin() &&
-                              resource.data.registradoPor == request.auth.uid;
+      // Cualquier admin puede editar/borrar pagos
+      allow update, delete: if isAdmin();
 
       match /transactions/{txId} {
         allow read: if isAdmin() || isOwnPatient(patientId);
         allow create: if isAdmin();
-        // Solo el admin que registró la transacción puede editarla o borrarla
-        allow update, delete: if isAdmin() &&
-                                resource.data.registradoPor == request.auth.uid;
+        // Cualquier admin puede editar/borrar transacciones de pago
+        allow update, delete: if isAdmin();
       }
 
       match /treatments/{treatmentId} {
@@ -199,9 +197,8 @@ service cloud.firestore {
         allow create: if isAdmin() &&
                       incomingPatientMatches(patientId) &&
                       incomingTreatmentMatches(treatmentId);
-        // Solo el admin que registró puede editar/borrar
-        allow update, delete: if isAdmin() &&
-                                resource.data.registradoPor == request.auth.uid;
+        // Cualquier admin puede editar/borrar pagos por tratamiento
+        allow update, delete: if isAdmin();
 
         match /transactions/{txId} {
           allow read: if isAdmin() || isOwnPatient(patientId);
@@ -209,9 +206,8 @@ service cloud.firestore {
                           incomingPatientMatches(patientId) &&
                           incomingTreatmentMatches(treatmentId) &&
                           (!('id' in request.resource.data) || request.resource.data.id == txId);
-          // Solo el admin que registró la transacción puede editarla o borrarla
-          allow update, delete: if isAdmin() &&
-                                  resource.data.registradoPor == request.auth.uid;
+          // Cualquier admin puede editar/borrar transacciones de pago
+          allow update, delete: if isAdmin();
         }
       }
     }

@@ -22,6 +22,9 @@ class UrgencyRequestModel {
     this.updatedAt,
     this.appointmentId,          // Si se creó cita desde esta urgencia
     this.reprogramadaFromId,     // ID de la cita que se reprogramó para dar slot
+    this.reprogramadaPacienteNombre,  // Nombre del paciente desplazado
+    this.reprogramadaHoraOriginal,    // Hora original del paciente desplazado
+    this.reprogramadaHoraNueva,       // Nueva hora del paciente desplazado
     this.adminNotes,             // Notas del admin al gestionar
   });
 
@@ -35,6 +38,9 @@ class UrgencyRequestModel {
   final DateTime? updatedAt;
   final String? appointmentId;
   final String? reprogramadaFromId;
+  final String? reprogramadaPacienteNombre;
+  final DateTime? reprogramadaHoraOriginal;
+  final DateTime? reprogramadaHoraNueva;
   final String? adminNotes;
 
   // ─── Serialización ────────────────────────────────────────────────
@@ -54,6 +60,9 @@ class UrgencyRequestModel {
       updatedAt: _parseNullableDate(json['updatedAt']),
       appointmentId: json['appointmentId']?.toString(),
       reprogramadaFromId: json['reprogramadaFromId']?.toString(),
+      reprogramadaPacienteNombre: json['reprogramadaPacienteNombre']?.toString(),
+      reprogramadaHoraOriginal: _parseNullableDate(json['reprogramadaHoraOriginal']),
+      reprogramadaHoraNueva: _parseNullableDate(json['reprogramadaHoraNueva']),
       adminNotes: json['adminNotes']?.toString(),
     );
   }
@@ -72,6 +81,12 @@ class UrgencyRequestModel {
           : FieldValue.serverTimestamp(),
       if (appointmentId != null) 'appointmentId': appointmentId,
       if (reprogramadaFromId != null) 'reprogramadaFromId': reprogramadaFromId,
+      if (reprogramadaPacienteNombre != null)
+        'reprogramadaPacienteNombre': reprogramadaPacienteNombre,
+      if (reprogramadaHoraOriginal != null)
+        'reprogramadaHoraOriginal': Timestamp.fromDate(reprogramadaHoraOriginal!),
+      if (reprogramadaHoraNueva != null)
+        'reprogramadaHoraNueva': Timestamp.fromDate(reprogramadaHoraNueva!),
       if (adminNotes != null) 'adminNotes': adminNotes,
     };
   }
@@ -88,6 +103,9 @@ class UrgencyRequestModel {
     DateTime? updatedAt,
     String? appointmentId,
     String? reprogramadaFromId,
+    String? reprogramadaPacienteNombre,
+    DateTime? reprogramadaHoraOriginal,
+    DateTime? reprogramadaHoraNueva,
     String? adminNotes,
   }) {
     return UrgencyRequestModel(
@@ -101,6 +119,9 @@ class UrgencyRequestModel {
       updatedAt: updatedAt ?? this.updatedAt,
       appointmentId: appointmentId ?? this.appointmentId,
       reprogramadaFromId: reprogramadaFromId ?? this.reprogramadaFromId,
+      reprogramadaPacienteNombre: reprogramadaPacienteNombre ?? this.reprogramadaPacienteNombre,
+      reprogramadaHoraOriginal: reprogramadaHoraOriginal ?? this.reprogramadaHoraOriginal,
+      reprogramadaHoraNueva: reprogramadaHoraNueva ?? this.reprogramadaHoraNueva,
       adminNotes: adminNotes ?? this.adminNotes,
     );
   }
