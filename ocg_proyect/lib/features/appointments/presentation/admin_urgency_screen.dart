@@ -11,10 +11,10 @@ import '../../auth/providers/auth_providers.dart';
 import '../../dashboard/presentation/admin_appointments_formatters.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../data/models/appointment_model.dart';
+import '../providers/urgency_provider.dart';
 import '../data/models/urgency_model.dart';
 import '../domain/appointments_business_rules.dart';
 import '../providers/appointments_provider.dart';
-import '../providers/urgency_provider.dart';
 
 String _fmtDate(DateTime d) {
   return '${d.day.toString().padLeft(2, '0')}/'
@@ -596,7 +596,7 @@ class _UrgencySummary extends StatelessWidget {
   }
 }
 
-class _UrgencyCard extends StatelessWidget {
+class _UrgencyCard extends ConsumerWidget {
   const _UrgencyCard({
     required this.urgency,
     required this.onCreateAppointment,
@@ -612,7 +612,7 @@ class _UrgencyCard extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final statusColor = _statusColor(urgency.estado);
     final canAct = urgency.isActive;
 
@@ -701,57 +701,8 @@ class _UrgencyCard extends StatelessWidget {
           if (urgency.appointmentId?.isNotEmpty == true ||
               urgency.reprogramadaFromId?.isNotEmpty == true) ...[
             const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F3EB),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE8D8C8)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (urgency.appointmentId?.isNotEmpty == true &&
-                      urgency.reprogramadaFromId?.isEmpty != false) ...[
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.event_available,
-                          size: 14,
-                          color: OcgColors.success,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Cita creada: ${urgency.appointmentFechaHora != null ? _fmtDate(urgency.appointmentFechaHora!) : urgency.appointmentId}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: OcgColors.espresso,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else if (urgency.reprogramadaFromId?.isNotEmpty == true) ...[
-                    const Text(
-                      'Reprogramación de cita',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF6366F1),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _ReprogramacionDetail(
-                      pacienteDesplazado: urgency.reprogramadaPacienteNombre ?? 'Paciente',
-                      citaPacienteDesplazado: urgency.reprogramadaHoraOriginal,
-                      citaUrgencia: urgency.appointmentFechaHora,
-                    ),
-                  ],
-                ],
-              ),
+            _UrgencyAppointmentInfo(
+              urgency: urgency,
             ),
           ],
           if (canAct && !compact) ...[
@@ -780,6 +731,113 @@ class _UrgencyCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _UrgencyAppointmentInfo extends ConsumerWidget {
+  const _UrgencyAppointmentInfo({required this.urgency});
+
+  final UrgencyRequestModel urgency;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isReprogramada = urgency.reprogramadaFromId?.isNotEmpty == true;
+    final hasCita = urgency.appointmentId?.isNotEmpty == true;
+
+    if (!isReprogramada && !hasCita) return const SizedBox.shrink();
+
+    final repo = ref.read(appointmentsRepositoryProvider);
+
+    if (isReprogramada) {
+      return FutureBuilder<AppointmentModel?>(
+        future: repo.getAppointmentById(urgency.reprogramadaFromId!),
+        builder: (context, snapOriginal) {
+          final originalAppt = snapOriginal.data;
+          return FutureBuilder<AppointmentModel?>(
+            future: urgency.appointmentId != null
+                ? repo.getAppointmentById(urgency.appointmentId!)
+                : Future.value(null),
+            builder: (context, snapUrgency) {
+              final urgencyAppt = snapUrgency.data;
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F3EB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE8D8C8)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reprogramación de cita',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF6366F1),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _ReprogramacionDetail(
+                      pacienteDesplazado:
+                          urgency.reprogramadaPacienteNombre ??
+                          originalAppt?.patientName ??
+                          'Paciente',
+                      citaPacienteDesplazado:
+                          urgency.reprogramadaHoraOriginal ??
+                          originalAppt?.fechaHora,
+                      citaUrgencia:
+                          urgency.appointmentFechaHora ??
+                          urgencyAppt?.fechaHora,
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    return FutureBuilder<AppointmentModel?>(
+      future: repo.getAppointmentById(urgency.appointmentId!),
+      builder: (context, snap) {
+        final appt = snap.data;
+        final fechaHora = urgency.appointmentFechaHora ?? appt?.fechaHora;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F3EB),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE8D8C8)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.event_available,
+                size: 14,
+                color: OcgColors.success,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  fechaHora != null
+                      ? 'Cita creada: ${_fmtDate(fechaHora)}'
+                      : 'Cita creada: ${urgency.appointmentId}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: OcgColors.espresso,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
