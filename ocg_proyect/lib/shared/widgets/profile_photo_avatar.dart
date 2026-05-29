@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ocg_colors.dart';
+import 'ocg_cached_image.dart';
 
 class ProfilePhotoAvatar extends StatelessWidget {
   const ProfilePhotoAvatar({
@@ -26,20 +27,22 @@ class ProfilePhotoAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final cleanUrl = photoUrl?.trim();
     final hasPhoto = cleanUrl != null && cleanUrl.isNotEmpty;
-    final avatar = CircleAvatar(
-      radius: radius,
-      backgroundColor: OcgColors.bronze.withValues(alpha: 0.18),
-      backgroundImage: hasPhoto ? NetworkImage(cleanUrl) : null,
-      child: hasPhoto
-          ? null
-          : Text(
-              initials(label),
-              style: TextStyle(
-                fontSize: radius * 0.45,
-                fontWeight: FontWeight.w800,
-                color: OcgColors.espresso,
-              ),
-            ),
+    final avatar = SizedBox(
+      width: radius * 2,
+      height: radius * 2,
+      child: ClipOval(
+        child: hasPhoto
+            ? OcgCachedImage(
+                imageUrl: cleanUrl,
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                memCacheWidth: (radius * 2).round(),
+                memCacheHeight: (radius * 2).round(),
+                errorWidget: _InitialsAvatar(label: label, radius: radius),
+              )
+            : _InitialsAvatar(label: label, radius: radius),
+      ),
     );
 
     if (!showActions) return avatar;
@@ -111,5 +114,30 @@ class ProfilePhotoAvatar extends StatelessWidget {
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
         .toUpperCase();
+  }
+}
+
+class _InitialsAvatar extends StatelessWidget {
+  const _InitialsAvatar({required this.label, required this.radius});
+
+  final String label;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      alignment: Alignment.center,
+      color: OcgColors.bronze.withValues(alpha: 0.18),
+      child: Text(
+        ProfilePhotoAvatar.initials(label),
+        style: TextStyle(
+          fontSize: radius * 0.45,
+          fontWeight: FontWeight.w800,
+          color: OcgColors.espresso,
+        ),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/widgets/before_after_slider.dart';
+import '../../../shared/widgets/ocg_cached_image.dart';
 import '../../../shared/widgets/ocg_skeleton.dart';
 import '../../patients/data/models/patient_model.dart';
 import '../data/models/simulation_model.dart';
@@ -265,6 +266,7 @@ class _SimulatorScreenState extends ConsumerState<SimulatorScreen> {
                       originalPath: flow.originalPath!,
                       resultPath: flow.resultPath!,
                       repository: repo,
+                      cacheVersion: flow.attemptCount.toString(),
                     ),
                   ],
                 )
@@ -900,10 +902,10 @@ class _StoragePreviewCard extends StatelessWidget {
                   child: Container(
                     width: double.infinity,
                     color: const Color(0xFFF7F3EE),
-                    child: Image.network(
-                      url,
+                    child: OcgCachedImage(
+                      imageUrl: url,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
+                      errorWidget: const Center(
                         child: Text('No se pudo cargar la imagen.'),
                       ),
                     ),
@@ -973,11 +975,13 @@ class _StoragePreviewCard extends StatelessWidget {
                         height: previewHeight,
                         width: double.infinity,
                         color: const Color(0xFFF7F3EE),
-                        child: Image.network(
-                          url!,
+                        child: OcgCachedImage(
+                          imageUrl: url!,
+                          height: previewHeight,
+                          width: double.infinity,
                           fit: BoxFit.contain,
                           alignment: Alignment.center,
-                          errorBuilder: (_, __, ___) => const SizedBox(
+                          errorWidget: const SizedBox(
                             height: 120,
                             child: Center(
                               child: Text('No se pudo cargar la imagen.'),
@@ -1021,11 +1025,13 @@ class _BeforeAfterFromStorage extends StatefulWidget {
     required this.originalPath,
     required this.resultPath,
     required this.repository,
+    required this.cacheVersion,
   });
 
   final String originalPath;
   final String resultPath;
   final SimulationRepository repository;
+  final String cacheVersion;
 
   @override
   State<_BeforeAfterFromStorage> createState() =>
@@ -1033,14 +1039,33 @@ class _BeforeAfterFromStorage extends StatefulWidget {
 }
 
 class _BeforeAfterFromStorageState extends State<_BeforeAfterFromStorage> {
+  late Future<List<String?>> _urlsFuture;
+
   @override
   void initState() {
     super.initState();
-    // Limpiar el cache interno de Flutter para forzar fetch de red.
-    // El ValueKey con attemptCount recrea este widget en cada regeneración;
-    // al limpiar el ImageCache nos aseguramos de que Image.network no sirva
-    // bytes viejas aunque la URL base sea la misma.
-    PaintingBinding.instance.imageCache.clear();
+    // Cache por intento: evita redescargar en cada rebuild.
+    _urlsFuture = _resolveUrls();
+  }
+
+  @override
+  void didUpdateWidget(covariant _BeforeAfterFromStorage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.originalPath != widget.originalPath ||
+        oldWidget.resultPath != widget.resultPath ||
+        oldWidget.cacheVersion != widget.cacheVersion) {
+      _urlsFuture = _resolveUrls();
+    }
+  }
+
+  Future<List<String?>> _resolveUrls() {
+    return Future.wait([
+      widget.repository.resolveMediaUrl(widget.originalPath),
+      widget.repository.resolveMediaUrl(
+        widget.resultPath,
+        cacheVersion: widget.cacheVersion,
+      ),
+    ]);
   }
 
   Widget _buildSlider({
@@ -1114,10 +1139,7 @@ class _BeforeAfterFromStorageState extends State<_BeforeAfterFromStorage> {
     );
 
     return FutureBuilder<List<String?>>(
-      future: Future.wait([
-        widget.repository.resolveMediaUrl(widget.originalPath),
-        widget.repository.resolveMediaUrl(widget.resultPath),
-      ]),
+      future: _urlsFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return OcgSkeletonBox(height: normalHeight, radius: 16);
@@ -1413,32 +1435,17 @@ class _SimulationCompareImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: backgroundColor,
-      child: Image.network(
-        url,
+      child: OcgCachedImage(
+        imageUrl: url,
         width: double.infinity,
         height: height,
         fit: fit,
         alignment: Alignment.center,
         filterQuality: FilterQuality.high,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          final total = loadingProgress.expectedTotalBytes;
-          final progress = total == null
-              ? null
-              : loadingProgress.cumulativeBytesLoaded / total;
-          return Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 2.4,
-                color: OcgColors.bronze,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) => SizedBox(
+        placeholder: const Center(
+          child: Icon(Icons.image_outlined, color: OcgColors.bronze),
+        ),
+        errorWidget: SizedBox(
           height: height,
           child: const Center(child: Text('No se pudo cargar la imagen.')),
         ),

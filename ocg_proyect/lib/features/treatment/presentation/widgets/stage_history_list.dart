@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/stage_history_entry.dart';
 import '../../../../../shared/theme/ocg_colors.dart';
 import '../../../../../shared/widgets/ocg_card.dart';
+import '../../../../../shared/widgets/ocg_cached_image.dart';
 import '../../../../../shared/widgets/ocg_empty_state.dart';
 import '../../../patients/data/models/patient_model.dart';
 
@@ -237,10 +238,12 @@ class _SignaturePreview extends StatelessWidget {
               height: 120,
               color: Colors.white,
               alignment: Alignment.center,
-              child: Image.network(
-                url,
+              child: OcgCachedImage(
+                imageUrl: url,
+                width: double.infinity,
+                height: 120,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Text(
+                errorWidget: const Text(
                   'No se pudo cargar la firma.',
                   style: TextStyle(color: OcgColors.error),
                 ),

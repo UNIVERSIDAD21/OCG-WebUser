@@ -9,6 +9,7 @@ import '../../../../features/simulator/domain/dental_treatment_profile.dart';
 import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/utils/ui_formatters.dart';
 import '../../../../shared/widgets/ocg_empty_state.dart';
+import '../../../../shared/widgets/ocg_cached_image.dart';
 import '../../../../shared/widgets/ocg_skeleton.dart';
 import '../../data/models/patient_model.dart';
 
@@ -721,6 +722,7 @@ class _AdminSimulationCard extends StatelessWidget {
                   'sim-preview-${simulation.id}-${simulation.attemptCount}-${previewPath ?? ''}',
                 ),
                 path: previewPath,
+                cacheVersion: simulation.attemptCount.toString(),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -848,9 +850,14 @@ class _AdminSimulationCard extends StatelessWidget {
 }
 
 class _SimulationPreview extends ConsumerWidget {
-  const _SimulationPreview({super.key, required this.path});
+  const _SimulationPreview({
+    super.key,
+    required this.path,
+    required this.cacheVersion,
+  });
 
   final String? path;
+  final String cacheVersion;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -872,18 +879,22 @@ class _SimulationPreview extends ConsumerWidget {
     if (cleanPath == null || cleanPath.isEmpty) return placeholder;
 
     return FutureBuilder<String?>(
-      future: ref.read(simulationRepositoryProvider).resolveMediaUrl(cleanPath),
+      future: ref
+          .read(simulationRepositoryProvider)
+          .resolveMediaUrl(cleanPath, cacheVersion: cacheVersion),
       builder: (context, snapshot) {
         final url = snapshot.data?.trim();
         if (url == null || url.isEmpty) return placeholder;
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Image.network(
-            url,
+          child: OcgCachedImage(
+            imageUrl: url,
             width: 74,
             height: 74,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => placeholder,
+            memCacheWidth: 148,
+            memCacheHeight: 148,
+            errorWidget: placeholder,
           ),
         );
       },

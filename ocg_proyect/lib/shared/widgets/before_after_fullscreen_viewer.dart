@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/ocg_colors.dart';
 import '../widgets/before_after_slider.dart';
+import 'ocg_cached_image.dart';
 
 /// Slider de comparación Antes/Después con botón de pantalla completa
 /// y diálogo con zoom interactivo (lock/unlock).
@@ -47,7 +48,8 @@ class _BeforeAfterFullscreenViewerState
 
   @override
   Widget build(BuildContext context) {
-    final normalHeight = widget.height ??
+    final normalHeight =
+        widget.height ??
         (MediaQuery.of(context).size.height * 0.4).clamp(280.0, 500.0);
 
     return Container(
@@ -88,15 +90,21 @@ class _BeforeAfterFullscreenViewerState
               ),
               if (widget.compact)
                 IconButton.filledTonal(
-                  onPressed: () =>
-                      _openFullscreen(context, widget.beforeUrl, widget.afterUrl),
+                  onPressed: () => _openFullscreen(
+                    context,
+                    widget.beforeUrl,
+                    widget.afterUrl,
+                  ),
                   icon: const Icon(Icons.open_in_full, size: 18),
                   tooltip: 'Pantalla completa',
                 )
               else
                 TextButton.icon(
-                  onPressed: () =>
-                      _openFullscreen(context, widget.beforeUrl, widget.afterUrl),
+                  onPressed: () => _openFullscreen(
+                    context,
+                    widget.beforeUrl,
+                    widget.afterUrl,
+                  ),
                   icon: const Icon(Icons.open_in_full, size: 18),
                   label: const Text('Pantalla completa'),
                   style: TextButton.styleFrom(
@@ -331,10 +339,7 @@ Widget _labelChip(String text, Color color) {
 }
 
 class _SimulationImage extends StatelessWidget {
-  const _SimulationImage({
-    required this.url,
-    required this.height,
-  });
+  const _SimulationImage({required this.url, required this.height});
 
   final String url;
   final double height;
@@ -343,34 +348,24 @@ class _SimulationImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: const Color(0xFF0E0B08),
-      child: Image.network(
-        url,
+      child: OcgCachedImage(
+        imageUrl: url,
         width: double.infinity,
         height: height,
         fit: BoxFit.contain,
         alignment: Alignment.center,
         filterQuality: FilterQuality.high,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          final total = loadingProgress.expectedTotalBytes;
-          final progress = total == null
-              ? null
-              : loadingProgress.cumulativeBytesLoaded / total;
-          return Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 2.4,
-                color: OcgColors.bronze,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) => SizedBox(
+        placeholder: const Center(
+          child: Icon(Icons.image_outlined, color: OcgColors.bronze),
+        ),
+        errorWidget: SizedBox(
           height: height,
-          child: const Center(child: Text('No se pudo cargar la imagen.')),
+          child: const Center(
+            child: Text(
+              'No se pudo cargar la imagen.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
         ),
       ),
     );

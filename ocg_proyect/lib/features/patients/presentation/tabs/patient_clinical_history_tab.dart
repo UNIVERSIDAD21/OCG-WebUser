@@ -15,6 +15,7 @@ import '../../../../shared/theme/ocg_colors.dart';
 import '../../../../shared/utils/download_file.dart';
 import '../../../../shared/widgets/ocg_premium.dart';
 import '../../../../shared/widgets/ocg_segmented_tabs.dart';
+import '../../../../shared/widgets/ocg_cached_image.dart';
 import '../../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../../shared/widgets/ocg_loading_state.dart';
 import '../../../../presentation/web/common/web_layout_context.dart';
@@ -2111,10 +2112,10 @@ class _DictamenTileState extends ConsumerState<_DictamenTile> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      c.signatureUrl!,
+                    child: OcgCachedImage(
+                      imageUrl: c.signatureUrl!,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Padding(
+                      errorWidget: const Padding(
                         padding: EdgeInsets.all(24),
                         child: Text(
                           'No se pudo cargar la imagen de la firma.',

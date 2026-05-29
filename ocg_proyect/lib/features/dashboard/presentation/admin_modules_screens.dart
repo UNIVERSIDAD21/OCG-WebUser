@@ -8,6 +8,7 @@ import '../../../presentation/web/common/web_layout_context.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_cached_image.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
 import '../../../shared/widgets/ocg_photo_viewer.dart';
@@ -57,56 +58,37 @@ Widget _patientAvatarCircle({
 }) {
   final url = (patient.fotoUrl ?? '').trim();
   final initials = _initialsForPatient(patient.nombre);
+  final fallbackText = Text(
+    initials,
+    style: TextStyle(
+      color: fallbackColor == OcgColors.espresso.withOpacity(0.14)
+          ? OcgColors.espresso
+          : OcgColors.ivory,
+      fontWeight: FontWeight.w700,
+      fontSize: radius < 20 ? 11 : 13,
+    ),
+  );
   if (url.isNotEmpty) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundImage: NetworkImage(url),
-      backgroundColor: fallbackColor.withOpacity(0.3),
-      onBackgroundImageError: (_, __) {},
-      child: Image.network(
-        url,
-        fit: BoxFit.cover,
+    return ClipOval(
+      child: OcgCachedImage(
+        imageUrl: url,
         width: radius * 2,
         height: radius * 2,
-        errorBuilder: (_, __, ___) => Text(
-          initials,
-          style: TextStyle(
-            color: fallbackColor == OcgColors.espresso.withOpacity(0.14)
-                ? OcgColors.espresso
-                : OcgColors.ivory,
-            fontWeight: FontWeight.w700,
-            fontSize: radius < 20 ? 11 : 13,
-          ),
+        fit: BoxFit.cover,
+        memCacheWidth: (radius * 2).round(),
+        memCacheHeight: (radius * 2).round(),
+        errorWidget: CircleAvatar(
+          radius: radius,
+          backgroundColor: fallbackColor,
+          child: fallbackText,
         ),
-        loadingBuilder: (ctx, child, progress) {
-          if (progress == null) return child;
-          return Center(
-            child: SizedBox(
-              width: radius * 0.6,
-              height: radius * 0.6,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: OcgColors.bronze,
-              ),
-            ),
-          );
-        },
       ),
     );
   }
   return CircleAvatar(
     radius: radius,
     backgroundColor: fallbackColor,
-    child: Text(
-      initials,
-      style: TextStyle(
-        color: fallbackColor == OcgColors.espresso.withOpacity(0.14)
-            ? OcgColors.espresso
-            : OcgColors.ivory,
-        fontWeight: FontWeight.w700,
-        fontSize: radius < 20 ? 11 : 13,
-      ),
-    ),
+    child: fallbackText,
   );
 }
 
@@ -1082,14 +1064,23 @@ class _WebSimulatorView extends StatelessWidget {
 
     if (!isDesktop) {
       return ListView(
-        padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 8, 16, 110),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          MediaQuery.paddingOf(context).top + 8,
+          16,
+          110,
+        ),
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF25180F), Color(0xFF5B3C26), Color(0xFF9A7654)],
+                colors: [
+                  Color(0xFF25180F),
+                  Color(0xFF5B3C26),
+                  Color(0xFF9A7654),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -2186,7 +2177,7 @@ class _TreatmentPatientCard extends StatelessWidget {
       NextSessionStatus.sinAgendar => const Color(0xFF8A6F59),
     };
 
-        return InkWell(
+    return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onOpen,
       child: Container(
@@ -2254,25 +2245,55 @@ class _TreatmentPatientCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.medical_services_outlined, size: 13, color: OcgColors.bronze.withOpacity(0.6)),
+                      Icon(
+                        Icons.medical_services_outlined,
+                        size: 13,
+                        color: OcgColors.bronze.withOpacity(0.6),
+                      ),
                       const SizedBox(width: 5),
-                      Expanded(child: Text(treatment.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: OcgColors.bronze.withOpacity(0.7), fontWeight: FontWeight.w500))),
+                      Expanded(
+                        child: Text(
+                          treatment.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: OcgColors.bronze.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 12, color: OcgColors.bronze.withOpacity(0.45)),
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 12,
+                        color: OcgColors.bronze.withOpacity(0.45),
+                      ),
                       const SizedBox(width: 5),
-                      Text('Desde ${_fmtShortDate(treatment.fechaInicio)}', style: TextStyle(fontSize: 11, color: OcgColors.bronze.withOpacity(0.5))),
+                      Text(
+                        'Desde ${_fmtShortDate(treatment.fechaInicio)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: OcgColors.bronze.withOpacity(0.5),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Wrap(
-                    spacing: 6, runSpacing: 6,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       _pill(statusLabel, statusBg, statusColor),
-                      _pill('$progress% avance', OcgColors.bronze.withOpacity(0.08), OcgColors.bronze.withOpacity(0.7)),
+                      _pill(
+                        '$progress% avance',
+                        OcgColors.bronze.withOpacity(0.08),
+                        OcgColors.bronze.withOpacity(0.7),
+                      ),
                     ],
                   ),
                 ],
@@ -2285,15 +2306,48 @@ class _TreatmentPatientCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(r'$' '${formatCop(treatment.totalTratamiento ?? 0)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: OcgColors.espresso)),
-                  Text('saldo ${r'$' '${formatCop(treatment.saldoPendiente ?? 0)}'}', style: TextStyle(fontSize: 10, color: const Color(0xFFB06A5A).withOpacity(0.8))),
+                  Text(
+                    r'$'
+                    '${formatCop(treatment.totalTratamiento ?? 0)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: OcgColors.espresso,
+                    ),
+                  ),
+                  Text(
+                    'saldo ${r'$'
+                        '${formatCop(treatment.saldoPendiente ?? 0)}'}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: const Color(0xFFB06A5A).withOpacity(0.8),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(value: progress / 100, minHeight: 5, backgroundColor: const Color(0xFFF2EDE8), valueColor: AlwaysStoppedAnimation<Color>(statusColor.withOpacity(0.7))),
+                    child: LinearProgressIndicator(
+                      value: progress / 100,
+                      minHeight: 5,
+                      backgroundColor: const Color(0xFFF2EDE8),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        statusColor.withOpacity(0.7),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 6),
-                  Text(patient.nextSessionLabel, textAlign: TextAlign.right, style: TextStyle(fontSize: 10, color: nextSessionColor, fontWeight: patient.nextSessionStatus == NextSessionStatus.vencida ? FontWeight.w700 : FontWeight.w500)),
+                  Text(
+                    patient.nextSessionLabel,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: nextSessionColor,
+                      fontWeight:
+                          patient.nextSessionStatus == NextSessionStatus.vencida
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2301,9 +2355,18 @@ class _TreatmentPatientCard extends StatelessWidget {
             Align(
               alignment: Alignment.center,
               child: Container(
-                width: 28, height: 28,
-                decoration: BoxDecoration(color: const Color(0xFFF8F5F0), shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE8DDD2))),
-                child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F5F0),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE8DDD2)),
+                ),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: OcgColors.bronze,
+                  size: 16,
+                ),
               ),
             ),
           ],
@@ -2316,10 +2379,19 @@ class _TreatmentPatientCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: bg, borderRadius: BorderRadius.circular(999),
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: fg.withOpacity(0.2), width: 0.5),
       ),
-      child: Text(label, style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: fg,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
     );
   }
 }
@@ -2515,7 +2587,8 @@ class _PaymentsHistoryRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final patient = item.patient;
     final transaction = item.transaction;
-    final canEdit = transaction.metodo != PaymentMethod.epayco &&
+    final canEdit =
+        transaction.metodo != PaymentMethod.epayco &&
         transaction.registradoPor != 'epayco_webhook' &&
         transaction.epaycoOrderId == null &&
         transaction.epaycoTransactionId == null;
@@ -2582,8 +2655,8 @@ class _PaymentsHistoryRow extends ConsumerWidget {
                       onTap: () {
                         final treatmentId =
                             transaction.treatmentId?.trim().isNotEmpty == true
-                                ? transaction.treatmentId
-                                : null;
+                            ? transaction.treatmentId
+                            : null;
                         if (treatmentId != null) {
                           showDialog<void>(
                             context: context,
@@ -3058,7 +3131,7 @@ class _DebtPatientCard extends StatelessWidget {
               .map((e) => e[0].toUpperCase())
               .join();
 
-        return InkWell(
+    return InkWell(
       onTap: () => context.go(
         RouteNames.adminPatientDetail.replaceFirst(':patientId', patient.id),
       ),
@@ -3094,7 +3167,9 @@ class _DebtPatientCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: overdue ? OcgColors.error.withOpacity(0.3) : OcgColors.bronze.withOpacity(0.2),
+                        color: overdue
+                            ? OcgColors.error.withOpacity(0.3)
+                            : OcgColors.bronze.withOpacity(0.2),
                         width: 2,
                       ),
                       boxShadow: [
@@ -3108,13 +3183,16 @@ class _DebtPatientCard extends StatelessWidget {
                     child: _patientAvatarCircle(
                       patient: patient,
                       radius: 26,
-                      fallbackColor: overdue ? OcgColors.error.withOpacity(0.15) : const Color(0xFFF2EDE8),
+                      fallbackColor: overdue
+                          ? OcgColors.error.withOpacity(0.15)
+                          : const Color(0xFFF2EDE8),
                     ),
                   ),
                 ),
                 if (overdue)
                   const Positioned(
-                    right: -1, top: -1,
+                    right: -1,
+                    top: -1,
                     child: Icon(Icons.error, size: 16, color: OcgColors.error),
                   ),
               ],
@@ -3139,18 +3217,32 @@ class _DebtPatientCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.medical_services_outlined, size: 13, color: OcgColors.bronze.withOpacity(0.6)),
+                      Icon(
+                        Icons.medical_services_outlined,
+                        size: 13,
+                        color: OcgColors.bronze.withOpacity(0.6),
+                      ),
                       const SizedBox(width: 5),
                       Text(
-                        _tipoLabel(patient.tipoTratamiento ?? TreatmentType.convencional),
-                        style: TextStyle(fontSize: 12, color: OcgColors.bronze.withOpacity(0.7), fontWeight: FontWeight.w500),
+                        _tipoLabel(
+                          patient.tipoTratamiento ?? TreatmentType.convencional,
+                        ),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: OcgColors.bronze.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 12, color: OcgColors.bronze.withOpacity(0.45)),
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 12,
+                        color: OcgColors.bronze.withOpacity(0.45),
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         overdue
@@ -3158,17 +3250,26 @@ class _DebtPatientCard extends StatelessWidget {
                             : dueText.replaceFirst('Próximo pago: ', ''),
                         style: TextStyle(
                           fontSize: 11,
-                          color: overdue ? OcgColors.error.withOpacity(0.7) : OcgColors.bronze.withOpacity(0.5),
-                          fontWeight: overdue ? FontWeight.w600 : FontWeight.normal,
+                          color: overdue
+                              ? OcgColors.error.withOpacity(0.7)
+                              : OcgColors.bronze.withOpacity(0.5),
+                          fontWeight: overdue
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: overdue ? OcgColors.error.withOpacity(0.08) : OcgColors.bronze.withOpacity(0.08),
+                      color: overdue
+                          ? OcgColors.error.withOpacity(0.08)
+                          : OcgColors.bronze.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -3176,7 +3277,9 @@ class _DebtPatientCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: overdue ? OcgColors.error : OcgColors.bronze.withOpacity(0.7),
+                        color: overdue
+                            ? OcgColors.error
+                            : OcgColors.bronze.withOpacity(0.7),
                         letterSpacing: 0.3,
                       ),
                     ),
@@ -3188,13 +3291,18 @@ class _DebtPatientCard extends StatelessWidget {
             Align(
               alignment: Alignment.center,
               child: Container(
-                width: 28, height: 28,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8F5F0),
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFFE8DDD2)),
                 ),
-                child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: OcgColors.bronze,
+                  size: 16,
+                ),
               ),
             ),
           ],
@@ -3244,7 +3352,7 @@ class _AdminSimulatorPatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-        return InkWell(
+    return InkWell(
       onTap: onOpen,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -3323,17 +3431,26 @@ class _AdminSimulatorPatientCard extends StatelessWidget {
                 color: OcgColors.bronze.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.auto_awesome, color: OcgColors.bronze, size: 20),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: OcgColors.bronze,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 8),
             Container(
-              width: 28, height: 28,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: const Color(0xFFF8F5F0),
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFFE8DDD2)),
               ),
-              child: const Icon(Icons.chevron_right_rounded, color: OcgColors.bronze, size: 16),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: OcgColors.bronze,
+                size: 16,
+              ),
             ),
           ],
         ),

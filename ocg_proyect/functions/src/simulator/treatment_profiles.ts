@@ -38,6 +38,7 @@ const RECONSTRUCCION: TreatmentPromptProfile = {
   positiveInstructions: [
     'Reconstruct the selected damaged or decayed tooth area so it looks restored with natural dental anatomy.',
     'Match the restoration shade and translucency to the neighboring teeth.',
+    'Preserve all healthy neighboring teeth exactly; modify only the damaged or decayed tooth structure that needs reconstruction.',
     'Keep the result conservative and clinically believable, as a direct restoration or rebuilding of the visible tooth structure.',
   ],
   negativeInstructions: [
@@ -61,13 +62,16 @@ const LIMPIEZA_ORAL: TreatmentPromptProfile = {
     arcada: 'ambas',
   },
   positiveInstructions: [
-    'Simulate the result after a professional oral cleaning.',
-    'Reduce visible plaque, calculus, and superficial staining while keeping natural tooth color and shape.',
-    'Make gums and teeth look cleaner and healthier without changing the patient identity.',
+    'Simulate a mild, conservative result after a professional oral cleaning.',
+    'Remove only visible plaque, calculus, and superficial extrinsic stains from tooth surfaces and along the gumline.',
+    'Keep every tooth with the exact same shape, size, alignment, spacing, incisal edges, anatomy, and natural shade as the original photo.',
+    'The result should look like cleaner tooth surfaces, not whitening, veneers, reshaping, or smile design.',
   ],
   negativeInstructions: [
-    'Do NOT make teeth dramatically whiter as if a whitening treatment was performed.',
-    'Do NOT change tooth shape, position, size, lips, or facial features.',
+    'Do NOT whiten teeth or change the intrinsic tooth color.',
+    'Do NOT change tooth shape, position, size, alignment, spacing, incisal edges, or anatomy.',
+    'Do NOT make teeth straighter, more even, larger, smaller, longer, shorter, smoother, or cosmetically redesigned.',
+    'Do NOT change lips, gums, face, skin, or facial features beyond removing visible surface debris near the gumline.',
     'Do NOT add veneers, crowns, or any appliances.',
   ],
   photoRequirements: [
@@ -88,6 +92,7 @@ const REEMPLAZO_DENTAL: TreatmentPromptProfile = {
   positiveInstructions: [
     'Replace the indicated missing or compromised tooth area with a natural-looking prosthetic dental result.',
     'The replacement must harmonize with neighboring teeth in color, size, contour, and alignment.',
+    'Preserve healthy neighboring teeth and all non-target teeth exactly unless they are part of the selected prosthetic replacement.',
     'If the selected type is bridge or partial prosthesis, make it look like a realistic dental restoration, not an appliance display.',
   ],
   negativeInstructions: [
@@ -114,6 +119,7 @@ const IMPLANTES_DENTALES: TreatmentPromptProfile = {
   positiveInstructions: [
     'Simulate the final visible crown restoration over dental implant treatment.',
     'Show a natural tooth emerging from the gum with realistic contour, shade, and proportion.',
+    'Modify only the missing-tooth or implant-restoration area; preserve all existing teeth exactly.',
     'The visible result should look like a completed implant-supported crown or crowns, not like surgical hardware.',
   ],
   negativeInstructions: [
@@ -139,6 +145,7 @@ const BORDES_INCISALES: TreatmentPromptProfile = {
   positiveInstructions: [
     'Improve worn, fractured, uneven, or short incisal edges on anterior teeth.',
     'Refine the shape and length of the front teeth while keeping natural anatomy and patient-specific character.',
+    'Limit changes to the selected incisal edges; preserve all non-target tooth surfaces, shade, alignment, and gums.',
     'Create a balanced smile line that still looks realistic and clinically conservative.',
   ],
   negativeInstructions: [
@@ -164,11 +171,13 @@ const GINGIVECTOMIA: TreatmentPromptProfile = {
   positiveInstructions: [
     'Simulate a conservative gingivectomy result by reducing excess gingival tissue in the selected area.',
     'Reveal slightly more natural tooth crown length while preserving realistic gum texture and color.',
+    'Change only the gingival tissue contour; keep tooth shape, size, shade, alignment, spacing, and incisal edges unchanged.',
     'Keep the gumline healthy, smooth, and clinically plausible.',
   ],
   negativeInstructions: [
     'Do NOT show bleeding, incisions, sutures, surgical instruments, or trauma.',
     'Do NOT overexpose roots or make teeth look unnaturally long.',
+    'Do NOT alter the teeth themselves in shape, color, size, alignment, or position.',
     'Do NOT change lips, face, skin, or background.',
   ],
   photoRequirements: [
@@ -189,11 +198,12 @@ const GINGIVOPLASTIA: TreatmentPromptProfile = {
   positiveInstructions: [
     'Remodel the visible gingival contour for a more aesthetic and harmonious gum shape.',
     'Improve scalloping and symmetry while preserving a natural gum color and texture.',
+    'Change only the gum contour; keep tooth shape, size, shade, alignment, spacing, and incisal edges unchanged.',
     'The result should look like healed aesthetic gum contouring, not a surgical moment.',
   ],
   negativeInstructions: [
     'Do NOT show blood, cuts, sutures, instruments, or fresh surgery.',
-    'Do NOT change tooth shade or add restorative material unless needed for gum contour harmony.',
+    'Do NOT change tooth shade, shape, size, position, alignment, spacing, or add restorative material.',
     'Do NOT alter lips, face, skin, or background.',
   ],
   photoRequirements: [
@@ -214,11 +224,13 @@ const ALINEACION_MARGENES: TreatmentPromptProfile = {
   positiveInstructions: [
     'Correct the visible gingival margin contour so gum levels look more symmetrical.',
     'Align the gumline heights between comparable teeth while keeping natural gingival anatomy.',
+    'Change only the gingival margins; preserve tooth shape, size, shade, alignment, spacing, and incisal edges exactly.',
     'Create a balanced, healed, aesthetic contour with realistic tissue texture.',
   ],
   negativeInstructions: [
     'Do NOT show surgical trauma, bleeding, cuts, or instruments.',
     'Do NOT make teeth unnaturally long or identical.',
+    'Do NOT alter the teeth themselves in shape, color, size, alignment, or position.',
     'Do NOT alter lips, face, skin, or background.',
   ],
   photoRequirements: [
@@ -241,12 +253,14 @@ const METAL_BRACES: TreatmentPromptProfile = {
     'Add visible metal brackets on the front surfaces of the visible teeth.',
     'Add a thin metal archwire running across the brackets.',
     'Add small elastic ligatures (o-rings) around each bracket.',
+    'Only add the appliance; keep tooth shape, size, shade, position, alignment, spacing, and gums unchanged.',
   ],
   negativeInstructions: [
     'Do NOT add ceramic, clear, or tooth-colored brackets.',
     'Do NOT add invisible aligners.',
     'Do NOT dramatically whiten the teeth as the primary change.',
     'Do NOT change the shape or position of the teeth dramatically.',
+    'Do NOT straighten, move, resize, reshape, or recolor the teeth.',
     'Do NOT remove existing dental features.',
   ],
   photoRequirements: [
@@ -270,11 +284,13 @@ const ESTHETIC_BRACES: TreatmentPromptProfile = {
     'Add discreet orthodontic brackets on the visible teeth according to the selected material.',
     'Keep the brackets low-profile, clean, and clinically realistic.',
     'Add elastic ligatures and an archwire that match the selected configuration.',
+    'Only add the appliance; keep tooth shape, size, shade, position, alignment, spacing, and gums unchanged.',
   ],
   negativeInstructions: [
     'Do NOT add invisible aligners.',
     'Do NOT dramatically whiten the teeth.',
     'Do NOT change tooth shape or position dramatically.',
+    'Do NOT straighten, move, resize, reshape, or recolor the teeth.',
     'Do NOT make the appliance look oversized or artificial.',
   ],
   photoRequirements: [
@@ -298,12 +314,14 @@ const CLEAR_ALIGNERS: TreatmentPromptProfile = {
     'Add a thin transparent plastic aligner tray covering the visible teeth.',
     'Add subtle plastic sheen or light reflection on the tooth surfaces to suggest the aligner material.',
     'Add soft, barely visible tray edges along the gumline.',
+    'Only add the aligner and optional attachments; keep underlying tooth shape, size, shade, position, alignment, spacing, and gums unchanged.',
   ],
   negativeInstructions: [
     'Do NOT add metal or ceramic brackets.',
     'Do NOT add archwires.',
     'Do NOT make the aligner completely invisible; a subtle sheen must be present.',
     'Do NOT dramatically whiten the teeth.',
+    'Do NOT straighten, move, resize, reshape, or recolor the teeth.',
   ],
   photoRequirements: [
     'Frontal smile with teeth visible.',
@@ -324,6 +342,7 @@ const BLANQUEAMIENTO: TreatmentPromptProfile = {
   positiveInstructions: [
     'Lighten the tooth shade by 2-4 shades, achieving a natural, healthy white tone.',
     'Keep the tooth color uniform and believable for the patient\'s age and skin tone.',
+    'Change only tooth shade; preserve tooth shape, size, alignment, position, spacing, incisal edges, gums, and restorations unless shade harmonization is necessary.',
     'Maintain natural translucency at the incisal edges; do not make teeth look opaque or chalky.',
   ],
   negativeInstructions: [
@@ -354,6 +373,7 @@ const CARILLAS: TreatmentPromptProfile = {
   positiveInstructions: [
     'Improve the shape, proportion, symmetry, and color of the visible anterior teeth so they look like natural, well-designed ceramic veneers.',
     'Harmonize the incisal edges for a balanced smile line.',
+    'Limit cosmetic changes to the visible anterior teeth indicated for veneers; preserve posterior and non-target teeth as much as possible.',
     'If closing gaps is indicated, close diastemas naturally.',
     'Achieve a warm, natural white tone; not artificial or overly bright.',
   ],
@@ -381,11 +401,13 @@ const PALATAL_EXPANDER: TreatmentPromptProfile = {
   positiveInstructions: [
     'If the photo shows the upper palate (mouth open or intraoral view), add a palatal expander appliance in the upper palate with a metal framework and central screw.',
     'The expander should look like a real orthodontic Hyrax or Haas appliance.',
+    'Only add the appliance; keep tooth shape, size, shade, position, alignment, spacing, lips, and gums unchanged.',
   ],
   negativeInstructions: [
     'If the palate is NOT visible in the photo, do NOT invent or add any appliance.',
     'Do NOT place the expander on the front surfaces of teeth like brackets.',
     'Do NOT add brackets or aligners.',
+    'Do NOT straighten, move, resize, reshape, or recolor the teeth.',
   ],
   photoRequirements: [
     'Intraoral upper photo or open mouth showing palate is strongly recommended.',
@@ -408,12 +430,14 @@ const RETAINER: TreatmentPromptProfile = {
     'Do not leave the teeth unchanged: the retainer must be identifiable in the generated photo.',
     'For clear removable retainers, show visible tray edges, slight plastic thickness, and glossy reflections on the teeth.',
     'If fixed lingual type: barely visible, a very thin wire behind the teeth. From a frontal smile, this should be nearly invisible.',
+    'Only add the retainer; keep tooth shape, size, shade, position, alignment, spacing, and gums unchanged.',
   ],
   negativeInstructions: [
     'Do NOT add brackets with archwires.',
     'Do NOT add aligner attachments.',
     'Do NOT make the retainer look like full orthodontic braces.',
     'If fixed lingual, do NOT make the wire visible from the front.',
+    'Do NOT straighten, move, resize, reshape, or recolor the teeth.',
   ],
   photoRequirements: [
     'Frontal smile with teeth visible.',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_names.dart';
 import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/ui_formatters.dart';
+import '../../../shared/widgets/ocg_cached_image.dart';
 import '../../../shared/widgets/ocg_confirm_dialog.dart';
 import '../../../shared/widgets/ocg_photo_viewer.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
@@ -17,8 +18,6 @@ import '../../appointments/domain/appointments_business_rules.dart';
 import '../../dashboard/presentation/admin_appointments_screen.dart';
 import '../../payments/data/models/payment_model.dart';
 import '../../payments/presentation/widgets/register_payment_dialog.dart';
-import '../../payments/providers/payments_provider.dart';
-import '../../simulator/data/models/simulation_model.dart';
 import '../../simulator/providers/simulation_provider.dart';
 import '../../treatment/data/models/patient_treatment.dart';
 import '../../treatment/presentation/widgets/manage_patient_treatment_dialog.dart';
@@ -46,23 +45,14 @@ class _PatientAvatarWidget extends StatelessWidget {
     final url = (patient.fotoUrl ?? '').trim();
     if (url.isNotEmpty) {
       return ClipOval(
-        child: Image.network(
-          url,
+        child: OcgCachedImage(
+          imageUrl: url,
+          width: size,
+          height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _DefaultAvatarIcon(size: size),
-          loadingBuilder: (ctx, child, progress) {
-            if (progress == null) return child;
-            return Center(
-              child: SizedBox(
-                width: size * 0.35,
-                height: size * 0.35,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: OcgColors.bronze,
-                ),
-              ),
-            );
-          },
+          memCacheWidth: size.round(),
+          memCacheHeight: size.round(),
+          errorWidget: _DefaultAvatarIcon(size: size),
         ),
       );
     }
@@ -216,8 +206,6 @@ class _PatientDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final existingAppointments =
-        ref.watch(appointmentsProvider).asData?.value ?? const [];
     final sectionParam = GoRouterState.of(
       context,
     ).uri.queryParameters['section'];
@@ -250,6 +238,8 @@ class _PatientDetailView extends ConsumerWidget {
     );
 
     if (WebLayoutContext.useDesktopShell(context)) {
+      final existingAppointments =
+          ref.watch(appointmentsProvider).asData?.value ?? const [];
       final layout = AdminDesktopLayoutScope.maybeOf(context);
       final tier = layout?.tier ?? AdminDesktopTier.standard;
       final sectionGap = layout?.sectionSpacing ?? 16;
@@ -553,38 +543,30 @@ class _AdminPatientWorkspaceState
   @override
   Widget build(BuildContext context) {
     final appointments =
-        ref.watch(appointmentsProvider).asData?.value ??
+        ref
+            .watch(patientAppointmentsProvider(widget.patient.id))
+            .asData
+            ?.value ??
         const <AppointmentModel>[];
-    final patientAppointments =
-        appointments
-            .where((item) => item.patientId == widget.patient.id)
-            .toList()
-          ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
+    final patientAppointments = appointments.toList()
+      ..sort((a, b) => a.fechaHora.compareTo(b.fechaHora));
     final nextAppointment = patientAppointments
         .cast<AppointmentModel?>()
         .firstWhere(
           (item) => item != null && item.fechaHora.isAfter(DateTime.now()),
           orElse: () => null,
         );
-    final treatments = ref.watch(
+    final treatmentsCount = ref.watch(
       effectivePatientTreatmentsProvider((
         patientId: widget.patient.id,
         patient: widget.patient,
-      )),
+      )).select((items) => items.length),
     );
-    final paymentsResolution = ref.watch(
-      effectivePatientPaymentsProvider((
-        patientId: widget.patient.id,
-        patient: widget.patient,
-      )),
+    final simulationsCount = ref.watch(
+      patientSimulationsProvider(
+        widget.patient.id,
+      ).select((value) => value.asData?.value.length ?? 0),
     );
-    final simulations =
-        ref
-            .watch(patientSimulationsProvider(widget.patient.id))
-            .asData
-            ?.value ??
-        const <SimulationModel>[];
-    final latestSimulation = simulations.isEmpty ? null : simulations.first;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F0),
@@ -603,38 +585,23 @@ class _AdminPatientWorkspaceState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPatientHeaderCard(nextAppointment, paymentsResolution),
+            _buildPatientHeaderCard(
+              nextAppointment,
+              widget.patient.saldoPendiente,
+            ),
             const SizedBox(height: 16),
             _buildQuickActionsCard(context),
             const SizedBox(height: 16),
             _buildSectionShortcutRow(
-              treatmentsCount: treatments.length,
+              treatmentsCount: treatmentsCount,
               appointmentsCount: patientAppointments.length,
-              simulationsCount: simulations.length,
+              simulationsCount: simulationsCount,
             ),
             const SizedBox(height: 14),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeOutCubic,
-              transitionBuilder: (child, animation) {
-                final slide = Tween<Offset>(
-                  begin: const Offset(0.02, 0),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: slide, child: child),
-                );
-              },
+            RepaintBoundary(
               child: KeyedSubtree(
                 key: ValueKey(_section),
-                child: _buildVisibleMobileSection(
-                  treatments: treatments,
-                  nextAppointment: nextAppointment,
-                  latestSimulation: latestSimulation,
-                  paymentsResolution: paymentsResolution,
-                ),
+                child: _buildVisibleMobileSection(),
               ),
             ),
           ],
@@ -706,17 +673,11 @@ class _AdminPatientWorkspaceState
 
   Widget _buildPatientHeaderCard(
     AppointmentModel? nextAppointment,
-    EffectivePatientDataResolution paymentsResolution,
+    double pending,
   ) {
     final contact = widget.patient.telefono.trim().isEmpty
         ? 'Sin contacto registrado'
         : widget.patient.telefono.trim();
-    final pending = paymentsResolution.paymentAccounts.isEmpty
-        ? widget.patient.saldoPendiente
-        : paymentsResolution.paymentAccounts.fold<double>(
-            0.0,
-            (sum, item) => sum + item.payment.saldoPendiente,
-          );
 
     return _patientCard(
       title: 'Paciente',
@@ -835,12 +796,7 @@ class _AdminPatientWorkspaceState
     );
   }
 
-  Widget _buildVisibleMobileSection({
-    required List<PatientTreatment> treatments,
-    required AppointmentModel? nextAppointment,
-    required SimulationModel? latestSimulation,
-    required EffectivePatientDataResolution paymentsResolution,
-  }) {
+  Widget _buildVisibleMobileSection() {
     return switch (_section) {
       0 => PatientProfileTab(patient: widget.patient, scrollable: false),
       1 => PatientTreatmentTab(
@@ -997,7 +953,7 @@ class _AdminPatientWorkspaceState
               ref,
               preselectedPatient: widget.patient,
               existingAppointments:
-                  ref.watch(appointmentsProvider).asData?.value ?? const [],
+                  ref.read(appointmentsProvider).asData?.value ?? const [],
             ),
           ),
           _quickActionButton(
@@ -1434,9 +1390,9 @@ class _AdminPatientWorkspaceState
   }
 
   void _openSection(int index) {
-    setState(() {
-      _section = index.clamp(0, 5);
-    });
+    final next = index.clamp(0, 5);
+    if (next == _section) return;
+    setState(() => _section = next);
   }
 
   String _money(num value) => '\$${formatCop(value)}';

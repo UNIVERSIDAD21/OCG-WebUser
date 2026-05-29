@@ -133,6 +133,7 @@ class _FlowFakeRepository extends SimulationRepository {
   Future<String?> resolveMediaUrl(
     String? pathOrUrl, {
     bool bustCache = false,
+    String? cacheVersion,
   }) async => 'https://example.com/image.jpg';
 }
 

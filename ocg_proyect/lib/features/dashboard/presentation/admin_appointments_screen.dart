@@ -21,6 +21,7 @@ import '../../../shared/theme/ocg_colors.dart';
 import '../../../shared/utils/dialog_utils.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/widgets/ocg_adaptive_scaffold.dart';
+import '../../../shared/widgets/ocg_cached_image.dart';
 import '../../../shared/widgets/ocg_logout_dialog.dart';
 import '../../../shared/widgets/ocg_segmented_tabs.dart';
 import '../../../shared/widgets/ocg_loading_state.dart';
@@ -1077,11 +1078,24 @@ class _CreateApptDialogState extends ConsumerState<_CreateApptDialog> {
   Widget _patientAvatar(PatientModel patient) {
     final url = (patient.fotoUrl ?? '').trim();
     if (url.isNotEmpty) {
-      return CircleAvatar(
-        radius: 17,
-        backgroundImage: NetworkImage(url),
-        backgroundColor: OcgColors.bronze.withOpacity(0.15),
-        onBackgroundImageError: (_, __) {},
+      return SizedBox(
+        width: 34,
+        height: 34,
+        child: ClipOval(
+          child: OcgCachedImage(
+            imageUrl: url,
+            width: 34,
+            height: 34,
+            fit: BoxFit.cover,
+            memCacheWidth: 68,
+            memCacheHeight: 68,
+            placeholder: ColoredBox(color: OcgColors.bronze.withOpacity(0.15)),
+            errorWidget: const ColoredBox(
+              color: OcgColors.espresso,
+              child: Icon(Icons.person, size: 17, color: OcgColors.ivory),
+            ),
+          ),
+        ),
       );
     }
     return const CircleAvatar(
@@ -1824,8 +1838,7 @@ class _AdminAppointmentsScreenState
 
   Future<void> _showRescheduleDialog(AppointmentModel appt) async {
     // Buscar el paciente de la cita que se va a reprogramar
-    final patients =
-        ref.read(patientsStreamProvider).asData?.value ?? const [];
+    final patients = ref.read(patientsStreamProvider).asData?.value ?? const [];
     final patient = patients.firstWhere(
       (p) => p.id == appt.patientId,
       orElse: () => PatientModel.fromJson({
@@ -1872,8 +1885,7 @@ class _AdminAppointmentsScreenState
           a.estado == AppointmentStatus.programada &&
           a.id != appt.id &&
           a.fechaHora.isAfter(appt.fechaHora);
-    }).toList()
-      ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
+    }).toList()..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
     if (newAppointment.isNotEmpty) {
       // Marcar la cita original como reprogramada
@@ -1891,7 +1903,11 @@ class _AdminAppointmentsScreenState
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cita creada pero no se pudo marcar la original como reprogramada: $e')),
+          SnackBar(
+            content: Text(
+              'Cita creada pero no se pudo marcar la original como reprogramada: $e',
+            ),
+          ),
         );
       }
     }

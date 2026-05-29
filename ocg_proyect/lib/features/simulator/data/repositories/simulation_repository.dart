@@ -29,15 +29,12 @@ class SimulationRepository {
   void clearResolvedMediaUrlCache(String path) {
     final raw = path.trim();
     if (raw.isEmpty) return;
-    _resolvedMediaUrlCache.remove(raw);
-    _resolvedMediaUrlInflight.remove(raw);
-  }
-
-  bool _isMutableSimulationResultPath(String path) {
-    final parts = path.split('/');
-    return parts.length == 4 &&
-        parts[0] == 'simulations' &&
-        parts[3] == 'result.jpg';
+    _resolvedMediaUrlCache.removeWhere(
+      (key, _) => key == raw || key.startsWith('$raw@'),
+    );
+    _resolvedMediaUrlInflight.removeWhere(
+      (key, _) => key == raw || key.startsWith('$raw@'),
+    );
   }
 
   CollectionReference<Map<String, dynamic>> _simulationsRef(String patientId) {
@@ -92,21 +89,26 @@ class SimulationRepository {
   Future<String?> resolveMediaUrl(
     String? pathOrUrl, {
     bool bustCache = false,
+    String? cacheVersion,
   }) async {
     final raw = (pathOrUrl ?? '').trim();
     if (raw.isEmpty) return null;
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    final version = cacheVersion?.trim();
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return _appendCacheVersion(raw, version);
+    }
 
-    final bypassCache = bustCache || _isMutableSimulationResultPath(raw);
+    final cacheKey = version == null || version.isEmpty ? raw : '$raw@$version';
+    final bypassCache = bustCache;
 
     // Si bustCache=true, omitir el cache para forzar URL fresca.
     if (!bypassCache) {
-      final cached = _resolvedMediaUrlCache[raw];
+      final cached = _resolvedMediaUrlCache[cacheKey];
       if (cached != null && cached.isNotEmpty) {
         return cached;
       }
 
-      final inflight = _resolvedMediaUrlInflight[raw];
+      final inflight = _resolvedMediaUrlInflight[cacheKey];
       if (inflight != null) {
         return inflight;
       }
@@ -118,24 +120,30 @@ class SimulationRepository {
         .then((url) {
           final clean = url.trim();
           if (clean.isEmpty) return null;
-          // Cache-buster: agregar timestamp para que el CDN de Firebase/GCP
-          // no sirva bytes viejos cuando se sobrescribe un archivo en el mismo path.
-          final separator = clean.contains('?') ? '&' : '?';
-          final ms = DateTime.now().millisecondsSinceEpoch;
-          final busted = '$clean${separator}cb=$ms';
+          final cacheToken = bustCache
+              ? DateTime.now().millisecondsSinceEpoch.toString()
+              : version;
+          final resolved = _appendCacheVersion(clean, cacheToken);
           // ignore: avoid_print
           print(
-            '[SimulatorRepository][resolveMediaUrl] path=$raw cacheBust=$bypassCache cb=$ms',
+            '[SimulatorRepository][resolveMediaUrl] path=$raw bust=$bustCache version=${cacheToken ?? 'none'}',
           );
-          if (!bypassCache) _resolvedMediaUrlCache[raw] = busted;
-          return busted;
+          if (!bypassCache) _resolvedMediaUrlCache[cacheKey] = resolved;
+          return resolved;
         })
         .whenComplete(() {
-          if (!bypassCache) _resolvedMediaUrlInflight.remove(raw);
+          if (!bypassCache) _resolvedMediaUrlInflight.remove(cacheKey);
         });
 
-    if (!bypassCache) _resolvedMediaUrlInflight[raw] = future;
+    if (!bypassCache) _resolvedMediaUrlInflight[cacheKey] = future;
     return future;
+  }
+
+  String _appendCacheVersion(String url, String? version) {
+    final token = version?.trim();
+    if (token == null || token.isEmpty) return url;
+    final separator = url.contains('?') ? '&' : '?';
+    return '$url${separator}v=$token';
   }
 
   Future<SimulationModel> createDraftSimulation({

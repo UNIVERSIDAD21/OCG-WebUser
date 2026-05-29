@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/ocg_colors.dart';
+import 'ocg_cached_image.dart';
 
 /// Visor de fotos a pantalla completa con zoom.
 /// Se abre al tocar cualquier foto de perfil.
@@ -20,21 +21,20 @@ class OcgPhotoViewer extends StatelessWidget {
       barrierColor: Colors.black87,
       transitionDuration: const Duration(milliseconds: 280),
       pageBuilder: (context, anim1, anim2) {
-        return _PhotoViewerPage(
-          photoUrl: photoUrl,
-          patientName: patientName,
-        );
+        return _PhotoViewerPage(photoUrl: photoUrl, patientName: patientName);
       },
       transitionBuilder: (context, anim, secondaryAnim, child) {
         final curve = Curves.easeOutCubic;
         return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(
-            CurvedAnimation(parent: anim, curve: curve),
-          ),
+          opacity: Tween<double>(
+            begin: 0,
+            end: 1,
+          ).animate(CurvedAnimation(parent: anim, curve: curve)),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.85, end: 1.0).animate(
-              CurvedAnimation(parent: anim, curve: curve),
-            ),
+            scale: Tween<double>(
+              begin: 0.85,
+              end: 1.0,
+            ).animate(CurvedAnimation(parent: anim, curve: curve)),
             child: child,
           ),
         );
@@ -70,10 +70,7 @@ class _PhotoViewerPageState extends State<_PhotoViewerPage>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _fadeAnim = CurvedAnimation(
-      parent: _animCtrl,
-      curve: Curves.easeOut,
-    );
+    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
   }
 
@@ -85,7 +82,6 @@ class _PhotoViewerPageState extends State<_PhotoViewerPage>
 
   @override
   Widget build(BuildContext context) {
-
     return SafeArea(
       child: GestureDetector(
         onTap: () => Navigator.of(context).pop(),
@@ -102,56 +98,47 @@ class _PhotoViewerPageState extends State<_PhotoViewerPage>
                     maxScale: 4.0,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        widget.photoUrl,
+                      child: OcgCachedImage(
+                        imageUrl: widget.photoUrl,
                         fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: OcgColors.bronze,
-                                strokeWidth: 3,
-                              ),
+                        placeholder: const SizedBox(
+                          width: 80,
+                          height: 80,
+                          child: Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: OcgColors.bronze,
                             ),
-                          );
-                        },
-                        errorBuilder: (context, error, _) {
-                          return Container(
-                            width: 200,
-                            height: 200,
-                            decoration: BoxDecoration(
-                              color: OcgColors.bronze.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.broken_image_outlined,
-                                    size: 48,
+                          ),
+                        ),
+                        errorWidget: Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: OcgColors.bronze.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 48,
+                                  color: OcgColors.bronze,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'No se pudo cargar la foto',
+                                  style: TextStyle(
                                     color: OcgColors.bronze,
+                                    fontSize: 13,
                                   ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'No se pudo cargar la foto',
-                                    style: TextStyle(
-                                      color: OcgColors.bronze,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -243,11 +230,7 @@ class _CloseButton extends StatelessWidget {
         onTap: () => Navigator.of(context).pop(),
         child: const Padding(
           padding: EdgeInsets.all(10),
-          child: Icon(
-            Icons.close_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
+          child: Icon(Icons.close_rounded, color: Colors.white, size: 22),
         ),
       ),
     );

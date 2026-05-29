@@ -21,12 +21,14 @@ class TreatmentProfileSelector extends StatefulWidget {
 }
 
 class _TreatmentProfileSelectorState extends State<TreatmentProfileSelector> {
-  late String? _expandedGroupId;
+  String? _selectedGroupId;
 
   @override
   void initState() {
     super.initState();
-    _expandedGroupId = _groupIdForProfile(widget.selectedProfileId);
+    _selectedGroupId =
+        _groupIdForProfile(widget.selectedProfileId) ??
+        treatmentGroups.first.id;
   }
 
   @override
@@ -34,8 +36,8 @@ class _TreatmentProfileSelectorState extends State<TreatmentProfileSelector> {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedProfileId != oldWidget.selectedProfileId) {
       final selectedGroupId = _groupIdForProfile(widget.selectedProfileId);
-      if (selectedGroupId != null && selectedGroupId != _expandedGroupId) {
-        _expandedGroupId = selectedGroupId;
+      if (selectedGroupId != null && selectedGroupId != _selectedGroupId) {
+        _selectedGroupId = selectedGroupId;
       }
     }
   }
@@ -51,10 +53,11 @@ class _TreatmentProfileSelectorState extends State<TreatmentProfileSelector> {
     return null;
   }
 
-  void _toggleGroup(String groupId) {
-    setState(() {
-      _expandedGroupId = _expandedGroupId == groupId ? null : groupId;
-    });
+  TreatmentGroup get _activeGroup {
+    return treatmentGroups.firstWhere(
+      (group) => group.id == _selectedGroupId,
+      orElse: () => treatmentGroups.first,
+    );
   }
 
   @override
@@ -63,171 +66,229 @@ class _TreatmentProfileSelectorState extends State<TreatmentProfileSelector> {
         ? null
         : lookupProfile(widget.selectedProfileId!);
     final selectedProfileId = selectedProfile?.id ?? widget.selectedProfileId;
+    final activeGroup = _activeGroup;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < treatmentGroups.length; i++) ...[
-          _TreatmentGroupPanel(
-            group: treatmentGroups[i],
+        _GroupDropdown(
+          group: activeGroup,
+          compact: widget.compact,
+          onSelected: (group) {
+            setState(() => _selectedGroupId = group.id);
+          },
+        ),
+        const SizedBox(height: 10),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeOutCubic,
+          child: _TreatmentCardsGrid(
+            key: ValueKey(activeGroup.id),
+            treatments: activeGroup.treatments,
             compact: widget.compact,
-            expanded: treatmentGroups[i].id == _expandedGroupId,
             selectedProfileId: selectedProfileId,
-            onToggle: () => _toggleGroup(treatmentGroups[i].id),
             onSelected: widget.onSelected,
           ),
-          if (i != treatmentGroups.length - 1) const SizedBox(height: 4),
-        ],
+        ),
       ],
     );
   }
 }
 
-class _TreatmentGroupPanel extends StatelessWidget {
-  const _TreatmentGroupPanel({
+class _GroupDropdown extends StatefulWidget {
+  const _GroupDropdown({
     required this.group,
     required this.compact,
-    required this.expanded,
-    required this.selectedProfileId,
-    required this.onToggle,
     required this.onSelected,
   });
 
   final TreatmentGroup group;
   final bool compact;
-  final bool expanded;
-  final String? selectedProfileId;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onSelected;
+  final ValueChanged<TreatmentGroup> onSelected;
+
+  @override
+  State<_GroupDropdown> createState() => _GroupDropdownState();
+}
+
+class _GroupDropdownState extends State<_GroupDropdown> {
+  final MenuController _controller = MenuController();
 
   @override
   Widget build(BuildContext context) {
-    final hasSelectedProfile = group.treatments.any(
-      (profile) => profile.id == selectedProfileId,
-    );
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        color: expanded || hasSelectedProfile
-            ? group.color.withOpacity(0.06)
-            : OcgColors.ivory,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: expanded || hasSelectedProfile
-              ? group.color.withOpacity(0.26)
-              : OcgColors.bronze.withOpacity(0.12),
+    return MenuAnchor(
+      controller: _controller,
+      alignmentOffset: const Offset(0, 6),
+      style: MenuStyle(
+        backgroundColor: WidgetStateProperty.all(const Color(0xFFFFFBF8)),
+        maximumSize: WidgetStateProperty.all(
+          Size.fromHeight(widget.compact ? 340 : 420),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: OcgColors.espresso.withOpacity(expanded ? 0.06 : 0.035),
-            blurRadius: expanded ? 16 : 10,
-            offset: const Offset(0, 7),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: OcgColors.bronze.withOpacity(0.14)),
           ),
-        ],
+        ),
+        padding: WidgetStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          children: [
-            _TreatmentGroupHeader(
-              group: group,
-              compact: compact,
-              expanded: expanded,
-              onTap: onToggle,
-            ),
-            ClipRect(
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 210),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: expanded
-                    ? _TreatmentCardsGrid(
-                        treatments: group.treatments,
-                        compact: compact,
-                        selectedProfileId: selectedProfileId,
-                        onSelected: onSelected,
-                      )
-                    : const SizedBox(width: double.infinity),
+      menuChildren: treatmentGroups.map((group) {
+        return MenuItemButton(
+          onPressed: () {
+            widget.onSelected(group);
+            _controller.close();
+          },
+          child: _GroupOptionRow(
+            group: group,
+            compact: widget.compact,
+            isSelected: group.id == widget.group.id,
+          ),
+        );
+      }).toList(),
+      child: InkWell(
+        onTap: () {
+          if (_controller.isOpen) {
+            _controller.close();
+          } else {
+            _controller.open();
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 10 : 12,
+            vertical: widget.compact ? 9 : 11,
+          ),
+          decoration: BoxDecoration(
+            color: widget.group.color.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: widget.group.color.withOpacity(0.26)),
+            boxShadow: [
+              BoxShadow(
+                color: OcgColors.espresso.withOpacity(0.045),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            children: [
+              _GroupIcon(group: widget.group, compact: widget.compact),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.group.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: OcgColors.espresso,
+                    fontWeight: FontWeight.w900,
+                    fontSize: widget.compact ? 13 : 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _TreatmentCountBadge(
+                count: widget.group.treatments.length,
+                color: widget.group.color,
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: widget.group.color,
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _TreatmentGroupHeader extends StatelessWidget {
-  const _TreatmentGroupHeader({
+class _GroupOptionRow extends StatelessWidget {
+  const _GroupOptionRow({
     required this.group,
     required this.compact,
-    required this.expanded,
-    required this.onTap,
+    required this.isSelected,
   });
 
   final TreatmentGroup group;
   final bool compact;
-  final bool expanded;
-  final VoidCallback onTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 9 : 10,
-          vertical: compact ? 4 : 5,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: compact ? 28 : 32,
-              height: compact ? 28 : 32,
-              decoration: BoxDecoration(
-                color: group.color.withOpacity(0.13),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: group.color.withOpacity(0.26)),
-              ),
-              child: Icon(
-                group.icon,
-                color: group.color,
-                size: compact ? 16 : 18,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                group.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: OcgColors.espresso,
-                  fontWeight: FontWeight.w900,
-                  fontSize: compact ? 12 : 13,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            _TreatmentCountBadge(
-              count: group.treatments.length,
-              color: group.color,
-            ),
-            const SizedBox(width: 4),
-            AnimatedRotation(
-              turns: expanded ? 0.5 : 0,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              child: Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: group.color,
-                size: 22,
-              ),
-            ),
-          ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 7 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? group.color.withOpacity(0.10) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? group.color.withOpacity(0.24)
+              : Colors.transparent,
         ),
       ),
+      child: Row(
+        children: [
+          _GroupIcon(group: group, compact: compact),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              group.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: OcgColors.espresso,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _TreatmentCountBadge(
+            count: group.treatments.length,
+            color: group.color,
+          ),
+          if (isSelected) ...[
+            const SizedBox(width: 8),
+            Icon(Icons.check_circle_rounded, color: group.color, size: 18),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupIcon extends StatelessWidget {
+  const _GroupIcon({required this.group, required this.compact});
+
+  final TreatmentGroup group;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = compact ? 32.0 : 36.0;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: group.color.withOpacity(0.13),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: group.color.withOpacity(0.26)),
+      ),
+      child: Icon(group.icon, color: group.color, size: compact ? 17 : 19),
     );
   }
 }
@@ -263,6 +324,7 @@ class _TreatmentCountBadge extends StatelessWidget {
 
 class _TreatmentCardsGrid extends StatelessWidget {
   const _TreatmentCardsGrid({
+    super.key,
     required this.treatments,
     required this.compact,
     required this.selectedProfileId,
@@ -280,35 +342,25 @@ class _TreatmentCardsGrid extends StatelessWidget {
       builder: (context, constraints) {
         final columns = compact ? 1 : 2;
         final spacing = compact ? 8.0 : 10.0;
-        final horizontalPadding = compact ? 20.0 : 24.0;
-        final innerWidth = constraints.maxWidth - horizontalPadding;
         final width = columns == 1
-            ? innerWidth
-            : (innerWidth - spacing) / columns;
+            ? constraints.maxWidth
+            : (constraints.maxWidth - spacing) / columns;
 
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            compact ? 10 : 12,
-            0,
-            compact ? 10 : 12,
-            compact ? 10 : 12,
-          ),
-          child: Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: treatments.map((profile) {
-              return SizedBox(
-                width: width,
-                height: compact ? 150 : 168,
-                child: _TreatmentProfileCard(
-                  profile: profile,
-                  compact: compact,
-                  isSelected: profile.id == selectedProfileId,
-                  onTap: () => onSelected(profile.id),
-                ),
-              );
-            }).toList(),
-          ),
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: treatments.map((profile) {
+            return SizedBox(
+              width: width,
+              height: compact ? 150 : 168,
+              child: _TreatmentProfileCard(
+                profile: profile,
+                compact: compact,
+                isSelected: profile.id == selectedProfileId,
+                onTap: () => onSelected(profile.id),
+              ),
+            );
+          }).toList(),
         );
       },
     );

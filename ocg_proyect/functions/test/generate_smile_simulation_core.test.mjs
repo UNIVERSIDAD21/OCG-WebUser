@@ -318,6 +318,16 @@ test('prompt de clear_aligners contiene aligner tray', () => {
   assert.doesNotMatch(result.promptUsed, /metal brackets/);
 });
 
+test('prompt de limpieza_oral conserva dientes y solo limpia superficies', () => {
+  const result = buildDentalTreatmentPrompt({
+    treatmentProfileId: 'limpieza_oral',
+  });
+  assert.match(result.promptUsed, /plaque|calculus|superficial/i);
+  assert.match(result.promptUsed, /same shape, size, alignment/i);
+  assert.match(result.promptUsed, /Do NOT whiten teeth/i);
+  assert.match(result.promptUsed, /Do NOT change tooth shape, position, size/i);
+});
+
 test('prompt de blanqueamiento contiene tooth shade', () => {
   const result = buildDentalTreatmentPrompt({
     treatmentProfileId: 'blanqueamiento',

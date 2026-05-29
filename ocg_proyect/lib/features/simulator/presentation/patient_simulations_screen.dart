@@ -220,6 +220,7 @@ class _PatientSimulationCard extends StatelessWidget {
                 originalPath: simulation.originalPath,
                 resultPath: simulation.resultPath!,
                 repository: repository,
+                cacheVersion: simulation.attemptCount.toString(),
               )
             else
               const SizedBox(
@@ -243,18 +244,20 @@ class _PatientBeforeAfter extends StatelessWidget {
     required this.originalPath,
     required this.resultPath,
     required this.repository,
+    required this.cacheVersion,
   });
 
   final String originalPath;
   final String resultPath;
   final SimulationRepository repository;
+  final String cacheVersion;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<String?>>(
       future: Future.wait([
         repository.resolveMediaUrl(originalPath),
-        repository.resolveMediaUrl(resultPath),
+        repository.resolveMediaUrl(resultPath, cacheVersion: cacheVersion),
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -268,10 +271,7 @@ class _PatientBeforeAfter extends StatelessWidget {
             child: Center(child: Text('No se pudieron cargar las imágenes.')),
           );
         }
-        return BeforeAfterFullscreenViewer(
-          beforeUrl: before,
-          afterUrl: after,
-        );
+        return BeforeAfterFullscreenViewer(beforeUrl: before, afterUrl: after);
       },
     );
   }

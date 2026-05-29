@@ -40,6 +40,8 @@ const CLINICAL_DISCLAIMER = [
 const IDENTITY_BASE = [
   'Edit ONLY the visible dental area of the patient.',
   'Preserve the face, lips, skin, facial expression, lighting, framing, age appearance, and identity exactly as they are.',
+  'Preserve every tooth that is not explicitly targeted by the selected treatment.',
+  'Do not change tooth shape, size, alignment, position, anatomy, shade, incisal edges, or gumline unless the selected treatment explicitly requires that exact change.',
   'Do not change the shape of the face.',
   'Do not alter eyes, nose, hair, skin, or background.',
   'Do not produce an artificial or cartoonish result.',
@@ -169,11 +171,14 @@ function doctorConfigToInstructions(
   if (intensidad) {
     const intensityDesc =
       intensidad === 'profunda'
-        ? 'deep and clearly visible cleaning, removing heavy deposits while staying realistic'
+        ? 'a conservative deep cleaning that removes only visible plaque, calculus, and superficial stains'
         : intensidad === 'leve'
-          ? 'light cleaning with subtle stain and plaque reduction'
-          : 'moderate professional cleaning with visible but natural improvement';
+          ? 'a very light cleaning with only subtle plaque and superficial stain reduction'
+          : 'a mild professional cleaning with natural, restrained improvement';
     instructions.push(`The oral cleaning result MUST look like a ${intensityDesc}.`);
+    instructions.push(
+      'For oral cleaning, preserve the original tooth shape, size, alignment, spacing, incisal edges, and natural tooth shade exactly; only remove surface deposits and superficial stains.',
+    );
   }
 
   const tipoProtesis = normalizeText(c['tipoProtesis'] as string | undefined);
