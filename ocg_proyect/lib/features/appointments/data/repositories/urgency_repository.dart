@@ -198,21 +198,32 @@ class UrgencyRepository {
     return appointmentRef.id;
   }
 
+  /// Reprograma una cita para liberar el slot y crear la cita de urgencia.
+  ///
+  /// Si [newAppointmentId] viene informado, la cita del paciente desplazado
+  /// YA fue creada (ej: desde el diálogo de Crear cita con slots).  En ese caso
+  /// solo se actualiza el doc existente con los metadatos de reprogramación en
+  /// vez de crear un [movedRef] duplicado.
   Future<UrgencyRescheduleResult> rescheduleAppointmentForUrgency({
     required UrgencyRequestModel request,
     required AppointmentModel originalAppointment,
     required DateTime newDateTimeForOriginal,
     required String adminId,
     String? adminNotes,
+    String? newAppointmentId,
   }) async {
     final originalRef = _appointments.doc(originalAppointment.id);
-    final movedRef = _appointments.doc();
+    // Si ya existe la cita nueva, la usamos; si no, creamos una (flujo antiguo).
+    final movedRef = _appointments.doc(
+      newAppointmentId ?? _appointments.doc().id,
+    );
     final urgentRef = _appointments.doc();
     final requestRef = _collection.doc(request.id);
     final originalPatientRef = _patients.doc(originalAppointment.patientId);
     final urgentPatientRef = _patients.doc(request.patientId);
     final urgentSlotDateTime = originalAppointment.fechaHora;
     final now = DateTime.now();
+    final hasExistingAppointment = newAppointmentId != null;
 
     await _db.runTransaction((transaction) async {
       final originalSnapshot = await transaction.get(originalRef);
@@ -231,18 +242,6 @@ class UrgencyRepository {
         );
       }
 
-      final movedAppointment = currentOriginal.copyWith(
-        id: movedRef.id,
-        fechaHora: newDateTimeForOriginal,
-        estado: AppointmentStatus.programada,
-        createdAt: now,
-        updatedAt: now,
-        notas: [
-          if ((currentOriginal.notas ?? '').trim().isNotEmpty)
-            currentOriginal.notas!.trim(),
-          'Cita reprogramada por gestion de urgencia.',
-        ].join('\n'),
-      );
       final urgentAppointment = AppointmentModel(
         id: urgentRef.id,
         patientId: request.patientId,
@@ -258,6 +257,7 @@ class UrgencyRepository {
         updatedAt: now,
       );
 
+      // ── Actualizar la cita ORIGINAL a reprogramada ──
       transaction.update(originalRef, {
         'estado': AppointmentStatus.reprogramada.name,
         'fechaHora': Timestamp.fromDate(newDateTimeForOriginal),
@@ -269,16 +269,46 @@ class UrgencyRepository {
         'updatedBy': adminId,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      transaction.set(movedRef, {
-        ...movedAppointment.toJson(),
-        'createdByRole': 'admin',
-        'createdBy': adminId,
-        'lastActionByRole': 'admin',
-        'lastActionBy': adminId,
-        'updatedByRole': 'admin',
-        'updatedBy': adminId,
-        'rescheduledFromId': originalAppointment.id,
-      });
+
+      if (hasExistingAppointment) {
+        // ── Flujo nuevo: la cita YA fue creada por el diálogo de Crear cita ──
+        // Solo añadimos los metadatos de reprogramación al doc existente.
+        transaction.update(movedRef, {
+          'rescheduledFromId': originalAppointment.id,
+          'rescheduleNotes': 'Cita reprogramada por gestion de urgencia.',
+          'lastActionByRole': 'admin',
+          'lastActionBy': adminId,
+          'updatedByRole': 'admin',
+          'updatedBy': adminId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // ── Flujo antiguo: creamos la cita desplazada desde cero ──
+        final movedAppointment = currentOriginal.copyWith(
+          id: movedRef.id,
+          fechaHora: newDateTimeForOriginal,
+          estado: AppointmentStatus.programada,
+          createdAt: now,
+          updatedAt: now,
+          notas: [
+            if ((currentOriginal.notas ?? '').trim().isNotEmpty)
+              currentOriginal.notas!.trim(),
+            'Cita reprogramada por gestion de urgencia.',
+          ].join('\n'),
+        );
+        transaction.set(movedRef, {
+          ...movedAppointment.toJson(),
+          'createdByRole': 'admin',
+          'createdBy': adminId,
+          'lastActionByRole': 'admin',
+          'lastActionBy': adminId,
+          'updatedByRole': 'admin',
+          'updatedBy': adminId,
+          'rescheduledFromId': originalAppointment.id,
+        });
+      }
+
+      // ── Crear la cita de URGENCIA en el slot liberado ──
       transaction.set(urgentRef, {
         ...urgentAppointment.toJson(),
         'createdByRole': 'admin',

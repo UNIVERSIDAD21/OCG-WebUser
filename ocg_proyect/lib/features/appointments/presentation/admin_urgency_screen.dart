@@ -247,7 +247,10 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
       ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
     if (newAppointment.isNotEmpty) {
-      // Ejecutar la transacción de urgencia: mover cita original + crear cita urgencia
+      // Ejecutar la transacción de urgencia: marcar original como reprogramada
+      // + crear cita de urgencia en el slot liberado.
+      // PASAMOS el ID de la cita YA CREADA por el diálogo para que el repo
+      // no cree un duplicado (solo añada metadatos de reprogramación).
       try {
         final adminId = ref.read(authStateProvider).asData?.value?.uid ?? 'admin';
         await ref.read(urgencyRepositoryProvider).rescheduleAppointmentForUrgency(
@@ -255,8 +258,12 @@ class _AdminUrgencyScreenState extends ConsumerState<AdminUrgencyScreen> {
           originalAppointment: selectedAppointment,
           newDateTimeForOriginal: newAppointment.first.fechaHora,
           adminId: adminId,
+          newAppointmentId: newAppointment.first.id,
           adminNotes: 'Slot liberado desde ${selectedAppointment.id}.',
         );
+        // Refrescar providers para que Agenda refleje los cambios inmediatamente
+        ref.invalidate(appointmentsProvider);
+        ref.invalidate(allUrgenciesProvider);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -997,33 +1004,36 @@ class _SelectCandidateDialogState extends ConsumerState<_SelectCandidateDialog> 
             ],
             if (isSelected) ...[
               const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(_selected),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   ),
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 15,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Seleccionada para reprogramar',
-                      style: TextStyle(
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.open_in_new_rounded,
+                        size: 15,
                         color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
                       ),
-                    ),
-                  ],
+                      SizedBox(width: 6),
+                      Text(
+                        'Seleccionada para reprogramar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1191,31 +1201,7 @@ class _SelectCandidateDialogState extends ConsumerState<_SelectCandidateDialog> 
                 },
               ),
             ),
-            // Barra inferior con botón
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              decoration: BoxDecoration(
-                color: OcgColors.ivory,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(_selected),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text(
-                  'Reprogramar cita seleccionada',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
+
           ],
         ),
       ),
