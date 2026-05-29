@@ -703,13 +703,13 @@ class _TimeGridViewState extends State<TimeGridView>
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Línea 1: Hora + Nombre
+                  // Línea 1: Hora + Nombre completo
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Flexible(
                         child: Text(
-                          '${_formatTimeShort(appt.fechaHora)} ${appt.patientName.split(' ').first}',
+                          '${_formatTimeShort(appt.fechaHora)} ${appt.patientName}',
                           style: TextStyle(
                             color: textColor,
                             fontSize: height > 40 ? 12 : 10,
@@ -722,10 +722,17 @@ class _TimeGridViewState extends State<TimeGridView>
                       ),
                     ],
                   ),
-                  // Línea 2: Tipo (si hay espacio)
-                  if (height > 38)
+                  // Línea 2: Tratamiento + Tipo de cita (si hay espacio)
+                  if (height > 38) ...[
                     Text(
-                      _tipoLabel(appt.tipo),
+                      [
+                        if (appt.treatmentNameSnapshot
+                                ?.trim()
+                                .isNotEmpty ==
+                            true)
+                          appt.treatmentNameSnapshot!.trim(),
+                        _tipoLabel(appt.tipo),
+                      ].join(' · '),
                       style: TextStyle(
                         color: textColor.withOpacity(0.7),
                         fontSize: height > 50 ? 10 : 9,
@@ -734,6 +741,7 @@ class _TimeGridViewState extends State<TimeGridView>
                       ),
                       maxLines: 1,
                     ),
+                  ],
                   // Línea 3: Estado (si hay mucho espacio)
                   if (height > 60)
                     Text(
