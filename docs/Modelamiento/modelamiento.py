@@ -57,6 +57,10 @@ PARAMETROS_DEFAULT = {
     "mostrar_progreso": True
 }
 
+# Variable global opcional para reutilizar resultados después de ejecutar
+# la simulación, por ejemplo al exportar CSV desde el notebook.
+RESULTADOS_SIMULACION = None
+
 
 # =========================
 # 3. FUNCIONES DE VALIDACIÓN
@@ -581,8 +585,6 @@ def simular_monte_carlo(
             "fabricas": fabricas,
             "oferta_inicial": oferta_por_fabrica,
             "oferta_total": oferta_total,
-            "stock_final": metricas["stock_final"],
-            "distancia_media_por_fabrica": metricas["distancia_media_por_fabrica"],
             **metricas
         })
 
@@ -945,7 +947,7 @@ def mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_opti
     </div>
     """))
 
-    display(HTML("<h3>Coordenadas exactas de las fábricas del mejor escenario encontrado</h3>"))
+    display(HTML("<h3>Detalle completo de fábricas del mejor escenario encontrado</h3>"))
     display(construir_tabla_fabricas(detalle_optimo))
 
 
