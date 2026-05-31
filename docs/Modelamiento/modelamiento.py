@@ -51,7 +51,7 @@ PARAMETROS_DEFAULT = {
     "demanda_total": 10000.0,
     "num_escenarios": 1000,
     "n_mejores_peores": 3,
-    # Use un número entero para resultados reproducibles.
+    # Usa un número entero para obtener resultados reproducibles.
     # Cambia a None si quieres que cada ejecución genere escenarios diferentes.
     "semilla": 42,
     "mostrar_progreso": True
@@ -86,7 +86,14 @@ def ordenar_y_validar_vertices_paralelogramo(
 
     El usuario puede digitar los puntos en cualquier orden. La función busca
     qué pares de puntos pueden ser diagonales. En un paralelogramo, las dos
-    diagonales tienen el mismo punto medio.
+    diagonales siempre se bisecan: esto significa que se cruzan exactamente
+    en el mismo punto medio. Por eso se compara el punto medio de una posible
+    diagonal contra el punto medio de la otra.
+
+    Geométricamente, si ambos puntos medios coinciden, los cuatro puntos pueden
+    organizarse como un paralelogramo: cada diagonal une dos vértices opuestos
+    y ambas diagonales se cortan en el centro de la figura. Si no coinciden,
+    la figura no cumple la propiedad esencial de un paralelogramo.
 
     Retorna los vértices ordenados como:
         [P1, P2, P3, P4]
@@ -115,6 +122,10 @@ def ordenar_y_validar_vertices_paralelogramo(
         punto_medio_1 = (V[i] + V[k]) / 2.0
         punto_medio_2 = (V[j] + V[l]) / 2.0
 
+        # Propiedad clave del paralelogramo:
+        # sus diagonales se cortan en el mismo punto medio. Si esta condición
+        # se cumple, los pares evaluados pueden interpretarse como vértices
+        # opuestos de la figura.
         if np.allclose(punto_medio_1, punto_medio_2, atol=tolerancia, rtol=0):
             P1, P3 = V[i], V[k]
             P2, P4 = V[j], V[l]
@@ -230,11 +241,21 @@ def generar_puntos_en_paralelogramo(
         u = P2 - P1
         v = P4 - P1
         s,t ~ Uniforme(0,1)
+
+    Los vectores u y v representan los dos lados del paralelogramo que salen
+    desde P1. El valor s indica qué tanto se avanza sobre el lado u y el valor
+    t indica qué tanto se avanza sobre el lado v. Como s y t están entre 0 y 1,
+    nunca se avanza más allá de los bordes de la figura. Por eso la combinación
+    P = P1 + s*u + t*v siempre cae dentro del paralelogramo.
     """
     P1, P2, _, P4 = vertices_ordenados
     u = P2 - P1
     v = P4 - P1
 
+    # s y t son proporciones aleatorias entre 0 y 1.
+    # s mueve el punto sobre el vector u y t lo mueve sobre el vector v.
+    # Al combinar ambos desplazamientos desde P1 se recorre toda el área interna
+    # del paralelogramo sin salir de sus límites.
     s = rng.random(cantidad)
     t = rng.random(cantidad)
 
@@ -315,7 +336,11 @@ def evaluar_escenario(
     distancias = calcular_matriz_distancias(puntos_demanda, fabricas)
 
     # Orden de atención de los puntos de demanda.
-    # Primero se atienden los puntos que tienen alguna fábrica cercana.
+    # Para cada consumidor se identifica qué tan cerca está su fábrica más cercana.
+    # Luego se atienden primero los consumidores con menor distancia mínima.
+    # Esta decisión afecta el resultado porque el stock se consume en secuencia:
+    # un punto atendido temprano puede agotar inventario que ya no estará
+    # disponible para los puntos procesados después.
     distancia_minima_por_punto = distancias.min(axis=1)
     orden_puntos = np.argsort(distancia_minima_por_punto, kind="mergesort")
 
@@ -371,14 +396,25 @@ def evaluar_escenario(
 
             stock_disponible = stock_restante[idx_fabrica]
 
+            # Caso C: la fábrica no tiene stock disponible.
+            # No puede entregar producto y se continúa con la siguiente fábrica
+            # más cercana al mismo punto de demanda.
             if stock_disponible <= tolerancia:
                 continue
 
+            # Casos A y B:
+            # - Si el stock alcanza para cubrir toda la demanda restante, min(...)
+            #   devuelve demanda_restante y el punto queda satisfecho.
+            # - Si el stock es parcial, min(...) devuelve todo el stock disponible,
+            #   la fábrica queda en cero y la demanda restante seguirá buscando
+            #   abastecimiento en la siguiente fábrica.
             cantidad_entregada = min(stock_disponible, demanda_restante)
             distancia_entrega = distancias[idx_punto, idx_fabrica]
             costo_entrega = cantidad_entregada * distancia_entrega
 
             # FO1 de transporte real: cantidad enviada por distancia recorrida.
+            # Este producto representa el costo proporcional de mover cierta
+            # cantidad de producto desde una fábrica hasta un punto de demanda.
             costo_transporte_real += costo_entrega
             aporte_FO1_del_punto += costo_entrega
 
@@ -404,7 +440,10 @@ def evaluar_escenario(
             idx_principal = max(entregas_del_punto, key=lambda x: x[1])[0]
             puntos_como_proveedor_principal[idx_principal] += 1
 
-        # Si queda demanda sin cubrir, se penaliza con la fábrica más lejana.
+        # Si queda demanda sin cubrir después de revisar todas las fábricas,
+        # se aplica la penalización de FO1. La cantidad no atendida se multiplica
+        # por la distancia a la fábrica más lejana del escenario para representar
+        # el peor caso de transporte posible para ese punto.
         if demanda_restante > tolerancia:
             distancia_fabrica_mas_lejana = distancias[idx_punto].max()
             penalizacion = demanda_restante * distancia_fabrica_mas_lejana
@@ -421,6 +460,10 @@ def evaluar_escenario(
     fo1 = costo_transporte_real + costo_penalizacion_demanda_no_cubierta
 
     # FO2: stock sobrante multiplicado por distancia media a TODOS los puntos.
+    # Se usa la distancia media a todos los consumidores, no solo a los que la
+    # fábrica atendió, porque el sobrante representa producto mal ubicado frente
+    # a la red completa de demanda. Una fábrica lejana a la mayoría de puntos
+    # debe recibir mayor penalización si termina con inventario sin distribuir.
     distancia_media_por_fabrica = distancias.mean(axis=0)
     fo2_por_fabrica = stock_restante * distancia_media_por_fabrica
     fo2 = float(fo2_por_fabrica.sum())
@@ -542,6 +585,9 @@ def simular_monte_carlo(
     vertices_ordenados = ordenar_y_validar_vertices_paralelogramo(vertices)
     rng = np.random.default_rng(semilla)
 
+    # Los puntos de demanda se generan una sola vez, antes del ciclo Monte Carlo.
+    # Así todos los escenarios se evalúan contra la misma red de consumidores y
+    # la comparación entre configuraciones de fábricas es justa.
     puntos_demanda = generar_puntos_en_paralelogramo(vertices_ordenados, num_puntos_demanda, rng)
     demanda_por_punto = demanda_total / num_puntos_demanda
 
@@ -550,6 +596,9 @@ def simular_monte_carlo(
     paso_progreso = max(1, num_escenarios // 10)
 
     for escenario in range(1, num_escenarios + 1):
+        # Las fábricas sí se generan dentro del ciclo porque son la variable que
+        # cambia de un escenario a otro. Cada iteración representa una posible
+        # configuración espacial de lugares de producción.
         fabricas = generar_puntos_en_paralelogramo(vertices_ordenados, num_fabricas, rng)
         oferta_total, oferta_por_fabrica = generar_oferta_fabricas(num_fabricas, demanda_total, rng)
 
@@ -792,8 +841,8 @@ def explicar_escenario(
     dist_min_prom = detalle_escenario["distancia_minima_promedio_demanda"]
     dist_min_max = detalle_escenario["distancia_minima_maxima_demanda"]
 
-    # Ranking: posición del escenario cuando todos se ordenan de menor a mayor FO_TOTAL.
-    # Ranking 1 = mejor escenario de todos.
+    # Clasificación: posición del escenario cuando todos se ordenan de menor a mayor FO_TOTAL.
+    # La posición 1 corresponde al mejor escenario encontrado.
     total_escenarios = len(tabla_resultados)
     ranking = int((tabla_resultados["FO_TOTAL"] < fo_total).sum() + 1)
 
