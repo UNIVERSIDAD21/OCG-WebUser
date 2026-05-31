@@ -10,8 +10,10 @@
 # 1. Permite digitar los parámetros del documento desde una interfaz bonita.
 # 2. Mantiene una opción automática por si se ejecuta fuera de Colab.
 # 3. Explica cada gráfica: por qué un escenario fue bueno o malo.
-# 4. Agrega una gráfica independiente del escenario óptimo global.
+# 4. Agrega una gráfica independiente del mejor escenario encontrado.
 # 5. Conserva validaciones, comentarios y estructura profesional.
+# 6. Permite semilla aleatoria configurable para reproducibilidad.
+# 7. Reporta explícitamente el mayor valor de FO_TOTAL entre escenarios.
 # ============================================================
 
 # =========================
@@ -49,6 +51,9 @@ PARAMETROS_DEFAULT = {
     "demanda_total": 10000.0,
     "num_escenarios": 1000,
     "n_mejores_peores": 3,
+    # Use un número entero para resultados reproducibles.
+    # Cambia a None si quieres que cada ejecución genere escenarios diferentes.
+    "semilla": 42,
     "mostrar_progreso": True
 }
 
@@ -173,6 +178,33 @@ def parsear_vertices(texto_vertices: str) -> List[List[float]]:
     # La validación geométrica final se hace en ordenar_y_validar_vertices_paralelogramo.
     ordenar_y_validar_vertices_paralelogramo(vertices)
     return vertices
+
+
+def parsear_semilla(valor: Any) -> int | None:
+    """
+    Convierte la semilla ingresada por el usuario.
+
+    - Un entero, por ejemplo 42, hace que la simulación sea reproducible.
+    - None, vacío, "none", "aleatoria" o "random" genera resultados nuevos en cada ejecución.
+    """
+    if valor is None:
+        return None
+
+    if isinstance(valor, str):
+        texto = valor.strip().lower()
+        if texto in {"", "none", "null", "aleatoria", "aleatorio", "random", "sin semilla"}:
+            return None
+        try:
+            return int(texto)
+        except ValueError as exc:
+            raise ValueError(
+                "La semilla debe ser un número entero o None. Ejemplos válidos: 42, 2025, None."
+            ) from exc
+
+    try:
+        return int(valor)
+    except Exception as exc:
+        raise ValueError("La semilla debe ser un número entero o None.") from exc
 
 
 # =========================
@@ -486,10 +518,14 @@ def simular_monte_carlo(
     demanda_total: float,
     num_escenarios: int,
     n_mejores_peores: int,
-    mostrar_progreso: bool = True
+    mostrar_progreso: bool = True,
+    semilla: int | None = 42
 ) -> Tuple[pd.DataFrame, List[Dict[str, Any]], np.ndarray, np.ndarray]:
     """
     Ejecuta la simulación completa.
+
+    La semilla permite reproducir exactamente los mismos escenarios.
+    Si semilla=None, cada ejecución genera escenarios diferentes.
     """
     validar_parametros_simulacion(
         num_puntos_demanda,
@@ -500,7 +536,7 @@ def simular_monte_carlo(
     )
 
     vertices_ordenados = ordenar_y_validar_vertices_paralelogramo(vertices)
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(semilla)
 
     puntos_demanda = generar_puntos_en_paralelogramo(vertices_ordenados, num_puntos_demanda, rng)
     demanda_por_punto = demanda_total / num_puntos_demanda
@@ -566,13 +602,14 @@ def simular_monte_carlo(
 
 def obtener_mejores_y_peores(tabla_resultados: pd.DataFrame, n_mejores_peores: int):
     """
-    Devuelve los N mejores, los N peores y el mejor escenario global.
+    Devuelve los N mejores, los N peores, el menor FO_TOTAL y el mayor FO_TOTAL.
     """
     tabla_ordenada = tabla_resultados.sort_values("FO_TOTAL", ascending=True).reset_index(drop=True)
     mejores = tabla_ordenada.head(n_mejores_peores).copy()
     peores = tabla_ordenada.tail(n_mejores_peores).sort_values("FO_TOTAL", ascending=False).reset_index(drop=True)
     escenario_optimo = tabla_ordenada.iloc[0]
-    return mejores, peores, escenario_optimo
+    escenario_mayor_fo = tabla_ordenada.iloc[-1]
+    return mejores, peores, escenario_optimo, escenario_mayor_fo
 
 
 def obtener_detalle_por_escenario(detalles_escenarios: List[Dict[str, Any]], numero_escenario: int) -> Dict[str, Any]:
@@ -772,11 +809,12 @@ def explicar_escenario(
 
     tipo_normalizado = tipo.lower()
 
-    if "óptimo" in tipo_normalizado or "optimo" in tipo_normalizado:
+    if "óptimo" in tipo_normalizado or "optimo" in tipo_normalizado or "mejor escenario encontrado" in tipo_normalizado:
         lectura_general = (
-            "Este es el escenario óptimo global porque obtuvo el menor FO_TOTAL "
-            "entre todos los escenarios simulados. Representa la mejor configuración "
-            "de fábricas encontrada por el proceso de Monte Carlo para los parámetros ingresados."
+            "Este es el mejor escenario encontrado porque obtuvo el menor FO_TOTAL "
+            "entre todos los escenarios evaluados. Representa la mejor configuración "
+            "encontrada por el proceso de Monte Carlo para los parámetros ingresados; "
+            "no necesariamente el óptimo matemático absoluto del espacio continuo."
         )
     elif tipo_normalizado.startswith("mejor"):
         lectura_general = (
@@ -857,9 +895,9 @@ def explicar_escenario(
     return explicacion
 
 
-def mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_optimo, detalle_optimo):
+def mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_optimo, escenario_mayor_fo, detalle_optimo):
     """
-    Muestra las tablas principales y el escenario óptimo.
+    Muestra las tablas principales, el mejor escenario encontrado y el mayor FO_TOTAL.
     """
     pd.set_option("display.max_columns", None)
     pd.set_option("display.width", 160)
@@ -874,10 +912,17 @@ def mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_opti
     display(HTML("<h2>N peores escenarios</h2>"))
     display(peores)
 
-    display(HTML("<h2>Escenario óptimo global</h2>"))
+    display(HTML("<h2>Mejor escenario encontrado</h2>"))
+    display(HTML("""
+    <div style="background:#eef6ff; border:1px solid #bfdbfe; padding:12px; border-radius:8px; margin-bottom:12px;">
+        El mejor escenario reportado corresponde al menor FO_TOTAL encontrado dentro de los escenarios simulados.
+        No representa necesariamente el óptimo matemático absoluto del espacio continuo, sino la mejor configuración
+        encontrada por la simulación Monte Carlo ejecutada.
+    </div>
+    """))
     display(HTML(f"""
     <div style="background:#ecfdf3; border:1px solid #b7ebc6; padding:14px; border-radius:8px;">
-        <b>Escenario óptimo:</b> {int(escenario_optimo['escenario'])}<br>
+        <b>Mejor escenario encontrado:</b> {int(escenario_optimo['escenario'])}<br>
         <b>FO1:</b> {escenario_optimo['FO1']:,.4f}<br>
         <b>FO2:</b> {escenario_optimo['FO2']:,.4f}<br>
         <b>FO_TOTAL:</b> {escenario_optimo['FO_TOTAL']:,.4f}<br>
@@ -888,7 +933,19 @@ def mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_opti
     </div>
     """))
 
-    display(HTML("<h3>Coordenadas exactas de las fábricas del escenario óptimo</h3>"))
+    display(HTML("<h2>Mayor valor de la función objetivo entre todos los escenarios</h2>"))
+    display(HTML(f"""
+    <div style="background:#fff1f2; border:1px solid #fecdd3; padding:14px; border-radius:8px;">
+        <b>Escenario con mayor FO_TOTAL:</b> {int(escenario_mayor_fo['escenario'])}<br>
+        <b>FO1:</b> {escenario_mayor_fo['FO1']:,.4f}<br>
+        <b>FO2:</b> {escenario_mayor_fo['FO2']:,.4f}<br>
+        <b>FO_TOTAL máximo:</b> {escenario_mayor_fo['FO_TOTAL']:,.4f}<br>
+        <b>Mayor FO individual dentro de ese escenario:</b> {escenario_mayor_fo['mayor_FO_individual_escenario']:,.4f}<br>
+        Esta salida responde explícitamente al requisito de determinar el mayor valor de la función objetivo.
+    </div>
+    """))
+
+    display(HTML("<h3>Coordenadas exactas de las fábricas del mejor escenario encontrado</h3>"))
     display(construir_tabla_fabricas(detalle_optimo))
 
 
@@ -941,13 +998,13 @@ def graficar_escenario_optimo_global(
     tabla_resultados: pd.DataFrame
 ) -> None:
     """
-    Genera una gráfica independiente y explícita del escenario óptimo global.
+    Genera una gráfica independiente y explícita del mejor escenario encontrado.
 
     Esta salida responde directamente a la sección 7.4 del documento: no depende
-    de que el escenario óptimo aparezca dentro de las gráficas de los N mejores,
+    de que el mejor escenario aparezca dentro de las gráficas de los N mejores,
     sino que se muestra como resultado propio del modelo.
     """
-    display(HTML("<h2>Gráfica independiente del escenario óptimo global</h2>"))
+    display(HTML("<h2>Gráfica independiente del mejor escenario encontrado</h2>"))
     display(HTML("""
     <div style="background:#ecfdf3; border:1px solid #b7ebc6; padding:12px; border-radius:8px; margin-bottom:12px;">
         Esta gráfica muestra de forma separada la configuración con menor FO_TOTAL
@@ -958,7 +1015,7 @@ def graficar_escenario_optimo_global(
         vertices_ordenados,
         puntos_demanda,
         detalle_optimo,
-        "Escenario óptimo global",
+        "Mejor escenario encontrado",
         tabla_resultados
     )
 
@@ -1014,10 +1071,11 @@ def ejecutar_simulacion_con_parametros(parametros: Dict[str, Any]) -> Dict[str, 
         demanda_total=float(parametros["demanda_total"]),
         num_escenarios=int(parametros["num_escenarios"]),
         n_mejores_peores=int(parametros["n_mejores_peores"]),
-        mostrar_progreso=bool(parametros["mostrar_progreso"])
+        mostrar_progreso=bool(parametros["mostrar_progreso"]),
+        semilla=parsear_semilla(parametros.get("semilla", 42))
     )
 
-    mejores, peores, escenario_optimo = obtener_mejores_y_peores(
+    mejores, peores, escenario_optimo, escenario_mayor_fo = obtener_mejores_y_peores(
         tabla_resultados,
         int(parametros["n_mejores_peores"])
     )
@@ -1030,7 +1088,7 @@ def ejecutar_simulacion_con_parametros(parametros: Dict[str, Any]) -> Dict[str, 
     fin = time.perf_counter()
     tiempo_total = fin - inicio
 
-    mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_optimo, detalle_optimo)
+    mostrar_resumen_resultados(tabla_resultados, mejores, peores, escenario_optimo, escenario_mayor_fo, detalle_optimo)
 
     display(HTML(f"""
     <h2>Tiempo de ejecución</h2>
@@ -1063,6 +1121,7 @@ def ejecutar_simulacion_con_parametros(parametros: Dict[str, Any]) -> Dict[str, 
         "mejores": mejores,
         "peores": peores,
         "escenario_optimo": escenario_optimo,
+        "escenario_mayor_fo": escenario_mayor_fo,
         "detalle_optimo": detalle_optimo,
         "tiempo_total": tiempo_total
     }
@@ -1139,6 +1198,14 @@ def mostrar_formulario_interactivo():
         style=estilo
     )
 
+    semilla_w = widgets.Text(
+        value=str(PARAMETROS_DEFAULT["semilla"]),
+        description="Semilla aleatoria:",
+        placeholder="42 para reproducible o None para aleatoria",
+        layout=ancho,
+        style=estilo
+    )
+
 
     progreso_w = widgets.Checkbox(
         value=PARAMETROS_DEFAULT["mostrar_progreso"],
@@ -1167,6 +1234,7 @@ def mostrar_formulario_interactivo():
                     "demanda_total": float(demanda_w.value),
                     "num_escenarios": int(escenarios_w.value),
                     "n_mejores_peores": int(n_w.value),
+                    "semilla": parsear_semilla(semilla_w.value),
                     "mostrar_progreso": bool(progreso_w.value)
                 }
 
@@ -1195,6 +1263,7 @@ def mostrar_formulario_interactivo():
         demanda_w,
         escenarios_w,
         n_w,
+        semilla_w,
         progreso_w,
         boton,
         salida
